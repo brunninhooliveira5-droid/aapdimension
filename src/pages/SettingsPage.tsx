@@ -2,8 +2,10 @@ import { User, Bell, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useAuth, roleLabels } from "@/contexts/AuthContext";
 
 const SettingsPage = () => {
+  const { user } = useAuth();
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
       <div>
@@ -18,9 +20,9 @@ const SettingsPage = () => {
           <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Perfil</h3>
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><p className="text-muted-foreground text-xs">Nome</p><p className="text-foreground font-medium">João Costa</p></div>
-          <div><p className="text-muted-foreground text-xs">E-mail</p><p className="text-foreground font-medium">joao@empresa.com.br</p></div>
-          <div><p className="text-muted-foreground text-xs">Perfil</p><p className="text-foreground font-medium">Administrador</p></div>
+          <div><p className="text-muted-foreground text-xs">Nome</p><p className="text-foreground font-medium">{user?.name ?? "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">E-mail</p><p className="text-foreground font-medium">{user?.email ?? "—"}</p></div>
+          <div><p className="text-muted-foreground text-xs">Perfil</p><p className="text-foreground font-medium">{user ? roleLabels[user.role] : "—"}</p></div>
           <div><p className="text-muted-foreground text-xs">Empresa</p><p className="text-foreground font-medium">Metalúrgica Costa Ltda</p></div>
         </div>
       </div>

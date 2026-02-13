@@ -22,6 +22,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RoleGate({ section, children }: { section: string; children: React.ReactNode }) {
+  const { hasAccess } = useAuth();
+  if (!hasAccess(section)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
   return (
@@ -29,11 +35,11 @@ const AppRoutes = () => {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Index />} />
-        <Route path="/maquinas" element={<Machines />} />
-        <Route path="/suporte" element={<Support />} />
-        <Route path="/manutencao" element={<Maintenance />} />
-        <Route path="/financeiro" element={<Financial />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
+        <Route path="/maquinas" element={<RoleGate section="maquinas"><Machines /></RoleGate>} />
+        <Route path="/suporte" element={<RoleGate section="suporte"><Support /></RoleGate>} />
+        <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
+        <Route path="/financeiro" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
+        <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
