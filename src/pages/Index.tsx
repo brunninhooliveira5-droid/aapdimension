@@ -2,6 +2,7 @@ import { Cpu, DollarSign, Calendar, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { machines, financialSummary, maintenances, tickets } from "@/data/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useAuth } from "@/contexts/AuthContext";
 import heroWelcome from "@/assets/hero-welcome.png";
 
 const activeMachines = machines.filter(m => m.status === "active").length;
@@ -9,6 +10,8 @@ const nextMaintenance = maintenances.find(m => m.status === "agendada");
 const openTickets = tickets.filter(t => t.status !== "resolvido");
 
 const Index = () => {
+  const { user } = useAuth();
+  const firstName = user?.name?.split(" ")[0] ?? "Usuário";
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
@@ -17,7 +20,7 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center px-6">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Olá, João</h1>
+            <h1 className="text-2xl font-bold text-foreground">Olá, {firstName}</h1>
             <p className="text-sm text-muted-foreground mt-1">Bem-vindo ao portal Dimension CNC</p>
           </div>
         </div>
