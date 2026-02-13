@@ -2,7 +2,7 @@ import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut } from "l
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, roleLabels } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -12,17 +12,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Home", url: "/", icon: Home },
-  { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu },
-  { title: "Suporte", url: "/suporte", icon: Headphones },
-  { title: "Manutenção", url: "/manutencao", icon: Calendar },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Home", url: "/", icon: Home, section: "home" },
+  { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
+  { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
+  { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, section: "financeiro" },
+  { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
 ];
 
 export function AppSidebar() {
@@ -30,12 +29,14 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, logout } = useAuth();
+  const { user, logout, hasAccess } = useAuth();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  const visibleItems = menuItems.filter((item) => hasAccess(item.section));
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -54,7 +55,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive = item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -80,7 +81,7 @@ export function AppSidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{user.role}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{roleLabels[user.role]}</p>
             </div>
           </div>
         )}
