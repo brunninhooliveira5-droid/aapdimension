@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Cpu, DollarSign, Calendar, AlertTriangle, Database } from "lucide-react";
+import { Cpu, DollarSign, Calendar, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { machines, financialSummary, maintenances, tickets } from "@/data/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import heroWelcome from "@/assets/hero-welcome.png";
 
 const activeMachines = machines.filter(m => m.status === "active").length;
@@ -15,15 +13,8 @@ const openTickets = tickets.filter(t => t.status !== "resolvido");
 const Index = () => {
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] ?? "Usuário";
-  const isAdmin = user?.role === "admin_master";
-  const [totalMachines, setTotalMachines] = useState<number>(0);
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    supabase.from("machines").select("id", { count: "exact", head: true }).then(({ count }) => {
-      setTotalMachines(count ?? 0);
-    });
-  }, [isAdmin]);
+
   const navigate = useNavigate();
   return (
     <div className="space-y-6 animate-fade-in">
@@ -39,18 +30,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Admin Card */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Máquinas Cadastradas"
-            value={totalMachines}
-            subtitle="Total no sistema"
-            icon={Database}
-            variant="highlight"
-          />
-        </div>
-      )}
+
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
