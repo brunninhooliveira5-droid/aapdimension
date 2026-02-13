@@ -1,4 +1,4 @@
-import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut, Users } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -22,6 +22,7 @@ const menuItems = [
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, section: "financeiro" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
+  { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
 ];
 
 export function AppSidebar() {
