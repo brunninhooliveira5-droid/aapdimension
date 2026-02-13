@@ -2,7 +2,7 @@ import { Cpu, DollarSign, Calendar, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { machines, financialSummary, maintenances, tickets } from "@/data/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
-import heroCnc from "@/assets/hero-cnc.jpg";
+import heroWelcome from "@/assets/hero-welcome.png";
 
 const activeMachines = machines.filter(m => m.status === "active").length;
 const nextMaintenance = maintenances.find(m => m.status === "agendada");
@@ -13,7 +13,7 @@ const Index = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
       <div className="relative rounded-lg overflow-hidden h-40">
-        <img src={heroCnc} alt="CNC Machine" className="w-full h-full object-cover" />
+        <img src={heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center px-6">
           <div>
