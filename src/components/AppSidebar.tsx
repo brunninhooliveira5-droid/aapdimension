@@ -32,8 +32,8 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { user, logout, hasAccess } = useAuth();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 

@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "operador" | "financeiro" | "admin_master";
+export type UserRole = "admin_master" | "admin" | "operador" | "financeiro";
 
 export const roleLabels: Record<UserRole, string> = {
   admin_master: "Administrador Master",
@@ -9,27 +11,6 @@ export const roleLabels: Record<UserRole, string> = {
   financeiro: "Financeiro",
 };
 
-interface User {
-  name: string;
-  email: string;
-  role: UserRole;
-  initials: string;
-}
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null;
-  login: (email: string) => void;
-  logout: () => void;
-  hasAccess: (section: string) => boolean;
-}
-
-/**
- * Defines which menu sections each role can access.
- * - admin_master / admin: full access
- * - operador: no financial
- * - financeiro: only home + financial + settings
- */
 const rolePermissions: Record<UserRole, string[]> = {
   admin_master: ["home", "maquinas", "suporte", "manutencao", "financeiro", "configuracoes", "usuarios"],
   admin: ["home", "maquinas", "suporte", "manutencao", "financeiro", "configuracoes"],
@@ -37,39 +18,108 @@ const rolePermissions: Record<UserRole, string[]> = {
   financeiro: ["home", "financeiro", "configuracoes"],
 };
 
-/** Map of known emails to their user profiles (mock) */
-const knownUsers: Record<string, User> = {
-  "dimension_cnc@hotmail.com": {
-    name: "Dimension CNC",
-    email: "dimension_cnc@hotmail.com",
-    role: "admin_master",
-    initials: "DC",
-  },
-};
+interface Profile {
+  name: string;
+  email: string;
+  initials: string;
+  company: string;
+  role: UserRole;
+}
+
+interface AuthContextType {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  user: Profile | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ error: string | null }>;
+  signup: (email: string, password: string, name: string, role?: UserRole) => Promise<{ error: string | null }>;
+  logout: () => Promise<void>;
+  hasAccess: (section: string) => boolean;
+}
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (email: string) => {
-    const lower = email.toLowerCase();
-    const known = knownUsers[lower];
-    setIsAuthenticated(true);
-    setUser(
-      known ?? {
-        name: "João Costa",
-        email: lower,
-        role: "admin",
-        initials: "JC",
-      }
-    );
+  const fetchProfile = async (userId: string, email: string) => {
+    // Fetch profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    // Fetch role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+
+    const role = (roleData?.role as UserRole) ?? "operador";
+
+    setUser({
+      name: profile?.name ?? email.split("@")[0],
+      email: profile?.email ?? email,
+      initials: profile?.initials ?? email.substring(0, 2).toUpperCase(),
+      company: profile?.company ?? "",
+      role,
+    });
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
+  useEffect(() => {
+    // Set up auth listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
+        if (newSession?.user) {
+          // Use setTimeout to avoid potential deadlock with Supabase client
+          setTimeout(() => {
+            fetchProfile(newSession.user.id, newSession.user.email ?? "");
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      if (existingSession?.user) {
+        fetchProfile(existingSession.user.id, existingSession.user.email ?? "");
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  };
+
+  const signup = async (email: string, password: string, name: string, role?: UserRole) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { name, role: role ?? "operador" },
+      },
+    });
+    return { error: error?.message ?? null };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
   };
 
   const hasAccess = (section: string): boolean => {
@@ -78,7 +128,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, hasAccess }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: !!session,
+        isLoading,
+        user,
+        session,
+        login,
+        signup,
+        logout,
+        hasAccess,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

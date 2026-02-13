@@ -4,31 +4,48 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
 import heroCnc from "@/assets/hero-cnc.jpg";
-import { Mail, ArrowRight, ShieldCheck } from "lucide-react";
+import { Mail, ArrowRight, Lock, UserPlus, LogIn } from "lucide-react";
 
 const Login = () => {
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const { login } = useAuth();
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
 
-  const handleSendCode = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    toast.success(`Código enviado para ${email}`);
-    setStep("otp");
-  };
+    if (!email || !password) return;
+    setLoading(true);
 
-  const handleVerifyOtp = () => {
-    if (otp.length < 6) return;
-    login(email);
-    toast.success("Login realizado com sucesso!");
-    navigate("/");
+    if (mode === "login") {
+      const { error } = await login(email, password);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success("Login realizado com sucesso!");
+        navigate("/");
+      }
+    } else {
+      if (!name) {
+        toast.error("Informe seu nome");
+        setLoading(false);
+        return;
+      }
+      const { error } = await signup(email, password, name);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success("Conta criada com sucesso! Você já está logado.");
+        navigate("/");
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -52,64 +69,78 @@ const Login = () => {
             <img src={dimensionLogo} alt="Dimension CNC" className="h-14 w-auto" />
             <div className="text-center">
               <h1 className="text-xl font-bold text-foreground">
-                {step === "email" ? "Acesse sua conta" : "Verificação"}
+                {mode === "login" ? "Acesse sua conta" : "Criar conta"}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {step === "email"
-                  ? "Digite seu e-mail cadastrado"
-                  : `Insira o código enviado para ${email}`}
+                {mode === "login"
+                  ? "Entre com seu e-mail e senha"
+                  : "Preencha os dados para criar sua conta"}
               </p>
             </div>
           </div>
 
-          {step === "email" ? (
-            <form onSubmit={handleSendCode} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
               <div className="space-y-2">
-                <Label className="text-foreground">E-mail</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="seu@email.com.br"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="pl-10 bg-accent border-border"
-                    required
-                  />
-                </div>
+                <Label className="text-foreground">Nome</Label>
+                <Input
+                  type="text"
+                  placeholder="Seu nome completo"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-accent border-border"
+                  required
+                />
               </div>
-              <Button type="submit" className="w-full gap-2">
-                Enviar Código <ArrowRight className="w-4 h-4" />
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-                  <ShieldCheck className="w-6 h-6 text-primary" />
-                </div>
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} className="bg-accent border-border" />
-                    <InputOTPSlot index={1} className="bg-accent border-border" />
-                    <InputOTPSlot index={2} className="bg-accent border-border" />
-                    <InputOTPSlot index={3} className="bg-accent border-border" />
-                    <InputOTPSlot index={4} className="bg-accent border-border" />
-                    <InputOTPSlot index={5} className="bg-accent border-border" />
-                  </InputOTPGroup>
-                </InputOTP>
+            )}
+            <div className="space-y-2">
+              <Label className="text-foreground">E-mail</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="seu@email.com.br"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 bg-accent border-border"
+                  required
+                />
               </div>
-              <Button onClick={handleVerifyOtp} className="w-full gap-2" disabled={otp.length < 6}>
-                Verificar <ShieldCheck className="w-4 h-4" />
-              </Button>
-              <button
-                onClick={() => setStep("email")}
-                className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Voltar para o e-mail
-              </button>
             </div>
-          )}
+            <div className="space-y-2">
+              <Label className="text-foreground">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 bg-accent border-border"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full gap-2" disabled={loading}>
+              {loading ? (
+                "Carregando..."
+              ) : mode === "login" ? (
+                <>Entrar <LogIn className="w-4 h-4" /></>
+              ) : (
+                <>Criar Conta <UserPlus className="w-4 h-4" /></>
+              )}
+            </Button>
+          </form>
+
+          <button
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {mode === "login"
+              ? "Não tem conta? Criar uma conta"
+              : "Já tem conta? Fazer login"}
+          </button>
 
           <p className="text-[10px] text-center text-muted-foreground">
             Acesso exclusivo para clientes Dimension CNC
