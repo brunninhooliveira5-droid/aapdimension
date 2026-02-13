@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
-import heroCnc from "@/assets/hero-cnc.jpg";
+import heroCnc from "@/assets/hero-cnc.png";
 import { Mail, ArrowRight, Lock, UserPlus, LogIn } from "lucide-react";
 
 const Login = () => {
