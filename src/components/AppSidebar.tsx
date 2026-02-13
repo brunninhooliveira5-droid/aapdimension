@@ -1,6 +1,7 @@
 import { Home, Cpu, Headphones, Calendar, DollarSign, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import dimensionLogo from "@/assets/dimension-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -29,22 +30,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <div className="flex items-center gap-2 px-4 py-5 border-b border-sidebar-border">
+      <div className="flex items-center gap-2 px-4 py-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-2 animate-fade-in">
-            <div className="w-8 h-8 rounded gradient-amber flex items-center justify-center">
-              <span className="font-mono text-sm font-bold text-primary-foreground">D</span>
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-sidebar-accent-foreground">Dimension</h2>
-              <p className="text-[10px] font-mono text-muted-foreground tracking-widest">CNC</p>
-            </div>
+            <img src={dimensionLogo} alt="Dimension CNC" className="h-8 w-auto" />
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded gradient-amber flex items-center justify-center mx-auto">
-            <span className="font-mono text-sm font-bold text-primary-foreground">D</span>
-          </div>
+          <img src={dimensionLogo} alt="Dimension CNC" className="h-7 w-auto mx-auto" />
         )}
       </div>
 
