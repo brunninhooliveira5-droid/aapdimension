@@ -69,7 +69,7 @@ const Index = () => {
         />
         <div
           className="cursor-pointer transition-transform hover:scale-[1.02]"
-          onClick={() => navigate("/maintenance")}
+          onClick={() => navigate("/manutencao")}
         >
           <StatCard
             title="Próxima Manutenção"
