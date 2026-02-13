@@ -15,8 +15,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthContextType["user"]>(null);
 
   const login = (email: string) => {
+    const isAdmin = email.toLowerCase() === "dimension_cnc@hotmail.com";
     setIsAuthenticated(true);
-    setUser({ name: "João Costa", email, role: "Administrador", initials: "JC" });
+    setUser({
+      name: isAdmin ? "Dimension CNC" : "João Costa",
+      email,
+      role: isAdmin ? "Administrador Master" : "Administrador",
+      initials: isAdmin ? "DC" : "JC",
+    });
   };
 
   const logout = () => {
