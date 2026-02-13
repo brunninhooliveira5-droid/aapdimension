@@ -48,7 +48,7 @@ function MaintenanceCard({ maintenance }: { maintenance: typeof maintenances[0] 
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground">{maintenance.machineName}</p>
-        <p className="text-xs text-muted-foreground">{maintenance.type}</p>
+        <p className="text-xs text-muted-foreground">{maintenance.type} • {maintenance.userName}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <div className="flex items-center gap-1 text-xs text-muted-foreground">

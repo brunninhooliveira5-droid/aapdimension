@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Cpu, DollarSign, Calendar, AlertTriangle, Database } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { machines, financialSummary, maintenances, tickets } from "@/data/mockData";
@@ -23,6 +24,7 @@ const Index = () => {
       setTotalMachines(count ?? 0);
     });
   }, [isAdmin]);
+  const navigate = useNavigate();
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
@@ -65,12 +67,17 @@ const Index = () => {
           subtitle={`Vence em ${new Date(financialSummary.nextDueDate).toLocaleDateString("pt-BR")}`}
           icon={DollarSign}
         />
-        <StatCard
-          title="Próxima Manutenção"
-          value={nextMaintenance ? new Date(nextMaintenance.date).toLocaleDateString("pt-BR") : "—"}
-          subtitle={nextMaintenance?.machineName}
-          icon={Calendar}
-        />
+        <div
+          className="cursor-pointer transition-transform hover:scale-[1.02]"
+          onClick={() => navigate("/maintenance")}
+        >
+          <StatCard
+            title="Próxima Manutenção"
+            value={nextMaintenance ? new Date(nextMaintenance.date).toLocaleDateString("pt-BR") : "—"}
+            subtitle={nextMaintenance ? `${nextMaintenance.machineName} • ${nextMaintenance.userName}` : undefined}
+            icon={Calendar}
+          />
+        </div>
         <StatCard
           title="Chamados Abertos"
           value={openTickets.length}

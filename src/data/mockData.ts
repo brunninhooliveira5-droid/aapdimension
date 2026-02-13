@@ -23,6 +23,7 @@ export interface Maintenance {
   id: string;
   machineId: string;
   machineName: string;
+  userName: string;
   type: string;
   date: string;
   status: "agendada" | "realizada";
@@ -49,10 +50,10 @@ export const tickets: Ticket[] = [
 ];
 
 export const maintenances: Maintenance[] = [
-  { id: "M-001", machineId: "1", machineName: "Dimension 3015", type: "Preventiva", date: "2026-02-20", status: "agendada" },
-  { id: "M-002", machineId: "2", machineName: "Dimension 2010", type: "Calibração", date: "2026-03-05", status: "agendada" },
-  { id: "M-003", machineId: "3", machineName: "Dimension 4020", type: "Preventiva", date: "2026-01-15", status: "realizada" },
-  { id: "M-004", machineId: "1", machineName: "Dimension 3015", type: "Corretiva", date: "2025-12-20", status: "realizada" },
+  { id: "M-001", machineId: "1", machineName: "Dimension 3015", userName: "João Silva", type: "Preventiva", date: "2026-02-20", status: "agendada" },
+  { id: "M-002", machineId: "2", machineName: "Dimension 2010", userName: "Carlos Mendes", type: "Calibração", date: "2026-03-05", status: "agendada" },
+  { id: "M-003", machineId: "3", machineName: "Dimension 4020", userName: "João Silva", type: "Preventiva", date: "2026-01-15", status: "realizada" },
+  { id: "M-004", machineId: "1", machineName: "Dimension 3015", userName: "Ana Costa", type: "Corretiva", date: "2025-12-20", status: "realizada" },
 ];
 
 export const invoices: Invoice[] = [
