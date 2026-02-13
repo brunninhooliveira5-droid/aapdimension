@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 export type UserRole = "admin_master" | "admin" | "operador" | "financeiro";
 
@@ -24,6 +25,15 @@ interface Profile {
   initials: string;
   company: string;
   role: UserRole;
+  approved: boolean;
+}
+
+interface SignupExtra {
+  company: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
 }
 
 interface AuthContextType {
@@ -32,7 +42,7 @@ interface AuthContextType {
   user: Profile | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
-  signup: (email: string, password: string, name: string, role?: UserRole) => Promise<{ error: string | null }>;
+  signup: (email: string, password: string, name: string, role?: UserRole, extra?: SignupExtra) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   hasAccess: (section: string) => boolean;
 }
@@ -44,15 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, email: string) => {
-    // Fetch profile
+  const fetchProfile = async (userId: string, email: string): Promise<Profile | null> => {
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
 
-    // Fetch role
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -60,38 +68,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     const role = (roleData?.role as UserRole) ?? "operador";
+    const approved = (profile as any)?.approved ?? false;
 
-    setUser({
+    const p: Profile = {
       name: profile?.name ?? email.split("@")[0],
       email: profile?.email ?? email,
       initials: profile?.initials ?? email.substring(0, 2).toUpperCase(),
       company: profile?.company ?? "",
       role,
-    });
+      approved,
+    };
+
+    return p;
   };
 
   useEffect(() => {
-    // Set up auth listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         setSession(newSession);
         if (newSession?.user) {
-          // Use setTimeout to avoid potential deadlock with Supabase client
-          setTimeout(() => {
-            fetchProfile(newSession.user.id, newSession.user.email ?? "");
+          setTimeout(async () => {
+            const p = await fetchProfile(newSession.user.id, newSession.user.email ?? "");
+            if (p && !p.approved && p.role !== "admin_master") {
+              toast.error("Seu cadastro ainda não foi aprovado pelo administrador.", { duration: 5000 });
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+            } else {
+              setUser(p);
+            }
+            setIsLoading(false);
           }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
-    // THEN check existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
       setSession(existingSession);
       if (existingSession?.user) {
-        fetchProfile(existingSession.user.id, existingSession.user.email ?? "");
+        const p = await fetchProfile(existingSession.user.id, existingSession.user.email ?? "");
+        if (p && !p.approved && p.role !== "admin_master") {
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+        } else {
+          setUser(p);
+        }
       }
       setIsLoading(false);
     });
@@ -101,19 +126,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    if (error) return { error: error.message };
+
+    // The onAuthStateChange will handle the approval check
+    return { error: null };
   };
 
-  const signup = async (email: string, password: string, name: string, role?: UserRole) => {
+  const signup = async (email: string, password: string, name: string, role?: UserRole, extra?: SignupExtra) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { name, role: role ?? "operador" },
+        data: {
+          name,
+          role: role ?? "operador",
+          company: extra?.company ?? "",
+          address: extra?.address ?? "",
+          city: extra?.city ?? "",
+          state: extra?.state ?? "",
+          zip_code: extra?.zip_code ?? "",
+        },
       },
     });
-    return { error: error?.message ?? null };
+    if (error) return { error: error.message };
+
+    // Sign out immediately — user must wait for approval
+    await supabase.auth.signOut();
+    return { error: null };
   };
 
   const logout = async () => {
@@ -130,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        isAuthenticated: !!session,
+        isAuthenticated: !!session && !!user,
         isLoading,
         user,
         session,

@@ -7,13 +7,18 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
 import heroCnc from "@/assets/hero-cnc.png";
-import { Mail, ArrowRight, Lock, UserPlus, LogIn } from "lucide-react";
+import { Mail, ArrowRight, Lock, UserPlus, LogIn, Building2, MapPin } from "lucide-react";
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -28,21 +33,36 @@ const Login = () => {
       if (error) {
         toast.error(error);
       } else {
-        toast.success("Login realizado com sucesso!");
         navigate("/");
       }
     } else {
-      if (!name) {
-        toast.error("Informe seu nome");
+      if (!name || !company) {
+        toast.error("Preencha todos os campos obrigatórios");
         setLoading(false);
         return;
       }
-      const { error } = await signup(email, password, name);
+      const { error } = await signup(email, password, name, undefined, {
+        company,
+        address,
+        city,
+        state,
+        zip_code: zipCode,
+      });
       if (error) {
         toast.error(error);
       } else {
-        toast.success("Conta criada com sucesso! Você já está logado.");
-        navigate("/");
+        toast.success(
+          "Cadastro realizado! Aguarde a aprovação do administrador para acessar o portal.",
+          { duration: 6000 }
+        );
+        setMode("login");
+        setName("");
+        setCompany("");
+        setAddress("");
+        setCity("");
+        setState("");
+        setZipCode("");
+        setPassword("");
       }
     }
     setLoading(false);
@@ -63,7 +83,7 @@ const Login = () => {
       </div>
 
       {/* Right - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background overflow-y-auto">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex flex-col items-center gap-4">
             <img src={dimensionLogo} alt="Dimension CNC" className="h-14 w-auto" />
@@ -74,27 +94,90 @@ const Login = () => {
               <p className="text-sm text-muted-foreground mt-1">
                 {mode === "login"
                   ? "Entre com seu e-mail e senha"
-                  : "Preencha os dados para criar sua conta"}
+                  : "Preencha os dados para solicitar acesso"}
               </p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
-              <div className="space-y-2">
-                <Label className="text-foreground">Nome</Label>
-                <Input
-                  type="text"
-                  placeholder="Seu nome completo"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-accent border-border"
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Nome Completo *</Label>
+                  <Input
+                    type="text"
+                    placeholder="Seu nome completo"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-accent border-border"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Nome da Empresa *</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Razão social ou nome fantasia"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className="pl-10 bg-accent border-border"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Endereço</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Rua, número, complemento"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="pl-10 bg-accent border-border"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Cidade</Label>
+                    <Input
+                      type="text"
+                      placeholder="Cidade"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="bg-accent border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Estado</Label>
+                    <Input
+                      type="text"
+                      placeholder="UF"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className="bg-accent border-border"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">CEP</Label>
+                  <Input
+                    type="text"
+                    placeholder="00000-000"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    className="bg-accent border-border"
+                    maxLength={9}
+                  />
+                </div>
+              </>
             )}
             <div className="space-y-2">
-              <Label className="text-foreground">E-mail</Label>
+              <Label className="text-foreground">E-mail *</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -108,7 +191,7 @@ const Login = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Senha</Label>
+              <Label className="text-foreground">Senha *</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -128,7 +211,7 @@ const Login = () => {
               ) : mode === "login" ? (
                 <>Entrar <LogIn className="w-4 h-4" /></>
               ) : (
-                <>Criar Conta <UserPlus className="w-4 h-4" /></>
+                <>Solicitar Cadastro <UserPlus className="w-4 h-4" /></>
               )}
             </Button>
           </form>
@@ -138,7 +221,7 @@ const Login = () => {
             className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {mode === "login"
-              ? "Não tem conta? Criar uma conta"
+              ? "Não tem conta? Solicitar acesso"
               : "Já tem conta? Fazer login"}
           </button>
 
