@@ -14,16 +14,251 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      financial_summary: {
+        Row: {
+          id: string
+          next_due_date: string | null
+          total_contracted: number
+          total_open: number
+          total_overdue: number
+          total_paid: number
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          next_due_date?: string | null
+          total_contracted?: number
+          total_open?: number
+          total_overdue?: number
+          total_paid?: number
+          user_id: string
+        }
+        Update: {
+          id?: string
+          next_due_date?: string | null
+          total_contracted?: number
+          total_open?: number
+          total_overdue?: number
+          total_paid?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          installment: number
+          status: string
+          total_installments: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          installment: number
+          status?: string
+          total_installments: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment?: number
+          status?: string
+          total_installments?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      machines: {
+        Row: {
+          accessories: string[] | null
+          created_at: string
+          id: string
+          install_date: string
+          model: string
+          owner_id: string
+          serial_number: string
+          status: string
+        }
+        Insert: {
+          accessories?: string[] | null
+          created_at?: string
+          id?: string
+          install_date?: string
+          model: string
+          owner_id: string
+          serial_number: string
+          status?: string
+        }
+        Update: {
+          accessories?: string[] | null
+          created_at?: string
+          id?: string
+          install_date?: string
+          model?: string
+          owner_id?: string
+          serial_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      maintenances: {
+        Row: {
+          created_at: string
+          id: string
+          machine_id: string
+          notes: string | null
+          scheduled_date: string
+          status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          machine_id: string
+          notes?: string | null
+          scheduled_date: string
+          status?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          machine_id?: string
+          notes?: string | null
+          scheduled_date?: string
+          status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenances_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          initials: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          id: string
+          initials?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          initials?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          machine_id: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          machine_id: string
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          machine_id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin_master" | "admin" | "operador" | "financeiro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +385,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin_master", "admin", "operador", "financeiro"],
+    },
   },
 } as const
