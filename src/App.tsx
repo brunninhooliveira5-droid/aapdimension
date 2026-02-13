@@ -12,6 +12,7 @@ import Maintenance from "./pages/Maintenance";
 import Financial from "./pages/Financial";
 import SettingsPage from "./pages/SettingsPage";
 import Login from "./pages/Login";
+import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const AppRoutes = () => {
         <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
         <Route path="/financeiro" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
+        <Route path="/usuarios" element={<RoleGate section="usuarios"><UsersPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

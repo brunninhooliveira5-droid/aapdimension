@@ -31,7 +31,7 @@ interface AuthContextType {
  * - financeiro: only home + financial + settings
  */
 const rolePermissions: Record<UserRole, string[]> = {
-  admin_master: ["home", "maquinas", "suporte", "manutencao", "financeiro", "configuracoes"],
+  admin_master: ["home", "maquinas", "suporte", "manutencao", "financeiro", "configuracoes", "usuarios"],
   admin: ["home", "maquinas", "suporte", "manutencao", "financeiro", "configuracoes"],
   operador: ["home", "maquinas", "suporte", "manutencao", "configuracoes"],
   financeiro: ["home", "financeiro", "configuracoes"],
