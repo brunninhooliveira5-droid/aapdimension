@@ -1,7 +1,9 @@
-import { Home, Cpu, Headphones, Calendar, DollarSign, Settings } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -25,8 +27,15 @@ const menuItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -63,18 +72,28 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <div className="mt-auto p-3 border-t border-sidebar-border">
-        {!collapsed && (
+      <div className="mt-auto p-3 border-t border-sidebar-border space-y-2">
+        {!collapsed && user && (
           <div className="flex items-center gap-2 px-2 animate-fade-in">
             <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center">
-              <span className="text-xs font-medium text-accent-foreground">JC</span>
+              <span className="text-xs font-medium text-accent-foreground">{user.initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">João Costa</p>
-              <p className="text-[10px] text-muted-foreground truncate">Administrador</p>
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user.role}</p>
             </div>
           </div>
         )}
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          onClick={handleLogout}
+          className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 justify-start"
+          title="Sair"
+        >
+          <LogOut className="w-4 h-4" />
+          {!collapsed && <span className="text-xs">Sair</span>}
+        </Button>
       </div>
     </Sidebar>
   );
