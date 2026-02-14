@@ -77,6 +77,41 @@ export type Database = {
         }
         Relationships: []
       }
+      machine_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          machine_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          machine_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          machine_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_files_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           accessories: string[] | null
@@ -84,6 +119,7 @@ export type Database = {
           id: string
           install_date: string
           model: string
+          name: string
           owner_id: string
           serial_number: string
           status: string
@@ -94,6 +130,7 @@ export type Database = {
           id?: string
           install_date?: string
           model: string
+          name?: string
           owner_id: string
           serial_number: string
           status?: string
@@ -104,6 +141,7 @@ export type Database = {
           id?: string
           install_date?: string
           model?: string
+          name?: string
           owner_id?: string
           serial_number?: string
           status?: string

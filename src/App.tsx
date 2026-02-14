@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Machines from "./pages/Machines";
+import MachineDashboard from "./pages/MachineDashboard";
 import Support from "./pages/Support";
 import Maintenance from "./pages/Maintenance";
 import Financial from "./pages/Financial";
@@ -43,6 +44,7 @@ const AppRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/dashboard/:userId" element={<RoleGate section="usuarios"><Index /></RoleGate>} />
         <Route path="/maquinas" element={<RoleGate section="maquinas"><Machines /></RoleGate>} />
+        <Route path="/maquinas/:machineId" element={<RoleGate section="maquinas"><MachineDashboard /></RoleGate>} />
         <Route path="/suporte" element={<RoleGate section="suporte"><Support /></RoleGate>} />
         <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
         <Route path="/financeiro" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
