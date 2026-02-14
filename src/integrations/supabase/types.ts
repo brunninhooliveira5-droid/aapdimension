@@ -350,6 +350,30 @@ export type Database = {
           },
         ]
       }
+      parts_stores: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          url?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
