@@ -371,12 +371,11 @@ const MachineDashboard = () => {
     setNewReportText("");
     setNewReportDate(new Date().toISOString().split("T")[0]);
     setShowReportDialog(true);
-    // Fetch reports for this maintenance (exclude executado - those are in history)
+    // Fetch all reports for this maintenance
     const { data } = await supabase
       .from("maintenance_reports")
       .select("*")
       .eq("maintenance_id", m.id)
-      .neq("status", "executado")
       .order("report_date", { ascending: false });
     setReports(data ?? []);
   };
@@ -429,10 +428,10 @@ const MachineDashboard = () => {
       return;
     }
     if (newStatus === "executado") {
-      // Move to history
+      // Add to history and update in reports list
       const maint = maintenances.find(m => m.id === report.maintenance_id);
       setAllExecutedReports(prev => [{ ...report, status: "executado", maintenance_type: maint?.type, maintenance_notes: maint?.notes ?? "" }, ...prev]);
-      setReports(prev => prev.filter(r => r.id !== report.id));
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: "executado" } : r));
       toast.success("Relatório movido para o histórico!");
     } else {
       // If changing back from executado, remove from history
@@ -1151,7 +1150,7 @@ const MachineDashboard = () => {
                   <p className="text-sm text-muted-foreground">Nenhum relatório registrado.</p>
                 ) : (
                   reports.map(r => (
-                    <div key={r.id} className="p-3 rounded-lg border border-border bg-accent/30 space-y-2">
+                    <div key={r.id} className={`p-3 rounded-lg border space-y-2 ${r.status === "executado" ? "border-primary/30 bg-primary/5 opacity-70" : "border-border bg-accent/30"}`}>
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-xs text-muted-foreground">{new Date(r.report_date).toLocaleDateString("pt-BR")}</span>
                         <div className="flex items-center gap-2">
@@ -1183,37 +1182,44 @@ const MachineDashboard = () => {
                         </div>
                       ) : (
                         <>
-                          <p className="text-sm text-foreground whitespace-pre-wrap cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => {
-                            setEditingReport(r);
-                            setEditReportText(r.report);
-                            setEditReportDate(r.report_date);
-                          }}>{r.report}</p>
-                          <div className="flex gap-2 pt-1">
-                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => {
+                          <p className={`text-sm whitespace-pre-wrap rounded p-1 -m-1 transition-colors ${r.status === "executado" ? "text-muted-foreground" : "text-foreground cursor-pointer hover:bg-accent/50"}`} onClick={() => {
+                            if (r.status !== "executado") {
                               setEditingReport(r);
                               setEditReportText(r.report);
                               setEditReportDate(r.report_date);
-                            }}>
-                              <Pencil className="w-3 h-3" /> Editar
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-3 h-3" /> Excluir
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-card border-border">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="text-foreground">Excluir Relatório</AlertDialogTitle>
-                                  <AlertDialogDescription>Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteReport(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                            }
+                          }}>
+                            {r.status === "executado" && <span className="text-xs text-primary font-medium">✓ No histórico — </span>}
+                            {r.report}
+                          </p>
+                          {r.status !== "executado" && (
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => {
+                                setEditingReport(r);
+                                setEditReportText(r.report);
+                                setEditReportDate(r.report_date);
+                              }}>
+                                <Pencil className="w-3 h-3" /> Editar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="w-3 h-3" /> Excluir
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-foreground">Excluir Relatório</AlertDialogTitle>
+                                    <AlertDialogDescription>Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteReport(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
