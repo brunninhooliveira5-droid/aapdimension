@@ -208,8 +208,13 @@ const Machines = () => {
             </Select>
           )}
           {user?.role === "admin_master" && (
-            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar
+            <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
+              <Plus className="w-4 h-4" /> Adicionar Máquina
+            </Button>
+          )}
+          {user?.role === "admin_master" && (
+            <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
+              <Plus className="w-4 h-4" /> Adicionar Acessório
             </Button>
           )}
         </div>
