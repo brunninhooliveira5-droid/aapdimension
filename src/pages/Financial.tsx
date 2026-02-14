@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { DollarSign, TrendingUp, Clock, AlertTriangle, Download, Plus, Upload, User, ChevronLeft, Trash2, CalendarDays } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -56,6 +56,7 @@ const Financial = () => {
   // Upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState<string | null>(null);
+  const [showOverdueDialog, setShowOverdueDialog] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -84,7 +85,8 @@ const Financial = () => {
   const totalPaid = invoices.filter(i => i.status === "pago").reduce((s, i) => s + Number(i.amount), 0);
   const totalOpen = invoices.filter(i => i.status === "em_aberto").reduce((s, i) => s + Number(i.amount), 0);
   const today = new Date().toISOString().split("T")[0];
-  const totalOverdue = invoices.filter(i => i.status === "em_aberto" && i.due_date < today).reduce((s, i) => s + Number(i.amount), 0);
+  const overdueInvoices = useMemo(() => invoices.filter(i => i.status === "em_aberto" && i.due_date < today), [invoices, today]);
+  const totalOverdue = overdueInvoices.reduce((s, i) => s + Number(i.amount), 0);
 
   const handleAddUser = async () => {
     if (!addUserId || !addAmount || !addInstallments || !addFirstDueDate) {
@@ -224,7 +226,9 @@ const Financial = () => {
         <StatCard title="Total Contratado" value={`R$ ${totalContracted.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} />
         <StatCard title="Total Pago" value={`R$ ${totalPaid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={TrendingUp} variant="highlight" />
         <StatCard title="Em Aberto" value={`R$ ${totalOpen.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Clock} variant="warning" />
-        <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
+        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
+          <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
+        </div>
       </div>
 
       {/* User list or User detail */}
@@ -433,6 +437,46 @@ const Financial = () => {
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleAddUser}>Criar Parcelas</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Overdue Dialog */}
+      <Dialog open={showOverdueDialog} onOpenChange={setShowOverdueDialog}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Parcelas em Atraso</DialogTitle>
+          </DialogHeader>
+          {overdueInvoices.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhuma parcela em atraso.</p>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {overdueInvoices.map(inv => {
+                const u = profiles.find(p => p.id === inv.user_id);
+                return (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
+                    onClick={() => { setShowOverdueDialog(false); setSelectedUserId(inv.user_id); }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">{u?.name ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Parcela {inv.installment}/{inv.total_installments} — Venc. {new Date(inv.due_date).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-destructive ml-3 shrink-0">
+                      R$ {Number(inv.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Fechar</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
