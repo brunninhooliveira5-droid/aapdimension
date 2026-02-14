@@ -86,6 +86,9 @@ const MachineDashboard = () => {
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [newReportText, setNewReportText] = useState("");
   const [newReportDate, setNewReportDate] = useState(new Date().toISOString().split("T")[0]);
+  const [editingReport, setEditingReport] = useState<ReportRow | null>(null);
+  const [editReportText, setEditReportText] = useState("");
+  const [editReportDate, setEditReportDate] = useState("");
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -336,6 +339,37 @@ const MachineDashboard = () => {
     }
     setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
     toast.success(`Status alterado para ${newStatus}.`);
+  };
+
+  const handleEditReport = async () => {
+    if (!editingReport || !editReportText.trim()) {
+      toast.error("Preencha o relatório.");
+      return;
+    }
+    const { error } = await supabase
+      .from("maintenance_reports")
+      .update({ report: editReportText, report_date: editReportDate } as any)
+      .eq("id", editingReport.id);
+    if (error) {
+      toast.error("Erro ao atualizar: " + error.message);
+      return;
+    }
+    setReports(prev => prev.map(r => r.id === editingReport.id ? { ...r, report: editReportText, report_date: editReportDate } : r));
+    setEditingReport(null);
+    toast.success("Relatório atualizado!");
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    const { error } = await supabase
+      .from("maintenance_reports")
+      .delete()
+      .eq("id", reportId);
+    if (error) {
+      toast.error("Erro ao excluir: " + error.message);
+      return;
+    }
+    setReports(prev => prev.filter(r => r.id !== reportId));
+    toast.success("Relatório excluído!");
   };
 
   const getFileUrl = (filePath: string) => {
@@ -664,7 +698,50 @@ const MachineDashboard = () => {
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{r.report}</p>
+                      {editingReport?.id === r.id ? (
+                        <div className="space-y-2">
+                          <Input type="date" value={editReportDate} onChange={e => setEditReportDate(e.target.value)} className="bg-accent border-border w-48" />
+                          <Textarea value={editReportText} onChange={e => setEditReportText(e.target.value)} className="bg-accent border-border min-h-[80px]" />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleEditReport}>Salvar</Button>
+                            <Button size="sm" variant="outline" className="border-border" onClick={() => setEditingReport(null)}>Cancelar</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-foreground whitespace-pre-wrap cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => {
+                            setEditingReport(r);
+                            setEditReportText(r.report);
+                            setEditReportDate(r.report_date);
+                          }}>{r.report}</p>
+                          <div className="flex gap-2 pt-1">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => {
+                              setEditingReport(r);
+                              setEditReportText(r.report);
+                              setEditReportDate(r.report_date);
+                            }}>
+                              <Pencil className="w-3 h-3" /> Editar
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-3 h-3" /> Excluir
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-foreground">Excluir Relatório</AlertDialogTitle>
+                                  <AlertDialogDescription>Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteReport(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))
                 )}
