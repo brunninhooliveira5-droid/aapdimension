@@ -101,7 +101,7 @@ const Login = () => {
         {/* Form Card */}
         <form
           onSubmit={handleSubmit}
-          className="w-full space-y-4 bg-[hsl(220,20%,12%)]/70 backdrop-blur-md border border-border/30 rounded-2xl p-6 shadow-2xl"
+          className="w-full space-y-4 bg-background/10 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl"
         >
           {mode === "signup" && (
             <>
@@ -213,7 +213,7 @@ const Login = () => {
           {/* Submit */}
           <Button
             type="submit"
-            className="w-full h-11 rounded-xl text-sm font-semibold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+            className="w-full h-11 rounded-xl text-sm font-semibold gap-2 bg-[hsl(220,80%,50%)] hover:bg-[hsl(220,80%,45%)] text-white shadow-lg shadow-[hsl(220,80%,50%)]/30"
             disabled={loading}
           >
             {loading ? (
