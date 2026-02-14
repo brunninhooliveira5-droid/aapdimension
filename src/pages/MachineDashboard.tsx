@@ -351,8 +351,7 @@ const MachineDashboard = () => {
     toast.success("Status da manutenção atualizado!");
   };
 
-  const handleToggleReportStatus = async (report: ReportRow) => {
-    const newStatus = report.status === "executado" ? "pendente" : "executado";
+  const handleChangeReportStatus = async (report: ReportRow, newStatus: string) => {
     const { error } = await supabase
       .from("maintenance_reports")
       .update({ status: newStatus } as any)
@@ -362,7 +361,7 @@ const MachineDashboard = () => {
       return;
     }
     setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
-    toast.success(`Status alterado para ${newStatus}.`);
+    toast.success("Status do relatório atualizado!");
   };
 
   const handleEditReport = async () => {
@@ -609,33 +608,14 @@ const MachineDashboard = () => {
               <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada.</p>
             ) : (
               maintenances.map(m => (
-                <div key={m.id} className="p-3 rounded-md bg-accent/50 space-y-2">
-                  <div className="flex items-center justify-between cursor-pointer hover:bg-accent/80 rounded transition-colors p-1 -m-1" onClick={() => openReportDialog(m)}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">{m.type}</p>
-                      {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
-                      <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
-                      <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
-                    </div>
-                    <StatusBadge status={m.status} className="ml-3 shrink-0" />
+                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{m.type}</p>
+                    {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
+                    <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-border/50" onClick={e => e.stopPropagation()}>
-                      <span className="text-xs text-muted-foreground">Status:</span>
-                      <Select value={m.status} onValueChange={(val) => handleChangeMaintenanceStatus(m.id, val)}>
-                        <SelectTrigger className="h-7 text-xs bg-accent border-border w-auto min-w-[180px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendente">Pendente</SelectItem>
-                          <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                          <SelectItem value="aguardando_agendamento">Aguardando Agendamento</SelectItem>
-                          <SelectItem value="agendada">Agendada</SelectItem>
-                          <SelectItem value="realizada">Realizada</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
                 </div>
               ))
             )}
@@ -813,18 +793,23 @@ const MachineDashboard = () => {
                 ) : (
                   reports.map(r => (
                     <div key={r.id} className="p-3 rounded-lg border border-border bg-accent/30 space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-xs text-muted-foreground">{new Date(r.report_date).toLocaleDateString("pt-BR")}</span>
                         <div className="flex items-center gap-2">
-                          {r.status === "executado" ? (
-                            <span className="text-xs font-medium text-green-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Executado</span>
+                          {isAdmin ? (
+                            <Select value={r.status} onValueChange={(val) => handleChangeReportStatus(r, val)}>
+                              <SelectTrigger className="h-7 text-xs bg-accent border-border w-auto min-w-[180px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                                <SelectItem value="aguardando_agendamento">Aguardando Agendamento</SelectItem>
+                                <SelectItem value="executado">Executado</SelectItem>
+                              </SelectContent>
+                            </Select>
                           ) : (
-                            <span className="text-xs font-medium text-yellow-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Pendente</span>
-                          )}
-                          {isAdmin && (
-                            <Button variant="outline" size="sm" className="h-6 text-xs px-2 border-border" onClick={() => handleToggleReportStatus(r)}>
-                              {r.status === "executado" ? "Marcar Pendente" : "Marcar Executado"}
-                            </Button>
+                            <StatusBadge status={r.status} />
                           )}
                         </div>
                       </div>
