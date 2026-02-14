@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,9 @@ const Machines = () => {
   const [formInstallDate, setFormInstallDate] = useState(new Date().toISOString().split("T")[0]);
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
+  const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
+
+  const filteredMachines = filterOwnerId === "todos" ? machines : machines.filter(m => m.owner_id === filterOwnerId);
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -164,20 +167,36 @@ const Machines = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Minhas Máquinas</h1>
-          <p className="text-sm text-muted-foreground mt-1">{machines.length} máquinas registradas</p>
+          <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} máquinas registradas</p>
         </div>
-        {user?.role === "admin_master" && (
-          <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Adicionar Máquina
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {user?.role === "admin_master" && (
+            <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
+              <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
+                <Filter className="w-3.5 h-3.5 mr-1.5" />
+                <SelectValue placeholder="Filtrar por usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os usuários</SelectItem>
+                {profiles.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {user?.role === "admin_master" && (
+            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Adicionar Máquina
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {machines.map(machine => (
+        {filteredMachines.map(machine => (
           <div
             key={machine.id}
             className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
