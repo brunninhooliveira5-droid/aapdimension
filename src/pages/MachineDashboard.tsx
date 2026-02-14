@@ -338,6 +338,19 @@ const MachineDashboard = () => {
     setNewReportText("");
   };
 
+  const handleChangeMaintenanceStatus = async (maintenanceId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from("maintenances")
+      .update({ status: newStatus } as any)
+      .eq("id", maintenanceId);
+    if (error) {
+      toast.error("Erro ao atualizar status: " + error.message);
+      return;
+    }
+    setMaintenances(prev => prev.map(m => m.id === maintenanceId ? { ...m, status: newStatus } : m));
+    toast.success("Status da manutenção atualizado!");
+  };
+
   const handleToggleReportStatus = async (report: ReportRow) => {
     const newStatus = report.status === "executado" ? "pendente" : "executado";
     const { error } = await supabase
@@ -596,14 +609,33 @@ const MachineDashboard = () => {
               <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada.</p>
             ) : (
               maintenances.map(m => (
-                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{m.type}</p>
-                    {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
-                    <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
-                    <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
+                <div key={m.id} className="p-3 rounded-md bg-accent/50 space-y-2">
+                  <div className="flex items-center justify-between cursor-pointer hover:bg-accent/80 rounded transition-colors p-1 -m-1" onClick={() => openReportDialog(m)}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">{m.type}</p>
+                      {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
+                      <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
+                      <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
+                    </div>
+                    <StatusBadge status={m.status} className="ml-3 shrink-0" />
                   </div>
-                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
+                  {isAdmin && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                      <span className="text-xs text-muted-foreground">Status:</span>
+                      <Select value={m.status} onValueChange={(val) => handleChangeMaintenanceStatus(m.id, val)}>
+                        <SelectTrigger className="h-7 text-xs bg-accent border-border w-auto min-w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                          <SelectItem value="aguardando_agendamento">Aguardando Agendamento</SelectItem>
+                          <SelectItem value="agendada">Agendada</SelectItem>
+                          <SelectItem value="realizada">Realizada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               ))
             )}
