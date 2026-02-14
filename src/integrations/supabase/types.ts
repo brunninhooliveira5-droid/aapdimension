@@ -163,6 +163,7 @@ export type Database = {
           initials: string
           name: string
           phone: string | null
+          rejected: boolean
           state: string | null
           updated_at: string
           zip_code: string | null
@@ -178,6 +179,7 @@ export type Database = {
           initials?: string
           name: string
           phone?: string | null
+          rejected?: boolean
           state?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -193,6 +195,7 @@ export type Database = {
           initials?: string
           name?: string
           phone?: string | null
+          rejected?: boolean
           state?: string | null
           updated_at?: string
           zip_code?: string | null

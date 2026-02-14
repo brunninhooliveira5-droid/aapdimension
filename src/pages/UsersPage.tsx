@@ -23,6 +23,7 @@ interface ManagedUser {
   phone: string;
   role: UserRole;
   approved: boolean;
+  rejected: boolean;
 }
 
 const assignableRoles: { value: UserRole; label: string }[] = [
@@ -65,6 +66,7 @@ const UsersPage = () => {
       phone: p.phone ?? "",
       role: roleMap.get(p.id) ?? "operador",
       approved: p.approved ?? false,
+      rejected: p.rejected ?? false,
     }));
 
     setUsers(mapped);
@@ -99,12 +101,12 @@ const UsersPage = () => {
   };
 
   const handleReject = async (userId: string) => {
-    await supabase.from("profiles").update({ approved: false } as any).eq("id", userId);
+    await supabase.from("profiles").update({ rejected: true }).eq("id", userId);
     toast.success("Cadastro recusado.");
     fetchUsers();
   };
 
-  const pendingUsers = users.filter(u => !u.approved && u.role !== "admin_master");
+  const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
   const approvedUsers = users.filter(u => u.approved || u.role === "admin_master");
 
   return (
