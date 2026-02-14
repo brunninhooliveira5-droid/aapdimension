@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +44,16 @@ interface MaintenanceRow {
   report: string | null;
 }
 
+interface ReportRow {
+  id: string;
+  maintenance_id: string;
+  report: string;
+  report_date: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+}
+
 interface FileRow {
   id: string;
   file_name: string;
@@ -73,7 +83,9 @@ const MachineDashboard = () => {
   // Report state
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceRow | null>(null);
-  const [reportText, setReportText] = useState("");
+  const [reports, setReports] = useState<ReportRow[]>([]);
+  const [newReportText, setNewReportText] = useState("");
+  const [newReportDate, setNewReportDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -273,25 +285,57 @@ const MachineDashboard = () => {
     toast.success("Arquivo removido.");
   };
 
-  const openReportDialog = (m: MaintenanceRow) => {
+  const openReportDialog = async (m: MaintenanceRow) => {
     setSelectedMaintenance(m);
-    setReportText(m.report ?? "");
+    setNewReportText("");
+    setNewReportDate(new Date().toISOString().split("T")[0]);
     setShowReportDialog(true);
+    // Fetch reports for this maintenance
+    const { data } = await supabase
+      .from("maintenance_reports")
+      .select("*")
+      .eq("maintenance_id", m.id)
+      .order("report_date", { ascending: false });
+    setReports(data ?? []);
   };
 
-  const handleSaveReport = async () => {
-    if (!selectedMaintenance) return;
-    const { error } = await supabase
-      .from("maintenances")
-      .update({ report: reportText } as any)
-      .eq("id", selectedMaintenance.id);
-    if (error) {
-      toast.error("Erro ao salvar relatório: " + error.message);
+  const handleAddReport = async () => {
+    if (!selectedMaintenance || !newReportText.trim()) {
+      toast.error("Preencha o relatório.");
       return;
     }
-    toast.success("Relatório salvo com sucesso!");
-    setMaintenances(prev => prev.map(m => m.id === selectedMaintenance.id ? { ...m, report: reportText } : m));
-    setShowReportDialog(false);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await supabase
+      .from("maintenance_reports")
+      .insert({
+        maintenance_id: selectedMaintenance.id,
+        report: newReportText,
+        report_date: newReportDate,
+        created_by: userId,
+      } as any)
+      .select()
+      .single();
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+      return;
+    }
+    toast.success("Relatório adicionado!");
+    setReports(prev => [data as ReportRow, ...prev]);
+    setNewReportText("");
+  };
+
+  const handleToggleReportStatus = async (report: ReportRow) => {
+    const newStatus = report.status === "executado" ? "pendente" : "executado";
+    const { error } = await supabase
+      .from("maintenance_reports")
+      .update({ status: newStatus } as any)
+      .eq("id", report.id);
+    if (error) {
+      toast.error("Erro ao atualizar status: " + error.message);
+      return;
+    }
+    setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
+    toast.success(`Status alterado para ${newStatus}.`);
   };
 
   const getFileUrl = (filePath: string) => {
@@ -425,7 +469,7 @@ const MachineDashboard = () => {
                     <p className="text-sm font-medium text-foreground">{m.type}</p>
                     {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
                     <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
-                    {m.report && <p className="text-xs text-primary mt-1">📋 Relatório preenchido</p>}
+                    <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
                   </div>
                   <StatusBadge status={m.status} className="ml-3 shrink-0" />
                 </div>
@@ -557,36 +601,80 @@ const MachineDashboard = () => {
 
       {/* Report Dialog */}
       <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Relatório de Manutenção</DialogTitle>
+            <DialogTitle className="text-foreground">Relatórios de Manutenção</DialogTitle>
           </DialogHeader>
           {selectedMaintenance && (
-            <div className="space-y-3 py-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Tipo:</span>
-                <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Data:</span>
+                  <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Data:</span>
-                <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
+
+              {/* Add new report */}
+              <div className="space-y-3 p-4 rounded-lg border border-border bg-accent/30">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Novo Relatório
+                </h4>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Data do Relatório</Label>
+                  <Input type="date" value={newReportDate} onChange={e => setNewReportDate(e.target.value)} className="bg-accent border-border w-48" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Descrição</Label>
+                  <Textarea
+                    value={newReportText}
+                    onChange={e => setNewReportText(e.target.value)}
+                    placeholder="Descreva o serviço realizado, peças trocadas, observações..."
+                    className="bg-accent border-border min-h-[100px]"
+                  />
+                </div>
+                <Button size="sm" onClick={handleAddReport} className="gap-1.5">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Relatório
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Relatório do Técnico</Label>
-                <Textarea
-                  value={reportText}
-                  onChange={e => setReportText(e.target.value)}
-                  placeholder="Descreva o serviço realizado, peças trocadas, observações..."
-                  className="bg-accent border-border min-h-[150px]"
-                />
+
+              {/* Report list */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-foreground">Relatórios ({reports.length})</h4>
+                {reports.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum relatório registrado.</p>
+                ) : (
+                  reports.map(r => (
+                    <div key={r.id} className="p-3 rounded-lg border border-border bg-accent/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{new Date(r.report_date).toLocaleDateString("pt-BR")}</span>
+                        <div className="flex items-center gap-2">
+                          {r.status === "executado" ? (
+                            <span className="text-xs font-medium text-green-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Executado</span>
+                          ) : (
+                            <span className="text-xs font-medium text-yellow-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Pendente</span>
+                          )}
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="h-6 text-xs px-2 border-border" onClick={() => handleToggleReportStatus(r)}>
+                              {r.status === "executado" ? "Marcar Pendente" : "Marcar Executado"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{r.report}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" className="border-border">Cancelar</Button>
+              <Button variant="outline" className="border-border">Fechar</Button>
             </DialogClose>
-            <Button onClick={handleSaveReport}>Salvar Relatório</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
