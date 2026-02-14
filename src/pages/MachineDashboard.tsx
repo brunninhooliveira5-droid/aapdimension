@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -397,7 +397,7 @@ const MachineDashboard = () => {
               <p className="text-sm text-muted-foreground">Nenhum chamado registrado.</p>
             ) : (
               tickets.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => navigate(`/suporte`)}>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{t.type}</p>
                     <p className="text-xs text-muted-foreground truncate">{t.description}</p>
@@ -420,19 +420,14 @@ const MachineDashboard = () => {
               <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada.</p>
             ) : (
               maintenances.map(m => (
-                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{m.type}</p>
                     {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
                     <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
                     {m.report && <p className="text-xs text-primary mt-1">📋 Relatório preenchido</p>}
                   </div>
-                  <div className="flex items-center gap-2 ml-3 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openReportDialog(m)} title="Relatório">
-                      <ClipboardList className="w-3.5 h-3.5" />
-                    </Button>
-                    <StatusBadge status={m.status} />
-                  </div>
+                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
                 </div>
               ))
             )}
@@ -461,11 +456,14 @@ const MachineDashboard = () => {
           ) : (
             files.map(f => (
               <div key={f.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
-                <a href={getFileUrl(f.file_path)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate flex-1">
-                  {f.file_name}
-                </a>
-                <div className="flex items-center gap-3 ml-3 shrink-0">
+                <span className="text-sm font-medium text-foreground truncate flex-1">{f.file_name}</span>
+                <div className="flex items-center gap-2 ml-3 shrink-0">
                   <span className="text-xs text-muted-foreground">{new Date(f.created_at).toLocaleDateString("pt-BR")}</span>
+                  <a href={getFileUrl(f.file_path)} download={f.file_name} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" title="Baixar">
+                      <Download className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
                   {isAdmin && (
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteFile(f.id, f.file_path)}>
                       <Trash2 className="w-3.5 h-3.5" />
