@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          invoice_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          invoice_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          invoice_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_files_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -51,6 +86,7 @@ export type Database = {
           due_date: string
           id: string
           installment: number
+          payment_date: string | null
           status: string
           total_installments: number
           user_id: string
@@ -61,6 +97,7 @@ export type Database = {
           due_date: string
           id?: string
           installment: number
+          payment_date?: string | null
           status?: string
           total_installments: number
           user_id: string
@@ -71,6 +108,7 @@ export type Database = {
           due_date?: string
           id?: string
           installment?: number
+          payment_date?: string | null
           status?: string
           total_installments?: number
           user_id?: string
