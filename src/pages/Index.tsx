@@ -29,6 +29,7 @@ interface TicketData {
   type: string;
   description: string;
   status: string;
+  machine_id: string;
   machine_model: string;
 }
 
@@ -37,6 +38,7 @@ interface MaintenanceData {
   type: string;
   scheduled_date: string;
   status: string;
+  machine_id: string;
   machine_model: string;
 }
 
@@ -123,6 +125,7 @@ const Index = () => {
         const tMap = new Map(tMachines?.map(m => [m.id, m.model]) ?? []);
         setRecentTickets(ticketsData.map(t => ({
           id: t.id, type: t.type, description: t.description, status: t.status,
+          machine_id: t.machine_id,
           machine_model: tMap.get(t.machine_id) ?? "—",
         })));
       } else {
@@ -146,6 +149,7 @@ const Index = () => {
         const mMap = new Map(mMachines?.map(m => [m.id, m.model]) ?? []);
         setUpcomingMaintenances(maintData.map(m => ({
           id: m.id, type: m.type, scheduled_date: m.scheduled_date, status: m.status,
+          machine_id: m.machine_id,
           machine_model: mMap.get(m.machine_id) ?? "—",
         })));
       } else {
@@ -229,7 +233,11 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Nenhum chamado encontrado.</p>
             ) : (
               recentTickets.map(ticket => (
-                <div key={ticket.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                <div
+                  key={ticket.id}
+                  className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
+                  onClick={() => navigate(`/maquinas/${ticket.machine_id}`)}
+                >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">{ticket.machine_model}</p>
                     <p className="text-xs text-muted-foreground truncate">{ticket.type} — {ticket.description}</p>
@@ -248,7 +256,11 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Nenhuma manutenção agendada.</p>
             ) : (
               upcomingMaintenances.map(m => (
-                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
+                  onClick={() => navigate(`/maquinas/${m.machine_id}`)}
+                >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{m.machine_model}</p>
                     <p className="text-xs text-muted-foreground">{m.type} — {new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
