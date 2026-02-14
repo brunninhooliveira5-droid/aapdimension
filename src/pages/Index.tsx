@@ -1,10 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter } from "lucide-react";
+import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import heroWelcome from "@/assets/hero-welcome.png";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -241,13 +243,15 @@ const Index = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Máquinas Ativas"
-          value={totalMachines}
-          subtitle="Total cadastradas"
-          icon={Cpu}
-          variant="highlight"
-        />
+        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/maquinas")}>
+          <StatCard
+            title="Máquinas Ativas"
+            value={totalMachines}
+            subtitle="Total cadastradas"
+            icon={Cpu}
+            variant="highlight"
+          />
+        </div>
         <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOpenDialog(true)}>
           <StatCard
             title="Boletos em Aberto"
@@ -279,7 +283,14 @@ const Index = () => {
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="gradient-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wider">Chamados Recentes</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados Recentes</h3>
+            {!isAdmin && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/suporte")}>
+                <Plus className="w-3 h-3" /> Novo Chamado
+              </Button>
+            )}
+          </div>
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -310,19 +321,36 @@ const Index = () => {
               return filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum chamado encontrado.</p>
               ) : (
-                filtered.map(ticket => (
-                  <div
-                    key={ticket.id}
-                    className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
-                    onClick={() => navigate(`/maquinas/${ticket.machine_id}`)}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{ticket.machine_model}</p>
-                      <p className="text-xs text-muted-foreground truncate">{ticket.type} — {ticket.description}</p>
-                    </div>
-                    <StatusBadge status={ticket.status} className="ml-3 shrink-0" />
-                  </div>
-                ))
+                 filtered.map(ticket => (
+                   <div
+                     key={ticket.id}
+                     className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
+                     onClick={() => navigate(`/maquinas/${ticket.machine_id}`)}
+                   >
+                     <div className="min-w-0 flex-1">
+                       <p className="text-sm font-medium text-foreground truncate">{ticket.machine_model}</p>
+                       <p className="text-xs text-muted-foreground truncate">{ticket.type} — {ticket.description}</p>
+                     </div>
+                     <div className="flex items-center gap-2 ml-3 shrink-0">
+                       <StatusBadge status={ticket.status} />
+                       {!isAdmin && (
+                         <button
+                           className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                           title="Excluir chamado"
+                           onClick={async (e) => {
+                             e.stopPropagation();
+                             const { error } = await supabase.from("tickets").delete().eq("id", ticket.id);
+                             if (error) { toast.error("Erro ao excluir chamado"); return; }
+                             setRecentTickets(prev => prev.filter(t => t.id !== ticket.id));
+                             toast.success("Chamado excluído");
+                           }}
+                         >
+                           <Trash2 className="w-3.5 h-3.5" />
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                 ))
               );
             })()}
           </div>
