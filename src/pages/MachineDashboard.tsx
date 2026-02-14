@@ -120,6 +120,15 @@ const MachineDashboard = () => {
   const [newTrainingFile, setNewTrainingFile] = useState<File | null>(null);
   const [uploadingTraining, setUploadingTraining] = useState(false);
   const trainingFileRef = useRef<HTMLInputElement>(null);
+  const editTrainingFileRef = useRef<HTMLInputElement>(null);
+
+  // Edit training state
+  const [editingTraining, setEditingTraining] = useState<TrainingRow | null>(null);
+  const [editTrainingTitle, setEditTrainingTitle] = useState("");
+  const [editTrainingDesc, setEditTrainingDesc] = useState("");
+  const [editTrainingVideo, setEditTrainingVideo] = useState("");
+  const [editTrainingFile, setEditTrainingFile] = useState<File | null>(null);
+  const [savingTrainingEdit, setSavingTrainingEdit] = useState(false);
 
   // New ticket state
   const [showNewTicketDialog, setShowNewTicketDialog] = useState(false);
@@ -576,6 +585,63 @@ const MachineDashboard = () => {
     }
     setTrainings(prev => prev.filter(t => t.id !== training.id));
     toast.success("Treinamento excluído!");
+  };
+
+  const handleEditTraining = async () => {
+    if (!editingTraining || !editTrainingTitle.trim()) {
+      toast.error("Preencha o título.");
+      return;
+    }
+    setSavingTrainingEdit(true);
+
+    let filePath = editingTraining.file_path;
+    let fileName = editingTraining.file_name;
+
+    if (editTrainingFile) {
+      // Remove old file if exists
+      if (editingTraining.file_path) {
+        await supabase.storage.from("machine-files").remove([editingTraining.file_path]);
+      }
+      const path = `trainings/${machineId}/${Date.now()}_${editTrainingFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from("machine-files").upload(path, editTrainingFile);
+      if (uploadErr) {
+        toast.error("Erro ao enviar arquivo: " + uploadErr.message);
+        setSavingTrainingEdit(false);
+        return;
+      }
+      filePath = path;
+      fileName = editTrainingFile.name;
+    }
+
+    const { error } = await supabase
+      .from("machine_trainings")
+      .update({
+        title: editTrainingTitle,
+        description: editTrainingDesc,
+        video_url: editTrainingVideo || null,
+        file_path: filePath,
+        file_name: fileName,
+      } as any)
+      .eq("id", editingTraining.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar: " + error.message);
+      setSavingTrainingEdit(false);
+      return;
+    }
+
+    setTrainings(prev => prev.map(t => t.id === editingTraining.id ? {
+      ...t,
+      title: editTrainingTitle,
+      description: editTrainingDesc,
+      video_url: editTrainingVideo || null,
+      file_path: filePath,
+      file_name: fileName,
+    } : t));
+    setEditingTraining(null);
+    setEditTrainingFile(null);
+    setSavingTrainingEdit(false);
+    toast.success("Treinamento atualizado!");
   };
 
   const handleCreateTicket = async () => {
@@ -1239,43 +1305,88 @@ const MachineDashboard = () => {
               ) : (
                 trainings.map(t => (
                   <div key={t.id} className="p-4 rounded-lg border border-border bg-accent/30 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground">{t.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleDateString("pt-BR")}</p>
+                    {editingTraining?.id === t.id ? (
+                      /* Edit mode */
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-foreground text-xs">Título</Label>
+                          <Input value={editTrainingTitle} onChange={e => setEditTrainingTitle(e.target.value)} className="bg-accent border-border" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground text-xs">Descrição</Label>
+                          <Textarea value={editTrainingDesc} onChange={e => setEditTrainingDesc(e.target.value)} className="bg-accent border-border min-h-[80px]" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground text-xs flex items-center gap-1"><Video className="w-3.5 h-3.5" /> URL do Vídeo</Label>
+                          <Input value={editTrainingVideo} onChange={e => setEditTrainingVideo(e.target.value)} className="bg-accent border-border" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-foreground text-xs flex items-center gap-1"><Upload className="w-3.5 h-3.5" /> Substituir Arquivo</Label>
+                          <input ref={editTrainingFileRef} type="file" className="text-xs text-muted-foreground file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-accent file:text-foreground hover:file:bg-accent/80" onChange={e => setEditTrainingFile(e.target.files?.[0] ?? null)} />
+                          {t.file_name && !editTrainingFile && (
+                            <p className="text-xs text-muted-foreground">Arquivo atual: {t.file_name}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleEditTraining} disabled={savingTrainingEdit}>
+                            {savingTrainingEdit ? "Salvando..." : "Salvar"}
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-border" onClick={() => { setEditingTraining(null); setEditTrainingFile(null); }}>Cancelar</Button>
+                        </div>
                       </div>
-                      {isAdmin && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-card border-border">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="text-foreground">Excluir Treinamento</AlertDialogTitle>
-                              <AlertDialogDescription>Tem certeza que deseja excluir este treinamento?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteTraining(t)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                    {t.description && (
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{t.description}</p>
-                    )}
-                    {t.video_url && (
-                      <a href={t.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-                        <Video className="w-3.5 h-3.5" /> Assistir Vídeo
-                      </a>
-                    )}
-                    {t.file_path && t.file_name && (
-                      <a href={getFileUrl(t.file_path)} download={t.file_name} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-                        <Download className="w-3.5 h-3.5" /> {t.file_name}
-                      </a>
+                    ) : (
+                      /* View mode */
+                      <>
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground">{t.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleDateString("pt-BR")}</p>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => {
+                                setEditingTraining(t);
+                                setEditTrainingTitle(t.title);
+                                setEditTrainingDesc(t.description);
+                                setEditTrainingVideo(t.video_url ?? "");
+                                setEditTrainingFile(null);
+                              }}>
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-foreground">Excluir Treinamento</AlertDialogTitle>
+                                    <AlertDialogDescription>Tem certeza que deseja excluir este treinamento?</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteTraining(t)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
+                        </div>
+                        {t.description && (
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{t.description}</p>
+                        )}
+                        {t.video_url && (
+                          <a href={t.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                            <Video className="w-3.5 h-3.5" /> Assistir Vídeo
+                          </a>
+                        )}
+                        {t.file_path && t.file_name && (
+                          <a href={getFileUrl(t.file_path)} download={t.file_name} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                            <Download className="w-3.5 h-3.5" /> {t.file_name}
+                          </a>
+                        )}
+                      </>
                     )}
                   </div>
                 ))
