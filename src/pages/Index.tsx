@@ -50,6 +50,7 @@ const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdminMaster = user?.role === "admin_master";
   const { userId: viewUserId } = useParams<{ userId?: string }>();
 
   const [viewUserName, setViewUserName] = useState<string | null>(null);
@@ -358,7 +359,7 @@ const Index = () => {
 
         <div className="gradient-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wider">Manutenções Próximas</h3>
-          {isAdmin && (
+          {isAdminMaster && (
             <div className="flex flex-col sm:flex-row gap-2 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -393,8 +394,8 @@ const Index = () => {
                 filtered.map(m => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors"
-                    onClick={() => navigate(`/maquinas/${m.machine_id}`)}
+                    className={`flex items-center justify-between p-3 rounded-md bg-accent/50 ${isAdminMaster ? "cursor-pointer hover:bg-accent/80" : ""} transition-colors`}
+                    onClick={isAdminMaster ? () => navigate(`/maquinas/${m.machine_id}`) : undefined}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground">{m.machine_model}</p>
