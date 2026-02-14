@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +89,14 @@ const MachineDashboard = () => {
   const [editingReport, setEditingReport] = useState<ReportRow | null>(null);
   const [editReportText, setEditReportText] = useState("");
   const [editReportDate, setEditReportDate] = useState("");
+
+  // Specs state
+  const [showSpecsDialog, setShowSpecsDialog] = useState(false);
+  const [specsData, setSpecsData] = useState<Record<string, string>>({});
+  const [specsId, setSpecsId] = useState<string | null>(null);
+  const [newSpecKey, setNewSpecKey] = useState("");
+  const [newSpecValue, setNewSpecValue] = useState("");
+  const [savingSpecs, setSavingSpecs] = useState(false);
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -372,6 +380,57 @@ const MachineDashboard = () => {
     toast.success("Relatório excluído!");
   };
 
+  const openSpecsDialog = async () => {
+    if (!machineId) return;
+    setShowSpecsDialog(true);
+    const { data } = await supabase
+      .from("machine_specs")
+      .select("*")
+      .eq("machine_id", machineId)
+      .maybeSingle();
+    if (data) {
+      setSpecsId(data.id);
+      setSpecsData((data as any).spec_data ?? {});
+    } else {
+      setSpecsId(null);
+      setSpecsData({});
+    }
+  };
+
+  const handleAddSpec = () => {
+    if (!newSpecKey.trim()) return;
+    setSpecsData(prev => ({ ...prev, [newSpecKey.trim()]: newSpecValue.trim() }));
+    setNewSpecKey("");
+    setNewSpecValue("");
+  };
+
+  const handleRemoveSpec = (key: string) => {
+    setSpecsData(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
+  const handleSaveSpecs = async () => {
+    if (!machineId) return;
+    setSavingSpecs(true);
+    if (specsId) {
+      const { error } = await supabase
+        .from("machine_specs")
+        .update({ spec_data: specsData } as any)
+        .eq("id", specsId);
+      if (error) { toast.error("Erro ao salvar: " + error.message); setSavingSpecs(false); return; }
+    } else {
+      const { error } = await supabase
+        .from("machine_specs")
+        .insert({ machine_id: machineId, spec_data: specsData } as any);
+      if (error) { toast.error("Erro ao salvar: " + error.message); setSavingSpecs(false); return; }
+    }
+    toast.success("Ficha técnica salva!");
+    setSavingSpecs(false);
+  };
+
   const getFileUrl = (filePath: string) => {
     const { data } = supabase.storage.from("machine-files").getPublicUrl(filePath);
     return data.publicUrl;
@@ -459,6 +518,22 @@ const MachineDashboard = () => {
           <div>
             <p className="text-xs text-muted-foreground uppercase">Acessórios</p>
             <p className="text-sm font-medium text-foreground">{machine.accessories.length > 0 ? machine.accessories.join(", ") : "Nenhum"}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Ficha Técnica Card */}
+      <div
+        className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
+        onClick={openSpecsDialog}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ficha Técnica do Fabricante</h3>
+            <p className="text-xs text-muted-foreground">Clique para ver os dados técnicos do equipamento</p>
           </div>
         </div>
       </div>
@@ -752,6 +827,69 @@ const MachineDashboard = () => {
             <DialogClose asChild>
               <Button variant="outline" className="border-border">Fechar</Button>
             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Specs Dialog */}
+      <Dialog open={showSpecsDialog} onOpenChange={setShowSpecsDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Ficha Técnica do Fabricante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Existing specs */}
+            {Object.keys(specsData).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum dado técnico cadastrado.</p>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(specsData).map(([key, value]) => (
+                  <div key={key} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/30">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground uppercase font-medium">{key}</p>
+                      <p className="text-sm text-foreground">{value}</p>
+                    </div>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemoveSpec(key)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new spec (admin only) */}
+            {isAdmin && (
+              <div className="space-y-3 p-4 rounded-lg border border-border bg-accent/30">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Adicionar Campo
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-foreground text-xs">Nome do Campo</Label>
+                    <Input value={newSpecKey} onChange={e => setNewSpecKey(e.target.value)} placeholder="Ex: Potência, Peso, Voltagem..." className="bg-accent border-border" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-foreground text-xs">Valor</Label>
+                    <Input value={newSpecValue} onChange={e => setNewSpecValue(e.target.value)} placeholder="Ex: 5000W, 120kg..." className="bg-accent border-border" />
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" className="border-border gap-1.5" onClick={handleAddSpec}>
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </Button>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Fechar</Button>
+            </DialogClose>
+            {isAdmin && (
+              <Button onClick={handleSaveSpecs} disabled={savingSpecs}>
+                {savingSpecs ? "Salvando..." : "Salvar Ficha Técnica"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

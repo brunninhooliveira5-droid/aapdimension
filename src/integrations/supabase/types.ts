@@ -112,6 +112,38 @@ export type Database = {
           },
         ]
       }
+      machine_specs: {
+        Row: {
+          created_at: string
+          id: string
+          machine_id: string
+          spec_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          machine_id: string
+          spec_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          machine_id?: string
+          spec_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_specs_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: true
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           accessories: string[] | null
