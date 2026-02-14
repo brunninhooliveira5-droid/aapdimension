@@ -34,6 +34,7 @@ interface SignupExtra {
   city: string;
   state: string;
   zip_code: string;
+  phone: string;
 }
 
 interface AuthContextType {
@@ -146,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           city: extra?.city ?? "",
           state: extra?.state ?? "",
           zip_code: extra?.zip_code ?? "",
+          phone: extra?.phone ?? "",
         },
       },
     });

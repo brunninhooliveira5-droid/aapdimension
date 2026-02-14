@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
 import heroCnc from "@/assets/hero-cnc.png";
-import { Mail, ArrowRight, Lock, UserPlus, LogIn, Building2, MapPin } from "lucide-react";
+import { Mail, ArrowRight, Lock, UserPlus, LogIn, Building2, MapPin, Phone } from "lucide-react";
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -19,6 +19,7 @@ const Login = () => {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ const Login = () => {
         city,
         state,
         zip_code: zipCode,
+        phone,
       });
       if (error) {
         toast.error(error);
@@ -62,6 +64,7 @@ const Login = () => {
         setCity("");
         setState("");
         setZipCode("");
+        setPhone("");
         setPassword("");
       }
     }
@@ -174,10 +177,23 @@ const Login = () => {
                     maxLength={9}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Telefone *</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="tel"
+                      placeholder="(00) 00000-0000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="pl-10 bg-accent border-border"
+                      required
+                    />
+                  </div>
+                </div>
               </>
             )}
             <div className="space-y-2">
-              <Label className="text-foreground">E-mail *</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
