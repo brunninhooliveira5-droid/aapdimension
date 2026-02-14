@@ -144,6 +144,53 @@ export type Database = {
           },
         ]
       }
+      machine_trainings: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          file_name: string | null
+          file_path: string | null
+          id: string
+          machine_id: string
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          machine_id: string
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          machine_id?: string
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_trainings_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           accessories: string[] | null
