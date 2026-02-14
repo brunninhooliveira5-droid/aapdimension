@@ -89,7 +89,7 @@ const Login = () => {
       <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6 py-10">
         {/* Logo & Title */}
         <img src={dimensionLogo} alt="Dimension CNC" className="h-20 w-auto mb-2 drop-shadow-2xl" />
-        <h2 className="text-sm font-medium tracking-[0.3em] text-primary/80 uppercase mb-8">
+        <h2 className="text-sm font-medium tracking-[0.3em] text-black uppercase mb-8">
           Tecnologia CNC
         </h2>
 
@@ -235,6 +235,10 @@ const Login = () => {
             ? "Não tem conta? Solicitar acesso"
             : "Já tem conta? Fazer login"}
         </button>
+
+        <p className="mt-4 text-[11px] text-muted-foreground/50 text-center">
+          Acesso exclusivo para clientes Dimension CNC
+        </p>
       </div>
     </div>
   );
