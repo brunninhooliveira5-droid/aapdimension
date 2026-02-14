@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ const assignableRoles: { value: UserRole; label: string }[] = [
 
 const UsersPage = () => {
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -245,6 +247,9 @@ const UsersPage = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/dashboard/${u.id}`)} className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Ver dashboard">
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Cpu, DollarSign, Calendar, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
@@ -30,8 +30,12 @@ interface InvoiceWithUser {
 
 const Index = () => {
   const { user } = useAuth();
-  const firstName = user?.name?.split(" ")[0] ?? "Usuário";
   const navigate = useNavigate();
+  const { userId: viewUserId } = useParams<{ userId?: string }>();
+
+  const [viewUserName, setViewUserName] = useState<string | null>(null);
+  const isViewingUser = !!viewUserId;
+  const firstName = isViewingUser ? viewUserName ?? "Usuário" : (user?.name?.split(" ")[0] ?? "Usuário");
 
   const [totalMachines, setTotalMachines] = useState(0);
   const [openInvoices, setOpenInvoices] = useState<InvoiceWithUser[]>([]);
@@ -41,21 +45,30 @@ const Index = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch total machines
-      const { count } = await supabase
-        .from("machines")
-        .select("*", { count: "exact", head: true });
+      // If viewing a specific user, fetch their name
+      if (viewUserId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", viewUserId)
+          .single();
+        setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
+      }
+
+      // Fetch total machines (filtered if viewing a specific user)
+      let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true });
+      if (viewUserId) machineQuery = machineQuery.eq("owner_id", viewUserId);
+      const { count } = await machineQuery;
       setTotalMachines(count ?? 0);
 
-      // Fetch invoices
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("*");
+      // Fetch invoices (filtered if viewing a specific user)
+      let invoiceQuery = supabase.from("invoices").select("*");
+      if (viewUserId) invoiceQuery = invoiceQuery.eq("user_id", viewUserId);
+      const { data: invoices } = await invoiceQuery;
 
       if (invoices) {
         const today = new Date().toISOString().split("T")[0];
 
-        // Get unique user IDs from invoices
         const userIds = [...new Set(invoices.map(i => i.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
@@ -90,7 +103,7 @@ const Index = () => {
     };
 
     fetchData();
-  }, []);
+  }, [viewUserId]);
 
   const nextDueInvoice = openInvoices.length > 0
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
@@ -104,8 +117,17 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center px-6">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Olá, {firstName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Bem-vindo ao portal Dimension CNC</p>
+            {isViewingUser && (
+              <button onClick={() => navigate("/usuarios")} className="text-xs text-primary hover:underline mb-1">
+                ← Voltar para Usuários
+              </button>
+            )}
+            <h1 className="text-2xl font-bold text-foreground">
+              {isViewingUser ? `Dashboard de ${firstName}` : `Olá, ${firstName}`}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isViewingUser ? "Visualizando dados do usuário" : "Bem-vindo ao portal Dimension CNC"}
+            </p>
           </div>
         </div>
       </div>
