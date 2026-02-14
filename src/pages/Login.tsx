@@ -181,7 +181,7 @@ const Login = () => {
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
             <Input
               type="email"
-              placeholder="Usuário"
+              placeholder="E-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
