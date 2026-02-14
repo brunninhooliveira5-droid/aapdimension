@@ -79,6 +79,7 @@ const MachineDashboard = () => {
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [files, setFiles] = useState<FileRow[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
   // Report state
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -909,53 +910,37 @@ const MachineDashboard = () => {
         </div>
       </div>
 
-      {/* Histórico de Manutenção */}
+      {/* Histórico de Manutenção Card */}
       {(() => {
         const resolvedTickets = tickets.filter(t => t.status === "resolvido");
         const completedMaintenances = maintenances.filter(m => m.status === "realizada");
-        const historyItems = [
-          ...resolvedTickets.map(t => ({
-            id: t.id,
-            type: "chamado" as const,
-            label: t.type,
-            description: t.description,
-            date: t.created_at,
-          })),
-          ...completedMaintenances.map(m => ({
-            id: m.id,
-            type: "manutencao" as const,
-            label: m.type,
-            description: m.notes ?? "",
-            date: m.scheduled_date,
-          })),
-        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const totalHistory = resolvedTickets.length + completedMaintenances.length;
 
         return (
-          <div className="gradient-card rounded-lg border border-border p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Histórico de Manutenção ({historyItems.length})</h3>
-            </div>
-            <div className="space-y-3">
-              {historyItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum registro finalizado ainda.</p>
-              ) : (
-                historyItems.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${item.type === "chamado" ? "bg-primary/10 text-primary" : "bg-green-500/10 text-green-500"}`}>
-                          {item.type === "chamado" ? "Chamado" : "Manutenção"}
-                        </span>
-                        <p className="text-sm font-medium text-foreground">{item.label}</p>
-                      </div>
-                      {item.description && <p className="text-xs text-muted-foreground truncate mt-1">{item.description}</p>}
-                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(item.date).toLocaleDateString("pt-BR")}</p>
-                    </div>
-                    <CheckCircle className="w-4 h-4 text-green-500 ml-3 shrink-0" />
-                  </div>
-                ))
-              )}
+          <div
+            className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => setShowHistoryDialog(true)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <History className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-foreground">Histórico de Manutenção</h3>
+                <p className="text-xs text-muted-foreground">
+                  {totalHistory} registro{totalHistory !== 1 ? "s" : ""} finalizado{totalHistory !== 1 ? "s" : ""} — Clique para ver detalhes
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-foreground">{resolvedTickets.length}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-foreground">{completedMaintenances.length}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -1522,6 +1507,84 @@ const MachineDashboard = () => {
             <Button onClick={handleCreateMaintenance} disabled={savingMaint}>
               {savingMaint ? "Salvando..." : "Criar Manutenção"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Histórico de Manutenção</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const resolvedTickets = tickets.filter(t => t.status === "resolvido");
+            const completedMaintenances = maintenances.filter(m => m.status === "realizada");
+            const historyItems = [
+              ...resolvedTickets.map(t => ({
+                id: t.id,
+                type: "chamado" as const,
+                label: t.type,
+                description: t.description,
+                date: t.created_at,
+              })),
+              ...completedMaintenances.map(m => ({
+                id: m.id,
+                type: "manutencao" as const,
+                label: m.type,
+                description: m.notes ?? "",
+                date: m.scheduled_date,
+              })),
+            ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            return (
+              <div className="space-y-4 py-2">
+                {/* Summary */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
+                    <p className="text-xl font-bold text-foreground">{historyItems.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                  </div>
+                  <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
+                    <p className="text-xl font-bold text-foreground">{resolvedTickets.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
+                  </div>
+                  <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
+                    <p className="text-xl font-bold text-foreground">{completedMaintenances.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                  </div>
+                </div>
+
+                {/* List */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Registros ({historyItems.length})</h4>
+                  {historyItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum registro finalizado ainda.</p>
+                  ) : (
+                    historyItems.map(item => (
+                      <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-accent/30">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${item.type === "chamado" ? "bg-primary/10 text-primary" : "bg-accent text-muted-foreground"}`}>
+                              {item.type === "chamado" ? "Chamado" : "Manutenção"}
+                            </span>
+                            <p className="text-sm font-medium text-foreground">{item.label}</p>
+                          </div>
+                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(item.date).toLocaleDateString("pt-BR")}</p>
+                        </div>
+                        <CheckCircle className="w-4 h-4 text-primary ml-3 shrink-0" />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Fechar</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
