@@ -169,11 +169,6 @@ const Machines = () => {
           <h1 className="text-xl font-bold text-foreground">Minhas Máquinas</h1>
           <p className="text-sm text-muted-foreground mt-1">{machines.length} máquinas registradas</p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Adicionar Máquina
-          </Button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
