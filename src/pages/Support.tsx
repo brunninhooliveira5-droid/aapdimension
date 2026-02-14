@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, MessageSquare, Pencil, Trash2, User, Cpu, CalendarDays } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, User, Cpu, CalendarDays, Search, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -51,6 +51,10 @@ const Support = () => {
   const [editTicket, setEditTicket] = useState<TicketRow | null>(null);
   const [editType, setEditType] = useState("");
   const [editDesc, setEditDesc] = useState("");
+
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState("todos");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,6 +165,17 @@ const Support = () => {
     return m ? `${m.name || m.model} — ${m.serial_number}` : machineId;
   };
 
+  const filteredTickets = tickets.filter(t => {
+    if (filterStatus !== "todos" && t.status !== filterStatus) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const machineName = getMachineName(t.machine_id).toLowerCase();
+      const userName = (profiles[t.user_id] || "").toLowerCase();
+      if (!t.type.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q) && !machineName.includes(q) && !userName.includes(q)) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -208,11 +223,36 @@ const Support = () => {
         </Dialog>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por máquina, tipo, descrição..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9 bg-accent border-border h-9"
+          />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="bg-accent border-border h-9 w-full sm:w-[180px]">
+            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Status</SelectItem>
+            <SelectItem value="aberto">Aberto</SelectItem>
+            <SelectItem value="em_andamento">Em Andamento</SelectItem>
+            <SelectItem value="resolvido">Resolvido</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-3">
-        {tickets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum chamado registrado.</p>
+        {filteredTickets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum chamado encontrado.</p>
         ) : (
-          tickets.map(ticket => (
+          filteredTickets.map(ticket => (
             <div key={ticket.id} className="gradient-card rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-4 cursor-pointer hover:bg-accent/30 rounded-md p-1 -m-1 transition-colors" onClick={() => setSelectedTicket(ticket)}>
                 <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
