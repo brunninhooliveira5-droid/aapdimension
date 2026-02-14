@@ -117,6 +117,7 @@ export type Database = {
           accessories: string[] | null
           created_at: string
           id: string
+          image_path: string | null
           install_date: string
           model: string
           name: string
@@ -128,6 +129,7 @@ export type Database = {
           accessories?: string[] | null
           created_at?: string
           id?: string
+          image_path?: string | null
           install_date?: string
           model: string
           name?: string
@@ -139,6 +141,7 @@ export type Database = {
           accessories?: string[] | null
           created_at?: string
           id?: string
+          image_path?: string | null
           install_date?: string
           model?: string
           name?: string

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,8 @@ interface MachineDetail {
   accessories: string[];
   owner_id: string;
   owner_name: string;
+  image_path: string | null;
+  image_url: string | null;
 }
 
 interface TicketRow {
@@ -58,6 +60,7 @@ const MachineDashboard = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editImageInputRef = useRef<HTMLInputElement>(null);
 
   const [machine, setMachine] = useState<MachineDetail | null>(null);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
@@ -74,6 +77,14 @@ const MachineDashboard = () => {
   const [editOwner, setEditOwner] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAccessories, setEditAccessories] = useState("");
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+
+  const getImageUrl = (imagePath: string | null) => {
+    if (!imagePath) return null;
+    const { data } = supabase.storage.from("machine-files").getPublicUrl(imagePath);
+    return data.publicUrl;
+  };
 
   useEffect(() => {
     if (!machineId) return;
@@ -92,6 +103,8 @@ const MachineDashboard = () => {
           accessories: m.accessories ?? [],
           owner_id: m.owner_id,
           owner_name: owner?.name ?? "—",
+          image_path: (m as any).image_path ?? null,
+          image_url: getImageUrl((m as any).image_path),
         });
       }
 
@@ -136,6 +149,8 @@ const MachineDashboard = () => {
     setEditOwner(machine.owner_id);
     setEditStatus(machine.status);
     setEditAccessories(machine.accessories.join(", "));
+    setEditImageFile(null);
+    setEditImagePreview(machine.image_url);
     setShowEditDialog(true);
   };
 
@@ -147,6 +162,17 @@ const MachineDashboard = () => {
 
     const accessories = editAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
+    let imagePath = machine.image_path;
+    if (editImageFile) {
+      const path = `images/${Date.now()}_${editImageFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from("machine-files").upload(path, editImageFile);
+      if (uploadErr) {
+        toast.error("Erro ao enviar imagem: " + uploadErr.message);
+        return;
+      }
+      imagePath = path;
+    }
+
     const { error } = await supabase.from("machines").update({
       name: editName,
       model: editModel,
@@ -154,6 +180,7 @@ const MachineDashboard = () => {
       owner_id: editOwner,
       status: editStatus,
       accessories,
+      image_path: imagePath,
     } as any).eq("id", machine.id);
 
     if (error) {
@@ -175,6 +202,8 @@ const MachineDashboard = () => {
       status: editStatus,
       accessories,
       owner_name: owner?.name ?? "—",
+      image_path: imagePath,
+      image_url: getImageUrl(imagePath),
     });
   };
 
@@ -258,8 +287,12 @@ const MachineDashboard = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center">
-            <Cpu className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center overflow-hidden">
+            {machine.image_url ? (
+              <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+            ) : (
+              <Cpu className="w-6 h-6 text-primary" />
+            )}
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">{machine.name || machine.model}</h1>
@@ -418,6 +451,30 @@ const MachineDashboard = () => {
             <DialogTitle className="text-foreground">Editar Máquina</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Image upload */}
+            <div className="space-y-2">
+              <Label className="text-foreground">Foto do Equipamento</Label>
+              <div
+                className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+                onClick={() => editImageInputRef.current?.click()}
+              >
+                {editImagePreview ? (
+                  <img src={editImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <ImagePlus className="w-6 h-6" />
+                    <span className="text-xs">Clique para selecionar</span>
+                  </div>
+                )}
+              </div>
+              <input ref={editImageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setEditImageFile(file);
+                  setEditImagePreview(URL.createObjectURL(file));
+                }
+              }} />
+            </div>
             <div className="space-y-2">
               <Label className="text-foreground">Nome da Máquina</Label>
               <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-accent border-border" />
