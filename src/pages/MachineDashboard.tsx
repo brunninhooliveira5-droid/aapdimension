@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -909,7 +909,57 @@ const MachineDashboard = () => {
         </div>
       </div>
 
-      {/* Files */}
+      {/* Histórico de Manutenção */}
+      {(() => {
+        const resolvedTickets = tickets.filter(t => t.status === "resolvido");
+        const completedMaintenances = maintenances.filter(m => m.status === "realizada");
+        const historyItems = [
+          ...resolvedTickets.map(t => ({
+            id: t.id,
+            type: "chamado" as const,
+            label: t.type,
+            description: t.description,
+            date: t.created_at,
+          })),
+          ...completedMaintenances.map(m => ({
+            id: m.id,
+            type: "manutencao" as const,
+            label: m.type,
+            description: m.notes ?? "",
+            date: m.scheduled_date,
+          })),
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return (
+          <div className="gradient-card rounded-lg border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Histórico de Manutenção ({historyItems.length})</h3>
+            </div>
+            <div className="space-y-3">
+              {historyItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum registro finalizado ainda.</p>
+              ) : (
+                historyItems.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${item.type === "chamado" ? "bg-primary/10 text-primary" : "bg-green-500/10 text-green-500"}`}>
+                          {item.type === "chamado" ? "Chamado" : "Manutenção"}
+                        </span>
+                        <p className="text-sm font-medium text-foreground">{item.label}</p>
+                      </div>
+                      {item.description && <p className="text-xs text-muted-foreground truncate mt-1">{item.description}</p>}
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(item.date).toLocaleDateString("pt-BR")}</p>
+                    </div>
+                    <CheckCircle className="w-4 h-4 text-green-500 ml-3 shrink-0" />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })()}
       <div className="gradient-card rounded-lg border border-border p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
