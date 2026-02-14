@@ -47,6 +47,7 @@ const Machines = () => {
   const [formSerial, setFormSerial] = useState("");
   const [formOwner, setFormOwner] = useState("");
   const [formAccessories, setFormAccessories] = useState("");
+  const [formInstallDate, setFormInstallDate] = useState(new Date().toISOString().split("T")[0]);
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
 
@@ -134,6 +135,7 @@ const Machines = () => {
       model: formModel,
       serial_number: formSerial,
       owner_id: formOwner,
+      install_date: formInstallDate,
       accessories,
       image_path: imagePath,
     } as any);
@@ -155,6 +157,7 @@ const Machines = () => {
     setFormSerial("");
     setFormOwner("");
     setFormAccessories("");
+    setFormInstallDate(new Date().toISOString().split("T")[0]);
     setFormImageFile(null);
     setFormImagePreview(null);
   };
@@ -266,6 +269,10 @@ const Machines = () => {
             <div className="space-y-2">
               <Label className="text-foreground">Número de Série *</Label>
               <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Data de Instalação</Label>
+              <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Proprietário *</Label>
