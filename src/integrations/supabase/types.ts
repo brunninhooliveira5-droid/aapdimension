@@ -151,6 +151,44 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_reports: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          maintenance_id: string
+          report: string
+          report_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          maintenance_id: string
+          report?: string
+          report_date?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          maintenance_id?: string
+          report?: string
+          report_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_reports_maintenance_id_fkey"
+            columns: ["maintenance_id"]
+            isOneToOne: false
+            referencedRelation: "maintenances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenances: {
         Row: {
           created_at: string
