@@ -82,8 +82,8 @@ const Index = () => {
         setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
       }
 
-      // Fetch total machines
-      let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true });
+      // Fetch total machines (exclude accessories)
+      let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
       if (viewUserId) machineQuery = machineQuery.eq("owner_id", viewUserId);
       const { count } = await machineQuery;
       setTotalMachines(count ?? 0);

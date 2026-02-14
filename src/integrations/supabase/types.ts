@@ -232,6 +232,7 @@ export type Database = {
       machines: {
         Row: {
           accessories: string[] | null
+          category: string
           created_at: string
           id: string
           image_path: string | null
@@ -244,6 +245,7 @@ export type Database = {
         }
         Insert: {
           accessories?: string[] | null
+          category?: string
           created_at?: string
           id?: string
           image_path?: string | null
@@ -256,6 +258,7 @@ export type Database = {
         }
         Update: {
           accessories?: string[] | null
+          category?: string
           created_at?: string
           id?: string
           image_path?: string | null

@@ -24,6 +24,7 @@ interface MachineRow {
   ticket_count: number;
   maintenance_count: number;
   image_url: string | null;
+  category: string;
 }
 
 interface ProfileOption {
@@ -51,8 +52,14 @@ const Machines = () => {
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
+  const [formCategory, setFormCategory] = useState<string>("maquina");
+  const [filterCategory, setFilterCategory] = useState<string>("todos");
 
-  const filteredMachines = filterOwnerId === "todos" ? machines : machines.filter(m => m.owner_id === filterOwnerId);
+  const filteredMachines = machines.filter(m => {
+    if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
+    if (filterCategory !== "todos" && m.category !== filterCategory) return false;
+    return true;
+  });
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -90,6 +97,7 @@ const Machines = () => {
         ticket_count: ticketMap.get(m.id) ?? 0,
         maintenance_count: maintMap.get(m.id) ?? 0,
         image_url: getImageUrl((m as any).image_path),
+        category: (m as any).category ?? "maquina",
       })));
     }
     setLoading(false);
@@ -141,6 +149,7 @@ const Machines = () => {
       install_date: formInstallDate,
       accessories,
       image_path: imagePath,
+      category: formCategory,
     } as any);
 
     if (error) {
@@ -163,6 +172,7 @@ const Machines = () => {
     setFormInstallDate(new Date().toISOString().split("T")[0]);
     setFormImageFile(null);
     setFormImagePreview(null);
+    setFormCategory("maquina");
   };
 
   return (
@@ -170,9 +180,19 @@ const Machines = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Minhas Máquinas</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} máquinas registradas</p>
+          <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} itens registrados</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="bg-accent border-border h-9 text-xs w-[160px]">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas categorias</SelectItem>
+              <SelectItem value="maquina">Máquinas</SelectItem>
+              <SelectItem value="acessorio">Acessórios</SelectItem>
+            </SelectContent>
+          </Select>
           {user?.role === "admin_master" && (
             <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
               <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
@@ -189,7 +209,7 @@ const Machines = () => {
           )}
           {user?.role === "admin_master" && (
             <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Máquina
+              <Plus className="w-4 h-4" /> Adicionar
             </Button>
           )}
         </div>
@@ -214,7 +234,12 @@ const Machines = () => {
             <div className="p-5 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
+                    {machine.category === "acessorio" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
+                    )}
+                  </div>
                   <p className="text-xs font-mono text-muted-foreground">{machine.serial_number}</p>
                 </div>
                 <StatusBadge status={machine.status} />
@@ -278,7 +303,17 @@ const Machines = () => {
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Nome da Máquina</Label>
+              <Label className="text-foreground">Categoria *</Label>
+              <Select value={formCategory} onValueChange={setFormCategory}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="maquina">Máquina</SelectItem>
+                  <SelectItem value="acessorio">Acessório</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Nome</Label>
               <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
             </div>
             <div className="space-y-2">
