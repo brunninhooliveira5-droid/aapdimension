@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ interface MachineRow {
   ticket_count: number;
   maintenance_count: number;
   image_url: string | null;
+  image_path: string | null;
   category: string;
 }
 
@@ -35,7 +36,7 @@ interface ProfileOption {
 const Machines = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdminMaster = user?.role === "admin_master";
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [machines, setMachines] = useState<MachineRow[]>([]);
@@ -54,12 +55,18 @@ const Machines = () => {
   const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("manual");
 
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
     return true;
   });
+
+  // Unique templates: distinct models from existing machines for auto-fill
+  const templateMachines = machines.filter((m, i, arr) =>
+    m.category === formCategory && arr.findIndex(x => x.model === m.model && x.name === m.name) === i
+  );
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -97,6 +104,7 @@ const Machines = () => {
         ticket_count: ticketMap.get(m.id) ?? 0,
         maintenance_count: maintMap.get(m.id) ?? 0,
         image_url: getImageUrl((m as any).image_path),
+        image_path: (m as any).image_path ?? null,
         category: (m as any).category ?? "maquina",
       })));
     }
@@ -110,7 +118,7 @@ const Machines = () => {
 
   useEffect(() => {
     fetchMachines();
-    if (isAdmin) fetchProfiles();
+    if (isAdminMaster) fetchProfiles();
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,6 +126,26 @@ const Machines = () => {
     if (file) {
       setFormImageFile(file);
       setFormImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (templateId === "manual") {
+      setFormName("");
+      setFormModel("");
+      setFormAccessories("");
+      setFormImagePreview(null);
+      setFormImageFile(null);
+      return;
+    }
+    const template = machines.find(m => m.id === templateId);
+    if (template) {
+      setFormName(template.name);
+      setFormModel(template.model);
+      setFormAccessories(template.accessories.join(", "));
+      setFormImagePreview(template.image_url);
+      // Don't set formImageFile since we'll copy the image_path directly
     }
   };
 
@@ -137,6 +165,12 @@ const Machines = () => {
         return;
       }
       imagePath = path;
+    } else if (selectedTemplateId !== "manual") {
+      // Copy image path from template
+      const template = machines.find(m => m.id === selectedTemplateId);
+      if (template?.image_path) {
+        imagePath = template.image_path;
+      }
     }
 
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
@@ -153,11 +187,11 @@ const Machines = () => {
     } as any);
 
     if (error) {
-      toast.error("Erro ao adicionar máquina: " + error.message);
+      toast.error("Erro ao adicionar: " + error.message);
       return;
     }
 
-    toast.success("Máquina adicionada com sucesso!");
+    toast.success(formCategory === "maquina" ? "Máquina adicionada!" : "Acessório adicionado!");
     setShowAddDialog(false);
     resetForm();
     fetchMachines();
@@ -173,6 +207,13 @@ const Machines = () => {
     setFormImageFile(null);
     setFormImagePreview(null);
     setFormCategory("maquina");
+    setSelectedTemplateId("manual");
+  };
+
+  const openAddDialog = (category: string) => {
+    resetForm();
+    setFormCategory(category);
+    setShowAddDialog(true);
   };
 
   return (
@@ -193,7 +234,7 @@ const Machines = () => {
               <SelectItem value="acessorio">Acessórios</SelectItem>
             </SelectContent>
           </Select>
-          {user?.role === "admin_master" && (
+          {isAdminMaster && (
             <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
               <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
                 <Filter className="w-3.5 h-3.5 mr-1.5" />
@@ -207,20 +248,36 @@ const Machines = () => {
               </SelectContent>
             </Select>
           )}
-          {user?.role === "admin_master" && (
-            <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Máquina
-            </Button>
-          )}
-          {user?.role === "admin_master" && (
-            <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
-              <Plus className="w-4 h-4" /> Adicionar Acessório
-            </Button>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {/* Add cards for admin_master */}
+        {isAdminMaster && (filterCategory === "todos" || filterCategory === "maquina") && (
+          <div
+            className="rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[280px] bg-accent/20 hover:bg-accent/40"
+            onClick={() => openAddDialog("maquina")}
+          >
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Plus className="w-7 h-7 text-primary" />
+            </div>
+            <p className="font-semibold text-foreground">Adicionar Máquina</p>
+            <p className="text-xs text-muted-foreground mt-1">Cadastrar novo equipamento</p>
+          </div>
+        )}
+        {isAdminMaster && (filterCategory === "todos" || filterCategory === "acessorio") && (
+          <div
+            className="rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[280px] bg-accent/20 hover:bg-accent/40"
+            onClick={() => openAddDialog("acessorio")}
+          >
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Plus className="w-7 h-7 text-primary" />
+            </div>
+            <p className="font-semibold text-foreground">Adicionar Acessório</p>
+            <p className="text-xs text-muted-foreground mt-1">Cadastrar novo acessório</p>
+          </div>
+        )}
+
         {filteredMachines.map(machine => (
           <div
             key={machine.id}
@@ -282,13 +339,41 @@ const Machines = () => {
         ))}
       </div>
 
-      {/* Add Machine Dialog */}
+      {/* Add Machine/Accessory Dialog */}
       <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {formCategory === "maquina" ? "Adicionar Máquina" : "Adicionar Acessório"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Template selector */}
+            {templateMachines.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-foreground flex items-center gap-1.5">
+                  <Copy className="w-3.5 h-3.5" />
+                  Copiar de existente
+                </Label>
+                <Select value={selectedTemplateId} onValueChange={handleSelectTemplate}>
+                  <SelectTrigger className="bg-accent border-border">
+                    <SelectValue placeholder="Selecione para copiar dados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Cadastro manual</SelectItem>
+                    {templateMachines.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name || t.model} — {t.serial_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Selecione um equipamento existente para preencher automaticamente os campos.
+                </p>
+              </div>
+            )}
+
             {/* Image upload */}
             <div className="space-y-2">
               <Label className="text-foreground">Foto do Equipamento</Label>
@@ -306,16 +391,6 @@ const Machines = () => {
                 )}
               </div>
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Categoria *</Label>
-              <Select value={formCategory} onValueChange={setFormCategory}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="maquina">Máquina</SelectItem>
-                  <SelectItem value="acessorio">Acessório</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Nome</Label>
