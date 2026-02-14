@@ -17,6 +17,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   aguardando_aprovacao: { label: "Aguardando Aprovação", className: "bg-info/15 text-info border-info/30" },
   aguardando_agendamento: { label: "Aguardando Agendamento", className: "bg-muted text-muted-foreground border-muted" },
   realizada: { label: "Realizada", className: "bg-success/15 text-success border-success/30" },
+  executado: { label: "Executado", className: "bg-success/15 text-success border-success/30" },
   pago: { label: "Pago", className: "bg-success/15 text-success border-success/30" },
   em_aberto: { label: "Em Aberto", className: "bg-warning/15 text-warning border-warning/30" },
   atrasado: { label: "Atrasado", className: "bg-destructive/15 text-destructive border-destructive/30" },
