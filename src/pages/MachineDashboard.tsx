@@ -707,7 +707,7 @@ const MachineDashboard = () => {
       </div>
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="gradient-card rounded-lg border border-border p-4 flex items-center gap-3">
           <User className="w-5 h-5 text-primary" />
           <div>
@@ -720,6 +720,26 @@ const MachineDashboard = () => {
           <div>
             <p className="text-xs text-muted-foreground uppercase">Instalação</p>
             <p className="text-sm font-medium text-foreground">{new Date(machine.install_date).toLocaleDateString("pt-BR")}</p>
+          </div>
+        </div>
+        <div className="gradient-card rounded-lg border border-border p-4 flex items-center gap-3">
+          <Clock className="w-5 h-5 text-primary" />
+          <div>
+            <p className="text-xs text-muted-foreground uppercase">Tempo de Uso</p>
+            {(() => {
+              const installDate = new Date(machine.install_date);
+              const now = new Date();
+              const diffMs = now.getTime() - installDate.getTime();
+              const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const years = Math.floor(totalDays / 365);
+              const months = Math.floor((totalDays % 365) / 30);
+              const label = years > 0
+                ? `${years} ano${years > 1 ? "s" : ""}${months > 0 ? ` e ${months} m${months > 1 ? "eses" : "ês"}` : ""}`
+                : months > 0
+                  ? `${months} m${months > 1 ? "eses" : "ês"}`
+                  : `${totalDays} dia${totalDays !== 1 ? "s" : ""}`;
+              return <p className="text-sm font-medium text-foreground">{label}</p>;
+            })()}
           </div>
         </div>
         <div className="gradient-card rounded-lg border border-border p-4 flex items-center gap-3">
