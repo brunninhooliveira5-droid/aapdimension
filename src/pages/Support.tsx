@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, User, Cpu, CalendarDays } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,10 +37,15 @@ const Support = () => {
 
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [machines, setMachines] = useState<MachineOption[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [open, setOpen] = useState(false);
   const [newMachine, setNewMachine] = useState("");
   const [newType, setNewType] = useState("");
   const [newDesc, setNewDesc] = useState("");
+
+  // Detail dialog state
+  const [selectedTicket, setSelectedTicket] = useState<TicketRow | null>(null);
+  const [profileDetails, setProfileDetails] = useState<Record<string, any>>({});
 
   // Edit state
   const [editTicket, setEditTicket] = useState<TicketRow | null>(null);
@@ -59,6 +64,18 @@ const Support = () => {
         .from("machines")
         .select("id, model, serial_number, name");
       setMachines(machinesData ?? []);
+
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, name, email, company, phone");
+      const profileMap: Record<string, string> = {};
+      const profileFull: Record<string, any> = {};
+      (profilesData ?? []).forEach((p: any) => {
+        profileMap[p.id] = p.name;
+        profileFull[p.id] = p;
+      });
+      setProfiles(profileMap);
+      setProfileDetails(profileFull);
     };
     fetchData();
   }, []);
@@ -197,7 +214,7 @@ const Support = () => {
         ) : (
           tickets.map(ticket => (
             <div key={ticket.id} className="gradient-card rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 cursor-pointer hover:bg-accent/30 rounded-md p-1 -m-1 transition-colors" onClick={() => setSelectedTicket(ticket)}>
                 <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
                   <MessageSquare className="w-5 h-5 text-primary" />
                 </div>
@@ -285,6 +302,65 @@ const Support = () => {
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleEditSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedTicket} onOpenChange={(open) => !open && setSelectedTicket(null)}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Detalhes do Chamado</DialogTitle>
+          </DialogHeader>
+          {selectedTicket && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-2">
+                <StatusBadge status={selectedTicket.status} />
+                <span className="text-xs text-muted-foreground">{new Date(selectedTicket.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/30">
+                  <User className="w-4 h-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground uppercase">Aberto por</p>
+                    <p className="text-sm font-medium text-foreground">{profiles[selectedTicket.user_id] || "—"}</p>
+                    {profileDetails[selectedTicket.user_id]?.email && (
+                      <p className="text-xs text-muted-foreground">{profileDetails[selectedTicket.user_id].email}</p>
+                    )}
+                    {profileDetails[selectedTicket.user_id]?.phone && (
+                      <p className="text-xs text-muted-foreground">{profileDetails[selectedTicket.user_id].phone}</p>
+                    )}
+                    {profileDetails[selectedTicket.user_id]?.company && (
+                      <p className="text-xs text-muted-foreground">{profileDetails[selectedTicket.user_id].company}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/30">
+                  <Cpu className="w-4 h-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground uppercase">Máquina</p>
+                    <p className="text-sm font-medium text-foreground">{getMachineName(selectedTicket.machine_id)}</p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-border bg-accent/30">
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Tipo de Problema</p>
+                  <p className="text-sm font-medium text-foreground">{selectedTicket.type}</p>
+                </div>
+
+                <div className="p-3 rounded-lg border border-border bg-accent/30">
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Descrição</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Fechar</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
