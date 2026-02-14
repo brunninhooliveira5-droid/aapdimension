@@ -431,12 +431,26 @@ const MachineDashboard = () => {
       // Add to history and update in reports list
       const maint = maintenances.find(m => m.id === report.maintenance_id);
       setAllExecutedReports(prev => [{ ...report, status: "executado", maintenance_type: maint?.type, maintenance_notes: maint?.notes ?? "" }, ...prev]);
-      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: "executado" } : r));
+      const updatedReports = reports.map(r => r.id === report.id ? { ...r, status: "executado" } : r);
+      setReports(updatedReports);
+      
+      // Check if ALL reports for this maintenance are now executado
+      const allDone = updatedReports.every(r => r.status === "executado");
+      if (allDone && maint) {
+        await supabase.from("maintenances").update({ status: "realizada" } as any).eq("id", maint.id);
+        setMaintenances(prev => prev.map(m => m.id === maint.id ? { ...m, status: "realizada" } : m));
+      }
       toast.success("Relatório movido para o histórico!");
     } else {
       // If changing back from executado, remove from history
       setAllExecutedReports(prev => prev.filter(r => r.id !== report.id));
       setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
+      // If maintenance was "realizada", revert it since not all reports are done anymore
+      const maint = maintenances.find(m => m.id === report.maintenance_id);
+      if (maint?.status === "realizada") {
+        await supabase.from("maintenances").update({ status: "pendente" } as any).eq("id", maint.id);
+        setMaintenances(prev => prev.map(m => m.id === maint.id ? { ...m, status: "pendente" } : m));
+      }
       toast.success("Status do relatório atualizado!");
     }
   };
@@ -913,7 +927,7 @@ const MachineDashboard = () => {
         })()}
 
         {(() => {
-          const activeMaintenances = maintenances;
+          const activeMaintenances = maintenances.filter(m => m.status !== "realizada");
           return (
             <div className="gradient-card rounded-lg border border-border p-5">
               <div className="flex items-center justify-between mb-4">
