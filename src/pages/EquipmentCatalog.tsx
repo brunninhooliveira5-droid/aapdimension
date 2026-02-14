@@ -32,9 +32,9 @@ const EquipmentCatalog = () => {
 
   const fetchItems = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("dimension_equipment")
-      .select("*")
+      .select("id, name, description, image_url, link")
       .order("created_at", { ascending: true });
     setItems((data as Equipment[]) ?? []);
     setLoading(false);
@@ -71,13 +71,13 @@ const EquipmentCatalog = () => {
     };
 
     if (editing) {
-      const { error } = await supabase.from("dimension_equipment").update(payload).eq("id", editing.id);
+      const { error } = await (supabase as any).from("dimension_equipment").update(payload).eq("id", editing.id);
       if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
       toast.success("Equipamento atualizado!");
     } else {
       const userId = (await supabase.auth.getUser()).data.user?.id;
       if (!userId) { toast.error("Usuário não autenticado."); return; }
-      const { error } = await supabase.from("dimension_equipment").insert({ ...payload, created_by: userId });
+      const { error } = await (supabase as any).from("dimension_equipment").insert({ ...payload, created_by: userId });
       if (error) { toast.error("Erro ao adicionar: " + error.message); return; }
       toast.success("Equipamento adicionado!");
     }
@@ -87,7 +87,7 @@ const EquipmentCatalog = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("dimension_equipment").delete().eq("id", id);
+    const { error } = await (supabase as any).from("dimension_equipment").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir: " + error.message); return; }
     toast.success("Equipamento excluído!");
     fetchItems();

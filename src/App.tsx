@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Machines from "./pages/Machines";
 import PartsStores from "./pages/PartsStores";
+import EquipmentCatalog from "./pages/EquipmentCatalog";
 import MachineDashboard from "./pages/MachineDashboard";
 import Support from "./pages/Support";
 import Maintenance from "./pages/Maintenance";
@@ -47,6 +48,7 @@ const AppRoutes = () => {
         <Route path="/maquinas/:machineId" element={<RoleGate section="maquinas"><MachineDashboard /></RoleGate>} />
         <Route path="/suporte" element={<RoleGate section="suporte"><Support /></RoleGate>} />
         <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
+        <Route path="/equipamentos" element={<RoleGate section="equipamentos"><EquipmentCatalog /></RoleGate>} />
         <Route path="/pecas" element={<RoleGate section="pecas"><PartsStores /></RoleGate>} />
         <Route path="/financeiro" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
