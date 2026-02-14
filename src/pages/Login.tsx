@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
-import heroCnc from "@/assets/hero-cnc.png";
-import { Mail, ArrowRight, Lock, UserPlus, LogIn, Building2, MapPin, Phone } from "lucide-react";
+import loginBg from "@/assets/login-bg.png";
+import { Mail, Lock, UserPlus, LogIn, Building2, MapPin, Phone, User, EyeOff, Eye } from "lucide-react";
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [address, setAddress] = useState("");
@@ -72,179 +73,168 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left - Hero Image */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <img src={heroCnc} alt="CNC" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/80 to-background/40" />
-        <div className="absolute bottom-10 left-10 right-10">
-          <p className="text-lg font-semibold text-foreground">Portal do Cliente</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Acompanhe suas máquinas, chamados, manutenções e financeiro em um só lugar.
-          </p>
-        </div>
-      </div>
+    <div
+      className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-y-auto"
+      style={{
+        backgroundImage: `url(${loginBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-[hsl(220,30%,8%)]/60 backdrop-blur-[2px]" />
 
-      {/* Right - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="flex flex-col items-center gap-4">
-            <img src={dimensionLogo} alt="Dimension CNC" className="h-14 w-auto" />
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-foreground">
-                {mode === "login" ? "Acesse sua conta" : "Criar conta"}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {mode === "login"
-                  ? "Entre com seu e-mail e senha"
-                  : "Preencha os dados para solicitar acesso"}
-              </p>
-            </div>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6 py-10">
+        {/* Logo & Title */}
+        <img src={dimensionLogo} alt="Dimension CNC" className="h-20 w-auto mb-2 drop-shadow-2xl" />
+        <h2 className="text-sm font-medium tracking-[0.3em] text-primary/80 uppercase mb-8">
+          Tecnologia CNC
+        </h2>
+
+        {/* Subtitle */}
+        <p className="text-foreground/90 text-sm mb-6">
+          {mode === "login" ? "Bem-vindo ao Portal do Cliente" : "Solicitar acesso ao portal"}
+        </p>
+
+        {/* Form Card */}
+        <form
+          onSubmit={handleSubmit}
+          className="w-full space-y-4 bg-[hsl(220,20%,12%)]/70 backdrop-blur-md border border-border/30 rounded-2xl p-6 shadow-2xl"
+        >
+          {mode === "signup" && (
+            <>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type="text"
+                  placeholder="Nome Completo *"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                  required
+                />
+              </div>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type="text"
+                  placeholder="Nome da Empresa *"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                  required
+                />
+              </div>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type="text"
+                  placeholder="Endereço completo"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="text"
+                  placeholder="Cidade"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                />
+                <Input
+                  type="text"
+                  placeholder="UF"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  className="bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                  maxLength={2}
+                />
+              </div>
+              <Input
+                type="text"
+                placeholder="CEP"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                className="bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                maxLength={9}
+              />
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type="tel"
+                  placeholder="Telefone *"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {/* Email */}
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+            <Input
+              type="email"
+              placeholder="Usuário"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="pl-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+              required
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Nome Completo *</Label>
-                  <Input
-                    type="text"
-                    placeholder="Seu nome completo"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-accent border-border"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Nome da Empresa *</Label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Razão social ou nome fantasia"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      className="pl-10 bg-accent border-border"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Endereço</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Rua, número, complemento"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="pl-10 bg-accent border-border"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Cidade</Label>
-                    <Input
-                      type="text"
-                      placeholder="Cidade"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="bg-accent border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Estado</Label>
-                    <Input
-                      type="text"
-                      placeholder="UF"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="bg-accent border-border"
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">CEP</Label>
-                  <Input
-                    type="text"
-                    placeholder="00000-000"
-                    value={zipCode}
-                    onChange={(e) => setZipCode(e.target.value)}
-                    className="bg-accent border-border"
-                    maxLength={9}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Telefone *</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      type="tel"
-                      placeholder="(00) 00000-0000"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="pl-10 bg-accent border-border"
-                      required
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="email"
-                  placeholder="seu@email.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-accent border-border"
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Senha *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-accent border-border"
-                  required
-                  minLength={6}
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              {loading ? (
-                "Carregando..."
-              ) : mode === "login" ? (
-                <>Entrar <LogIn className="w-4 h-4" /></>
-              ) : (
-                <>Solicitar Cadastro <UserPlus className="w-4 h-4" /></>
-              )}
-            </Button>
-          </form>
+          {/* Password */}
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pl-10 pr-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors"
+            >
+              {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </button>
+          </div>
 
-          <button
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+          {/* Submit */}
+          <Button
+            type="submit"
+            className="w-full h-11 rounded-xl text-sm font-semibold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+            disabled={loading}
           >
-            {mode === "login"
-              ? "Não tem conta? Solicitar acesso"
-              : "Já tem conta? Fazer login"}
-          </button>
+            {loading ? (
+              "Carregando..."
+            ) : mode === "login" ? (
+              <>Entrar</>
+            ) : (
+              <>Solicitar Cadastro <UserPlus className="w-4 h-4" /></>
+            )}
+          </Button>
+        </form>
 
-          <p className="text-[10px] text-center text-muted-foreground">
-            Acesso exclusivo para clientes Dimension CNC
-          </p>
-        </div>
+        {/* Toggle mode */}
+        <button
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="mt-5 text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
+        >
+          {mode === "login"
+            ? "Não tem conta? Solicitar acesso"
+            : "Já tem conta? Fazer login"}
+        </button>
       </div>
     </div>
   );
