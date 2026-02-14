@@ -41,6 +41,7 @@ const AppRoutes = () => {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Index />} />
+        <Route path="/dashboard/:userId" element={<RoleGate section="usuarios"><Index /></RoleGate>} />
         <Route path="/maquinas" element={<RoleGate section="maquinas"><Machines /></RoleGate>} />
         <Route path="/suporte" element={<RoleGate section="suporte"><Support /></RoleGate>} />
         <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
