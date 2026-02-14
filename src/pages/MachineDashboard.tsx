@@ -1082,15 +1082,42 @@ const MachineDashboard = () => {
           </DialogHeader>
           {selectedMaintenance && (
             <div className="space-y-4 py-2">
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Tipo:</span>
-                  <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
+              <div className="flex items-center justify-between flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Data:</span>
+                    <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Data:</span>
-                  <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs">Status:</span>
+                    <Select
+                      value={selectedMaintenance.status}
+                      onValueChange={async (val) => {
+                        await handleChangeMaintenanceStatus(selectedMaintenance.id, val);
+                        setSelectedMaintenance({ ...selectedMaintenance, status: val });
+                        if (val === "realizada") {
+                          toast.success("Manutenção movida para o histórico!");
+                          setShowReportDialog(false);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="bg-accent border-border w-40 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="agendada">Agendada</SelectItem>
+                        <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                        <SelectItem value="realizada">Executada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {/* Add new report */}
