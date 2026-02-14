@@ -358,23 +358,25 @@ const Index = () => {
 
         <div className="gradient-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wider">Manutenções Próximas</h3>
-          <div className="flex flex-col sm:flex-row gap-2 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input placeholder="Buscar..." value={maintSearch} onChange={e => setMaintSearch(e.target.value)} className="pl-8 bg-accent border-border h-8 text-xs" />
+          {isAdmin && (
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input placeholder="Buscar..." value={maintSearch} onChange={e => setMaintSearch(e.target.value)} className="pl-8 bg-accent border-border h-8 text-xs" />
+              </div>
+              <Select value={maintStatusFilter} onValueChange={setMaintStatusFilter}>
+                <SelectTrigger className="bg-accent border-border h-8 text-xs w-full sm:w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="agendada">Agendada</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="realizada">Realizada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={maintStatusFilter} onValueChange={setMaintStatusFilter}>
-              <SelectTrigger className="bg-accent border-border h-8 text-xs w-full sm:w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="agendada">Agendada</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="realizada">Realizada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          )}
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
             {(() => {
               const filtered = upcomingMaintenances.filter(m => {

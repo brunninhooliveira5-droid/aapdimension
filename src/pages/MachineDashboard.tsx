@@ -950,9 +950,11 @@ const MachineDashboard = () => {
                   <CalendarDays className="w-4 h-4 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Manutenções ({activeMaintenances.length})</h3>
                 </div>
-                <Button size="sm" className="gap-1.5" onClick={() => setShowNewMaintenanceDialog(true)}>
-                  <Plus className="w-3.5 h-3.5" /> Nova
-                </Button>
+                {isAdmin && (
+                  <Button size="sm" className="gap-1.5" onClick={() => setShowNewMaintenanceDialog(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Nova
+                  </Button>
+                )}
               </div>
               <div className="space-y-3">
                 {activeMaintenances.length === 0 ? (
@@ -1038,13 +1040,15 @@ const MachineDashboard = () => {
             <FileText className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Arquivos ({files.length})</h3>
           </div>
-          <div>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
-            <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="gap-2">
-              <Upload className="w-3.5 h-3.5" />
-              {uploading ? "Enviando..." : "Enviar Arquivo"}
-            </Button>
-          </div>
+          {isAdmin && (
+            <div>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+              <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="gap-2">
+                <Upload className="w-3.5 h-3.5" />
+                {uploading ? "Enviando..." : "Enviar Arquivo"}
+              </Button>
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           {files.length === 0 ? (

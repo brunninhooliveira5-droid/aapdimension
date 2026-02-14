@@ -221,18 +221,73 @@ const Financial = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Contratado" value={`R$ ${totalContracted.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} />
-        <StatCard title="Total Pago" value={`R$ ${totalPaid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={TrendingUp} variant="highlight" />
-        <StatCard title="Em Aberto" value={`R$ ${totalOpen.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Clock} variant="warning" />
-        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
-          <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
+      {/* Summary Cards - Admin only */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="Total Contratado" value={`R$ ${totalContracted.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} />
+          <StatCard title="Total Pago" value={`R$ ${totalPaid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={TrendingUp} variant="highlight" />
+          <StatCard title="Em Aberto" value={`R$ ${totalOpen.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Clock} variant="warning" />
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
+            <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* User list or User detail */}
-      {selectedUserId ? (
+      {/* For regular users: show their invoices directly */}
+      {!isAdmin && (
+        <div className="gradient-card rounded-lg border border-border overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Meus Boletos</h3>
+          </div>
+          <div className="divide-y divide-border/50">
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-4">Nenhum boleto cadastrado.</p>
+            ) : (
+              invoices.map(inv => {
+                const files = invoiceFiles.filter(f => f.invoice_id === inv.id);
+                return (
+                  <div key={inv.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-mono font-semibold text-foreground">
+                          {inv.installment}/{inv.total_installments}
+                        </span>
+                        <span className="text-sm font-medium text-foreground">
+                          R$ {Number(inv.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          Venc. {new Date(inv.due_date).toLocaleDateString("pt-BR")}
+                        </div>
+                        {inv.payment_date && (
+                          <span className="text-xs text-muted-foreground">
+                            Pago em {new Date(inv.payment_date).toLocaleDateString("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                      <StatusBadge status={inv.status} />
+                    </div>
+                    {/* Files */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {files.map(f => (
+                        <div key={f.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent/50 border border-border text-xs">
+                          <span className="text-foreground truncate max-w-[150px]">{f.file_name}</span>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:text-primary/80" onClick={() => handleDownload(f.file_path, f.file_name)}>
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Admin: User list or User detail */}
+      {isAdmin && selectedUserId ? (
         /* User Detail: Installments */
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -349,7 +404,7 @@ const Financial = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : isAdmin ? (
         /* User List */
         <div className="gradient-card rounded-lg border border-border p-5">
           <div className="flex items-center justify-between mb-4">
@@ -396,7 +451,7 @@ const Financial = () => {
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleUploadFile} />
