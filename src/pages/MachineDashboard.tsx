@@ -97,6 +97,9 @@ const MachineDashboard = () => {
   const [newSpecKey, setNewSpecKey] = useState("");
   const [newSpecValue, setNewSpecValue] = useState("");
   const [savingSpecs, setSavingSpecs] = useState(false);
+  const [editingSpecKey, setEditingSpecKey] = useState<string | null>(null);
+  const [editSpecKey, setEditSpecKey] = useState("");
+  const [editSpecValue, setEditSpecValue] = useState("");
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -397,38 +400,58 @@ const MachineDashboard = () => {
     }
   };
 
-  const handleAddSpec = () => {
-    if (!newSpecKey.trim()) return;
-    setSpecsData(prev => ({ ...prev, [newSpecKey.trim()]: newSpecValue.trim() }));
+  const handleAddSpec = async () => {
+    if (!newSpecKey.trim() || !machineId) return;
+    const updated = { ...specsData, [newSpecKey.trim()]: newSpecValue.trim() };
+    setSpecsData(updated);
     setNewSpecKey("");
     setNewSpecValue("");
+    await saveSpecsToDb(updated);
   };
 
-  const handleRemoveSpec = (key: string) => {
-    setSpecsData(prev => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
+  const handleRemoveSpec = async (key: string) => {
+    const copy = { ...specsData };
+    delete copy[key];
+    setSpecsData(copy);
+    await saveSpecsToDb(copy);
   };
 
-  const handleSaveSpecs = async () => {
+  const handleEditSpecSave = async () => {
+    if (!editingSpecKey || !editSpecKey.trim()) return;
+    const copy = { ...specsData };
+    if (editingSpecKey !== editSpecKey.trim()) {
+      delete copy[editingSpecKey];
+    }
+    copy[editSpecKey.trim()] = editSpecValue.trim();
+    setSpecsData(copy);
+    setEditingSpecKey(null);
+    await saveSpecsToDb(copy);
+  };
+
+  const saveSpecsToDb = async (data: Record<string, string>) => {
     if (!machineId) return;
     setSavingSpecs(true);
     if (specsId) {
       const { error } = await supabase
         .from("machine_specs")
-        .update({ spec_data: specsData } as any)
+        .update({ spec_data: data } as any)
         .eq("id", specsId);
       if (error) { toast.error("Erro ao salvar: " + error.message); setSavingSpecs(false); return; }
     } else {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("machine_specs")
-        .insert({ machine_id: machineId, spec_data: specsData } as any);
+        .insert({ machine_id: machineId, spec_data: data } as any)
+        .select()
+        .single();
       if (error) { toast.error("Erro ao salvar: " + error.message); setSavingSpecs(false); return; }
+      if (inserted) setSpecsId((inserted as any).id);
     }
     toast.success("Ficha técnica salva!");
     setSavingSpecs(false);
+  };
+
+  const handleSaveSpecs = async () => {
+    await saveSpecsToDb(specsData);
   };
 
   const getFileUrl = (filePath: string) => {
@@ -838,32 +861,11 @@ const MachineDashboard = () => {
             <DialogTitle className="text-foreground">Ficha Técnica do Fabricante</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Existing specs */}
-            {Object.keys(specsData).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum dado técnico cadastrado.</p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(specsData).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-accent/30">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground uppercase font-medium">{key}</p>
-                      <p className="text-sm text-foreground">{value}</p>
-                    </div>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemoveSpec(key)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Add new spec (admin only) */}
             {isAdmin && (
               <div className="space-y-3 p-4 rounded-lg border border-border bg-accent/30">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Adicionar Campo
+                  <Plus className="w-4 h-4" /> Adicionar Ficha
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -872,24 +874,87 @@ const MachineDashboard = () => {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-foreground text-xs">Valor</Label>
-                    <Input value={newSpecValue} onChange={e => setNewSpecValue(e.target.value)} placeholder="Ex: 5000W, 120kg..." className="bg-accent border-border" />
+                    <Input value={newSpecValue} onChange={e => setNewSpecValue(e.target.value)} placeholder="Ex: 5000W, 120kg..." className="bg-accent border-border" onKeyDown={e => e.key === "Enter" && handleAddSpec()} />
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="border-border gap-1.5" onClick={handleAddSpec}>
+                <Button size="sm" className="gap-1.5" onClick={handleAddSpec} disabled={savingSpecs}>
                   <Plus className="w-3.5 h-3.5" /> Adicionar
                 </Button>
               </div>
             )}
+
+            {/* Specs list */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Dados Técnicos ({Object.keys(specsData).length})</h4>
+              {Object.keys(specsData).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum dado técnico cadastrado.</p>
+              ) : (
+                Object.entries(specsData).map(([key, value]) => (
+                  <div key={key} className="p-3 rounded-lg border border-border bg-accent/30 space-y-2">
+                    {editingSpecKey === key ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-foreground text-xs">Nome do Campo</Label>
+                            <Input value={editSpecKey} onChange={e => setEditSpecKey(e.target.value)} className="bg-accent border-border" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-foreground text-xs">Valor</Label>
+                            <Input value={editSpecValue} onChange={e => setEditSpecValue(e.target.value)} className="bg-accent border-border" onKeyDown={e => e.key === "Enter" && handleEditSpecSave()} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleEditSpecSave} disabled={savingSpecs}>Salvar</Button>
+                          <Button size="sm" variant="outline" className="border-border" onClick={() => setEditingSpecKey(null)}>Cancelar</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground uppercase font-medium tracking-wider">{key}</p>
+                            <p className="text-sm text-foreground mt-0.5">{value}</p>
+                          </div>
+                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-2 pt-1 border-t border-border/50">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => {
+                              setEditingSpecKey(key);
+                              setEditSpecKey(key);
+                              setEditSpecValue(value);
+                            }}>
+                              <Pencil className="w-3 h-3" /> Editar
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-3 h-3" /> Excluir
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-foreground">Excluir Campo</AlertDialogTitle>
+                                  <AlertDialogDescription>Tem certeza que deseja excluir o campo <strong>{key}</strong>?</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleRemoveSpec(key)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" className="border-border">Fechar</Button>
             </DialogClose>
-            {isAdmin && (
-              <Button onClick={handleSaveSpecs} disabled={savingSpecs}>
-                {savingSpecs ? "Salvando..." : "Salvar Ficha Técnica"}
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
