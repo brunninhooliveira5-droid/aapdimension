@@ -81,6 +81,8 @@ const MachineDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [allExecutedReports, setAllExecutedReports] = useState<(ReportRow & { maintenance_type?: string; maintenance_notes?: string })[]>([]);
+  const [historyStartDate, setHistoryStartDate] = useState("");
+  const [historyEndDate, setHistoryEndDate] = useState("");
 
   // Report state
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -1577,7 +1579,7 @@ const MachineDashboard = () => {
           </DialogHeader>
           {(() => {
             const resolvedTickets = tickets.filter(t => t.status === "resolvido");
-            const historyItems = [
+            const allItems = [
               ...resolvedTickets.map(t => ({
                 id: t.id,
                 type: "chamado" as const,
@@ -1594,8 +1596,39 @@ const MachineDashboard = () => {
               })),
             ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+            const historyItems = allItems.filter(item => {
+              const itemDate = new Date(item.date).getTime();
+              if (historyStartDate) {
+                const start = new Date(historyStartDate).getTime();
+                if (itemDate < start) return false;
+              }
+              if (historyEndDate) {
+                const end = new Date(historyEndDate);
+                end.setHours(23, 59, 59, 999);
+                if (itemDate > end.getTime()) return false;
+              }
+              return true;
+            });
+
             return (
               <div className="space-y-4 py-2">
+                {/* Date Filters */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Data Início</Label>
+                    <Input type="date" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} className="bg-accent border-border h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Data Fim</Label>
+                    <Input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} className="bg-accent border-border h-9 text-sm" />
+                  </div>
+                </div>
+                {(historyStartDate || historyEndDate) && (
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7" onClick={() => { setHistoryStartDate(""); setHistoryEndDate(""); }}>
+                    Limpar filtros
+                  </Button>
+                )}
+
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
@@ -1603,11 +1636,11 @@ const MachineDashboard = () => {
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
                   </div>
                   <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
-                    <p className="text-xl font-bold text-foreground">{resolvedTickets.length}</p>
+                    <p className="text-xl font-bold text-foreground">{historyItems.filter(i => i.type === "chamado").length}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
                   </div>
                   <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
-                    <p className="text-xl font-bold text-foreground">{allExecutedReports.length}</p>
+                    <p className="text-xl font-bold text-foreground">{historyItems.filter(i => i.type === "relatorio").length}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Relatórios</p>
                   </div>
                 </div>
@@ -1616,7 +1649,7 @@ const MachineDashboard = () => {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Registros ({historyItems.length})</h4>
                   {historyItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum registro finalizado ainda.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum registro encontrado{(historyStartDate || historyEndDate) ? " no período selecionado" : ""}.</p>
                   ) : (
                     historyItems.map(item => (
                       <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-accent/30">
