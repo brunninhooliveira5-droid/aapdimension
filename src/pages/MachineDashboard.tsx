@@ -852,62 +852,72 @@ const MachineDashboard = () => {
 
       {/* Tickets & Maintenances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="gradient-card rounded-lg border border-border p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados ({tickets.length})</h3>
-            </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setShowNewTicketDialog(true)}>
-              <Plus className="w-3.5 h-3.5" /> Novo
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {tickets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum chamado registrado.</p>
-            ) : (
-              tickets.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => navigate(`/suporte`)}>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{t.type}</p>
-                    <p className="text-xs text-muted-foreground truncate">{t.description}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString("pt-BR")}</p>
-                  </div>
-                  <StatusBadge status={t.status} className="ml-3 shrink-0" />
+        {(() => {
+          const activeTickets = tickets.filter(t => t.status !== "resolvido");
+          return (
+            <div className="gradient-card rounded-lg border border-border p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados ({activeTickets.length})</h3>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+                <Button size="sm" className="gap-1.5" onClick={() => setShowNewTicketDialog(true)}>
+                  <Plus className="w-3.5 h-3.5" /> Novo
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {activeTickets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum chamado em aberto.</p>
+                ) : (
+                  activeTickets.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => navigate(`/suporte`)}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{t.type}</p>
+                        <p className="text-xs text-muted-foreground truncate">{t.description}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                      <StatusBadge status={t.status} className="ml-3 shrink-0" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
-        <div className="gradient-card rounded-lg border border-border p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Manutenções ({maintenances.length})</h3>
-            </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setShowNewMaintenanceDialog(true)}>
-              <Plus className="w-3.5 h-3.5" /> Nova
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {maintenances.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada.</p>
-            ) : (
-              maintenances.map(m => (
-                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{m.type}</p>
-                    {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
-                    <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
-                    <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
-                  </div>
-                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
+        {(() => {
+          const activeMaintenances = maintenances.filter(m => m.status !== "realizada");
+          return (
+            <div className="gradient-card rounded-lg border border-border p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Manutenções ({activeMaintenances.length})</h3>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+                <Button size="sm" className="gap-1.5" onClick={() => setShowNewMaintenanceDialog(true)}>
+                  <Plus className="w-3.5 h-3.5" /> Nova
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {activeMaintenances.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma manutenção em andamento.</p>
+                ) : (
+                  activeMaintenances.map(m => (
+                    <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{m.type}</p>
+                        {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
+                        <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
+                        <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
+                      </div>
+                      <StatusBadge status={m.status} className="ml-3 shrink-0" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Histórico de Manutenção Card */}
