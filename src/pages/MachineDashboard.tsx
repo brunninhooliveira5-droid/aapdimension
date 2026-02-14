@@ -70,7 +70,7 @@ const MachineDashboard = () => {
   const { machineId } = useParams<{ machineId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdmin = user?.role === "admin_master";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editImageInputRef = useRef<HTMLInputElement>(null);
 
