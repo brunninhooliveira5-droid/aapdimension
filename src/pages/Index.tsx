@@ -2,7 +2,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Cpu, DollarSign, Calendar, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
-import { maintenances, tickets } from "@/data/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const nextMaintenance = maintenances.find(m => m.status === "agendada");
-const openTickets = tickets.filter(t => t.status !== "resolvido");
-
 interface InvoiceWithUser {
   id: string;
   amount: number;
@@ -26,6 +22,22 @@ interface InvoiceWithUser {
   status: string;
   user_name: string;
   user_email: string;
+}
+
+interface TicketData {
+  id: string;
+  type: string;
+  description: string;
+  status: string;
+  machine_model: string;
+}
+
+interface MaintenanceData {
+  id: string;
+  type: string;
+  scheduled_date: string;
+  status: string;
+  machine_model: string;
 }
 
 const Index = () => {
@@ -42,10 +54,11 @@ const Index = () => {
   const [overdueInvoices, setOverdueInvoices] = useState<InvoiceWithUser[]>([]);
   const [showOpenDialog, setShowOpenDialog] = useState(false);
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
+  const [recentTickets, setRecentTickets] = useState<TicketData[]>([]);
+  const [upcomingMaintenances, setUpcomingMaintenances] = useState<MaintenanceData[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      // If viewing a specific user, fetch their name
       if (viewUserId) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -55,26 +68,24 @@ const Index = () => {
         setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
       }
 
-      // Fetch total machines (filtered if viewing a specific user)
+      // Fetch total machines
       let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true });
       if (viewUserId) machineQuery = machineQuery.eq("owner_id", viewUserId);
       const { count } = await machineQuery;
       setTotalMachines(count ?? 0);
 
-      // Fetch invoices (filtered if viewing a specific user)
+      // Fetch invoices
       let invoiceQuery = supabase.from("invoices").select("*");
       if (viewUserId) invoiceQuery = invoiceQuery.eq("user_id", viewUserId);
       const { data: invoices } = await invoiceQuery;
 
       if (invoices) {
         const today = new Date().toISOString().split("T")[0];
-
         const userIds = [...new Set(invoices.map(i => i.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, name, email")
           .in("id", userIds);
-
         const profileMap = new Map(profiles?.map(p => [p.id, p]) ?? []);
 
         const mapInvoice = (inv: any): InvoiceWithUser => {
@@ -91,14 +102,54 @@ const Index = () => {
           };
         };
 
-        setOpenInvoices(
-          invoices.filter(i => i.status === "em_aberto").map(mapInvoice)
-        );
+        setOpenInvoices(invoices.filter(i => i.status === "em_aberto").map(mapInvoice));
         setOverdueInvoices(
-          invoices
-            .filter(i => i.status === "em_aberto" && i.due_date < today)
-            .map(mapInvoice)
+          invoices.filter(i => i.status === "em_aberto" && i.due_date < today).map(mapInvoice)
         );
+      }
+
+      // Fetch recent tickets
+      let ticketQuery = supabase
+        .from("tickets")
+        .select("id, type, description, status, machine_id")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (viewUserId) ticketQuery = ticketQuery.eq("user_id", viewUserId);
+      const { data: ticketsData } = await ticketQuery;
+
+      if (ticketsData && ticketsData.length > 0) {
+        const tMachineIds = [...new Set(ticketsData.map(t => t.machine_id))];
+        const { data: tMachines } = await supabase.from("machines").select("id, model").in("id", tMachineIds);
+        const tMap = new Map(tMachines?.map(m => [m.id, m.model]) ?? []);
+        setRecentTickets(ticketsData.map(t => ({
+          id: t.id, type: t.type, description: t.description, status: t.status,
+          machine_model: tMap.get(t.machine_id) ?? "—",
+        })));
+      } else {
+        setRecentTickets([]);
+      }
+
+      // Fetch upcoming maintenances
+      const todayStr = new Date().toISOString().split("T")[0];
+      let maintQuery = supabase
+        .from("maintenances")
+        .select("id, type, scheduled_date, status, machine_id")
+        .gte("scheduled_date", todayStr)
+        .order("scheduled_date", { ascending: true })
+        .limit(3);
+      if (viewUserId) maintQuery = maintQuery.eq("user_id", viewUserId);
+      const { data: maintData } = await maintQuery;
+
+      if (maintData && maintData.length > 0) {
+        const mMachineIds = [...new Set(maintData.map(m => m.machine_id))];
+        const { data: mMachines } = await supabase.from("machines").select("id, model").in("id", mMachineIds);
+        const mMap = new Map(mMachines?.map(m => [m.id, m.model]) ?? []);
+        setUpcomingMaintenances(maintData.map(m => ({
+          id: m.id, type: m.type, scheduled_date: m.scheduled_date, status: m.status,
+          machine_model: mMap.get(m.machine_id) ?? "—",
+        })));
+      } else {
+        setUpcomingMaintenances([]);
       }
     };
 
@@ -141,10 +192,7 @@ const Index = () => {
           icon={Cpu}
           variant="highlight"
         />
-        <div
-          className="cursor-pointer transition-transform hover:scale-[1.02]"
-          onClick={() => setShowOpenDialog(true)}
-        >
+        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOpenDialog(true)}>
           <StatCard
             title="Boletos em Aberto"
             value={openInvoices.length}
@@ -153,10 +201,7 @@ const Index = () => {
             variant="warning"
           />
         </div>
-        <div
-          className="cursor-pointer transition-transform hover:scale-[1.02]"
-          onClick={() => setShowOverdueDialog(true)}
-        >
+        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
           <StatCard
             title="Boletos em Atraso"
             value={overdueInvoices.length}
@@ -165,14 +210,11 @@ const Index = () => {
             variant={overdueInvoices.length > 0 ? "danger" : "default"}
           />
         </div>
-        <div
-          className="cursor-pointer transition-transform hover:scale-[1.02]"
-          onClick={() => navigate("/manutencao")}
-        >
+        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/manutencao")}>
           <StatCard
             title="Próxima Manutenção"
-            value={nextMaintenance ? new Date(nextMaintenance.date).toLocaleDateString("pt-BR") : "—"}
-            subtitle={nextMaintenance ? `${nextMaintenance.machineName} • ${nextMaintenance.userName}` : undefined}
+            value={upcomingMaintenances.length > 0 ? new Date(upcomingMaintenances[0].scheduled_date).toLocaleDateString("pt-BR") : "—"}
+            subtitle={upcomingMaintenances.length > 0 ? `${upcomingMaintenances[0].machine_model} • ${upcomingMaintenances[0].type}` : undefined}
             icon={Calendar}
           />
         </div>
@@ -183,30 +225,38 @@ const Index = () => {
         <div className="gradient-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wider">Chamados Recentes</h3>
           <div className="space-y-3">
-            {tickets.slice(0, 3).map(ticket => (
-              <div key={ticket.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{ticket.machineName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{ticket.type} — {ticket.description}</p>
+            {recentTickets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum chamado encontrado.</p>
+            ) : (
+              recentTickets.map(ticket => (
+                <div key={ticket.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{ticket.machine_model}</p>
+                    <p className="text-xs text-muted-foreground truncate">{ticket.type} — {ticket.description}</p>
+                  </div>
+                  <StatusBadge status={ticket.status} className="ml-3 shrink-0" />
                 </div>
-                <StatusBadge status={ticket.status} className="ml-3 shrink-0" />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="gradient-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wider">Manutenções Próximas</h3>
           <div className="space-y-3">
-            {maintenances.filter(m => m.status === "agendada").map(m => (
-              <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{m.machineName}</p>
-                  <p className="text-xs text-muted-foreground">{m.type} — {new Date(m.date).toLocaleDateString("pt-BR")}</p>
+            {upcomingMaintenances.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma manutenção agendada.</p>
+            ) : (
+              upcomingMaintenances.map(m => (
+                <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{m.machine_model}</p>
+                    <p className="text-xs text-muted-foreground">{m.type} — {new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
+                  </div>
+                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
                 </div>
-                <StatusBadge status={m.status} className="ml-3 shrink-0" />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
