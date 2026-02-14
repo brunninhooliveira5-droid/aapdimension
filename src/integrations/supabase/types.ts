@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      dimension_equipment: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          image_url: string | null
+          link: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       financial_summary: {
         Row: {
           id: string
