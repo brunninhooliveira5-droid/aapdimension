@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ interface ManagedUser {
   city: string;
   state: string;
   zip_code: string;
+  phone: string;
   role: UserRole;
   approved: boolean;
 }
@@ -61,6 +62,7 @@ const UsersPage = () => {
       city: p.city ?? "",
       state: p.state ?? "",
       zip_code: p.zip_code ?? "",
+      phone: p.phone ?? "",
       role: roleMap.get(p.id) ?? "operador",
       approved: p.approved ?? false,
     }));
@@ -163,6 +165,7 @@ const UsersPage = () => {
                     <TableHead className="text-muted-foreground text-xs uppercase">E-mail</TableHead>
                     <TableHead className="text-muted-foreground text-xs uppercase">Empresa</TableHead>
                     <TableHead className="text-muted-foreground text-xs uppercase">Endereço</TableHead>
+                    <TableHead className="text-muted-foreground text-xs uppercase">Telefone</TableHead>
                     <TableHead className="text-muted-foreground text-xs uppercase text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -174,6 +177,14 @@ const UsersPage = () => {
                       <TableCell className="text-muted-foreground text-sm">{u.company}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {[u.address, u.city, u.state, u.zip_code].filter(Boolean).join(", ")}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {u.phone && (
+                          <span className="inline-flex items-center gap-1">
+                            <Phone className="w-3.5 h-3.5" />
+                            {u.phone}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
