@@ -80,6 +80,7 @@ const MachineDashboard = () => {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [allExecutedReports, setAllExecutedReports] = useState<(ReportRow & { maintenance_type?: string; maintenance_notes?: string })[]>([]);
 
   // Report state
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -211,6 +212,22 @@ const MachineDashboard = () => {
         .eq("machine_id", machineId)
         .order("created_at", { ascending: false });
       setTrainings((trainingsData as TrainingRow[] | null) ?? []);
+
+      // Fetch all executed reports for history
+      const maintIds = (maintData ?? []).map(m => m.id);
+      if (maintIds.length > 0) {
+        const { data: execReports } = await supabase
+          .from("maintenance_reports")
+          .select("*")
+          .in("maintenance_id", maintIds)
+          .eq("status", "executado")
+          .order("report_date", { ascending: false });
+        const reportsWithMaint = (execReports ?? []).map(r => {
+          const maint = (maintData ?? []).find(m => m.id === r.maintenance_id);
+          return { ...r, maintenance_type: maint?.type, maintenance_notes: maint?.notes ?? "" } as ReportRow & { maintenance_type?: string; maintenance_notes?: string };
+        });
+        setAllExecutedReports(reportsWithMaint);
+      }
     };
 
     fetchAll();
@@ -354,11 +371,12 @@ const MachineDashboard = () => {
     setNewReportText("");
     setNewReportDate(new Date().toISOString().split("T")[0]);
     setShowReportDialog(true);
-    // Fetch reports for this maintenance
+    // Fetch reports for this maintenance (exclude executado - those are in history)
     const { data } = await supabase
       .from("maintenance_reports")
       .select("*")
       .eq("maintenance_id", m.id)
+      .neq("status", "executado")
       .order("report_date", { ascending: false });
     setReports(data ?? []);
   };
@@ -410,8 +428,18 @@ const MachineDashboard = () => {
       toast.error("Erro ao atualizar status: " + error.message);
       return;
     }
-    setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
-    toast.success("Status do relatório atualizado!");
+    if (newStatus === "executado") {
+      // Move to history
+      const maint = maintenances.find(m => m.id === report.maintenance_id);
+      setAllExecutedReports(prev => [{ ...report, status: "executado", maintenance_type: maint?.type, maintenance_notes: maint?.notes ?? "" }, ...prev]);
+      setReports(prev => prev.filter(r => r.id !== report.id));
+      toast.success("Relatório movido para o histórico!");
+    } else {
+      // If changing back from executado, remove from history
+      setAllExecutedReports(prev => prev.filter(r => r.id !== report.id));
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: newStatus } : r));
+      toast.success("Status do relatório atualizado!");
+    }
   };
 
   const handleEditReport = async () => {
@@ -886,7 +914,7 @@ const MachineDashboard = () => {
         })()}
 
         {(() => {
-          const activeMaintenances = maintenances.filter(m => m.status !== "realizada");
+          const activeMaintenances = maintenances;
           return (
             <div className="gradient-card rounded-lg border border-border p-5">
               <div className="flex items-center justify-between mb-4">
@@ -923,8 +951,8 @@ const MachineDashboard = () => {
       {/* Histórico de Manutenção Card */}
       {(() => {
         const resolvedTickets = tickets.filter(t => t.status === "resolvido");
-        const completedMaintenances = maintenances.filter(m => m.status === "realizada");
-        const totalHistory = resolvedTickets.length + completedMaintenances.length;
+        const executedReportsCount = allExecutedReports.length;
+        const totalHistory = resolvedTickets.length + executedReportsCount;
 
         return (
           <div
@@ -947,8 +975,8 @@ const MachineDashboard = () => {
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-foreground">{completedMaintenances.length}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                  <p className="text-lg font-bold text-foreground">{executedReportsCount}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Relatórios</p>
                 </div>
               </div>
             </div>
@@ -1082,42 +1110,15 @@ const MachineDashboard = () => {
           </DialogHeader>
           {selectedMaintenance && (
             <div className="space-y-4 py-2">
-              <div className="flex items-center justify-between flex-wrap gap-4 text-sm">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Tipo:</span>
-                    <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Data:</span>
-                    <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
-                  </div>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
                 </div>
-                {isAdmin && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-xs">Status:</span>
-                    <Select
-                      value={selectedMaintenance.status}
-                      onValueChange={async (val) => {
-                        await handleChangeMaintenanceStatus(selectedMaintenance.id, val);
-                        setSelectedMaintenance({ ...selectedMaintenance, status: val });
-                        if (val === "realizada") {
-                          toast.success("Manutenção movida para o histórico!");
-                          setShowReportDialog(false);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="bg-accent border-border w-40 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="agendada">Agendada</SelectItem>
-                        <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                        <SelectItem value="realizada">Executada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Data:</span>
+                  <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
+                </div>
               </div>
 
               {/* Add new report */}
@@ -1556,7 +1557,6 @@ const MachineDashboard = () => {
           </DialogHeader>
           {(() => {
             const resolvedTickets = tickets.filter(t => t.status === "resolvido");
-            const completedMaintenances = maintenances.filter(m => m.status === "realizada");
             const historyItems = [
               ...resolvedTickets.map(t => ({
                 id: t.id,
@@ -1565,12 +1565,12 @@ const MachineDashboard = () => {
                 description: t.description,
                 date: t.created_at,
               })),
-              ...completedMaintenances.map(m => ({
-                id: m.id,
-                type: "manutencao" as const,
-                label: m.type,
-                description: m.notes ?? "",
-                date: m.scheduled_date,
+              ...allExecutedReports.map(r => ({
+                id: r.id,
+                type: "relatorio" as const,
+                label: r.maintenance_type ?? "Manutenção",
+                description: r.report,
+                date: r.report_date,
               })),
             ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -1587,8 +1587,8 @@ const MachineDashboard = () => {
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
                   </div>
                   <div className="p-3 rounded-lg border border-border bg-accent/30 text-center">
-                    <p className="text-xl font-bold text-foreground">{completedMaintenances.length}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                    <p className="text-xl font-bold text-foreground">{allExecutedReports.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Relatórios</p>
                   </div>
                 </div>
 
@@ -1603,11 +1603,11 @@ const MachineDashboard = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${item.type === "chamado" ? "bg-primary/10 text-primary" : "bg-accent text-muted-foreground"}`}>
-                              {item.type === "chamado" ? "Chamado" : "Manutenção"}
+                              {item.type === "chamado" ? "Chamado" : "Relatório"}
                             </span>
                             <p className="text-sm font-medium text-foreground">{item.label}</p>
                           </div>
-                          {item.description && <p className="text-xs text-muted-foreground mt-1">{item.description}</p>}
+                          {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
                           <p className="text-xs text-muted-foreground mt-0.5">{new Date(item.date).toLocaleDateString("pt-BR")}</p>
                         </div>
                         <CheckCircle className="w-4 h-4 text-primary ml-3 shrink-0" />
