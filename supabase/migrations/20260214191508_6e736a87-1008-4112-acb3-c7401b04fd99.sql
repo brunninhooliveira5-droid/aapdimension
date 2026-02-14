@@ -1,0 +1,1 @@
+ALTER TABLE public.machines ADD COLUMN image_path text;
