@@ -39,7 +39,7 @@ interface InvoiceFile {
 
 const Financial = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdmin = user?.role === "admin_master";
 
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
