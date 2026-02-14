@@ -559,6 +559,19 @@ const MachineDashboard = () => {
     await saveSpecsToDb(specsData);
   };
 
+  const handleDeleteMaintenance = async (maintenanceId: string) => {
+    // Delete related reports first, then the maintenance
+    await supabase.from("maintenance_reports").delete().eq("maintenance_id", maintenanceId);
+    const { error } = await supabase.from("maintenances").delete().eq("id", maintenanceId);
+    if (error) {
+      toast.error("Erro ao excluir manutenção: " + error.message);
+      return;
+    }
+    setMaintenances(prev => prev.filter(m => m.id !== maintenanceId));
+    setAllExecutedReports(prev => prev.filter(r => r.maintenance_id !== maintenanceId));
+    toast.success("Manutenção excluída!");
+  };
+
   const openTrainingDialog = () => {
     setShowTrainingDialog(true);
   };
@@ -946,14 +959,35 @@ const MachineDashboard = () => {
                   <p className="text-sm text-muted-foreground">Nenhuma manutenção em andamento.</p>
                 ) : (
                   activeMaintenances.map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 cursor-pointer hover:bg-accent/80 transition-colors" onClick={() => openReportDialog(m)}>
-                      <div className="min-w-0 flex-1">
+                    <div key={m.id} className="flex items-center justify-between p-3 rounded-md bg-accent/50 hover:bg-accent/80 transition-colors">
+                      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => openReportDialog(m)}>
                         <p className="text-sm font-medium text-foreground">{m.type}</p>
                         {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
                         <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
                         <p className="text-xs text-primary mt-1">📋 Clique para ver relatórios</p>
                       </div>
-                      <StatusBadge status={m.status} className="ml-3 shrink-0" />
+                      <div className="flex items-center gap-2 ml-3 shrink-0">
+                        <StatusBadge status={m.status} />
+                        {isAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={e => e.stopPropagation()}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-card border-border">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-foreground">Excluir Manutenção</AlertDialogTitle>
+                                <AlertDialogDescription>Tem certeza que deseja excluir esta manutenção e todos os seus relatórios?</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteMaintenance(m.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
