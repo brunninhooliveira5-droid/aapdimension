@@ -121,6 +121,19 @@ const MachineDashboard = () => {
   const [uploadingTraining, setUploadingTraining] = useState(false);
   const trainingFileRef = useRef<HTMLInputElement>(null);
 
+  // New ticket state
+  const [showNewTicketDialog, setShowNewTicketDialog] = useState(false);
+  const [newTicketType, setNewTicketType] = useState("");
+  const [newTicketDesc, setNewTicketDesc] = useState("");
+  const [savingTicket, setSavingTicket] = useState(false);
+
+  // New maintenance state
+  const [showNewMaintenanceDialog, setShowNewMaintenanceDialog] = useState(false);
+  const [newMaintType, setNewMaintType] = useState("");
+  const [newMaintDate, setNewMaintDate] = useState(new Date().toISOString().split("T")[0]);
+  const [newMaintNotes, setNewMaintNotes] = useState("");
+  const [savingMaint, setSavingMaint] = useState(false);
+
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
@@ -565,6 +578,68 @@ const MachineDashboard = () => {
     toast.success("Treinamento excluído!");
   };
 
+  const handleCreateTicket = async () => {
+    if (!machineId || !newTicketType.trim() || !newTicketDesc.trim()) {
+      toast.error("Preencha todos os campos.");
+      return;
+    }
+    setSavingTicket(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await supabase
+      .from("tickets")
+      .insert({
+        machine_id: machineId,
+        user_id: userId,
+        type: newTicketType,
+        description: newTicketDesc,
+      } as any)
+      .select()
+      .single();
+    if (error) {
+      toast.error("Erro ao criar chamado: " + error.message);
+      setSavingTicket(false);
+      return;
+    }
+    toast.success("Chamado criado com sucesso!");
+    setTickets(prev => [data as TicketRow, ...prev]);
+    setNewTicketType("");
+    setNewTicketDesc("");
+    setShowNewTicketDialog(false);
+    setSavingTicket(false);
+  };
+
+  const handleCreateMaintenance = async () => {
+    if (!machineId || !newMaintType.trim() || !newMaintDate) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+    setSavingMaint(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await supabase
+      .from("maintenances")
+      .insert({
+        machine_id: machineId,
+        user_id: userId,
+        type: newMaintType,
+        scheduled_date: newMaintDate,
+        notes: newMaintNotes || null,
+      } as any)
+      .select()
+      .single();
+    if (error) {
+      toast.error("Erro ao criar manutenção: " + error.message);
+      setSavingMaint(false);
+      return;
+    }
+    toast.success("Manutenção criada com sucesso!");
+    setMaintenances(prev => [data as MaintenanceRow, ...prev]);
+    setNewMaintType("");
+    setNewMaintDate(new Date().toISOString().split("T")[0]);
+    setNewMaintNotes("");
+    setShowNewMaintenanceDialog(false);
+    setSavingMaint(false);
+  };
+
   const getFileUrl = (filePath: string) => {
     const { data } = supabase.storage.from("machine-files").getPublicUrl(filePath);
     return data.publicUrl;
@@ -691,9 +766,14 @@ const MachineDashboard = () => {
       {/* Tickets & Maintenances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="gradient-card rounded-lg border border-border p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados ({tickets.length})</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados ({tickets.length})</h3>
+            </div>
+            <Button size="sm" className="gap-1.5" onClick={() => setShowNewTicketDialog(true)}>
+              <Plus className="w-3.5 h-3.5" /> Novo
+            </Button>
           </div>
           <div className="space-y-3">
             {tickets.length === 0 ? (
@@ -714,9 +794,14 @@ const MachineDashboard = () => {
         </div>
 
         <div className="gradient-card rounded-lg border border-border p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarDays className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Manutenções ({maintenances.length})</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Manutenções ({maintenances.length})</h3>
+            </div>
+            <Button size="sm" className="gap-1.5" onClick={() => setShowNewMaintenanceDialog(true)}>
+              <Plus className="w-3.5 h-3.5" /> Nova
+            </Button>
           </div>
           <div className="space-y-3">
             {maintenances.length === 0 ? (
@@ -1181,6 +1266,81 @@ const MachineDashboard = () => {
             <DialogClose asChild>
               <Button variant="outline" className="border-border">Fechar</Button>
             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Ticket Dialog */}
+      <Dialog open={showNewTicketDialog} onOpenChange={setShowNewTicketDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Novo Chamado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Tipo *</Label>
+              <Select value={newTicketType} onValueChange={setNewTicketType}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Erro de operação">Erro de operação</SelectItem>
+                  <SelectItem value="Defeito mecânico">Defeito mecânico</SelectItem>
+                  <SelectItem value="Defeito elétrico">Defeito elétrico</SelectItem>
+                  <SelectItem value="Software/CNC">Software/CNC</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Descrição *</Label>
+              <Textarea value={newTicketDesc} onChange={e => setNewTicketDesc(e.target.value)} placeholder="Descreva o problema..." className="bg-accent border-border" rows={4} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleCreateTicket} disabled={savingTicket}>
+              {savingTicket ? "Salvando..." : "Criar Chamado"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Maintenance Dialog */}
+      <Dialog open={showNewMaintenanceDialog} onOpenChange={setShowNewMaintenanceDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Nova Manutenção</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Tipo *</Label>
+              <Select value={newMaintType} onValueChange={setNewMaintType}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Preventiva">Preventiva</SelectItem>
+                  <SelectItem value="Corretiva">Corretiva</SelectItem>
+                  <SelectItem value="Preditiva">Preditiva</SelectItem>
+                  <SelectItem value="Calibração">Calibração</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Data Agendada *</Label>
+              <Input type="date" value={newMaintDate} onChange={e => setNewMaintDate(e.target.value)} className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Observações</Label>
+              <Textarea value={newMaintNotes} onChange={e => setNewMaintNotes(e.target.value)} placeholder="Observações opcionais..." className="bg-accent border-border" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleCreateMaintenance} disabled={savingMaint}>
+              {savingMaint ? "Salvando..." : "Criar Manutenção"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
