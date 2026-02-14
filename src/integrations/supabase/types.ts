@@ -157,6 +157,7 @@ export type Database = {
           id: string
           machine_id: string
           notes: string | null
+          report: string | null
           scheduled_date: string
           status: string
           type: string
@@ -167,6 +168,7 @@ export type Database = {
           id?: string
           machine_id: string
           notes?: string | null
+          report?: string | null
           scheduled_date: string
           status?: string
           type: string
@@ -177,6 +179,7 @@ export type Database = {
           id?: string
           machine_id?: string
           notes?: string | null
+          report?: string | null
           scheduled_date?: string
           status?: string
           type?: string

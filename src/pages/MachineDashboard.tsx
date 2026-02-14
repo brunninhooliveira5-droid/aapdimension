@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -40,6 +41,7 @@ interface MaintenanceRow {
   scheduled_date: string;
   status: string;
   notes: string | null;
+  report: string | null;
 }
 
 interface FileRow {
@@ -67,6 +69,11 @@ const MachineDashboard = () => {
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [files, setFiles] = useState<FileRow[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  // Report state
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceRow | null>(null);
+  const [reportText, setReportText] = useState("");
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -117,7 +124,7 @@ const MachineDashboard = () => {
 
       const { data: maintData } = await supabase
         .from("maintenances")
-        .select("id, type, scheduled_date, status, notes")
+        .select("id, type, scheduled_date, status, notes, report")
         .eq("machine_id", machineId)
         .order("scheduled_date", { ascending: false });
       setMaintenances(maintData ?? []);
@@ -266,6 +273,27 @@ const MachineDashboard = () => {
     toast.success("Arquivo removido.");
   };
 
+  const openReportDialog = (m: MaintenanceRow) => {
+    setSelectedMaintenance(m);
+    setReportText(m.report ?? "");
+    setShowReportDialog(true);
+  };
+
+  const handleSaveReport = async () => {
+    if (!selectedMaintenance) return;
+    const { error } = await supabase
+      .from("maintenances")
+      .update({ report: reportText } as any)
+      .eq("id", selectedMaintenance.id);
+    if (error) {
+      toast.error("Erro ao salvar relatório: " + error.message);
+      return;
+    }
+    toast.success("Relatório salvo com sucesso!");
+    setMaintenances(prev => prev.map(m => m.id === selectedMaintenance.id ? { ...m, report: reportText } : m));
+    setShowReportDialog(false);
+  };
+
   const getFileUrl = (filePath: string) => {
     const { data } = supabase.storage.from("machine-files").getPublicUrl(filePath);
     return data.publicUrl;
@@ -397,8 +425,14 @@ const MachineDashboard = () => {
                     <p className="text-sm font-medium text-foreground">{m.type}</p>
                     {m.notes && <p className="text-xs text-muted-foreground truncate">{m.notes}</p>}
                     <p className="text-xs text-muted-foreground">{new Date(m.scheduled_date).toLocaleDateString("pt-BR")}</p>
+                    {m.report && <p className="text-xs text-primary mt-1">📋 Relatório preenchido</p>}
                   </div>
-                  <StatusBadge status={m.status} className="ml-3 shrink-0" />
+                  <div className="flex items-center gap-2 ml-3 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openReportDialog(m)} title="Relatório">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                    </Button>
+                    <StatusBadge status={m.status} />
+                  </div>
                 </div>
               ))
             )}
@@ -519,6 +553,42 @@ const MachineDashboard = () => {
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleSaveEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Relatório de Manutenção</DialogTitle>
+          </DialogHeader>
+          {selectedMaintenance && (
+            <div className="space-y-3 py-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Tipo:</span>
+                <span className="font-medium text-foreground">{selectedMaintenance.type}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Data:</span>
+                <span className="font-medium text-foreground">{new Date(selectedMaintenance.scheduled_date).toLocaleDateString("pt-BR")}</span>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Relatório do Técnico</Label>
+                <Textarea
+                  value={reportText}
+                  onChange={e => setReportText(e.target.value)}
+                  placeholder="Descreva o serviço realizado, peças trocadas, observações..."
+                  className="bg-accent border-border min-h-[150px]"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleSaveReport}>Salvar Relatório</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
