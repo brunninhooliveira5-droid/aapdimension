@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,6 +101,26 @@ const MachineDashboard = () => {
   const [editSpecKey, setEditSpecKey] = useState("");
   const [editSpecValue, setEditSpecValue] = useState("");
 
+  // Training state
+  interface TrainingRow {
+    id: string;
+    machine_id: string;
+    title: string;
+    description: string;
+    video_url: string | null;
+    file_path: string | null;
+    file_name: string | null;
+    created_at: string;
+  }
+  const [showTrainingDialog, setShowTrainingDialog] = useState(false);
+  const [trainings, setTrainings] = useState<TrainingRow[]>([]);
+  const [newTrainingTitle, setNewTrainingTitle] = useState("");
+  const [newTrainingDesc, setNewTrainingDesc] = useState("");
+  const [newTrainingVideo, setNewTrainingVideo] = useState("");
+  const [newTrainingFile, setNewTrainingFile] = useState<File | null>(null);
+  const [uploadingTraining, setUploadingTraining] = useState(false);
+  const trainingFileRef = useRef<HTMLInputElement>(null);
+
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
@@ -161,6 +181,13 @@ const MachineDashboard = () => {
         .eq("machine_id", machineId)
         .order("created_at", { ascending: false });
       setFiles(filesData ?? []);
+
+      const { data: trainingsData } = await supabase
+        .from("machine_trainings")
+        .select("*")
+        .eq("machine_id", machineId)
+        .order("created_at", { ascending: false });
+      setTrainings((trainingsData as TrainingRow[] | null) ?? []);
     };
 
     fetchAll();
@@ -466,6 +493,78 @@ const MachineDashboard = () => {
     await saveSpecsToDb(specsData);
   };
 
+  const openTrainingDialog = () => {
+    setShowTrainingDialog(true);
+  };
+
+  const handleAddTraining = async () => {
+    if (!machineId || !newTrainingTitle.trim()) {
+      toast.error("Preencha o título do treinamento.");
+      return;
+    }
+    setUploadingTraining(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) { setUploadingTraining(false); return; }
+
+    let filePath: string | null = null;
+    let fileName: string | null = null;
+    if (newTrainingFile) {
+      const path = `trainings/${machineId}/${Date.now()}_${newTrainingFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from("machine-files").upload(path, newTrainingFile);
+      if (uploadErr) {
+        toast.error("Erro ao enviar arquivo: " + uploadErr.message);
+        setUploadingTraining(false);
+        return;
+      }
+      filePath = path;
+      fileName = newTrainingFile.name;
+    }
+
+    const { data, error } = await supabase
+      .from("machine_trainings")
+      .insert({
+        machine_id: machineId,
+        title: newTrainingTitle,
+        description: newTrainingDesc,
+        video_url: newTrainingVideo || null,
+        file_path: filePath,
+        file_name: fileName,
+        created_by: userId,
+      } as any)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+      setUploadingTraining(false);
+      return;
+    }
+    toast.success("Treinamento adicionado!");
+    setTrainings(prev => [data as TrainingRow, ...prev]);
+    setNewTrainingTitle("");
+    setNewTrainingDesc("");
+    setNewTrainingVideo("");
+    setNewTrainingFile(null);
+    if (trainingFileRef.current) trainingFileRef.current.value = "";
+    setUploadingTraining(false);
+  };
+
+  const handleDeleteTraining = async (training: TrainingRow) => {
+    if (training.file_path) {
+      await supabase.storage.from("machine-files").remove([training.file_path]);
+    }
+    const { error } = await supabase
+      .from("machine_trainings")
+      .delete()
+      .eq("id", training.id);
+    if (error) {
+      toast.error("Erro ao excluir: " + error.message);
+      return;
+    }
+    setTrainings(prev => prev.filter(t => t.id !== training.id));
+    toast.success("Treinamento excluído!");
+  };
+
   const getFileUrl = (filePath: string) => {
     const { data } = supabase.storage.from("machine-files").getPublicUrl(filePath);
     return data.publicUrl;
@@ -569,6 +668,22 @@ const MachineDashboard = () => {
           <div>
             <h3 className="text-sm font-semibold text-foreground">Ficha Técnica do Fabricante</h3>
             <p className="text-xs text-muted-foreground">Clique para ver os dados técnicos do equipamento</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Treinamento Card */}
+      <div
+        className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
+        onClick={openTrainingDialog}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <GraduationCap className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Treinamento</h3>
+            <p className="text-xs text-muted-foreground">Clique para ver materiais de treinamento ({trainings.length})</p>
           </div>
         </div>
       </div>
@@ -962,6 +1077,100 @@ const MachineDashboard = () => {
                           </div>
                         )}
                       </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Fechar</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Training Dialog */}
+      <Dialog open={showTrainingDialog} onOpenChange={setShowTrainingDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Treinamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Add training (admin only) */}
+            {isAdmin && (
+              <div className="space-y-3 p-4 rounded-lg border border-border bg-accent/30">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Adicionar Treinamento
+                </h4>
+                <div className="space-y-2">
+                  <Label className="text-foreground text-xs">Título</Label>
+                  <Input value={newTrainingTitle} onChange={e => setNewTrainingTitle(e.target.value)} placeholder="Ex: Operação Básica, Manutenção Preventiva..." className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground text-xs">Descrição</Label>
+                  <Textarea value={newTrainingDesc} onChange={e => setNewTrainingDesc(e.target.value)} placeholder="Descreva o conteúdo do treinamento..." className="bg-accent border-border min-h-[80px]" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground text-xs flex items-center gap-1"><Video className="w-3.5 h-3.5" /> URL do Vídeo (YouTube, Vimeo, etc.)</Label>
+                  <Input value={newTrainingVideo} onChange={e => setNewTrainingVideo(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground text-xs flex items-center gap-1"><Upload className="w-3.5 h-3.5" /> Arquivo (PDF, documento, etc.)</Label>
+                  <input ref={trainingFileRef} type="file" className="text-xs text-muted-foreground file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-accent file:text-foreground hover:file:bg-accent/80" onChange={e => setNewTrainingFile(e.target.files?.[0] ?? null)} />
+                </div>
+                <Button size="sm" className="gap-1.5" onClick={handleAddTraining} disabled={uploadingTraining}>
+                  <Plus className="w-3.5 h-3.5" /> {uploadingTraining ? "Enviando..." : "Adicionar"}
+                </Button>
+              </div>
+            )}
+
+            {/* Training list */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Materiais ({trainings.length})</h4>
+              {trainings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum treinamento cadastrado.</p>
+              ) : (
+                trainings.map(t => (
+                  <div key={t.id} className="p-4 rounded-lg border border-border bg-accent/30 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{t.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-card border-border">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-foreground">Excluir Treinamento</AlertDialogTitle>
+                              <AlertDialogDescription>Tem certeza que deseja excluir este treinamento?</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteTraining(t)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                    {t.description && (
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{t.description}</p>
+                    )}
+                    {t.video_url && (
+                      <a href={t.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                        <Video className="w-3.5 h-3.5" /> Assistir Vídeo
+                      </a>
+                    )}
+                    {t.file_path && t.file_name && (
+                      <a href={getFileUrl(t.file_path)} download={t.file_name} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                        <Download className="w-3.5 h-3.5" /> {t.file_name}
+                      </a>
                     )}
                   </div>
                 ))
