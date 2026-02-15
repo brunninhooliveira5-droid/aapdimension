@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Plus, Trash2 } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Plus, Trash2, ChevronLeft, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -214,6 +214,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [result, setResult] = useState<QuoteResult | null>(null);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
+  const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string } | null>(null);
+  const [materialThicknesses, setMaterialThicknesses] = useState<{ id: string; value: string; label: string }[]>([]);
+  const [newThickness, setNewThickness] = useState("");
 
   // Load custom materials
   useEffect(() => {
@@ -248,6 +251,54 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       toast.success("Material removido.");
     }
   };
+
+  const openMaterialDashboard = async (mat: { id: string; name: string }) => {
+    setSelectedMaterial(mat);
+    const { data } = await supabase
+      .from("cutting_material_thicknesses")
+      .select("id, value, label")
+      .eq("material_id", mat.id)
+      .order("value");
+    if (data) setMaterialThicknesses(data as any);
+  };
+
+  const addThickness = async () => {
+    if (!newThickness.trim() || !selectedMaterial) return;
+    const val = newThickness.trim();
+    const { data, error } = await supabase
+      .from("cutting_material_thicknesses")
+      .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm` } as any)
+      .select("id, value, label")
+      .single();
+    if (!error && data) {
+      setMaterialThicknesses((prev) => [...prev, data as any].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
+      setNewThickness("");
+      toast.success("Espessura adicionada!");
+    }
+  };
+
+  const deleteThickness = async (id: string) => {
+    const { error } = await supabase.from("cutting_material_thicknesses").delete().eq("id", id);
+    if (!error) {
+      setMaterialThicknesses((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Espessura removida.");
+    }
+  };
+
+  // Load thicknesses for selected material in the quote form
+  const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    if (!material) { setAvailableThicknesses([]); return; }
+    const matId = material.replace("custom_", "");
+    supabase
+      .from("cutting_material_thicknesses")
+      .select("value, label")
+      .eq("material_id", matId)
+      .order("value")
+      .then(({ data }) => {
+        if (data) setAvailableThicknesses(data as any);
+      });
+  }, [material]);
 
   const allMaterials = customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name }));
 
@@ -542,7 +593,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
             {/* Material */}
             <div>
               <Label className="text-xs">Material</Label>
-              <Select value={material} onValueChange={setMaterial}>
+              <Select value={material} onValueChange={(v) => { setMaterial(v); setThickness(""); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o material" />
                 </SelectTrigger>
@@ -557,12 +608,12 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
             {/* Thickness */}
             <div>
               <Label className="text-xs">Espessura</Label>
-              <Select value={thickness} onValueChange={setThickness}>
+              <Select value={thickness} onValueChange={setThickness} disabled={!material || availableThicknesses.length === 0}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione a espessura" />
+                  <SelectValue placeholder={!material ? "Selecione um material primeiro" : availableThicknesses.length === 0 ? "Nenhuma espessura cadastrada" : "Selecione a espessura"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {THICKNESSES.map((t) => (
+                  {availableThicknesses.map((t) => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -675,38 +726,96 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       {/* Materials Management Card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plus className="w-4 h-4 text-primary" />
-            Cadastrar Materiais
-          </CardTitle>
-          <CardDescription>Adicione materiais personalizados para seus orçamentos</CardDescription>
+          {selectedMaterial ? (
+            <>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelectedMaterial(null); setMaterialThicknesses([]); }}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Layers className="w-4 h-4 text-primary" />
+                {selectedMaterial.name}
+              </CardTitle>
+              <CardDescription>Gerencie as espessuras deste material</CardDescription>
+            </>
+          ) : (
+            <>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" />
+                Cadastrar Materiais
+              </CardTitle>
+              <CardDescription>Clique em um material para gerenciar espessuras</CardDescription>
+            </>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nome do material"
-              value={newMaterial}
-              onChange={(e) => setNewMaterial(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addMaterial()}
-            />
-            <Button onClick={addMaterial} disabled={!newMaterial.trim()} size="sm" className="shrink-0 gap-1">
-              <Plus className="w-3.5 h-3.5" /> Adicionar
-            </Button>
-          </div>
-          {customMaterials.length > 0 && (
-            <div className="space-y-1">
-              {customMaterials.map((m) => (
-                <div key={m.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-secondary/50 text-sm">
-                  <span>{m.name}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteMaterial(m.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+          {selectedMaterial ? (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Espessura (ex: 2.5)"
+                  value={newThickness}
+                  onChange={(e) => setNewThickness(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addThickness()}
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                />
+                <Button onClick={addThickness} disabled={!newThickness.trim()} size="sm" className="shrink-0 gap-1">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </Button>
+              </div>
+              {materialThicknesses.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {materialThicknesses.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-secondary/50 text-sm">
+                      <span>{t.label}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteThickness(t.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-          {customMaterials.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-2">Nenhum material personalizado cadastrado.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-2">Nenhuma espessura cadastrada para este material.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nome do material"
+                  value={newMaterial}
+                  onChange={(e) => setNewMaterial(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addMaterial()}
+                />
+                <Button onClick={addMaterial} disabled={!newMaterial.trim()} size="sm" className="shrink-0 gap-1">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </Button>
+              </div>
+              {customMaterials.length > 0 ? (
+                <div className="space-y-1">
+                  {customMaterials.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between py-2 px-3 rounded-md bg-secondary/50 text-sm cursor-pointer hover:bg-secondary transition-colors"
+                      onClick={() => openMaterialDashboard(m)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                        {m.name}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-2">Nenhum material personalizado cadastrado.</p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
