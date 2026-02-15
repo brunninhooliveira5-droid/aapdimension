@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface MachineRow {
+interface EquipmentRow {
   id: string;
   name: string;
   model: string;
@@ -21,8 +19,6 @@ interface MachineRow {
   accessories: string[];
   owner_id: string;
   owner_name: string;
-  ticket_count: number;
-  maintenance_count: number;
   image_url: string | null;
   category: string;
 }
@@ -33,10 +29,9 @@ interface ProfileOption {
 }
 
 const EquipmentRegistration = () => {
-  const navigate = useNavigate();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const [machines, setMachines] = useState<MachineRow[]>([]);
+  const [items, setItems] = useState<EquipmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
@@ -53,7 +48,7 @@ const EquipmentRegistration = () => {
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
 
-  const filteredMachines = machines.filter(m => {
+  const filteredItems = items.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
     return true;
@@ -65,24 +60,19 @@ const EquipmentRegistration = () => {
     return data.publicUrl;
   };
 
-  const fetchMachines = async () => {
+  const fetchItems = async () => {
     setLoading(true);
-    const { data: machinesData } = await supabase.from("machines").select("*");
+    const { data } = await (supabase as any)
+      .from("registered_equipment")
+      .select("*")
+      .order("created_at", { ascending: true });
 
-    if (machinesData) {
-      const ownerIds = [...new Set(machinesData.map(m => m.owner_id))];
-      const { data: ownerProfiles } = await supabase.from("profiles").select("id, name").in("id", ownerIds);
+    if (data) {
+      const ownerIds = [...new Set(data.map((m: any) => m.owner_id))];
+      const { data: ownerProfiles } = await supabase.from("profiles").select("id, name").in("id", ownerIds as string[]);
       const ownerMap = new Map(ownerProfiles?.map(p => [p.id, p.name]) ?? []);
 
-      const { data: ticketCounts } = await supabase.from("tickets").select("machine_id");
-      const ticketMap = new Map<string, number>();
-      ticketCounts?.forEach(t => ticketMap.set(t.machine_id, (ticketMap.get(t.machine_id) ?? 0) + 1));
-
-      const { data: maintCounts } = await supabase.from("maintenances").select("machine_id");
-      const maintMap = new Map<string, number>();
-      maintCounts?.forEach(m => maintMap.set(m.machine_id, (maintMap.get(m.machine_id) ?? 0) + 1));
-
-      setMachines(machinesData.map(m => ({
+      setItems(data.map((m: any) => ({
         id: m.id,
         name: m.name ?? "",
         model: m.model,
@@ -92,8 +82,6 @@ const EquipmentRegistration = () => {
         accessories: m.accessories ?? [],
         owner_id: m.owner_id,
         owner_name: ownerMap.get(m.owner_id) ?? "—",
-        ticket_count: ticketMap.get(m.id) ?? 0,
-        maintenance_count: maintMap.get(m.id) ?? 0,
         image_url: getImageUrl(m.image_path),
         category: m.category ?? "maquina",
       })));
@@ -107,7 +95,7 @@ const EquipmentRegistration = () => {
   };
 
   useEffect(() => {
-    fetchMachines();
+    fetchItems();
     fetchProfiles();
   }, []);
 
@@ -119,7 +107,7 @@ const EquipmentRegistration = () => {
     }
   };
 
-  const handleAddMachine = async () => {
+  const handleAdd = async () => {
     if (!formModel || !formSerial || !formOwner) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
@@ -139,7 +127,7 @@ const EquipmentRegistration = () => {
 
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
-    const { error } = await supabase.from("machines").insert({
+    const { error } = await (supabase as any).from("registered_equipment").insert({
       name: formName,
       model: formModel,
       serial_number: formSerial,
@@ -155,10 +143,17 @@ const EquipmentRegistration = () => {
       return;
     }
 
-    toast.success("Equipamento adicionado com sucesso!");
+    toast.success("Equipamento cadastrado com sucesso!");
     setShowAddDialog(false);
     resetForm();
-    fetchMachines();
+    fetchItems();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await (supabase as any).from("registered_equipment").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Equipamento excluído!");
+    fetchItems();
   };
 
   const resetForm = () => {
@@ -178,7 +173,7 @@ const EquipmentRegistration = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Cadastro de Equipamentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} itens registrados</p>
+          <p className="text-sm text-muted-foreground mt-1">{filteredItems.length} itens registrados</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -214,17 +209,21 @@ const EquipmentRegistration = () => {
 
       {loading ? (
         <p className="text-muted-foreground text-sm">Carregando...</p>
+      ) : filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Cpu className="w-12 h-12 mb-3 opacity-30" />
+          <p className="text-sm">Nenhum equipamento cadastrado ainda.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredMachines.map(machine => (
+          {filteredItems.map(item => (
             <div
-              key={machine.id}
-              className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
-              onClick={() => navigate(`/maquinas/${machine.id}`)}
+              key={item.id}
+              className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors"
             >
               <div className="h-40 bg-accent/50 flex items-center justify-center overflow-hidden">
-                {machine.image_url ? (
-                  <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name || item.model} className="w-full h-full object-cover" />
                 ) : (
                   <Cpu className="w-12 h-12 text-muted-foreground/30" />
                 )}
@@ -234,42 +233,42 @@ const EquipmentRegistration = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
-                      {machine.category === "acessorio" && (
+                      <h3 className="font-semibold text-foreground">{item.name || item.model}</h3>
+                      {item.category === "acessorio" && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
                       )}
                     </div>
-                    <p className="text-xs font-mono text-muted-foreground">{machine.serial_number}</p>
+                    <p className="text-xs font-mono text-muted-foreground">{item.serial_number}</p>
                   </div>
-                  <StatusBadge status={machine.status} />
+                  <StatusBadge status={item.status} />
                 </div>
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <User className="w-3.5 h-3.5" />
-                    <span>Proprietário: {machine.owner_name}</span>
+                    <span>Proprietário: {item.owner_name}</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CalendarDays className="w-3.5 h-3.5" />
-                    <span>Instalação: {new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
+                    <span>Instalação: {new Date(item.install_date).toLocaleDateString("pt-BR")}</span>
                   </div>
-                  {machine.accessories.length > 0 && (
+                  {item.accessories.length > 0 && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Wrench className="w-3.5 h-3.5" />
-                      <span>Acessórios: {machine.accessories.join(", ")}</span>
+                      <span>Acessórios: {item.accessories.join(", ")}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex gap-4 pt-2 border-t border-border">
-                  <div className="text-center flex-1">
-                    <p className="text-lg font-bold text-foreground">{machine.ticket_count}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
-                  </div>
-                  <div className="text-center flex-1">
-                    <p className="text-lg font-bold text-foreground">{machine.maintenance_count}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
-                  </div>
+                <div className="pt-2 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
+                    onClick={() => handleDelete(item.id)}
+                  >
+                    Excluir
+                  </Button>
                 </div>
               </div>
             </div>
@@ -306,7 +305,7 @@ const EquipmentRegistration = () => {
             <div className="space-y-2">
               <Label className="text-foreground">Categoria *</Label>
               <Select value={formCategory} onValueChange={setFormCategory}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="maquina">Máquina</SelectItem>
                   <SelectItem value="acessorio">Acessório</SelectItem>
@@ -349,7 +348,7 @@ const EquipmentRegistration = () => {
             <DialogClose asChild>
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
-            <Button onClick={handleAddMachine}>Salvar</Button>
+            <Button onClick={handleAdd}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

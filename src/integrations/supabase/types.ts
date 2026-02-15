@@ -458,6 +458,48 @@ export type Database = {
         }
         Relationships: []
       }
+      registered_equipment: {
+        Row: {
+          accessories: string[] | null
+          category: string
+          created_at: string
+          id: string
+          image_path: string | null
+          install_date: string
+          model: string
+          name: string
+          owner_id: string
+          serial_number: string
+          status: string
+        }
+        Insert: {
+          accessories?: string[] | null
+          category?: string
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          install_date?: string
+          model: string
+          name?: string
+          owner_id: string
+          serial_number: string
+          status?: string
+        }
+        Update: {
+          accessories?: string[] | null
+          category?: string
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          install_date?: string
+          model?: string
+          name?: string
+          owner_id?: string
+          serial_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
       tickets: {
         Row: {
           created_at: string
