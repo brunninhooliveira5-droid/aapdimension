@@ -460,7 +460,11 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
       const estimatedCost = estimatedTimeMin * pricing.costPerMinute;
       const minRecommended = estimatedTimeMin * pricing.minPrice;
-      const suggestedSale = estimatedTimeMin * pricing.suggestedPrice;
+      // Apply material-specific price adjustment
+      const matId = material.replace("custom_", "");
+      const currentMat = customMaterials.find((m) => m.id === matId);
+      const adjustment = currentMat?.price_adjustment || 0;
+      const suggestedSale = estimatedTimeMin * pricing.suggestedPrice * (1 + adjustment / 100);
 
       const machine = machines.find((m) => m.id === machineId);
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
@@ -765,6 +769,29 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         <CardContent className="space-y-4">
           {selectedMaterial ? (
             <>
+              {/* Price Adjustment */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Ajuste de Preço sobre Sugerido (%)</Label>
+                  <Input
+                    type="number"
+                    value={materialAdjustment || ""}
+                    onChange={(e) => setMaterialAdjustment(Number(e.target.value))}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Ex: 20 = adiciona 20% ao preço sugerido para este material
+                  </p>
+                </div>
+                <Button onClick={saveMaterialAdjustment} size="sm" className="shrink-0 gap-1 mb-5">
+                  <Save className="w-3.5 h-3.5" /> Salvar
+                </Button>
+              </div>
+
+              <Separator />
+
+              {/* Thicknesses */}
               <div className="flex gap-2">
                 <Input
                   placeholder="Espessura (ex: 2.5)"
