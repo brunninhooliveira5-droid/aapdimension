@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Pencil, Trash2, Package, FileText, Upload, CircleDot, ImagePlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, FileText, Upload, CircleDot, ImagePlus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -199,13 +199,13 @@ const EquipmentCatalog = () => {
                     {item.status === "fora_de_linha" ? "Fora de Linha" : "Ativo"}
                   </span>
                   {item.pdf_url && (
-                    <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                      <FileText className="w-3 h-3" /> PDF
+                    <a href={item.pdf_url} download target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-0.5" title="Baixar PDF">
+                      <Download className="w-3 h-3" /> PDF
                     </a>
                   )}
                   {isAdminMaster && item.pdf_admin_url && (
-                    <a href={item.pdf_admin_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning font-medium flex items-center gap-0.5">
-                      <FileText className="w-3 h-3" /> PDF Admin
+                    <a href={item.pdf_admin_url} download target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning font-medium flex items-center gap-0.5" title="Baixar PDF Admin">
+                      <Download className="w-3 h-3" /> Admin
                     </a>
                   )}
                 </div>
@@ -267,13 +267,13 @@ const EquipmentCatalog = () => {
                 {/* PDFs */}
                 <div className="flex flex-col gap-2 pt-2 border-t border-border">
                   {selectedItem.pdf_url && (
-                    <a href={selectedItem.pdf_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                      <FileText className="w-4 h-4" /> PDF do Produto
+                    <a href={selectedItem.pdf_url} download target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                      <Download className="w-4 h-4" /> Baixar PDF do Produto
                     </a>
                   )}
                   {isAdminMaster && selectedItem.pdf_admin_url && (
-                    <a href={selectedItem.pdf_admin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-warning hover:underline">
-                      <FileText className="w-4 h-4" /> PDF Exclusivo Admin Master
+                    <a href={selectedItem.pdf_admin_url} download target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-warning hover:underline">
+                      <Download className="w-4 h-4" /> Baixar PDF Exclusivo Admin Master
                     </a>
                   )}
                   {!selectedItem.pdf_url && !(isAdminMaster && selectedItem.pdf_admin_url) && (
