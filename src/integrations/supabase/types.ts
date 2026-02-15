@@ -53,6 +53,7 @@ export type Database = {
           image_url: string | null
           link: string | null
           name: string
+          pdf_admin_url: string | null
           pdf_url: string | null
           status: string
         }
@@ -65,6 +66,7 @@ export type Database = {
           image_url?: string | null
           link?: string | null
           name: string
+          pdf_admin_url?: string | null
           pdf_url?: string | null
           status?: string
         }
@@ -77,6 +79,7 @@ export type Database = {
           image_url?: string | null
           link?: string | null
           name?: string
+          pdf_admin_url?: string | null
           pdf_url?: string | null
           status?: string
         }

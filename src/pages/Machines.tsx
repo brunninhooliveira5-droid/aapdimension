@@ -21,6 +21,7 @@ interface EquipCatalogItem {
   category: string;
   description: string;
   pdf_url: string | null;
+  pdf_admin_url: string | null;
   status: string;
 }
 
@@ -81,6 +82,9 @@ const Machines = () => {
   const [catalogPdfFile, setCatalogPdfFile] = useState<File | null>(null);
   const [catalogPdfName, setCatalogPdfName] = useState<string | null>(null);
   const catalogPdfRef = useRef<HTMLInputElement>(null);
+  const [catalogAdminPdfFile, setCatalogAdminPdfFile] = useState<File | null>(null);
+  const [catalogAdminPdfName, setCatalogAdminPdfName] = useState<string | null>(null);
+  const catalogAdminPdfRef = useRef<HTMLInputElement>(null);
   const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -138,7 +142,7 @@ const Machines = () => {
   };
 
   const fetchCatalogItems = async () => {
-    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category, description, pdf_url, status").order("created_at", { ascending: false });
+    const { data } = await (supabase as any).from("dimension_equipment").select("id, name, image_url, category, description, pdf_url, pdf_admin_url, status").order("created_at", { ascending: false });
     setCatalogItems(data ?? []);
   };
 
@@ -209,7 +213,7 @@ const Machines = () => {
   };
 
   const resetCatalogForm = () => {
-    setCatalogName(""); setCatalogCategory("maquina"); setCatalogDescription(""); setCatalogImageFile(null); setCatalogImagePreview(null); setCatalogPdfFile(null); setCatalogPdfName(null); setEditingCatalogItem(null);
+    setCatalogName(""); setCatalogCategory("maquina"); setCatalogDescription(""); setCatalogImageFile(null); setCatalogImagePreview(null); setCatalogPdfFile(null); setCatalogPdfName(null); setCatalogAdminPdfFile(null); setCatalogAdminPdfName(null); setEditingCatalogItem(null);
   };
 
   const handleSaveCatalogItem = async () => {
@@ -217,6 +221,7 @@ const Machines = () => {
 
     let imageUrl: string | null = editingCatalogItem?.image_url ?? null;
     let pdfUrl: string | null = editingCatalogItem?.pdf_url ?? null;
+    let pdfAdminUrl: string | null = editingCatalogItem?.pdf_admin_url ?? null;
 
     if (catalogImageFile) {
       const path = `catalog/${Date.now()}_${catalogImageFile.name}`;
@@ -234,15 +239,23 @@ const Machines = () => {
       pdfUrl = pubData.publicUrl;
     }
 
+    if (catalogAdminPdfFile) {
+      const path = `catalog/pdf-admin/${Date.now()}_${catalogAdminPdfFile.name}`;
+      const { error: upErr } = await supabase.storage.from("machine-files").upload(path, catalogAdminPdfFile);
+      if (upErr) { toast.error("Erro ao enviar PDF Admin."); return; }
+      const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(path);
+      pdfAdminUrl = pubData.publicUrl;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     if (editingCatalogItem) {
-      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl } as any).eq("id", editingCatalogItem.id);
+      const { error } = await (supabase as any).from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl, pdf_admin_url: pdfAdminUrl }).eq("id", editingCatalogItem.id);
       if (error) { toast.error("Erro ao atualizar."); return; }
       toast.success("Equipamento atualizado!");
     } else {
-      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl } as any);
+      const { error } = await (supabase as any).from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl, pdf_admin_url: pdfAdminUrl });
       if (error) { toast.error("Erro ao cadastrar."); return; }
       toast.success("Equipamento cadastrado!");
     }
@@ -266,6 +279,7 @@ const Machines = () => {
   const openEditCatalog = (item: EquipCatalogItem) => {
     setEditingCatalogItem(item); setCatalogName(item.name); setCatalogCategory(item.category ?? "maquina");
     setCatalogDescription(item.description ?? ""); setCatalogPdfName(item.pdf_url ? "PDF anexado" : null); setCatalogPdfFile(null);
+    setCatalogAdminPdfName(item.pdf_admin_url ? "PDF Admin anexado" : null); setCatalogAdminPdfFile(null);
     setCatalogImagePreview(item.image_url); setCatalogImageFile(null);
     setShowCatalogDialog(true);
   };
@@ -511,6 +525,11 @@ const Machines = () => {
                             <FileText className="w-3 h-3" /> PDF
                           </a>
                         )}
+                        {isAdminMaster && item.pdf_admin_url && (
+                          <a href={item.pdf_admin_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning font-medium flex items-center gap-0.5">
+                            <FileText className="w-3 h-3" /> PDF Admin
+                          </a>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <Switch
@@ -584,6 +603,19 @@ const Machines = () => {
                     </div>
                   </div>
                   <input ref={catalogPdfRef} type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setCatalogPdfFile(f); setCatalogPdfName(f.name); } }} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">PDF Exclusivo Admin Master</Label>
+                  <div
+                    className="relative h-16 rounded-lg border-2 border-dashed border-warning/40 bg-warning/5 flex items-center justify-center cursor-pointer hover:border-warning/60 transition-colors"
+                    onClick={() => catalogAdminPdfRef.current?.click()}
+                  >
+                    <div className="flex items-center gap-2 text-warning">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-xs">{catalogAdminPdfFile?.name ?? catalogAdminPdfName ?? "Clique para enviar PDF (Admin)"}</span>
+                    </div>
+                  </div>
+                  <input ref={catalogAdminPdfRef} type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setCatalogAdminPdfFile(f); setCatalogAdminPdfName(f.name); } }} />
                 </div>
               </div>
               <DialogFooter>
