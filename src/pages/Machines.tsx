@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface EquipCatalogItem {
+  id: string;
+  name: string;
+  image_url: string | null;
+}
 
 interface MachineRow {
   id: string;
@@ -35,8 +41,10 @@ interface ProfileOption {
 const Machines = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdminMaster = user?.role === "admin_master";
+  const isAdmin = isAdminMaster || user?.role === "admin";
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const catalogImageRef = useRef<HTMLInputElement>(null);
 
   const [machines, setMachines] = useState<MachineRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +62,14 @@ const Machines = () => {
   const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
+
+  // Catalog state (admin master only)
+  const [catalogItems, setCatalogItems] = useState<EquipCatalogItem[]>([]);
+  const [showCatalogDialog, setShowCatalogDialog] = useState(false);
+  const [catalogName, setCatalogName] = useState("");
+  const [catalogImageFile, setCatalogImageFile] = useState<File | null>(null);
+  const [catalogImagePreview, setCatalogImagePreview] = useState<string | null>(null);
+  const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
 
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
@@ -108,9 +124,15 @@ const Machines = () => {
     setProfiles(data ?? []);
   };
 
+  const fetchCatalogItems = async () => {
+    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url").order("created_at", { ascending: false });
+    setCatalogItems(data ?? []);
+  };
+
   useEffect(() => {
     fetchMachines();
     if (isAdmin) fetchProfiles();
+    if (isAdminMaster) fetchCatalogItems();
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,15 +186,58 @@ const Machines = () => {
   };
 
   const resetForm = () => {
-    setFormName("");
-    setFormModel("");
-    setFormSerial("");
-    setFormOwner("");
-    setFormAccessories("");
-    setFormInstallDate(new Date().toISOString().split("T")[0]);
-    setFormImageFile(null);
-    setFormImagePreview(null);
-    setFormCategory("maquina");
+    setFormName(""); setFormModel(""); setFormSerial(""); setFormOwner("");
+    setFormAccessories(""); setFormInstallDate(new Date().toISOString().split("T")[0]);
+    setFormImageFile(null); setFormImagePreview(null); setFormCategory("maquina");
+  };
+
+  const handleCatalogImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) { setCatalogImageFile(file); setCatalogImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const resetCatalogForm = () => {
+    setCatalogName(""); setCatalogImageFile(null); setCatalogImagePreview(null); setEditingCatalogItem(null);
+  };
+
+  const handleSaveCatalogItem = async () => {
+    if (!catalogName.trim()) { toast.error("Informe o nome do equipamento."); return; }
+
+    let imageUrl: string | null = editingCatalogItem?.image_url ?? null;
+
+    if (catalogImageFile) {
+      const path = `catalog/${Date.now()}_${catalogImageFile.name}`;
+      const { error: upErr } = await supabase.storage.from("machine-files").upload(path, catalogImageFile);
+      if (upErr) { toast.error("Erro ao enviar imagem."); return; }
+      const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(path);
+      imageUrl = pubData.publicUrl;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    if (editingCatalogItem) {
+      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl }).eq("id", editingCatalogItem.id);
+      if (error) { toast.error("Erro ao atualizar."); return; }
+      toast.success("Equipamento atualizado!");
+    } else {
+      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id });
+      if (error) { toast.error("Erro ao cadastrar."); return; }
+      toast.success("Equipamento cadastrado!");
+    }
+    setShowCatalogDialog(false); resetCatalogForm(); fetchCatalogItems();
+  };
+
+  const handleDeleteCatalogItem = async (id: string) => {
+    const { error } = await supabase.from("dimension_equipment").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir."); return; }
+    toast.success("Equipamento excluído!"); fetchCatalogItems();
+  };
+
+  const openEditCatalog = (item: EquipCatalogItem) => {
+    setEditingCatalogItem(item); setCatalogName(item.name);
+    setCatalogImagePreview(item.image_url); setCatalogImageFile(null);
+    setShowCatalogDialog(true);
   };
 
   return (
@@ -357,6 +422,89 @@ const Machines = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Catalog Section - Admin Master Only */}
+      {isAdminMaster && (
+        <>
+          <div className="border-t border-border pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">Cadastro de Equipamentos e Acessórios</h2>
+              </div>
+              <Button size="sm" className="gap-1" onClick={() => { resetCatalogForm(); setShowCatalogDialog(true); }}>
+                <Plus className="w-4 h-4" /> Cadastrar
+              </Button>
+            </div>
+            {catalogItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum equipamento cadastrado.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {catalogItems.map(item => (
+                  <div key={item.id} className="gradient-card rounded-lg border border-border overflow-hidden group">
+                    <div className="h-32 bg-accent/50 flex items-center justify-center overflow-hidden">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-10 h-10 text-muted-foreground/30" />
+                      )}
+                    </div>
+                    <div className="p-3 flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={() => openEditCatalog(item)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteCatalogItem(item.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Catalog Dialog */}
+          <Dialog open={showCatalogDialog} onOpenChange={v => { setShowCatalogDialog(v); if (!v) resetCatalogForm(); }}>
+            <DialogContent className="bg-card border-border max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">{editingCatalogItem ? "Editar Equipamento" : "Cadastrar Equipamento"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label className="text-foreground">Foto</Label>
+                  <div
+                    className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+                    onClick={() => catalogImageRef.current?.click()}
+                  >
+                    {catalogImagePreview ? (
+                      <img src={catalogImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImagePlus className="w-6 h-6" />
+                        <span className="text-xs">Clique para selecionar</span>
+                      </div>
+                    )}
+                  </div>
+                  <input ref={catalogImageRef} type="file" accept="image/*" className="hidden" onChange={handleCatalogImageSelect} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Nome do Equipamento *</Label>
+                  <Input value={catalogName} onChange={e => setCatalogName(e.target.value)} placeholder="Ex: Spindle 3.5kW" className="bg-accent border-border" />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline" className="border-border">Cancelar</Button>
+                </DialogClose>
+                <Button onClick={handleSaveCatalogItem}>{editingCatalogItem ? "Atualizar" : "Cadastrar"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };
