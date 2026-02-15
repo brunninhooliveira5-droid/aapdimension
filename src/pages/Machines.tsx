@@ -131,8 +131,7 @@ const Machines = () => {
 
   useEffect(() => {
     fetchMachines();
-    if (isAdmin) fetchProfiles();
-    if (isAdminMaster) fetchCatalogItems();
+    if (isAdmin) { fetchProfiles(); fetchCatalogItems(); }
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -388,7 +387,14 @@ const Machines = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Modelo *</Label>
-              <Input value={formModel} onChange={e => setFormModel(e.target.value)} placeholder="Ex: Romi D800" className="bg-accent border-border" />
+              <Select value={formModel} onValueChange={setFormModel}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                <SelectContent>
+                  {catalogItems.map(item => (
+                    <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Número de Série *</Label>
