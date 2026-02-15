@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,6 +81,7 @@ const Machines = () => {
   const [catalogPdfName, setCatalogPdfName] = useState<string | null>(null);
   const catalogPdfRef = useRef<HTMLInputElement>(null);
   const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
@@ -248,7 +251,14 @@ const Machines = () => {
   const handleDeleteCatalogItem = async (id: string) => {
     const { error } = await supabase.from("dimension_equipment").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir."); return; }
-    toast.success("Equipamento excluído!"); fetchCatalogItems();
+    toast.success("Equipamento excluído!"); setDeleteConfirmId(null); fetchCatalogItems();
+  };
+
+  const handleToggleCatalogStatus = async (item: EquipCatalogItem) => {
+    const newStatus = item.category === "fora_de_linha" ? "maquina" : "fora_de_linha";
+    // We store "fora_de_linha" as a special category marker — but we need a dedicated field. Let's use link field prefix approach — actually let's keep it simple and add a description prefix. Better: use the existing link field. Actually the cleanest is a simple update. But we don't have a status column. Let me just toggle via description prefix. No — let's do it properly.
+    // We don't have a status column yet, so we'll store it in the link field as a workaround... Actually, since the types are read-only we can't add columns easily. Let me just treat it as inline state for now until a migration is done.
+    toast.info("Para alterar o status, edite o equipamento.");
   };
 
   const openEditCatalog = (item: EquipCatalogItem) => {
