@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      bulletin_reads: {
+        Row: {
+          bulletin_id: string
+          id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          bulletin_id: string
+          id?: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          bulletin_id?: string
+          id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulletin_reads_bulletin_id_fkey"
+            columns: ["bulletin_id"]
+            isOneToOne: false
+            referencedRelation: "technical_bulletins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dimension_equipment: {
         Row: {
           created_at: string
@@ -497,6 +526,48 @@ export type Database = {
           owner_id?: string
           serial_number?: string
           status?: string
+        }
+        Relationships: []
+      }
+      technical_bulletins: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          created_by: string
+          details: string
+          id: string
+          target_models: string[] | null
+          title: string
+          updated_at: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          created_by: string
+          details?: string
+          id?: string
+          target_models?: string[] | null
+          title: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          created_by?: string
+          details?: string
+          id?: string
+          target_models?: string[] | null
+          title?: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
         }
         Relationships: []
       }

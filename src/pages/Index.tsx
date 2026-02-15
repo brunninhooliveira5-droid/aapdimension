@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { BulletinCard } from "@/components/BulletinCard";
 
 interface InvoiceWithUser {
   id: string;
@@ -280,6 +281,9 @@ const Index = () => {
           />
         </div>
       </div>
+
+      {/* Bulletin Card */}
+      <BulletinCard />
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
