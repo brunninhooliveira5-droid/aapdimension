@@ -54,6 +54,7 @@ export type Database = {
           link: string | null
           name: string
           pdf_url: string | null
+          status: string
         }
         Insert: {
           category?: string
@@ -65,6 +66,7 @@ export type Database = {
           link?: string | null
           name: string
           pdf_url?: string | null
+          status?: string
         }
         Update: {
           category?: string
@@ -76,6 +78,7 @@ export type Database = {
           link?: string | null
           name?: string
           pdf_url?: string | null
+          status?: string
         }
         Relationships: []
       }

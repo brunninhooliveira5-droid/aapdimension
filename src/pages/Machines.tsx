@@ -21,6 +21,7 @@ interface EquipCatalogItem {
   category: string;
   description: string;
   pdf_url: string | null;
+  status: string;
 }
 
 interface MachineRow {
@@ -137,7 +138,7 @@ const Machines = () => {
   };
 
   const fetchCatalogItems = async () => {
-    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category, description, pdf_url").order("created_at", { ascending: false });
+    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category, description, pdf_url, status").order("created_at", { ascending: false });
     setCatalogItems(data ?? []);
   };
 
@@ -255,10 +256,11 @@ const Machines = () => {
   };
 
   const handleToggleCatalogStatus = async (item: EquipCatalogItem) => {
-    const newStatus = item.category === "fora_de_linha" ? "maquina" : "fora_de_linha";
-    // We store "fora_de_linha" as a special category marker — but we need a dedicated field. Let's use link field prefix approach — actually let's keep it simple and add a description prefix. Better: use the existing link field. Actually the cleanest is a simple update. But we don't have a status column. Let me just toggle via description prefix. No — let's do it properly.
-    // We don't have a status column yet, so we'll store it in the link field as a workaround... Actually, since the types are read-only we can't add columns easily. Let me just treat it as inline state for now until a migration is done.
-    toast.info("Para alterar o status, edite o equipamento.");
+    const newStatus = item.status === "ativo" ? "fora_de_linha" : "ativo";
+    const { error } = await (supabase as any).from("dimension_equipment").update({ status: newStatus }).eq("id", item.id);
+    if (error) { toast.error("Erro ao alterar status."); return; }
+    toast.success(newStatus === "ativo" ? "Equipamento ativado!" : "Equipamento marcado como fora de linha!");
+    fetchCatalogItems();
   };
 
   const openEditCatalog = (item: EquipCatalogItem) => {
@@ -491,20 +493,32 @@ const Machines = () => {
                           <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={() => openEditCatalog(item)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
-                          <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteCatalogItem(item.id)}>
+                          <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => setDeleteConfirmId(item.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">
                           {item.category === "acessorio" ? "Acessório" : "Máquina"}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5 ${item.status === "fora_de_linha" ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+                          <CircleDot className="w-2.5 h-2.5" />
+                          {item.status === "fora_de_linha" ? "Fora de Linha" : "Ativo"}
                         </span>
                         {item.pdf_url && (
                           <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-0.5">
                             <FileText className="w-3 h-3" /> PDF
                           </a>
                         )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Switch
+                          checked={item.status === "ativo"}
+                          onCheckedChange={() => handleToggleCatalogStatus(item)}
+                          className="scale-75 origin-left"
+                        />
+                        <span className="text-[10px] text-muted-foreground">{item.status === "ativo" ? "Ativo" : "Fora de Linha"}</span>
                       </div>
                       {item.description && (
                         <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
@@ -580,6 +594,23 @@ const Machines = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+            <AlertDialogContent className="bg-card border-border">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-foreground">Confirmar Exclusão</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este equipamento? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteConfirmId && handleDeleteCatalogItem(deleteConfirmId)}>
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
