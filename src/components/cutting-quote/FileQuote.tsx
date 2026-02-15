@@ -212,9 +212,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
-  const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string }[]>([]);
+  const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
-  const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string } | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string; price_adjustment: number } | null>(null);
+  const [materialAdjustment, setMaterialAdjustment] = useState(0);
   const [materialThicknesses, setMaterialThicknesses] = useState<{ id: string; value: string; label: string }[]>([]);
   const [newThickness, setNewThickness] = useState("");
 
@@ -223,7 +224,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     if (!session?.user) return;
     supabase
       .from("cutting_materials")
-      .select("id, name")
+      .select("id, name, price_adjustment")
       .order("name")
       .then(({ data }) => {
         if (data) setCustomMaterials(data as any);
@@ -235,7 +236,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     const { data, error } = await supabase
       .from("cutting_materials")
       .insert({ user_id: session.user.id, name: newMaterial.trim() } as any)
-      .select("id, name")
+      .select("id, name, price_adjustment")
       .single();
     if (!error && data) {
       setCustomMaterials((prev) => [...prev, data as any].sort((a, b) => a.name.localeCompare(b.name)));
@@ -252,8 +253,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     }
   };
 
-  const openMaterialDashboard = async (mat: { id: string; name: string }) => {
+  const openMaterialDashboard = async (mat: { id: string; name: string; price_adjustment: number }) => {
     setSelectedMaterial(mat);
+    setMaterialAdjustment(mat.price_adjustment || 0);
     const { data } = await supabase
       .from("cutting_material_thicknesses")
       .select("id, value, label")
@@ -299,6 +301,19 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         if (data) setAvailableThicknesses(data as any);
       });
   }, [material]);
+
+  const saveMaterialAdjustment = async () => {
+    if (!selectedMaterial) return;
+    const { error } = await supabase
+      .from("cutting_materials")
+      .update({ price_adjustment: materialAdjustment } as any)
+      .eq("id", selectedMaterial.id);
+    if (!error) {
+      setCustomMaterials((prev) => prev.map((m) => m.id === selectedMaterial.id ? { ...m, price_adjustment: materialAdjustment } : m));
+      setSelectedMaterial({ ...selectedMaterial, price_adjustment: materialAdjustment });
+      toast.success("Ajuste de preço salvo!");
+    }
+  };
 
   const allMaterials = customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name }));
 
