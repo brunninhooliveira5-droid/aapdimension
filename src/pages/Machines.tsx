@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -16,6 +17,8 @@ interface EquipCatalogItem {
   name: string;
   image_url: string | null;
   category: string;
+  description: string;
+  pdf_url: string | null;
 }
 
 interface MachineRow {
@@ -71,6 +74,10 @@ const Machines = () => {
   const [catalogCategory, setCatalogCategory] = useState<string>("maquina");
   const [catalogImageFile, setCatalogImageFile] = useState<File | null>(null);
   const [catalogImagePreview, setCatalogImagePreview] = useState<string | null>(null);
+  const [catalogDescription, setCatalogDescription] = useState("");
+  const [catalogPdfFile, setCatalogPdfFile] = useState<File | null>(null);
+  const [catalogPdfName, setCatalogPdfName] = useState<string | null>(null);
+  const catalogPdfRef = useRef<HTMLInputElement>(null);
   const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
 
   const filteredMachines = machines.filter(m => {
@@ -127,7 +134,7 @@ const Machines = () => {
   };
 
   const fetchCatalogItems = async () => {
-    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category").order("created_at", { ascending: false });
+    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category, description, pdf_url").order("created_at", { ascending: false });
     setCatalogItems(data ?? []);
   };
 
@@ -198,13 +205,14 @@ const Machines = () => {
   };
 
   const resetCatalogForm = () => {
-    setCatalogName(""); setCatalogCategory("maquina"); setCatalogImageFile(null); setCatalogImagePreview(null); setEditingCatalogItem(null);
+    setCatalogName(""); setCatalogCategory("maquina"); setCatalogDescription(""); setCatalogImageFile(null); setCatalogImagePreview(null); setCatalogPdfFile(null); setCatalogPdfName(null); setEditingCatalogItem(null);
   };
 
   const handleSaveCatalogItem = async () => {
     if (!catalogName.trim()) { toast.error("Informe o nome do equipamento."); return; }
 
     let imageUrl: string | null = editingCatalogItem?.image_url ?? null;
+    let pdfUrl: string | null = editingCatalogItem?.pdf_url ?? null;
 
     if (catalogImageFile) {
       const path = `catalog/${Date.now()}_${catalogImageFile.name}`;
@@ -214,15 +222,23 @@ const Machines = () => {
       imageUrl = pubData.publicUrl;
     }
 
+    if (catalogPdfFile) {
+      const path = `catalog/pdf/${Date.now()}_${catalogPdfFile.name}`;
+      const { error: upErr } = await supabase.storage.from("machine-files").upload(path, catalogPdfFile);
+      if (upErr) { toast.error("Erro ao enviar PDF."); return; }
+      const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(path);
+      pdfUrl = pubData.publicUrl;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     if (editingCatalogItem) {
-      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl, category: catalogCategory }).eq("id", editingCatalogItem.id);
+      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl } as any).eq("id", editingCatalogItem.id);
       if (error) { toast.error("Erro ao atualizar."); return; }
       toast.success("Equipamento atualizado!");
     } else {
-      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id, category: catalogCategory } as any);
+      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id, category: catalogCategory, description: catalogDescription.trim(), pdf_url: pdfUrl } as any);
       if (error) { toast.error("Erro ao cadastrar."); return; }
       toast.success("Equipamento cadastrado!");
     }
@@ -237,6 +253,7 @@ const Machines = () => {
 
   const openEditCatalog = (item: EquipCatalogItem) => {
     setEditingCatalogItem(item); setCatalogName(item.name); setCatalogCategory(item.category ?? "maquina");
+    setCatalogDescription(item.description ?? ""); setCatalogPdfName(item.pdf_url ? "PDF anexado" : null); setCatalogPdfFile(null);
     setCatalogImagePreview(item.image_url); setCatalogImageFile(null);
     setShowCatalogDialog(true);
   };
@@ -457,7 +474,7 @@ const Machines = () => {
                         <Package className="w-10 h-10 text-muted-foreground/30" />
                       )}
                     </div>
-                    <div className="p-3">
+                    <div className="p-3 space-y-1">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -469,9 +486,19 @@ const Machines = () => {
                           </button>
                         </div>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">
-                        {item.category === "acessorio" ? "Acessório" : "Máquina"}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">
+                          {item.category === "acessorio" ? "Acessório" : "Máquina"}
+                        </span>
+                        {item.pdf_url && (
+                          <a href={item.pdf_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                            <FileText className="w-3 h-3" /> PDF
+                          </a>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -516,6 +543,23 @@ const Machines = () => {
                 <div className="space-y-2">
                   <Label className="text-foreground">Nome do Equipamento *</Label>
                   <Input value={catalogName} onChange={e => setCatalogName(e.target.value)} placeholder="Ex: Spindle 3.5kW" className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Especificação Técnica</Label>
+                  <Textarea value={catalogDescription} onChange={e => setCatalogDescription(e.target.value)} placeholder="Descreva as especificações técnicas do equipamento" className="bg-accent border-border min-h-[80px]" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">PDF do Produto</Label>
+                  <div
+                    className="relative h-16 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => catalogPdfRef.current?.click()}
+                  >
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-xs">{catalogPdfFile?.name ?? catalogPdfName ?? "Clique para enviar PDF"}</span>
+                    </div>
+                  </div>
+                  <input ref={catalogPdfRef} type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setCatalogPdfFile(f); setCatalogPdfName(f.name); } }} />
                 </div>
               </div>
               <DialogFooter>

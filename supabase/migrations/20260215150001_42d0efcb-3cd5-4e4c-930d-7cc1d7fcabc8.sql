@@ -1,0 +1,1 @@
+ALTER TABLE public.dimension_equipment ADD COLUMN pdf_url text DEFAULT NULL;

@@ -53,6 +53,7 @@ export type Database = {
           image_url: string | null
           link: string | null
           name: string
+          pdf_url: string | null
         }
         Insert: {
           category?: string
@@ -63,6 +64,7 @@ export type Database = {
           image_url?: string | null
           link?: string | null
           name: string
+          pdf_url?: string | null
         }
         Update: {
           category?: string
@@ -73,6 +75,7 @@ export type Database = {
           image_url?: string | null
           link?: string | null
           name?: string
+          pdf_url?: string | null
         }
         Relationships: []
       }
