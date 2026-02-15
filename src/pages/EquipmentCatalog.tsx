@@ -32,6 +32,7 @@ const EquipmentCatalog = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Equipment | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -167,7 +168,7 @@ const EquipmentCatalog = () => {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {items.map(item => (
-            <div key={item.id} className="gradient-card rounded-lg border border-border overflow-hidden group">
+            <div key={item.id} className="gradient-card rounded-lg border border-border overflow-hidden group cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedItem(item)}>
               <div className="h-32 bg-accent/50 flex items-center justify-center overflow-hidden">
                 {item.image_url ? (
                   <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
@@ -180,10 +181,10 @@ const EquipmentCatalog = () => {
                   <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                   {isAdminMaster && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={() => openEdit(item)}>
+                      <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); openEdit(item); }}>
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => setDeleteConfirmId(item.id)}>
+                      <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -209,7 +210,7 @@ const EquipmentCatalog = () => {
                   )}
                 </div>
                 {isAdminMaster && (
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
                     <Switch
                       checked={item.status === "ativo"}
                       onCheckedChange={() => handleToggleStatus(item)}
@@ -227,7 +228,64 @@ const EquipmentCatalog = () => {
         </div>
       )}
 
-      {/* Catalog Dialog */}
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedItem} onOpenChange={(open) => { if (!open) setSelectedItem(null); }}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{selectedItem?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4">
+              {/* Image */}
+              <div className="h-48 bg-accent/50 rounded-lg flex items-center justify-center overflow-hidden">
+                {selectedItem.image_url ? (
+                  <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Package className="w-16 h-16 text-muted-foreground/30" />
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs px-2 py-1 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">
+                    {selectedItem.category === "acessorio" ? "Acessório" : "Máquina"}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded font-medium uppercase tracking-wider flex items-center gap-1 ${selectedItem.status === "fora_de_linha" ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+                    <CircleDot className="w-3 h-3" />
+                    {selectedItem.status === "fora_de_linha" ? "Fora de Linha" : "Ativo"}
+                  </span>
+                </div>
+
+                {selectedItem.description && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Especificação Técnica</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{selectedItem.description}</p>
+                  </div>
+                )}
+
+                {/* PDFs */}
+                <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                  {selectedItem.pdf_url && (
+                    <a href={selectedItem.pdf_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                      <FileText className="w-4 h-4" /> PDF do Produto
+                    </a>
+                  )}
+                  {isAdminMaster && selectedItem.pdf_admin_url && (
+                    <a href={selectedItem.pdf_admin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-warning hover:underline">
+                      <FileText className="w-4 h-4" /> PDF Exclusivo Admin Master
+                    </a>
+                  )}
+                  {!selectedItem.pdf_url && !(isAdminMaster && selectedItem.pdf_admin_url) && (
+                    <p className="text-xs text-muted-foreground">Nenhum documento anexado.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showDialog} onOpenChange={v => { setShowDialog(v); if (!v) resetForm(); }}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
