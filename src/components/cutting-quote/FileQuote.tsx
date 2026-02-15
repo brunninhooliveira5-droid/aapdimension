@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -311,6 +311,32 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     toast.success("PDF exportado com sucesso!");
   };
 
+  const saveQuote = async () => {
+    if (!result || !session?.user) return;
+    const { error } = await supabase.from("cutting_quotes" as any).insert({
+      user_id: session.user.id,
+      file_name: result.fileName,
+      material: result.material,
+      thickness: result.thickness,
+      machine_id: machineId,
+      machine_name: result.machineName,
+      path_length_mm: result.pathLengthMM,
+      path_length_m: result.pathLengthM,
+      quantity,
+      estimated_time_min: result.estimatedTimeMin,
+      estimated_cost: result.estimatedCost,
+      min_recommended: result.minRecommended,
+      suggested_sale: result.suggestedSale,
+      cost_per_minute: pricing.costPerMinute,
+    } as any);
+    if (error) {
+      toast.error("Erro ao salvar orçamento.");
+      console.error(error);
+    } else {
+      toast.success("Orçamento salvo com sucesso!");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -469,6 +495,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 gap-2" onClick={exportPDF}>
                   <Download className="w-4 h-4" /> Exportar PDF
+                </Button>
+                <Button className="flex-1 gap-2" onClick={saveQuote}>
+                  <Save className="w-4 h-4" /> Salvar Orçamento
                 </Button>
               </div>
             </CardContent>

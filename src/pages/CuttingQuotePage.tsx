@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText } from "lucide-react";
+import { Calculator, FileText, History } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
+import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
@@ -36,12 +37,15 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue="simulator" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="simulator" className="gap-2">
-            <Calculator className="w-4 h-4" /> Simulador de Preços
+            <Calculator className="w-4 h-4" /> Simulador
           </TabsTrigger>
           <TabsTrigger value="quote" className="gap-2">
-            <FileText className="w-4 h-4" /> Orçamento por Arquivo
+            <FileText className="w-4 h-4" /> Orçamento
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="w-4 h-4" /> Salvos
           </TabsTrigger>
         </TabsList>
 
@@ -51,6 +55,10 @@ export default function CuttingQuotePage() {
 
         <TabsContent value="quote">
           <FileQuote pricing={pricing} machines={machines} />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <SavedQuotes />
         </TabsContent>
       </Tabs>
     </div>
