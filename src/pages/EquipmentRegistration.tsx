@@ -38,18 +38,13 @@ const EquipmentRegistration = () => {
 
   const [formName, setFormName] = useState("");
   const [formModel, setFormModel] = useState("");
-  const [formSerial, setFormSerial] = useState("");
-  const [formOwner, setFormOwner] = useState("");
   const [formAccessories, setFormAccessories] = useState("");
-  const [formInstallDate, setFormInstallDate] = useState(new Date().toISOString().split("T")[0]);
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
-  const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
 
   const filteredItems = items.filter(m => {
-    if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
     return true;
   });
@@ -108,7 +103,7 @@ const EquipmentRegistration = () => {
   };
 
   const handleAdd = async () => {
-    if (!formModel || !formSerial || !formOwner) {
+    if (!formModel) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -127,12 +122,12 @@ const EquipmentRegistration = () => {
 
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("registered_equipment").insert({
       name: formName,
       model: formModel,
-      serial_number: formSerial,
-      owner_id: formOwner,
-      install_date: formInstallDate,
+      serial_number: formModel,
+      owner_id: user?.id,
       accessories,
       image_path: imagePath,
       category: formCategory,
@@ -159,10 +154,7 @@ const EquipmentRegistration = () => {
   const resetForm = () => {
     setFormName("");
     setFormModel("");
-    setFormSerial("");
-    setFormOwner("");
     setFormAccessories("");
-    setFormInstallDate(new Date().toISOString().split("T")[0]);
     setFormImageFile(null);
     setFormImagePreview(null);
     setFormCategory("maquina");
@@ -184,18 +176,6 @@ const EquipmentRegistration = () => {
               <SelectItem value="todos">Todas categorias</SelectItem>
               <SelectItem value="maquina">Máquinas</SelectItem>
               <SelectItem value="acessorio">Acessórios</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
-            <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
-              <Filter className="w-3.5 h-3.5 mr-1.5" />
-              <SelectValue placeholder="Filtrar por usuário" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os usuários</SelectItem>
-              {profiles.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
             </SelectContent>
           </Select>
           <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
@@ -238,20 +218,12 @@ const EquipmentRegistration = () => {
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
                       )}
                     </div>
-                    <p className="text-xs font-mono text-muted-foreground">{item.serial_number}</p>
+                    
                   </div>
                   <StatusBadge status={item.status} />
                 </div>
 
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User className="w-3.5 h-3.5" />
-                    <span>Proprietário: {item.owner_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    <span>Instalação: {new Date(item.install_date).toLocaleDateString("pt-BR")}</span>
-                  </div>
                   {item.accessories.length > 0 && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Wrench className="w-3.5 h-3.5" />
@@ -319,25 +291,6 @@ const EquipmentRegistration = () => {
             <div className="space-y-2">
               <Label className="text-foreground">Modelo *</Label>
               <Input value={formModel} onChange={e => setFormModel(e.target.value)} placeholder="Ex: Romi D800" className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Número de Série *</Label>
-              <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Data de Instalação</Label>
-              <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Proprietário *</Label>
-              <Select value={formOwner} onValueChange={setFormOwner}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
-                <SelectContent>
-                  {profiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Acessórios</Label>
