@@ -513,6 +513,57 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_settings: {
+        Row: {
+          avg_cut_speed: number
+          electricity: number
+          gas_consumable: number
+          id: string
+          internet: number
+          machine_cost: number
+          maintenance_cost: number
+          other_fixed: number
+          other_machine: number
+          productive_hours: number
+          profit_margin: number
+          rent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_cut_speed?: number
+          electricity?: number
+          gas_consumable?: number
+          id?: string
+          internet?: number
+          machine_cost?: number
+          maintenance_cost?: number
+          other_fixed?: number
+          other_machine?: number
+          productive_hours?: number
+          profit_margin?: number
+          rent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_cut_speed?: number
+          electricity?: number
+          gas_consumable?: number
+          id?: string
+          internet?: number
+          machine_cost?: number
+          maintenance_cost?: number
+          other_fixed?: number
+          other_machine?: number
+          productive_hours?: number
+          profit_margin?: number
+          rent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
