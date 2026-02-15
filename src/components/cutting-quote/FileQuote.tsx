@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { PricingData } from "./PricingSimulator";
 import type { Tables } from "@/integrations/supabase/types";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 const MATERIALS = [
   { value: "aço_carbono", label: "Aço Carbono" },
@@ -504,7 +504,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       doc.text(`Cliente: ${customerName.trim()}`, 14, 36);
     }
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: customerName.trim() ? 44 : 38,
       head: [["Item", "Valor"]],
       body: [
