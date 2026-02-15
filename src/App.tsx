@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
 import BulletinsPage from "./pages/BulletinsPage";
+import CuttingQuotePage from "./pages/CuttingQuotePage";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const AppRoutes = () => {
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
         <Route path="/usuarios" element={<RoleGate section="usuarios"><UsersPage /></RoleGate>} />
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
+        <Route path="/orcamento" element={<RoleGate section="orcamento"><CuttingQuotePage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
