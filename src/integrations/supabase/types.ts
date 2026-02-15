@@ -43,6 +43,71 @@ export type Database = {
           },
         ]
       }
+      cutting_quotes: {
+        Row: {
+          cost_per_minute: number
+          created_at: string
+          estimated_cost: number
+          estimated_time_min: number
+          file_name: string
+          id: string
+          machine_id: string | null
+          machine_name: string
+          material: string
+          min_recommended: number
+          path_length_m: number
+          path_length_mm: number
+          quantity: number
+          suggested_sale: number
+          thickness: string
+          user_id: string
+        }
+        Insert: {
+          cost_per_minute?: number
+          created_at?: string
+          estimated_cost?: number
+          estimated_time_min?: number
+          file_name: string
+          id?: string
+          machine_id?: string | null
+          machine_name?: string
+          material: string
+          min_recommended?: number
+          path_length_m?: number
+          path_length_mm?: number
+          quantity?: number
+          suggested_sale?: number
+          thickness: string
+          user_id: string
+        }
+        Update: {
+          cost_per_minute?: number
+          created_at?: string
+          estimated_cost?: number
+          estimated_time_min?: number
+          file_name?: string
+          id?: string
+          machine_id?: string | null
+          machine_name?: string
+          material?: string
+          min_recommended?: number
+          path_length_m?: number
+          path_length_mm?: number
+          quantity?: number
+          suggested_sale?: number
+          thickness?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cutting_quotes_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dimension_equipment: {
         Row: {
           category: string
