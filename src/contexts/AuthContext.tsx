@@ -13,9 +13,9 @@ export const roleLabels: Record<UserRole, string> = {
 };
 
 const rolePermissions: Record<UserRole, string[]> = {
-  admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "usuarios", "boletins"],
-  admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes"],
-  operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes"],
+  admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "usuarios", "boletins", "orcamento"],
+  admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento"],
+  operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento"],
   financeiro: ["home", "equipamentos", "financeiro", "configuracoes"],
 };
 
