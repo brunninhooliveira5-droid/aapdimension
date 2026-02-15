@@ -1,0 +1,1 @@
+ALTER TABLE public.dimension_equipment ADD COLUMN category text NOT NULL DEFAULT 'maquina';

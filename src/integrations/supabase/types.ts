@@ -45,6 +45,7 @@ export type Database = {
       }
       dimension_equipment: {
         Row: {
+          category: string
           created_at: string
           created_by: string
           description: string
@@ -54,6 +55,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          category?: string
           created_at?: string
           created_by: string
           description?: string
@@ -63,6 +65,7 @@ export type Database = {
           name: string
         }
         Update: {
+          category?: string
           created_at?: string
           created_by?: string
           description?: string

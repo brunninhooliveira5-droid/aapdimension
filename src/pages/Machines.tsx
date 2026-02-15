@@ -15,6 +15,7 @@ interface EquipCatalogItem {
   id: string;
   name: string;
   image_url: string | null;
+  category: string;
 }
 
 interface MachineRow {
@@ -67,6 +68,7 @@ const Machines = () => {
   const [catalogItems, setCatalogItems] = useState<EquipCatalogItem[]>([]);
   const [showCatalogDialog, setShowCatalogDialog] = useState(false);
   const [catalogName, setCatalogName] = useState("");
+  const [catalogCategory, setCatalogCategory] = useState<string>("maquina");
   const [catalogImageFile, setCatalogImageFile] = useState<File | null>(null);
   const [catalogImagePreview, setCatalogImagePreview] = useState<string | null>(null);
   const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
@@ -125,7 +127,7 @@ const Machines = () => {
   };
 
   const fetchCatalogItems = async () => {
-    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url").order("created_at", { ascending: false });
+    const { data } = await supabase.from("dimension_equipment").select("id, name, image_url, category").order("created_at", { ascending: false });
     setCatalogItems(data ?? []);
   };
 
@@ -196,7 +198,7 @@ const Machines = () => {
   };
 
   const resetCatalogForm = () => {
-    setCatalogName(""); setCatalogImageFile(null); setCatalogImagePreview(null); setEditingCatalogItem(null);
+    setCatalogName(""); setCatalogCategory("maquina"); setCatalogImageFile(null); setCatalogImagePreview(null); setEditingCatalogItem(null);
   };
 
   const handleSaveCatalogItem = async () => {
@@ -216,11 +218,11 @@ const Machines = () => {
     if (!session) return;
 
     if (editingCatalogItem) {
-      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl }).eq("id", editingCatalogItem.id);
+      const { error } = await supabase.from("dimension_equipment").update({ name: catalogName.trim(), image_url: imageUrl, category: catalogCategory }).eq("id", editingCatalogItem.id);
       if (error) { toast.error("Erro ao atualizar."); return; }
       toast.success("Equipamento atualizado!");
     } else {
-      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id });
+      const { error } = await supabase.from("dimension_equipment").insert({ name: catalogName.trim(), image_url: imageUrl, created_by: session.user.id, category: catalogCategory } as any);
       if (error) { toast.error("Erro ao cadastrar."); return; }
       toast.success("Equipamento cadastrado!");
     }
@@ -234,7 +236,7 @@ const Machines = () => {
   };
 
   const openEditCatalog = (item: EquipCatalogItem) => {
-    setEditingCatalogItem(item); setCatalogName(item.name);
+    setEditingCatalogItem(item); setCatalogName(item.name); setCatalogCategory(item.category ?? "maquina");
     setCatalogImagePreview(item.image_url); setCatalogImageFile(null);
     setShowCatalogDialog(true);
   };
@@ -455,16 +457,21 @@ const Machines = () => {
                         <Package className="w-10 h-10 text-muted-foreground/30" />
                       )}
                     </div>
-                    <div className="p-3 flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={() => openEditCatalog(item)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteCatalogItem(item.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground" onClick={() => openEditCatalog(item)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteCatalogItem(item.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">
+                        {item.category === "acessorio" ? "Acessório" : "Máquina"}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -495,6 +502,16 @@ const Machines = () => {
                     )}
                   </div>
                   <input ref={catalogImageRef} type="file" accept="image/*" className="hidden" onChange={handleCatalogImageSelect} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Categoria *</Label>
+                  <Select value={catalogCategory} onValueChange={setCatalogCategory}>
+                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maquina">Máquina</SelectItem>
+                      <SelectItem value="acessorio">Acessório</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-foreground">Nome do Equipamento *</Label>
