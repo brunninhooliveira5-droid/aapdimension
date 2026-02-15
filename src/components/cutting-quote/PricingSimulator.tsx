@@ -138,29 +138,18 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
               <DollarSign className="w-4 h-4 text-primary" />
               Custos Fixos Mensais
             </CardTitle>
-            <CardDescription>Despesas fixas do seu negócio</CardDescription>
+            <CardDescription>Total das despesas fixas do seu negócio</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs">Aluguel</Label>
-              <Input type="number" min={0} value={rent || ""} onChange={(e) => setRent(Number(e.target.value))} placeholder="0,00" />
-            </div>
-            <div>
-              <Label className="text-xs">Energia Elétrica</Label>
-              <Input type="number" min={0} value={electricity || ""} onChange={(e) => setElectricity(Number(e.target.value))} placeholder="0,00" />
-            </div>
-            <div>
-              <Label className="text-xs">Internet</Label>
-              <Input type="number" min={0} value={internet || ""} onChange={(e) => setInternet(Number(e.target.value))} placeholder="0,00" />
-            </div>
-            <div>
-              <Label className="text-xs">Outros Custos Fixos</Label>
-              <Input type="number" min={0} value={otherFixed || ""} onChange={(e) => setOtherFixed(Number(e.target.value))} placeholder="0,00" />
-            </div>
-            <Separator />
-            <div className="flex justify-between text-sm font-medium">
-              <span className="text-muted-foreground">Total Fixo</span>
-              <span className="text-primary">{fmt(totalFixed)}</span>
+              <Label className="text-xs">Total de Custos Fixos</Label>
+              <Input type="number" min={0} value={totalFixed || ""} onChange={(e) => {
+                const val = Number(e.target.value);
+                setRent(val);
+                setElectricity(0);
+                setInternet(0);
+                setOtherFixed(0);
+              }} placeholder="0,00" />
             </div>
           </CardContent>
         </Card>
@@ -180,7 +169,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
               <Input type="number" min={0} value={machineCost || ""} onChange={(e) => setMachineCost(Number(e.target.value))} placeholder="0,00" />
             </div>
             <div>
-              <Label className="text-xs">Gás / Consumíveis</Label>
+              <Label className="text-xs">Consumíveis</Label>
               <Input type="number" min={0} value={gasConsumable || ""} onChange={(e) => setGasConsumable(Number(e.target.value))} placeholder="0,00" />
             </div>
             <div>
@@ -218,8 +207,8 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
               <Input type="number" min={0} value={profitMargin || ""} onChange={(e) => setProfitMargin(Number(e.target.value))} placeholder="30" />
             </div>
             <div>
-              <Label className="text-xs">Velocidade Média de Corte (m/min)</Label>
-              <Input type="number" min={0.01} step={0.1} value={avgCutSpeed || ""} onChange={(e) => setAvgCutSpeed(Number(e.target.value))} placeholder="2" />
+              <Label className="text-xs">Velocidade (mm/min)</Label>
+              <Input type="number" min={0.01} step={1} value={avgCutSpeed || ""} onChange={(e) => setAvgCutSpeed(Number(e.target.value))} placeholder="2000" />
             </div>
           </CardContent>
         </Card>
