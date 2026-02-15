@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ interface ProfileOption {
 }
 
 const EquipmentRegistration = () => {
+  const navigate = useNavigate();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<EquipmentRow[]>([]);
@@ -255,7 +257,8 @@ const EquipmentRegistration = () => {
           {filteredItems.map(item => (
             <div
               key={item.id}
-              className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors"
+              className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
+              onClick={() => navigate(`/cadastro-equipamentos/${item.id}`)}
             >
               <div className="h-40 bg-accent/50 flex items-center justify-center overflow-hidden">
                 {item.image_url ? (
@@ -288,7 +291,7 @@ const EquipmentRegistration = () => {
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-border flex items-center gap-2">
+                <div className="pt-2 border-t border-border flex items-center gap-2" onClick={e => e.stopPropagation()}>
                   <Button
                     variant="ghost"
                     size="sm"
