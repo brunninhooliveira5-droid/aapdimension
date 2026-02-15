@@ -43,6 +43,38 @@ export type Database = {
           },
         ]
       }
+      cutting_material_thicknesses: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          material_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          material_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          material_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cutting_material_thicknesses_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "cutting_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cutting_materials: {
         Row: {
           created_at: string
