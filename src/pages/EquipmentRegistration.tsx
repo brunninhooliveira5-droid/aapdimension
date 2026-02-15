@@ -43,6 +43,8 @@ const EquipmentRegistration = () => {
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
+  const [editingItem, setEditingItem] = useState<EquipmentRow | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const filteredItems = items.filter(m => {
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
@@ -151,6 +153,59 @@ const EquipmentRegistration = () => {
     fetchItems();
   };
 
+  const handleEdit = (item: EquipmentRow) => {
+    setEditingItem(item);
+    setFormName(item.name);
+    setFormModel(item.model);
+    setFormAccessories(item.accessories.join(", "));
+    setFormCategory(item.category);
+    setFormImageFile(null);
+    setFormImagePreview(item.image_url);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingItem || !formModel) {
+      toast.error("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    let imagePath: string | undefined = undefined;
+
+    if (formImageFile) {
+      const path = `images/${Date.now()}_${formImageFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from("machine-files").upload(path, formImageFile);
+      if (uploadErr) {
+        toast.error("Erro ao enviar imagem: " + uploadErr.message);
+        return;
+      }
+      imagePath = path;
+    }
+
+    const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
+
+    const updateData: any = {
+      name: formName,
+      model: formModel,
+      serial_number: formModel,
+      accessories,
+      category: formCategory,
+    };
+    if (imagePath !== undefined) updateData.image_path = imagePath;
+
+    const { error } = await (supabase as any).from("registered_equipment").update(updateData).eq("id", editingItem.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar: " + error.message);
+      return;
+    }
+
+    toast.success("Equipamento atualizado com sucesso!");
+    setShowEditDialog(false);
+    resetForm();
+    fetchItems();
+  };
+
   const resetForm = () => {
     setFormName("");
     setFormModel("");
@@ -158,6 +213,7 @@ const EquipmentRegistration = () => {
     setFormImageFile(null);
     setFormImagePreview(null);
     setFormCategory("maquina");
+    setEditingItem(null);
   };
 
   return (
@@ -232,7 +288,15 @@ const EquipmentRegistration = () => {
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-border">
+                <div className="pt-2 border-t border-border flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => handleEdit(item)}
+                  >
+                    Editar
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -302,6 +366,61 @@ const EquipmentRegistration = () => {
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleAdd}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) resetForm(); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Editar Equipamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Foto do Equipamento</Label>
+              <div
+                className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                {formImagePreview ? (
+                  <img src={formImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <ImagePlus className="w-6 h-6" />
+                    <span className="text-xs">Clique para selecionar</span>
+                  </div>
+                )}
+              </div>
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Categoria *</Label>
+              <Select value={formCategory} onValueChange={setFormCategory}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="maquina">Máquina</SelectItem>
+                  <SelectItem value="acessorio">Acessório</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Nome</Label>
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Modelo *</Label>
+              <Input value={formModel} onChange={e => setFormModel(e.target.value)} placeholder="Ex: Romi D800" className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Acessórios</Label>
+              <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleUpdate}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
