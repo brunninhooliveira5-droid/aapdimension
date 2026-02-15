@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -212,6 +212,54 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
+  const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string }[]>([]);
+  const [newMaterial, setNewMaterial] = useState("");
+
+  // Load custom materials
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase
+      .from("cutting_materials")
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setCustomMaterials(data as any);
+      });
+  }, [session]);
+
+  const addMaterial = async () => {
+    if (!newMaterial.trim() || !session?.user) return;
+    const { data, error } = await supabase
+      .from("cutting_materials")
+      .insert({ user_id: session.user.id, name: newMaterial.trim() } as any)
+      .select("id, name")
+      .single();
+    if (!error && data) {
+      setCustomMaterials((prev) => [...prev, data as any].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewMaterial("");
+      toast.success("Material adicionado!");
+    }
+  };
+
+  const deleteMaterial = async (id: string) => {
+    const { error } = await supabase.from("cutting_materials").delete().eq("id", id);
+    if (!error) {
+      setCustomMaterials((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Material removido.");
+    }
+  };
+
+  const allMaterials = [
+    ...MATERIALS,
+    ...customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name })),
+  ];
+
+  const removeFile = () => {
+    setFile(null);
+    setFilePreview(null);
+    setResult(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   const generateDxfSvgPreview = useCallback(async (text: string) => {
     try {
@@ -352,7 +400,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const suggestedSale = estimatedTimeMin * pricing.suggestedPrice;
 
       const machine = machines.find((m) => m.id === machineId);
-      const materialLabel = MATERIALS.find((m) => m.value === material)?.label || material;
+      const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
 
       setResult({
         fileName: file.name,
@@ -437,12 +485,17 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       {/* File Preview */}
       {filePreview && (
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Eye className="w-4 h-4 text-primary" />
-              Visualização do Arquivo
-            </CardTitle>
-            <CardDescription>{file?.name}</CardDescription>
+          <CardHeader className="pb-2 flex flex-row items-start justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Eye className="w-4 h-4 text-primary" />
+                Visualização do Arquivo
+              </CardTitle>
+              <CardDescription>{file?.name}</CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={removeFile}>
+              <X className="w-4 h-4" />
+            </Button>
           </CardHeader>
           <CardContent>
             <div
@@ -476,6 +529,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <div className="flex items-center justify-center gap-2 text-sm">
                     <FileText className="w-5 h-5 text-primary" />
                     <span className="text-foreground font-medium">{file.name}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeFile(); }}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -494,7 +550,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <SelectValue placeholder="Selecione o material" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MATERIALS.map((m) => (
+                  {allMaterials.map((m) => (
                     <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -533,7 +589,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
             {/* Quantity */}
             <div>
-              <Label className="text-xs">Quantidade de Peças</Label>
+              <Label className="text-xs">Quantidade de Passadas</Label>
               <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} />
             </div>
 
@@ -618,6 +674,45 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           </Card>
         )}
       </div>
+
+      {/* Materials Management Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Plus className="w-4 h-4 text-primary" />
+            Cadastrar Materiais
+          </CardTitle>
+          <CardDescription>Adicione materiais personalizados para seus orçamentos</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Nome do material"
+              value={newMaterial}
+              onChange={(e) => setNewMaterial(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addMaterial()}
+            />
+            <Button onClick={addMaterial} disabled={!newMaterial.trim()} size="sm" className="shrink-0 gap-1">
+              <Plus className="w-3.5 h-3.5" /> Adicionar
+            </Button>
+          </div>
+          {customMaterials.length > 0 && (
+            <div className="space-y-1">
+              {customMaterials.map((m) => (
+                <div key={m.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-secondary/50 text-sm">
+                  <span>{m.name}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteMaterial(m.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {customMaterials.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-2">Nenhum material personalizado cadastrado.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
