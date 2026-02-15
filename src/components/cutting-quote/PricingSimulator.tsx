@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, Clock, Ruler, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, Clock, Ruler, TrendingUp, Save, Check } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export interface PricingData {
   costPerHour: number;
@@ -18,6 +22,7 @@ interface PricingSimulatorProps {
 }
 
 export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
+  const { session } = useAuth();
   const [rent, setRent] = useState(0);
   const [electricity, setElectricity] = useState(0);
   const [internet, setInternet] = useState(0);
@@ -30,7 +35,38 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
 
   const [productiveHours, setProductiveHours] = useState(160);
   const [profitMargin, setProfitMargin] = useState(30);
-  const [avgCutSpeed, setAvgCutSpeed] = useState(2); // metros por minuto
+  const [avgCutSpeed, setAvgCutSpeed] = useState(2);
+
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Load saved settings
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase
+      .from("pricing_settings" as any)
+      .select("*")
+      .eq("user_id", session.user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setRent(Number(data.rent) || 0);
+          setElectricity(Number(data.electricity) || 0);
+          setInternet(Number(data.internet) || 0);
+          setOtherFixed(Number(data.other_fixed) || 0);
+          setMachineCost(Number(data.machine_cost) || 0);
+          setGasConsumable(Number(data.gas_consumable) || 0);
+          setMaintenanceCost(Number(data.maintenance_cost) || 0);
+          setOtherMachine(Number(data.other_machine) || 0);
+          setProductiveHours(Number(data.productive_hours) || 160);
+          setProfitMargin(Number(data.profit_margin) || 30);
+          setAvgCutSpeed(Number(data.avg_cut_speed) || 2);
+        }
+        setLoaded(true);
+      });
+  }, [session]);
 
   const totalFixed = rent + electricity + internet + otherFixed;
   const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine;
@@ -44,19 +80,56 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const suggestedPrice = costPerMinute * marginMultiplier;
 
   useEffect(() => {
-    onPricingChange({
-      costPerHour,
-      costPerMinute,
-      costPerMeter,
-      minPrice,
-      suggestedPrice,
-    });
+    onPricingChange({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice });
   }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice]);
+
+  // Auto-save with debounce
+  const saveSettings = useCallback(async () => {
+    if (!session?.user || !loaded) return;
+    setSaving(true);
+    const payload = {
+      user_id: session.user.id,
+      rent, electricity, internet, other_fixed: otherFixed,
+      machine_cost: machineCost, gas_consumable: gasConsumable,
+      maintenance_cost: maintenanceCost, other_machine: otherMachine,
+      productive_hours: productiveHours, profit_margin: profitMargin,
+      avg_cut_speed: avgCutSpeed, updated_at: new Date().toISOString(),
+    };
+
+    // Upsert: insert or update on conflict
+    const { error } = await supabase
+      .from("pricing_settings" as any)
+      .upsert(payload as any, { onConflict: "user_id" });
+
+    setSaving(false);
+    if (error) {
+      console.error(error);
+    } else {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed]);
+
+  // Debounce auto-save: save 1.5s after last change
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(saveSettings, 1500);
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
+  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, loaded]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {saving && <span>Salvando...</span>}
+          {saved && <span className="flex items-center gap-1 text-primary"><Check className="w-3 h-3" /> Salvo automaticamente</span>}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Fixed Costs */}
         <Card>
