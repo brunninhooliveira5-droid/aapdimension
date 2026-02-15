@@ -235,10 +235,15 @@ const MachineDashboard = () => {
     fetchAll();
   }, [machineId]);
 
+  const [catalogItems, setCatalogItems] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
     if (isAdmin) {
       supabase.from("profiles").select("id, name").eq("approved", true).then(({ data }) => {
         setProfiles(data ?? []);
+      });
+      supabase.from("dimension_equipment").select("id, name").order("name").then(({ data }) => {
+        setCatalogItems(data ?? []);
       });
     }
   }, [isAdmin]);
@@ -1113,7 +1118,14 @@ const MachineDashboard = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Modelo *</Label>
-              <Input value={editModel} onChange={e => setEditModel(e.target.value)} className="bg-accent border-border" />
+              <Select value={editModel} onValueChange={setEditModel}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                <SelectContent>
+                  {catalogItems.map(item => (
+                    <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Número de Série *</Label>
