@@ -249,10 +249,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     }
   };
 
-  const allMaterials = [
-    ...MATERIALS,
-    ...customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name })),
-  ];
+  const allMaterials = customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name }));
 
   const removeFile = () => {
     setFile(null);
