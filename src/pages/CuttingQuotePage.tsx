@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History } from "lucide-react";
+import { Calculator, FileText, History, BarChart3 } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
+import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
@@ -37,7 +38,7 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue="simulator" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="simulator" className="gap-2">
             <Calculator className="w-4 h-4" /> Simulador
           </TabsTrigger>
@@ -46,6 +47,9 @@ export default function CuttingQuotePage() {
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="w-4 h-4" /> Salvos
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <BarChart3 className="w-4 h-4" /> Relatórios
           </TabsTrigger>
         </TabsList>
 
@@ -59,6 +63,10 @@ export default function CuttingQuotePage() {
 
         <TabsContent value="history">
           <SavedQuotes />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <QuoteReports />
         </TabsContent>
       </Tabs>
     </div>
