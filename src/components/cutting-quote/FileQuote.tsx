@@ -212,6 +212,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
+  const [editablePrice, setEditablePrice] = useState(0);
+  const [customerName, setCustomerName] = useState("");
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string; price_adjustment: number } | null>(null);
@@ -481,6 +483,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         minRecommended: Math.round(minRecommended * 100) / 100,
         suggestedSale: Math.round(suggestedSale * 100) / 100,
       });
+      setEditablePrice(Math.round(suggestedSale * 100) / 100);
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
     } finally {
@@ -497,21 +500,18 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     doc.text("Orçamento de Corte CNC", 14, 22);
     doc.setFontSize(10);
     doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 30);
+    if (customerName.trim()) {
+      doc.text(`Cliente: ${customerName.trim()}`, 14, 36);
+    }
 
     (doc as any).autoTable({
-      startY: 38,
+      startY: customerName.trim() ? 44 : 38,
       head: [["Item", "Valor"]],
       body: [
-        ["Arquivo", result.fileName],
         ["Material", result.material],
         ["Espessura", result.thickness],
-        ["Máquina", result.machineName],
-        ["Comprimento de Corte", `${result.pathLengthM.toFixed(2)} m`],
-        ["Quantidade", `${quantity}`],
-        ["Tempo Estimado", `${result.estimatedTimeMin.toFixed(2)} min`],
-        ["Custo Estimado", fmt(result.estimatedCost)],
-        ["Preço Mínimo", fmt(result.minRecommended)],
-        ["Preço Sugerido", fmt(result.suggestedSale)],
+        ["Tempo Estimado de Corte", `${result.estimatedTimeMin.toFixed(2)} min`],
+        ["Preço Total", fmt(editablePrice)],
       ],
       theme: "striped",
       styles: { fontSize: 10 },
@@ -677,6 +677,19 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
               <CardDescription>{result.fileName}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Customer Name */}
+              <div>
+                <Label className="text-xs">Nome do Cliente</Label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Nome do cliente para o PDF"
+                  className="mt-1"
+                />
+              </div>
+
+              <Separator />
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Material</p>
@@ -686,47 +699,33 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <p className="text-xs text-muted-foreground">Espessura</p>
                   <p className="text-sm font-medium">{result.thickness}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Máquina</p>
-                  <p className="text-sm font-medium">{result.machineName}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1"><Ruler className="w-3 h-3" /> Comprimento</p>
-                  <p className="text-sm font-medium">{result.pathLengthM.toFixed(2)} m</p>
-                </div>
               </div>
 
-              <Separator />
+              <Card className="bg-secondary/50 border-border">
+                <CardContent className="p-3 text-center">
+                  <Clock className="w-5 h-5 text-info mx-auto mb-1" />
+                  <p className="text-[10px] text-muted-foreground">Tempo Estimado de Corte</p>
+                  <p className="text-lg font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
+                </CardContent>
+              </Card>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <Clock className="w-5 h-5 text-info mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Tempo Estimado</p>
-                    <p className="text-lg font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <DollarSign className="w-5 h-5 text-warning mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Custo Estimado</p>
-                    <p className="text-lg font-bold text-warning">{fmt(result.estimatedCost)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <DollarSign className="w-5 h-5 text-destructive mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Preço Mínimo</p>
-                    <p className="text-lg font-bold text-destructive">{fmt(result.minRecommended)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <TrendingUp className="w-5 h-5 text-primary mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Preço Sugerido</p>
-                    <p className="text-lg font-bold text-primary">{fmt(result.suggestedSale)}</p>
-                  </CardContent>
-                </Card>
+              {/* Editable Price */}
+              <div>
+                <Label className="text-xs">Preço Total (editável)</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editablePrice || ""}
+                    onChange={(e) => setEditablePrice(Number(e.target.value))}
+                    className="pl-10 text-lg font-bold"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Sugerido: {fmt(result.suggestedSale)} — Modifique antes de gerar o PDF
+                </p>
               </div>
 
               <div className="flex gap-2">
