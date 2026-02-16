@@ -1,8 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, Pencil, Check, X, Wallet } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from "recharts";
 
 interface DayProjection {
@@ -24,8 +28,13 @@ export function CashFlow() {
   const [payables, setPayables] = useState<FlowEntry[]>([]);
   const [receivables, setReceivables] = useState<FlowEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [initialBalance, setInitialBalance] = useState(0);
+  const [calculatedBalance, setCalculatedBalance] = useState(0);
+  const [manualBalance, setManualBalance] = useState<string>("");
+  const [useManual, setUseManual] = useState(false);
+  const [editingBalance, setEditingBalance] = useState(false);
   const [horizon, setHorizon] = useState<"30" | "60" | "90">("90");
+
+  const initialBalance = useManual && manualBalance !== "" ? parseFloat(manualBalance.replace(",", ".")) || 0 : calculatedBalance;
 
   useEffect(() => {
     fetchData();
@@ -61,7 +70,7 @@ export function CashFlow() {
 
     const totalReceived = (paidRec ?? []).reduce((s, r) => s + Number(r.amount), 0);
     const totalPaid = (paidPay ?? []).reduce((s, r) => s + Number(r.amount), 0);
-    setInitialBalance(totalReceived - totalPaid);
+    setCalculatedBalance(totalReceived - totalPaid);
 
     setPayables(
       (pay ?? []).map((p: any) => ({ amount: Number(p.amount), date: p.due_date, status: p.status }))
@@ -160,6 +169,60 @@ export function CashFlow() {
 
   return (
     <div className="space-y-6">
+      {/* Initial Balance Editor */}
+      <Card className="gradient-card border-border">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Saldo Inicial:</span>
+            </div>
+
+            {!editingBalance ? (
+              <div className="flex items-center gap-3">
+                <span className={`text-lg font-bold ${initialBalance >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+                  {fmtSigned(initialBalance)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({useManual ? "Manual" : "Calculado: Recebido − Pago"})
+                </span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBalance(true)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch checked={useManual} onCheckedChange={(v) => { setUseManual(v); if (!v) setManualBalance(""); }} />
+                  <Label className="text-xs text-muted-foreground">Saldo manual</Label>
+                </div>
+                {useManual && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted-foreground">R$</span>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={manualBalance}
+                      onChange={(e) => setManualBalance(e.target.value)}
+                      placeholder={calculatedBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      className="w-[160px] h-8 bg-accent border-border text-sm"
+                      autoFocus
+                    />
+                  </div>
+                )}
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400" onClick={() => setEditingBalance(false)}>
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingBalance(false); setUseManual(false); setManualBalance(""); }}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       {/* Negative Balance Alerts */}
       {negativeAlerts.length > 0 && (
         <div className="space-y-2">
