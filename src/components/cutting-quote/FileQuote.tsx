@@ -527,16 +527,11 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     const body: string[][] = [
       ["Material", result.material],
       ["Espessura", result.thickness],
-      ["Tempo Estimado de Corte", `${result.estimatedTimeMin.toFixed(2)} min`],
       ["Valor do Corte", fmt(editablePrice)],
     ];
 
     if (materialOwner === "usuario") {
-      body.push(
-        ["Área Utilizada (m²)", editableMaterialM2.toFixed(4)],
-        ["Valor/m² do Material", fmt(editableMaterialPriceM2)],
-        ["Custo do Material", fmt(materialCost)],
-      );
+      body.push(["Valor do Material", fmt(materialCost)]);
     }
 
     body.push(["", ""]);
