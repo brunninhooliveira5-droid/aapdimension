@@ -169,14 +169,20 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs">Total de Custos Fixos</Label>
-              <Input type="number" min={0} value={totalFixed || ""} onChange={(e) => {
-                const val = Number(e.target.value);
-                setRent(val);
-                setElectricity(0);
-                setInternet(0);
-                setOtherFixed(0);
-              }} placeholder="0,00" />
+              <Label className="text-xs">Total de Custos Fixos (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={totalFixed > 0 ? totalFixed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => {
+                  const val = Number(e.target.value.replace(/[^\d]/g, "")) / 100;
+                  setRent(val);
+                  setElectricity(0);
+                  setInternet(0);
+                  setOtherFixed(0);
+                }} 
+                placeholder="0,00" 
+              />
             </div>
           </CardContent>
         </Card>
@@ -192,20 +198,44 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs">Depreciação / Parcela</Label>
-              <Input type="number" min={0} value={machineCost || ""} onChange={(e) => setMachineCost(Number(e.target.value))} placeholder="0,00" />
+              <Label className="text-xs">Depreciação / Parcela (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={machineCost > 0 ? machineCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => setMachineCost(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
+                placeholder="0,00" 
+              />
             </div>
             <div>
-              <Label className="text-xs">Consumíveis</Label>
-              <Input type="number" min={0} value={gasConsumable || ""} onChange={(e) => setGasConsumable(Number(e.target.value))} placeholder="0,00" />
+              <Label className="text-xs">Consumíveis (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={gasConsumable > 0 ? gasConsumable.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => setGasConsumable(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
+                placeholder="0,00" 
+              />
             </div>
             <div>
-              <Label className="text-xs">Manutenção Mensal</Label>
-              <Input type="number" min={0} value={maintenanceCost || ""} onChange={(e) => setMaintenanceCost(Number(e.target.value))} placeholder="0,00" />
+              <Label className="text-xs">Manutenção Mensal (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={maintenanceCost > 0 ? maintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => setMaintenanceCost(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
+                placeholder="0,00" 
+              />
             </div>
             <div>
-              <Label className="text-xs">Outros Custos Máquina</Label>
-              <Input type="number" min={0} value={otherMachine || ""} onChange={(e) => setOtherMachine(Number(e.target.value))} placeholder="0,00" />
+              <Label className="text-xs">Outros Custos Máquina (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={otherMachine > 0 ? otherMachine.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => setOtherMachine(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
+                placeholder="0,00" 
+              />
             </div>
             <Separator />
             <div className="flex justify-between text-sm font-medium">

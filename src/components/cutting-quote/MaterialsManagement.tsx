@@ -368,11 +368,10 @@ export function MaterialsManagement() {
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Valor Unitário (R$)</Label>
                             <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              value={t.unit_price || ""}
-                              onChange={(e) => updateThicknessField(t.id, "unit_price", Number(e.target.value))}
+                              type="text"
+                              inputMode="decimal"
+                              value={t.unit_price > 0 ? t.unit_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
+                              onChange={(e) => updateThicknessField(t.id, "unit_price", Number(e.target.value.replace(/[^\d]/g, "")) / 100)}
                               className="h-8 text-xs"
                               placeholder="0,00"
                             />
