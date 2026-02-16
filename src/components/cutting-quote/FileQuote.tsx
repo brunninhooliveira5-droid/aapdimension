@@ -933,8 +933,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     doc.save(`orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`);
     toast.success("PDF exportado com sucesso!");
     } catch (err: any) {
-      console.error("Erro ao gerar PDF:", err);
-      toast.error("Erro ao gerar PDF. Tente novamente.");
+      console.error("Erro ao gerar PDF:", err?.message, err?.stack, err);
+      toast.error(`Erro ao gerar PDF: ${err?.message || "erro desconhecido"}`);
     }
   };
 
