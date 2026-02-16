@@ -152,18 +152,30 @@ export function DecisionAssistant() {
   };
 
   const purchaseValue = parseFloat(valor) || 0;
+  const FATOR_CONFIANCA = 0.7;
+
+  // Robust base for commitment denominator
+  const baseEntradas = useMemo(() => {
+    const horizonMonths = settings.projection_horizon_months;
+    const fromHistory = avgMonthlyRevenue * horizonMonths * FATOR_CONFIANCA;
+    const base = Math.max(totalReceivableHorizon, fromHistory);
+    return base > 0 ? base : 0;
+  }, [totalReceivableHorizon, avgMonthlyRevenue, settings.projection_horizon_months]);
+
+  const totalPayableFull = useMemo(() => {
+    return totalPayableHorizon + fixedMonthly * settings.projection_horizon_months;
+  }, [totalPayableHorizon, fixedMonthly, settings.projection_horizon_months]);
 
   // Helper: project month-by-month balance with optional installment
   const projectBalance = (parcela: number, numParcelas: number) => {
     const horizonMonths = settings.projection_horizon_months;
     const data: { mes: string; antes: number; depois: number }[] = [];
     let balBefore = currentBalance;
-    let balAfter = currentBalance - (numParcelas === 0 ? purchaseValue : 0); // à vista = subtract all at month 0
+    let balAfter = currentBalance - (numParcelas === 0 ? purchaseValue : 0);
 
     for (let i = 0; i <= horizonMonths; i++) {
       if (i > 0) {
         const flow = futureMonthlyFlows[i - 1] || { receivable: 0, payable: 0 };
-        // Use max of (actual receivable for month, avg revenue) for realistic projection
         const monthIn = Math.max(flow.receivable, avgMonthlyRevenue);
         const monthOut = flow.payable + fixedMonthly;
         balBefore += monthIn - monthOut;
@@ -192,26 +204,34 @@ export function DecisionAssistant() {
       if (bal < settings.minimum_cash_reserve) reserveViolated = true;
     }
 
-    const comp = avgMonthlyRevenue > 0
-      ? ((numParcelas === 0 ? purchaseValue : parcela) / avgMonthlyRevenue) * 100
-      : 100;
+    // Robust commitment: (totalPayable + simulated cost) / baseEntradas
+    const totalGastoSim = numParcelas === 0 ? purchaseValue : parcela * numParcelas;
+    const commitment = baseEntradas > 0
+      ? ((totalPayableFull + totalGastoSim) / baseEntradas) * 100
+      : 999;
 
-    return { negativeMonth, reserveViolated, commitment: comp };
+    // Monthly commitment for installment context
+    const monthlyCommitment = avgMonthlyRevenue > 0
+      ? ((numParcelas === 0 ? purchaseValue : parcela) / avgMonthlyRevenue) * 100
+      : 999;
+
+    return { negativeMonth, reserveViolated, commitment, monthlyCommitment };
   };
 
   // Decision engine
   const analysis = useMemo(() => {
     if (purchaseValue <= 0) return null;
 
+    const limit = settings.safe_commitment_limit;
+
     // === 1) À vista ===
     const balanceAfter = currentBalance - purchaseValue;
     const avistaCheck = checkViability(0, 0);
-    const avistaCommitment = avistaCheck.commitment;
 
     let avistaDecision: Decision = "RECOMENDADO";
     const avistaReasons: string[] = [];
 
-    if (avistaCheck.reserveViolated) {
+    if (balanceAfter < settings.minimum_cash_reserve) {
       avistaDecision = "NÃO RECOMENDADO";
       avistaReasons.push(`Saldo pós-compra à vista (${fmtSigned(balanceAfter)}) ficará abaixo da reserva mínima (${fmt(settings.minimum_cash_reserve)})`);
     }
@@ -219,17 +239,18 @@ export function DecisionAssistant() {
       avistaDecision = "NÃO RECOMENDADO";
       avistaReasons.push(`Saldo projetado ficará negativo no horizonte de ${settings.projection_horizon_months} meses`);
     }
-    if (avistaCommitment > 80) {
+    if (avistaCheck.commitment > limit) {
       avistaDecision = "NÃO RECOMENDADO";
-      avistaReasons.push(`Comprometimento à vista (${avistaCommitment.toFixed(1)}%) supera 80% da receita mensal`);
-    } else if (avistaCommitment > settings.safe_commitment_limit) {
-      if (avistaDecision === "RECOMENDADO") avistaDecision = "CAUTELA";
-      avistaReasons.push(`Comprometimento à vista (${avistaCommitment.toFixed(1)}%) acima do limite seguro (${settings.safe_commitment_limit}%)`);
+      avistaReasons.push(`Comprometimento do caixa (${avistaCheck.commitment.toFixed(1)}%) supera o limite seguro configurado (${limit}%)`);
+    }
+    if (avistaCheck.monthlyCommitment > limit && avistaDecision === "RECOMENDADO") {
+      avistaDecision = "CAUTELA";
+      avistaReasons.push(`Impacto à vista (${avistaCheck.monthlyCommitment.toFixed(1)}%) acima do limite seguro (${limit}%) da receita mensal`);
     }
 
     if (avistaDecision === "RECOMENDADO" && avistaReasons.length === 0) {
       avistaReasons.push("Saldo e fluxo futuro suportam compra à vista");
-      avistaReasons.push(`Comprometimento: ${avistaCommitment.toFixed(1)}% da receita média mensal`);
+      avistaReasons.push(`Comprometimento: ${avistaCheck.commitment.toFixed(1)}% do caixa | ${avistaCheck.monthlyCommitment.toFixed(1)}% da receita mensal`);
     }
 
     const avistaViable = avistaDecision === "RECOMENDADO";
@@ -238,16 +259,15 @@ export function DecisionAssistant() {
     const installments: InstallmentOption[] = [];
     for (let n = 2; n <= settings.max_installments; n++) {
       const parcela = purchaseValue / n;
-      const { negativeMonth, reserveViolated, commitment: comp } = checkViability(parcela, n);
+      const { negativeMonth, reserveViolated, commitment: comp, monthlyCommitment } = checkViability(parcela, n);
 
       let dec: Decision = "RECOMENDADO";
       if (negativeMonth) dec = "NÃO RECOMENDADO";
       else if (reserveViolated) dec = "NÃO RECOMENDADO";
-      else if (comp > 80) dec = "NÃO RECOMENDADO";
-      else if (comp > settings.safe_commitment_limit) dec = "CAUTELA";
+      else if (monthlyCommitment > limit) dec = "CAUTELA";
 
       const pctReceita = avgMonthlyRevenue > 0 ? (parcela / avgMonthlyRevenue) * 100 : 0;
-      installments.push({ parcelas: n, valorParcela: parcela, comprometimento: comp, decision: dec, label: `${n}x`, pctReceita });
+      installments.push({ parcelas: n, valorParcela: parcela, comprometimento: monthlyCommitment, decision: dec, label: `${n}x`, pctReceita });
     }
 
     const viable = installments.filter(i => i.decision !== "NÃO RECOMENDADO");
@@ -277,14 +297,14 @@ export function DecisionAssistant() {
     } else {
       decision = "NÃO RECOMENDADO";
       reasons.push(`❌ À vista: ${avistaReasons[0] || "Não viável"}`);
-      reasons.push("❌ Nenhum parcelamento viável — todos excedem os limites de segurança considerando receitas futuras");
+      reasons.push("❌ Nenhum parcelamento viável — todos excedem os limites de segurança considerando receitas futuras e históricas");
       if (avistaReasons.length > 1) avistaReasons.slice(1).forEach(r => reasons.push(r));
     }
 
-    const commitment = avistaViable ? avistaCommitment : (bestInstallment ? bestInstallment.comprometimento : avistaCommitment);
+    const commitment = avistaViable ? avistaCheck.monthlyCommitment : (bestInstallment ? bestInstallment.comprometimento : avistaCheck.monthlyCommitment);
     const margin = avgMonthlyRevenue > 0 ? ((avgMonthlyRevenue - avgMonthlyExpense) / avgMonthlyRevenue) * 100 : 0;
+    const margemMensal = avgMonthlyRevenue - avgMonthlyExpense;
 
-    // Build projection data for the chosen scenario
     const projData = avistaViable
       ? projectBalance(0, 0)
       : bestInstallment
@@ -295,9 +315,11 @@ export function DecisionAssistant() {
       decision, reasons, balanceAfter, commitment, projData,
       installments, conservative, balanced, aggressive,
       bestInstallment, avistaDecision, avistaReasons, avistaViable,
-      margin,
+      margin, margemMensal,
+      avistaCommitment: avistaCheck.commitment,
+      avistaMonthlyCommitment: avistaCheck.monthlyCommitment,
     };
-  }, [purchaseValue, currentBalance, futureMonthlyFlows, fixedMonthly, avgMonthlyRevenue, avgMonthlyExpense, settings, suggestParcelamento]);
+  }, [purchaseValue, currentBalance, futureMonthlyFlows, fixedMonthly, avgMonthlyRevenue, avgMonthlyExpense, settings, suggestParcelamento, baseEntradas, totalPayableFull]);
 
   const saveSettings = async () => {
     const { data: existing } = await supabase.from("finance_simulator_settings").select("id").limit(1);
@@ -340,10 +362,13 @@ export function DecisionAssistant() {
     doc.setFontSize(10);
     doc.text(`Saldo Atual: ${fmtSigned(currentBalance)}`, 18, y); y += 6;
     doc.text(`Total a Receber (${settings.projection_horizon_months}m): ${fmt(totalReceivableHorizon)}`, 18, y); y += 6;
-    doc.text(`Total a Pagar (${settings.projection_horizon_months}m): ${fmt(totalPayableHorizon)}`, 18, y); y += 6;
+    doc.text(`Total a Pagar (${settings.projection_horizon_months}m): ${fmt(totalPayableFull)}`, 18, y); y += 6;
+    doc.text(`Base de Entradas: ${fmt(baseEntradas)}`, 18, y); y += 6;
     doc.text(`Receita Média Mensal: ${fmt(avgMonthlyRevenue)}`, 18, y); y += 6;
     doc.text(`Despesa Média Mensal: ${fmt(avgMonthlyExpense)}`, 18, y); y += 6;
     doc.text(`Custos Fixos Mensais: ${fmt(fixedMonthly)}`, 18, y); y += 6;
+    doc.text(`Reserva Mínima: ${fmt(settings.minimum_cash_reserve)}`, 18, y); y += 6;
+    doc.text(`Limite de Comprometimento: ${settings.safe_commitment_limit}%`, 18, y); y += 6;
     doc.text(`Comprometimento: ${analysis.commitment.toFixed(1)}%`, 18, y); y += 6;
 
     if (analysis.conservative || analysis.balanced || analysis.aggressive) {
@@ -417,7 +442,7 @@ export function DecisionAssistant() {
       {/* Data Sources Summary (always visible) */}
       <div className="bg-card border rounded-lg p-4">
         <h4 className="text-sm font-medium mb-3 flex items-center gap-2"><CalendarClock className="w-4 h-4" /> Dados Considerados na Análise</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Caixa Atual</p>
             <p className={`text-sm font-bold ${currentBalance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSigned(currentBalance)}</p>
@@ -428,7 +453,7 @@ export function DecisionAssistant() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">A Pagar ({settings.projection_horizon_months}m)</p>
-            <p className="text-sm font-bold text-red-400">{fmt(totalPayableHorizon)}</p>
+            <p className="text-sm font-bold text-red-400">{fmt(totalPayableFull)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Receita Média/Mês</p>
@@ -442,7 +467,23 @@ export function DecisionAssistant() {
             <p className="text-xs text-muted-foreground">Custos Fixos/Mês</p>
             <p className="text-sm font-bold text-foreground">{fmt(fixedMonthly)}</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Reserva Mínima</p>
+            <p className="text-sm font-bold text-foreground">{fmt(settings.minimum_cash_reserve)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Limite Comprom.</p>
+            <p className="text-sm font-bold text-foreground">{settings.safe_commitment_limit}%</p>
+          </div>
         </div>
+        {baseEntradas > 0 && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Base de entradas para cálculo: <span className="font-semibold text-foreground">{fmt(baseEntradas)}</span>
+              <span className="ml-1">(maior entre recebíveis futuros e receita histórica × {FATOR_CONFIANCA})</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Results */}
