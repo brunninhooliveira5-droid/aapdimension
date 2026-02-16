@@ -351,32 +351,63 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     // Generate preview
     const text = await f.text();
     if (ext === "svg") {
-      // Parse SVG, apply visible colors, then convert to data URI for reliable rendering
+      // Parse SVG, recalculate viewBox from actual content, apply visible colors
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(text, "image/svg+xml");
       const svgEl = svgDoc.querySelector("svg");
       if (svgEl) {
-        // Ensure viewBox exists
-        if (!svgEl.getAttribute("viewBox")) {
-          const w = parseFloat(svgEl.getAttribute("width") || "100");
-          const h = parseFloat(svgEl.getAttribute("height") || "100");
-          svgEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
-        }
         // Remove fixed dimensions so it scales
         svgEl.removeAttribute("width");
         svgEl.removeAttribute("height");
+        // Remove inline style that may override sizing
+        svgEl.removeAttribute("style");
 
         // Inject style to force visible strokes on dark backgrounds
         const styleEl = svgDoc.createElementNS("http://www.w3.org/2000/svg", "style");
-        styleEl.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; } svg { overflow: visible; }`;
+        styleEl.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; stroke-width: 2 !important; } svg { overflow: visible; }`;
         svgEl.insertBefore(styleEl, svgEl.firstChild);
 
-        // Convert to base64 data URI for <img> rendering (avoids sanitization issues)
+        // Temporarily render in a hidden container to calculate actual bounding box
+        const tempDiv = document.createElement("div");
+        tempDiv.style.cssText = "position:absolute;left:-9999px;top:-9999px;width:5000px;height:5000px;visibility:hidden;";
+        document.body.appendChild(tempDiv);
+        // Clone and render to get real bbox
+        const tempSvg = svgEl.cloneNode(true) as SVGSVGElement;
+        tempSvg.setAttribute("width", "5000");
+        tempSvg.setAttribute("height", "5000");
+        tempSvg.setAttribute("viewBox", "-5000 -5000 10000 10000");
+        tempDiv.appendChild(tempSvg);
+
+        try {
+          // Get bounding box of all content
+          const shapes = tempSvg.querySelectorAll("rect, circle, ellipse, line, polyline, polygon, path");
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+          shapes.forEach((shape) => {
+            try {
+              const bbox = (shape as SVGGraphicsElement).getBBox();
+              if (bbox.width > 0 || bbox.height > 0) {
+                minX = Math.min(minX, bbox.x);
+                minY = Math.min(minY, bbox.y);
+                maxX = Math.max(maxX, bbox.x + bbox.width);
+                maxY = Math.max(maxY, bbox.y + bbox.height);
+              }
+            } catch { /* skip */ }
+          });
+
+          if (minX !== Infinity) {
+            const pad = Math.max(maxX - minX, maxY - minY) * 0.05 || 10;
+            svgEl.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`);
+          }
+        } catch { /* keep original viewBox */ }
+
+        document.body.removeChild(tempDiv);
+
+        // Convert to base64 data URI for <img> rendering
         const svgString = new XMLSerializer().serializeToString(svgEl);
         const encoded = btoa(unescape(encodeURIComponent(svgString)));
         setFilePreview(`data:image/svg+xml;base64,${encoded}`);
       } else {
-        // Fallback: use raw text as data URI
         const encoded = btoa(unescape(encodeURIComponent(text)));
         setFilePreview(`data:image/svg+xml;base64,${encoded}`);
       }
