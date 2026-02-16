@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/StatCard";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Badge } from "@/components/ui/badge";
 
 interface PayableRow {
   id: string;
@@ -11,6 +12,8 @@ interface PayableRow {
   payment_date: string | null;
   status: string;
   category_id: string | null;
+  supplier: string;
+  description: string;
 }
 
 interface ReceivableRow {
@@ -19,6 +22,8 @@ interface ReceivableRow {
   expected_date: string;
   received_date: string | null;
   status: string;
+  client: string;
+  description: string;
 }
 
 interface CategoryRow {
@@ -47,8 +52,8 @@ export function FinanceDashboard() {
   useEffect(() => {
     const fetch = async () => {
       const [{ data: p }, { data: r }, { data: c }] = await Promise.all([
-        supabase.from("finance_accounts_payable").select("id, amount, due_date, payment_date, status, category_id"),
-        supabase.from("finance_accounts_receivable").select("id, amount, expected_date, received_date, status"),
+        supabase.from("finance_accounts_payable").select("id, amount, due_date, payment_date, status, category_id, supplier, description"),
+        supabase.from("finance_accounts_receivable").select("id, amount, expected_date, received_date, status, client, description"),
         supabase.from("finance_categories").select("id, name, type"),
       ]);
       setPayables((p as PayableRow[]) ?? []);
@@ -93,6 +98,58 @@ export function FinanceDashboard() {
   );
 
   const resultado = totalReceived - totalPaid;
+
+  // Upcoming & overdue alerts
+  const in7 = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+
+  const alerts = useMemo(() => {
+    const items: { id: string; type: "pagar" | "receber"; label: string; description: string; date: string; amount: number; severity: "overdue" | "urgent" | "soon" }[] = [];
+
+    payables.filter(p => p.status !== "pago").forEach(p => {
+      const isOverdue = p.due_date < today;
+      const isUrgent = !isOverdue && p.due_date <= in7;
+      if (isOverdue || isUrgent) {
+        items.push({
+          id: p.id, type: "pagar", label: p.supplier, description: p.description,
+          date: p.due_date, amount: Number(p.amount),
+          severity: isOverdue ? "overdue" : "urgent",
+        });
+      }
+    });
+
+    receivables.filter(r => r.status !== "recebido").forEach(r => {
+      const isOverdue = r.expected_date < today;
+      const isUrgent = !isOverdue && r.expected_date <= in7;
+      if (isOverdue || isUrgent) {
+        items.push({
+          id: r.id, type: "receber", label: r.client, description: r.description,
+          date: r.expected_date, amount: Number(r.amount),
+          severity: isOverdue ? "overdue" : "urgent",
+        });
+      }
+    });
+
+    items.sort((a, b) => a.date.localeCompare(b.date));
+    return items;
+  }, [payables, receivables, today, in7]);
+
+  const severityConfig = {
+    overdue: { badge: "Atrasado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30", iconClass: "text-red-400", borderClass: "border-l-red-500" },
+    urgent: { badge: "Vence em breve", badgeClass: "bg-amber-500/15 text-amber-400 border-amber-500/30", iconClass: "text-amber-400", borderClass: "border-l-amber-500" },
+    soon: { badge: "Próximo", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30", iconClass: "text-blue-400", borderClass: "border-l-blue-500" },
+  };
+
+  const formatDate = (d: string) => {
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  };
+
+  const daysUntil = (d: string) => {
+    const diff = Math.ceil((new Date(d).getTime() - new Date(today).getTime()) / 86400000);
+    if (diff < 0) return `${Math.abs(diff)} dia(s) atrasado`;
+    if (diff === 0) return "Vence hoje";
+    return `Vence em ${diff} dia(s)`;
+  };
 
   // Monthly chart data (last 6 months)
   const monthlyData = useMemo(() => {
@@ -147,6 +204,49 @@ export function FinanceDashboard() {
         <StatCard title="Total Pago (acumulado)" value={fmt(totalPaid)} icon={DollarSign} />
         <StatCard title="Atrasado (Pagar)" value={fmt(overduePayable)} icon={Clock} variant={overduePayable > 0 ? "danger" : "default"} />
       </div>
+
+      {/* Alerts Panel */}
+      {alerts.length > 0 && (
+        <div className="gradient-card rounded-lg border border-border p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Bell className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Alertas de Vencimento ({alerts.length})
+            </h3>
+          </div>
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            {alerts.map(alert => {
+              const config = severityConfig[alert.severity];
+              return (
+                <div
+                  key={`${alert.type}-${alert.id}`}
+                  className={`flex items-center justify-between gap-3 p-3 rounded-md bg-accent/30 border-l-4 ${config.borderClass}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <CalendarClock className={`w-4 h-4 shrink-0 ${config.iconClass}`} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">{alert.label}</span>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.badgeClass}`}>
+                          {config.badge}
+                        </Badge>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${alert.type === "pagar" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+                          {alert.type === "pagar" ? "Pagar" : "Receber"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{alert.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDate(alert.date)} · {daysUntil(alert.date)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground whitespace-nowrap">{fmt(alert.amount)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
