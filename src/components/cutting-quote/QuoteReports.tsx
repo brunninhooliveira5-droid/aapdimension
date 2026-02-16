@@ -44,6 +44,8 @@ const chartConfig = {
   count: { label: "Quantidade", color: "hsl(152, 60%, 42%)" },
   cost: { label: "Custo", color: "hsl(215, 70%, 55%)" },
   sale: { label: "Preço Sugerido", color: "hsl(38, 92%, 55%)" },
+  profit: { label: "Lucro", color: "hsl(152, 60%, 42%)" },
+  revenue: { label: "Receita", color: "hsl(38, 92%, 55%)" },
 };
 
 export function QuoteReports() {
@@ -108,6 +110,24 @@ export function QuoteReports() {
       map.set(q.material, (map.get(q.material) || 0) + 1);
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filteredQuotes]);
+
+  const yearlyProfitData = useMemo(() => {
+    const map = new Map<string, { year: string; profit: number; revenue: number; cost: number }>();
+    filteredQuotes
+      .filter((q) => q.status === "fechado")
+      .forEach((q) => {
+        const year = new Date(q.created_at).getFullYear().toString();
+        const existing = map.get(year) || { year, profit: 0, revenue: 0, cost: 0 };
+        const profit = (Number(q.suggested_sale) - Number(q.material_cost)) + (Number((q as any).service_value) || 0);
+        existing.profit += profit;
+        existing.revenue += Number(q.total_price) || Number(q.suggested_sale);
+        existing.cost += Number(q.estimated_cost);
+        map.set(year, existing);
+      });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v);
   }, [filteredQuotes]);
 
   const summaryStats = useMemo(() => {
@@ -304,6 +324,33 @@ export function QuoteReports() {
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Yearly Profit Comparison */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" /> Lucro Estimado por Ano
+          </CardTitle>
+          <CardDescription>Comparação anual de lucro, receita e custo (orçamentos fechados)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {yearlyProfitData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum orçamento fechado encontrado para exibir comparação anual.</p>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <BarChart data={yearlyProfitData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="revenue" name="revenue" fill="hsl(38, 92%, 55%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="cost" name="cost" fill="hsl(215, 70%, 55%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="profit" name="profit" fill="hsl(152, 60%, 42%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
     </div>
