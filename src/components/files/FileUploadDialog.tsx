@@ -13,11 +13,12 @@ import { Upload } from "lucide-react";
 interface Props {
   open: boolean;
   categoryId: string;
+  trainingSectorId?: string | null;
   onClose: () => void;
   onUploaded: () => void;
 }
 
-export function FileUploadDialog({ open, categoryId, onClose, onUploaded }: Props) {
+export function FileUploadDialog({ open, categoryId, trainingSectorId, onClose, onUploaded }: Props) {
   const { session } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -43,6 +44,7 @@ export function FileUploadDialog({ open, categoryId, onClose, onUploaded }: Prop
 
     const { error } = await supabase.from("customer_files").insert({
       category_id: categoryId,
+      training_sector_id: trainingSectorId || null,
       file_url: urlData.publicUrl,
       file_name_original: file.name,
       display_name: displayName.trim(),

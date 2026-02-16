@@ -13,6 +13,7 @@ import { format } from "date-fns";
 
 interface Props {
   category: FileCategory;
+  trainingSectorId?: string | null;
   isAdmin: boolean;
   onEditFile: (f: CustomerFile) => void;
   onDeleteFile: (f: CustomerFile) => void;
@@ -26,7 +27,7 @@ function formatBytes(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
-export function FileListView({ category, isAdmin, onEditFile, onDeleteFile }: Props) {
+export function FileListView({ category, trainingSectorId, isAdmin, onEditFile, onDeleteFile }: Props) {
   const [files, setFiles] = useState<CustomerFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -34,17 +35,21 @@ export function FileListView({ category, isAdmin, onEditFile, onDeleteFile }: Pr
 
   const fetchFiles = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("customer_files")
       .select("*")
-      .eq("category_id", category.id)
-      .order("created_at", { ascending: false });
+      .eq("category_id", category.id);
 
+    if (trainingSectorId) {
+      query = query.eq("training_sector_id", trainingSectorId);
+    }
+
+    const { data } = await query.order("created_at", { ascending: false });
     setFiles((data as CustomerFile[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchFiles(); }, [category.id]);
+  useEffect(() => { fetchFiles(); }, [category.id, trainingSectorId]);
 
   // Listen for refresh triggers
   useEffect(() => {
