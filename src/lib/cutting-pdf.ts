@@ -166,10 +166,6 @@ export async function generateQuotePDF(
   // Resumo técnico
   body.push(["", ""]);
   body.push(["Comprimento de Corte", `${data.pathLengthM.toFixed(2)} m`]);
-  body.push(["Velocidade Base", `${data.baseSpeedMMmin.toFixed(0)} mm/min`]);
-  body.push(["Fator de Velocidade", `${data.speedFactor.toFixed(2)} (${data.speedFactorOrigin})`]);
-  body.push(["Velocidade Efetiva", `${data.effectiveSpeedMMmin.toFixed(0)} mm/min`]);
-  body.push(["Tempo Estimado", `${data.estimatedTimeMin.toFixed(1)} min`]);
 
   // Resumo financeiro
   body.push(["", ""]);
