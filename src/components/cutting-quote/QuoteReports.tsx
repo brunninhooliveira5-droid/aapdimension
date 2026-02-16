@@ -117,7 +117,7 @@ export function QuoteReports() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
@@ -141,22 +141,6 @@ export function QuoteReports() {
             </div>
             <p className="text-xl font-bold text-green-600">{fmt(summaryStats.closedRevenue)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{summaryStats.closedCount} fechado(s)</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Ticket Médio
-            </div>
-            <p className="text-xl font-bold">{fmt(summaryStats.avgTicket)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <DollarSign className="w-3.5 h-3.5" /> Custo Total
-            </div>
-            <p className="text-xl font-bold text-destructive">{fmt(summaryStats.totalCost)}</p>
           </CardContent>
         </Card>
         <Card>
