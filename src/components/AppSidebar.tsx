@@ -23,7 +23,7 @@ const menuItems = [
   { title: "Equipamentos Dimension", url: "/equipamentos", icon: Package, section: "equipamentos" },
   
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign, section: "financeiro" },
+  { title: "Boletos", url: "/financeiro", icon: DollarSign, section: "financeiro" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
