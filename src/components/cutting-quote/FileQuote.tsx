@@ -13,6 +13,7 @@ import type { PricingData } from "./PricingSimulator";
 import type { Tables } from "@/integrations/supabase/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { PdfSettings } from "./PdfConfiguration";
 
 const MATERIALS = [
   { value: "aço_carbono", label: "Aço Carbono" },
@@ -437,7 +438,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
   const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
-
+  const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
   // Load custom materials
   useEffect(() => {
     if (!session?.user) return;
@@ -447,6 +448,39 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       .order("name")
       .then(({ data }) => {
         if (data) setCustomMaterials(data as any);
+      });
+  }, [session]);
+
+  // Load PDF settings
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase
+      .from("pdf_quote_settings" as any)
+      .select("*")
+      .eq("user_id", session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const d = data as any;
+          setPdfSettings({
+            company_name: d.company_name || "",
+            company_phone: d.company_phone || "",
+            company_email: d.company_email || "",
+            company_address: d.company_address || "",
+            company_cnpj: d.company_cnpj || "",
+            logo_url: d.logo_url || "",
+            primary_color: d.primary_color || "#1a1a2e",
+            accent_color: d.accent_color || "#e94560",
+            show_material: d.show_material ?? true,
+            show_thickness: d.show_thickness ?? true,
+            show_cutting_value: d.show_cutting_value ?? true,
+            show_material_value: d.show_material_value ?? true,
+            show_delivery: d.show_delivery ?? true,
+            show_date: d.show_date ?? true,
+            show_customer: d.show_customer ?? true,
+            footer_text: d.footer_text || "",
+          });
+        }
       });
   }, [session]);
 
@@ -768,34 +802,102 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * editableMaterialM2 * quantity : 0;
   const totalPrice = editablePrice + materialCost;
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!result) return;
+    const s = pdfSettings;
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Orçamento de Corte CNC", 14, 22);
-    doc.setFontSize(10);
-    let yPos = 30;
-    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, yPos);
-    yPos += 6;
-    if (customerName.trim()) {
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Parse hex color to RGB
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const h = hex.replace("#", "");
+      return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
+    };
+    const primaryRgb = hexToRgb(s?.primary_color || "#1a1a2e");
+    const accentRgb = hexToRgb(s?.accent_color || "#e94560");
+
+    let yPos = 14;
+
+    // Header with color bar
+    doc.setFillColor(...primaryRgb);
+    doc.rect(0, 0, pageW, 32, "F");
+
+    // Logo
+    if (s?.logo_url) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = s.logo_url;
+        });
+        if (img.complete && img.naturalWidth > 0) {
+          const ratio = img.naturalWidth / img.naturalHeight;
+          const logoH = 18;
+          const logoW = logoH * ratio;
+          doc.addImage(img, "PNG", 14, 7, logoW, logoH);
+        }
+      } catch { /* skip logo */ }
+    }
+
+    // Company name in header
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    const companyName = s?.company_name || "Orçamento de Corte CNC";
+    doc.text(companyName, pageW - 14, 16, { align: "right" });
+
+    // Company contact in header
+    doc.setFontSize(8);
+    const contactParts: string[] = [];
+    if (s?.company_phone) contactParts.push(s.company_phone);
+    if (s?.company_email) contactParts.push(s.company_email);
+    if (contactParts.length > 0) {
+      doc.text(contactParts.join(" | "), pageW - 14, 23, { align: "right" });
+    }
+    if (s?.company_cnpj) {
+      doc.text(`CNPJ: ${s.company_cnpj}`, pageW - 14, 28, { align: "right" });
+    }
+
+    doc.setTextColor(0, 0, 0);
+    yPos = 40;
+
+    // Company address
+    if (s?.company_address) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(s.company_address, 14, yPos);
+      yPos += 6;
+    }
+
+    // Date
+    if (s?.show_date !== false) {
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, yPos);
+      yPos += 6;
+    }
+    // Customer
+    if (s?.show_customer !== false && customerName.trim()) {
+      doc.setFontSize(10);
       doc.text(`Cliente: ${customerName.trim()}`, 14, yPos);
       yPos += 6;
     }
-    if (deliveryDeadline.trim()) {
+    // Delivery
+    if (s?.show_delivery !== false && deliveryDeadline.trim()) {
+      doc.setFontSize(10);
       doc.text(`Prazo de Entrega: ${deliveryDeadline.trim()}`, 14, yPos);
       yPos += 6;
     }
 
-    const body: string[][] = [
-      ["Material", result.material],
-      ["Espessura", result.thickness],
-      ["Valor do Corte", fmt(editablePrice)],
-    ];
-
-    if (materialOwner === "usuario") {
+    // Build table body based on visibility settings
+    const body: string[][] = [];
+    if (s?.show_material !== false) body.push(["Material", result.material]);
+    if (s?.show_thickness !== false) body.push(["Espessura", result.thickness]);
+    if (s?.show_cutting_value !== false) body.push(["Valor do Corte", fmt(editablePrice)]);
+    if (s?.show_material_value !== false && materialOwner === "usuario") {
       body.push(["Valor do Material", fmt(materialCost)]);
     }
-
     body.push(["", ""]);
     body.push(["TOTAL", fmt(totalPrice)]);
 
@@ -805,14 +907,26 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       body,
       theme: "striped",
       styles: { fontSize: 10 },
+      headStyles: { fillColor: primaryRgb },
       didParseCell: (data: any) => {
-        // Bold the TOTAL row
         if (data.row.index === body.length - 1) {
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fontSize = 12;
+          if (data.column.index === 1) {
+            data.cell.styles.textColor = accentRgb;
+          }
         }
       },
     });
+
+    // Footer text
+    if (s?.footer_text) {
+      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 60;
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      const lines = doc.splitTextToSize(s.footer_text, pageW - 28);
+      doc.text(lines, 14, finalY + 12);
+    }
 
     doc.save(`orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`);
     toast.success("PDF exportado com sucesso!");
