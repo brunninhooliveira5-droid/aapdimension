@@ -43,8 +43,10 @@ export function BreakEvenIndicator({ onNavigate }: Props) {
     positivo: { label: "Saudável", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", barColor: "bg-emerald-500" },
     atencao: { label: "Atenção", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30", barColor: "bg-amber-500" },
     critico: { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", barColor: "bg-red-500" },
+    sem_receita: { label: "Sem Receita", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30", barColor: "bg-blue-500/30" },
   };
   const sc = statusConfig[m.status];
+  const isSemReceita = m.status === "sem_receita";
 
   return (
     <div className={`gradient-card rounded-lg border ${sc.bg} p-4 space-y-3`}>
@@ -61,38 +63,56 @@ export function BreakEvenIndicator({ onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Sem receita alert */}
+      {isSemReceita && (
+        <p className="text-xs text-blue-400 bg-blue-500/5 rounded px-2 py-1.5">
+          Não é possível atingir o ponto de equilíbrio sem faturamento.
+        </p>
+      )}
+
+      {/* Progress bar - Saúde Operacional */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">% Atingido do PE</span>
-          <span className={`font-semibold ${sc.color}`}>{m.percentAtingido.toFixed(1)}%</span>
+          <span className="text-muted-foreground">Saúde Operacional – % Atingido do PE</span>
+          <span className={`font-semibold ${sc.color}`}>{isSemReceita ? "N/A" : `${m.percentAtingido.toFixed(1)}%`}</span>
         </div>
         <div className="w-full h-2.5 bg-accent/40 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${sc.barColor}`}
-            style={{ width: `${Math.min(m.percentAtingido, 100)}%` }}
-          />
+          {!isSemReceita && (
+            <div
+              className={`h-full rounded-full transition-all ${sc.barColor}`}
+              style={{ width: `${Math.min(m.percentAtingido, 100)}%` }}
+            />
+          )}
         </div>
       </div>
 
       {/* KPIs grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-        <KpiMini label="Receita Mensal" value={fmt(m.receitaMensal)} icon={TrendingUp} positive />
-        <KpiMini label="Desp. Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} />
-        <KpiMini label="Desp. Variável" value={fmt(m.despesaVariavel)} icon={TrendingDown} />
-        <KpiMini label="PE (R$)" value={fmt(m.pontoEquilibrio)} icon={Target} />
-        <KpiMini label="Cobertura" value={`${m.mesesCobertura} meses`} icon={Wallet} positive={m.mesesCobertura >= 3} />
+      <div className="space-y-1.5">
+        <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Saúde Operacional</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <KpiMini label="Receita Mensal" value={fmt(m.receitaMensal)} icon={TrendingUp} positive={m.receitaMensal > 0} />
+          <KpiMini label="Desp. Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} />
+          <KpiMini label="Desp. Variável" value={fmt(m.despesaVariavel)} icon={TrendingDown} />
+          <KpiMini label="PE (R$)" value={isSemReceita ? "N/A" : fmt(m.pontoEquilibrio)} icon={Target} />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Liquidez</p>
+        <div className="grid grid-cols-2 gap-2">
+          <KpiMini label="Saldo Caixa" value={fmt(m.saldoCaixa)} icon={Wallet} positive={m.saldoCaixa > 0} />
+          <KpiMini label="Cobertura" value={`${m.mesesCobertura} meses`} icon={Wallet} positive={m.mesesCobertura >= 3} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">
-          Lucro Operacional: <span className={m.lucroOperacional >= 0 ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"}>
-            {m.lucroOperacional >= 0 ? "+" : "-"}{fmt(m.lucroOperacional)}
+          Lucro Operacional: <span className={m.lucroOperacional >= 0 && !isSemReceita ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"}>
+            {isSemReceita ? "N/A" : `${m.lucroOperacional >= 0 ? "+" : "-"}${fmt(m.lucroOperacional)}`}
           </span>
         </span>
         <span className="text-muted-foreground">
-          Comprometimento: <span className={`font-semibold ${m.percentTotalReceita <= 70 ? "text-emerald-400" : m.percentTotalReceita <= 90 ? "text-amber-400" : "text-red-400"}`}>
-            {m.percentTotalReceita.toFixed(1)}%
+          Comprometimento: <span className={`font-semibold ${isSemReceita ? "text-muted-foreground" : m.percentTotalReceita <= 70 ? "text-emerald-400" : m.percentTotalReceita <= 90 ? "text-amber-400" : "text-red-400"}`}>
+            {isSemReceita ? "N/A" : `${m.percentTotalReceita.toFixed(1)}%`}
           </span>
         </span>
       </div>
