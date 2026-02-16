@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign } from "lucide-react";
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, FileCheck, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +19,7 @@ interface QuoteRow {
   min_recommended: number;
   suggested_sale: number;
   created_at: string;
+  status: string;
 }
 
 const COLORS = [
@@ -82,14 +83,18 @@ export function QuoteReports() {
   }, [quotes]);
 
   const summaryStats = useMemo(() => {
-    if (!quotes.length) return { totalRevenue: 0, totalCost: 0, avgTicket: 0, totalQuotes: 0 };
+    if (!quotes.length) return { totalRevenue: 0, totalCost: 0, avgTicket: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0 };
     const totalRevenue = quotes.reduce((s, q) => s + Number(q.suggested_sale), 0);
     const totalCost = quotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
+    const closedQuotes = quotes.filter((q) => q.status === "fechado");
+    const closedRevenue = closedQuotes.reduce((s, q) => s + Number(q.suggested_sale), 0);
     return {
       totalRevenue,
       totalCost,
       avgTicket: totalRevenue / quotes.length,
       totalQuotes: quotes.length,
+      closedRevenue,
+      closedCount: closedQuotes.length,
     };
   }, [quotes]);
 
@@ -112,7 +117,7 @@ export function QuoteReports() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
@@ -124,9 +129,18 @@ export function QuoteReports() {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <DollarSign className="w-3.5 h-3.5" /> Receita Total Estimada
+              <FileText className="w-3.5 h-3.5" /> Valor Orçamentos Salvos
             </div>
             <p className="text-xl font-bold text-primary">{fmt(summaryStats.totalRevenue)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <FileCheck className="w-3.5 h-3.5" /> Valor Orçamentos Fechados
+            </div>
+            <p className="text-xl font-bold text-green-600">{fmt(summaryStats.closedRevenue)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{summaryStats.closedCount} fechado(s)</p>
           </CardContent>
         </Card>
         <Card>
@@ -143,6 +157,14 @@ export function QuoteReports() {
               <DollarSign className="w-3.5 h-3.5" /> Custo Total
             </div>
             <p className="text-xl font-bold text-destructive">{fmt(summaryStats.totalCost)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <DollarSign className="w-3.5 h-3.5" /> Lucro Estimado
+            </div>
+            <p className="text-xl font-bold text-primary">{fmt(summaryStats.closedRevenue - summaryStats.totalCost)}</p>
           </CardContent>
         </Card>
       </div>
