@@ -959,9 +959,12 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       estimated_time_min: result.estimatedTimeMin,
       estimated_cost: result.estimatedCost,
       min_recommended: result.minRecommended,
-      suggested_sale: result.suggestedSale,
+      suggested_sale: editablePrice,
       cost_per_minute: pricing.costPerMinute,
       file_path: filePath,
+      material_cost: materialCost,
+      material_owner: materialOwner,
+      total_price: totalPrice,
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");

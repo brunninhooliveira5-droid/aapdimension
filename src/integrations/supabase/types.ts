@@ -121,6 +121,8 @@ export type Database = {
           machine_id: string | null
           machine_name: string
           material: string
+          material_cost: number
+          material_owner: string
           min_recommended: number
           path_length_m: number
           path_length_mm: number
@@ -128,6 +130,7 @@ export type Database = {
           status: string
           suggested_sale: number
           thickness: string
+          total_price: number
           user_id: string
         }
         Insert: {
@@ -142,6 +145,8 @@ export type Database = {
           machine_id?: string | null
           machine_name?: string
           material: string
+          material_cost?: number
+          material_owner?: string
           min_recommended?: number
           path_length_m?: number
           path_length_mm?: number
@@ -149,6 +154,7 @@ export type Database = {
           status?: string
           suggested_sale?: number
           thickness: string
+          total_price?: number
           user_id: string
         }
         Update: {
@@ -163,6 +169,8 @@ export type Database = {
           machine_id?: string | null
           machine_name?: string
           material?: string
+          material_cost?: number
+          material_owner?: string
           min_recommended?: number
           path_length_m?: number
           path_length_mm?: number
@@ -170,6 +178,7 @@ export type Database = {
           status?: string
           suggested_sale?: number
           thickness?: string
+          total_price?: number
           user_id?: string
         }
         Relationships: [
