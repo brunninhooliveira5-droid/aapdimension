@@ -148,97 +148,133 @@ export function DecisionAssistant() {
     if (purchaseValue <= 0) return null;
 
     const horizonMonths = settings.projection_horizon_months;
-    const totalFutureOut = futurePayables.d90 + (fixedMonthly * horizonMonths);
-    const totalFutureIn = futureReceivables.d90 + (avgMonthlyRevenue * Math.max(0, horizonMonths - 3));
+    const monthlyIn = avgMonthlyRevenue + (futureReceivables.d30 / 3);
+    const monthlyOut = avgMonthlyExpense + fixedMonthly;
 
+    // === 1) Avaliação à vista ===
     const balanceAfter = currentBalance - purchaseValue;
-    const belowReserve = balanceAfter < settings.minimum_cash_reserve;
+    const avistaAboveReserve = balanceAfter >= settings.minimum_cash_reserve;
 
-    // Project month by month
-    let projectedNegative = false;
+    // Project month by month for à vista
+    let avistaProjNeg = false;
     const projData: { mes: string; antes: number; depois: number }[] = [];
     let balBefore = currentBalance;
     let balAfter = currentBalance - purchaseValue;
 
     for (let i = 0; i <= horizonMonths; i++) {
       if (i > 0) {
-        const monthIn = avgMonthlyRevenue + (futureReceivables.d30 / 3);
-        const monthOut = avgMonthlyExpense + fixedMonthly;
-        balBefore += monthIn - monthOut;
-        balAfter += monthIn - monthOut;
+        balBefore += monthlyIn - monthlyOut;
+        balAfter += monthlyIn - monthlyOut;
       }
       projData.push({ mes: i === 0 ? "Atual" : `Mês ${i}`, antes: Math.round(balBefore), depois: Math.round(balAfter) });
-      if (balAfter < 0) projectedNegative = true;
+      if (balAfter < 0) avistaProjNeg = true;
     }
 
-    // Commitment
-    const totalOutWithPurchase = totalFutureOut + purchaseValue;
-    const commitment = totalFutureIn > 0 ? (totalOutWithPurchase / totalFutureIn) * 100 : 100;
+    // Commitment à vista: parcela / receita média (à vista = valor total no mês 1)
+    const avistaCommitment = avgMonthlyRevenue > 0 ? (purchaseValue / avgMonthlyRevenue) * 100 : 100;
 
-    let decision: Decision = "RECOMENDADO";
-    const reasons: string[] = [];
+    let avistaViable = avistaAboveReserve && !avistaProjNeg && avistaCommitment <= 80;
+    let avistaDecision: Decision = "RECOMENDADO";
+    const avistaReasons: string[] = [];
 
-    if (belowReserve) {
-      decision = "NÃO RECOMENDADO";
-      reasons.push(`Saldo pós-compra (${fmtSigned(balanceAfter)}) ficará abaixo da reserva mínima (${fmt(settings.minimum_cash_reserve)})`);
+    if (!avistaAboveReserve) {
+      avistaDecision = "NÃO RECOMENDADO";
+      avistaReasons.push(`Saldo pós-compra à vista (${fmtSigned(balanceAfter)}) ficará abaixo da reserva mínima (${fmt(settings.minimum_cash_reserve)})`);
     }
-    if (projectedNegative) {
-      decision = "NÃO RECOMENDADO";
-      reasons.push(`Saldo projetado ficará negativo no horizonte de ${horizonMonths} meses`);
+    if (avistaProjNeg) {
+      avistaDecision = "NÃO RECOMENDADO";
+      avistaReasons.push(`Saldo projetado ficará negativo no horizonte de ${horizonMonths} meses (à vista)`);
     }
-    if (commitment > 80) {
-      decision = "NÃO RECOMENDADO";
-      reasons.push(`Comprometimento do caixa (${commitment.toFixed(1)}%) supera 80%`);
-    } else if (commitment > settings.safe_commitment_limit) {
-      if (decision === "RECOMENDADO") decision = "CAUTELA";
-      reasons.push(`Comprometimento do caixa (${commitment.toFixed(1)}%) está acima do limite seguro (${settings.safe_commitment_limit}%)`);
-    }
-
-    if (reasons.length === 0) {
-      reasons.push("Saldo adequado após a operação");
-      reasons.push(`Comprometimento do caixa dentro do limite (${commitment.toFixed(1)}%)`);
+    if (avistaCommitment > 80) {
+      avistaDecision = "NÃO RECOMENDADO";
+      avistaReasons.push(`Comprometimento à vista (${avistaCommitment.toFixed(1)}% da receita mensal) supera 80%`);
+    } else if (avistaCommitment > settings.safe_commitment_limit) {
+      if (avistaDecision === "RECOMENDADO") avistaDecision = "CAUTELA";
+      avistaReasons.push(`Comprometimento à vista (${avistaCommitment.toFixed(1)}%) acima do limite seguro (${settings.safe_commitment_limit}%)`);
     }
 
-    // Installment suggestions
+    if (avistaDecision === "RECOMENDADO" && avistaReasons.length === 0) {
+      avistaReasons.push("Saldo adequado para compra à vista");
+      avistaReasons.push(`Comprometimento dentro do limite (${avistaCommitment.toFixed(1)}% da receita mensal)`);
+    }
+
+    avistaViable = avistaDecision === "RECOMENDADO";
+
+    // === 2) Simulação automática de parcelamento ===
     const installments: InstallmentOption[] = [];
-    if (suggestParcelamento && purchaseValue > 0) {
-      for (let n = 2; n <= settings.max_installments; n++) {
-        const parcela = purchaseValue / n;
-        const monthlyOutWithParcela = avgMonthlyExpense + fixedMonthly + parcela;
-        const monthlyIn = avgMonthlyRevenue + (futureReceivables.d30 / 3);
-        const comp = monthlyIn > 0 ? (monthlyOutWithParcela / monthlyIn) * 100 : 100;
+    for (let n = 2; n <= settings.max_installments; n++) {
+      const parcela = purchaseValue / n;
+      // Comprometimento = parcela / receita média mensal
+      const comp = avgMonthlyRevenue > 0 ? (parcela / avgMonthlyRevenue) * 100 : 100;
 
-        let projNeg = false;
-        let bal = currentBalance;
-        for (let m = 1; m <= Math.min(n, horizonMonths); m++) {
-          bal += monthlyIn - monthlyOutWithParcela;
-          if (bal < 0) projNeg = true;
-        }
-        const violatesReserve = (currentBalance - parcela) < settings.minimum_cash_reserve && n <= 1;
-
-        let dec: Decision = "RECOMENDADO";
-        if (projNeg || violatesReserve) dec = "NÃO RECOMENDADO";
-        else if (comp > 80) dec = "NÃO RECOMENDADO";
-        else if (comp > settings.safe_commitment_limit) dec = "CAUTELA";
-
-        const pctReceita = avgMonthlyRevenue > 0 ? (parcela / avgMonthlyRevenue) * 100 : 0;
-
-        installments.push({ parcelas: n, valorParcela: parcela, comprometimento: comp, decision: dec, label: `${n}x`, pctReceita });
+      // Projeção mês a mês com a parcela
+      let projNeg = false;
+      let bal = currentBalance;
+      let reserveViolated = false;
+      for (let m = 1; m <= Math.max(n, horizonMonths); m++) {
+        const parcelaThisMonth = m <= n ? parcela : 0;
+        bal += monthlyIn - monthlyOut - parcelaThisMonth;
+        if (bal < 0) projNeg = true;
+        if (bal < settings.minimum_cash_reserve) reserveViolated = true;
       }
+
+      // === 3) Critérios de parcelamento saudável ===
+      let dec: Decision = "RECOMENDADO";
+      if (projNeg) dec = "NÃO RECOMENDADO";
+      else if (reserveViolated) dec = "NÃO RECOMENDADO";
+      else if (comp > 80) dec = "NÃO RECOMENDADO";
+      else if (comp > settings.safe_commitment_limit) dec = "CAUTELA";
+
+      const pctReceita = avgMonthlyRevenue > 0 ? (parcela / avgMonthlyRevenue) * 100 : 0;
+
+      installments.push({ parcelas: n, valorParcela: parcela, comprometimento: comp, decision: dec, label: `${n}x`, pctReceita });
     }
 
-    // Pick best: conservative, balanced, aggressive
+    // Pick best installment options
     const viable = installments.filter(i => i.decision !== "NÃO RECOMENDADO");
-    const conservative = viable.length > 0 ? viable[viable.length - 1] : null; // most parcelas
-    const aggressive = viable.length > 0 ? viable[0] : null; // fewest parcelas
+    const healthy = installments.filter(i => i.decision === "RECOMENDADO");
+    const conservative = viable.length > 0 ? viable[viable.length - 1] : null;
+    const aggressive = viable.length > 0 ? viable[0] : null;
     const midIdx = Math.floor(viable.length / 2);
     const balanced = viable.length > 2 ? viable[midIdx] : viable.length === 2 ? viable[1] : viable[0] ?? null;
 
+    // Best installment = menor número de parcelas que é saudável (RECOMENDADO)
+    const bestInstallment = healthy.length > 0 ? healthy[0] : (viable.length > 0 ? viable[0] : null);
+
+    // === 4) Decisão final ===
+    let decision: Decision;
+    const reasons: string[] = [];
+
+    if (avistaViable) {
+      decision = "RECOMENDADO";
+      reasons.push("✅ Compra à vista viável — saldo e comprometimento dentro dos limites");
+      if (bestInstallment && suggestParcelamento) {
+        reasons.push(`💡 Parcelamento também disponível: ${bestInstallment.parcelas}x de ${fmt(bestInstallment.valorParcela)} (${bestInstallment.comprometimento.toFixed(1)}% da receita)`);
+      }
+    } else if (bestInstallment) {
+      decision = bestInstallment.decision === "RECOMENDADO" ? "CAUTELA" : "CAUTELA";
+      reasons.push(`⚠️ À vista: Não recomendado — ${avistaReasons[0] || "saldo insuficiente"}`);
+      reasons.push(`✅ Parcelamento recomendado: ${bestInstallment.parcelas}x de ${fmt(bestInstallment.valorParcela)}`);
+      reasons.push(`Comprometimento mensal: ${bestInstallment.comprometimento.toFixed(1)}% da receita média`);
+      if (healthy.length > 1) {
+        reasons.push(`${healthy.length} opções de parcelamento saudáveis disponíveis`);
+      }
+    } else {
+      decision = "NÃO RECOMENDADO";
+      reasons.push(`❌ À vista: ${avistaReasons[0] || "Não viável"}`);
+      reasons.push("❌ Nenhum parcelamento viável encontrado dentro dos limites configurados");
+      if (avistaReasons.length > 1) {
+        avistaReasons.slice(1).forEach(r => reasons.push(r));
+      }
+    }
+
+    const commitment = avistaViable ? avistaCommitment : (bestInstallment ? bestInstallment.comprometimento : avistaCommitment);
     const margin = avgMonthlyRevenue > 0 ? ((avgMonthlyRevenue - avgMonthlyExpense) / avgMonthlyRevenue) * 100 : 0;
 
     return {
       decision, reasons, balanceAfter, commitment, projData,
       installments, conservative, balanced, aggressive,
+      bestInstallment, avistaDecision, avistaReasons, avistaViable,
       margin,
     };
   }, [purchaseValue, currentBalance, futurePayables, futureReceivables, fixedMonthly, avgMonthlyRevenue, avgMonthlyExpense, settings, suggestParcelamento]);
@@ -382,6 +418,26 @@ export function DecisionAssistant() {
             );
           })()}
 
+          {/* À Vista vs Parcelamento Status */}
+          {!analysis.avistaViable && analysis.bestInstallment && (
+            <div className="bg-card border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldX className="w-5 h-5 text-red-400" />
+                <p className="text-sm font-semibold text-red-400">À vista: Não recomendado</p>
+              </div>
+              <p className="text-xs text-muted-foreground ml-7">{analysis.avistaReasons[0]}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <CheckCircle className="w-5 h-5 text-emerald-400" />
+                <p className="text-sm font-semibold text-emerald-400">
+                  Parcelamento recomendado: {analysis.bestInstallment.parcelas}x de {fmt(analysis.bestInstallment.valorParcela)}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground ml-7">
+                Comprometimento mensal: {analysis.bestInstallment.comprometimento.toFixed(1)}% da receita média ({fmt(avgMonthlyRevenue)}/mês)
+              </p>
+            </div>
+          )}
+
           {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-card border rounded-lg p-3">
@@ -389,12 +445,13 @@ export function DecisionAssistant() {
               <p className={`text-lg font-bold ${currentBalance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSigned(currentBalance)}</p>
             </div>
             <div className="bg-card border rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">Saldo Pós-{tipo}</p>
+              <p className="text-xs text-muted-foreground">Saldo Pós-{tipo} (à vista)</p>
               <p className={`text-lg font-bold ${analysis.balanceAfter >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSigned(analysis.balanceAfter)}</p>
             </div>
             <div className="bg-card border rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">Comprometimento</p>
+              <p className="text-xs text-muted-foreground">Comprometimento {analysis.bestInstallment && !analysis.avistaViable ? `(${analysis.bestInstallment.parcelas}x)` : "(à vista)"}</p>
               <p className={`text-lg font-bold ${analysis.commitment <= 60 ? "text-emerald-400" : analysis.commitment <= 80 ? "text-amber-400" : "text-red-400"}`}>{analysis.commitment.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">da receita média mensal</p>
             </div>
             <div className="bg-card border rounded-lg p-3">
               <p className="text-xs text-muted-foreground">Margem Mensal</p>
