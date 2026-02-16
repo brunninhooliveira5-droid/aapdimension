@@ -949,6 +949,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       min_recommended: result.minRecommended,
       suggested_sale: result.suggestedSale,
       cost_per_minute: pricing.costPerMinute,
+      client_name: customerName.trim(),
+      status: "orcamento",
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");
