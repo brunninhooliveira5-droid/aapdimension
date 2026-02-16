@@ -990,7 +990,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {machines.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.model} — {m.serial_number}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
