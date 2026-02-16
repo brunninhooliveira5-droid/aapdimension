@@ -9,14 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus, Search, Trash2, Pencil, CalendarDays, FileDown, TableIcon, CalendarIcon } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, CalendarDays, FileDown, TableIcon, CalendarIcon, RefreshCw, ListOrdered } from "lucide-react";
 import { exportFinanceListPdf, exportFinanceListCsv } from "@/lib/finance-export";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PayableDialog } from "./PayableDialog";
+import { FixedExpenses } from "./FixedExpenses";
 
 interface PayableRow {
   id: string;
@@ -127,6 +129,13 @@ export function AccountsPayable() {
   });
 
   return (
+    <Tabs defaultValue="avulsas" className="space-y-4">
+      <TabsList className="bg-muted/50 border border-border">
+        <TabsTrigger value="avulsas" className="gap-1.5 data-[state=active]:bg-background"><ListOrdered className="w-3.5 h-3.5" />Lançamentos</TabsTrigger>
+        <TabsTrigger value="fixas" className="gap-1.5 data-[state=active]:bg-background"><RefreshCw className="w-3.5 h-3.5" />Contas Fixas</TabsTrigger>
+      </TabsList>
+      <TabsContent value="fixas"><FixedExpenses /></TabsContent>
+      <TabsContent value="avulsas">
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
@@ -278,5 +287,7 @@ export function AccountsPayable() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+      </TabsContent>
+    </Tabs>
   );
 }
