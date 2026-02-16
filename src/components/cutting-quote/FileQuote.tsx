@@ -837,7 +837,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           const ratio = img.naturalWidth / img.naturalHeight;
           const logoH = 18;
           const logoW = logoH * ratio;
-          doc.addImage(img, "PNG", 14, 7, logoW, logoH);
+          const format = s.logo_url.toLowerCase().includes(".jpg") || s.logo_url.toLowerCase().includes(".jpeg") ? "JPEG" : "PNG";
+          doc.addImage(img, format, 14, 7, logoW, logoH);
         }
       } catch { /* skip logo */ }
     }
