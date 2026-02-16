@@ -1658,10 +1658,12 @@ export type Database = {
           created_at: string
           features_enabled: string[]
           id: string
+          last_access_at: string | null
           max_financial_entries: number
           max_quotes_per_month: number
           plan: string
           pro_access: boolean
+          pro_activated_at: string | null
           updated_at: string
           user_id: string
           valid_until: string | null
@@ -1670,10 +1672,12 @@ export type Database = {
           created_at?: string
           features_enabled?: string[]
           id?: string
+          last_access_at?: string | null
           max_financial_entries?: number
           max_quotes_per_month?: number
           plan?: string
           pro_access?: boolean
+          pro_activated_at?: string | null
           updated_at?: string
           user_id: string
           valid_until?: string | null
@@ -1682,10 +1686,12 @@ export type Database = {
           created_at?: string
           features_enabled?: string[]
           id?: string
+          last_access_at?: string | null
           max_financial_entries?: number
           max_quotes_per_month?: number
           plan?: string
           pro_access?: boolean
+          pro_activated_at?: string | null
           updated_at?: string
           user_id?: string
           valid_until?: string | null

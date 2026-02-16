@@ -117,6 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(null);
             } else {
               setUser(p);
+              // Update last_access_at
+              if (newSession.user.id) {
+                supabase.from("user_plans").update({ last_access_at: new Date().toISOString() } as any).eq("user_id", newSession.user.id).then(() => {});
+              }
             }
             setIsLoading(false);
           }, 0);

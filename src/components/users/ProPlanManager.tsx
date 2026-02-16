@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, ShieldCheck, ToggleLeft, ToggleRight, Search } from "lucide-react";
+import { Star, ShieldCheck, ToggleLeft, ToggleRight, Search, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
+import { format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface UserWithPlan {
   id: string;
@@ -21,6 +23,8 @@ interface UserWithPlan {
   max_quotes_per_month: number;
   max_financial_entries: number;
   has_plan_row: boolean;
+  pro_activated_at: string | null;
+  last_access_at: string | null;
 }
 
 const PRO_FEATURES = [
@@ -75,6 +79,8 @@ export function ProPlanManager() {
           max_quotes_per_month: plan?.max_quotes_per_month ?? 5,
           max_financial_entries: plan?.max_financial_entries ?? 0,
           has_plan_row: !!plan,
+          pro_activated_at: (plan as any)?.pro_activated_at ?? null,
+          last_access_at: (plan as any)?.last_access_at ?? null,
         };
       });
 
@@ -103,7 +109,8 @@ export function ProPlanManager() {
           features_enabled: newFeatures,
           max_quotes_per_month: newProAccess ? -1 : 5,
           max_financial_entries: newProAccess ? -1 : 0,
-        })
+          ...(newProAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
+        } as any)
         .eq("user_id", user.id);
     } else {
       await supabase.from("user_plans").insert({
@@ -113,7 +120,8 @@ export function ProPlanManager() {
         features_enabled: newFeatures,
         max_quotes_per_month: newProAccess ? -1 : 5,
         max_financial_entries: newProAccess ? -1 : 0,
-      });
+        ...(newProAccess ? { pro_activated_at: new Date().toISOString() } : {}),
+      } as any);
     }
 
     toast.success(
@@ -218,6 +226,8 @@ export function ProPlanManager() {
               <TableHead className="text-muted-foreground text-xs uppercase">Perfil</TableHead>
               <TableHead className="text-muted-foreground text-xs uppercase">Plano</TableHead>
               <TableHead className="text-muted-foreground text-xs uppercase text-center">PRO</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase">Ativação PRO</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase">Último Acesso</TableHead>
               {PRO_FEATURES.map((f) => (
                 <TableHead key={f.key} className="text-muted-foreground text-xs uppercase text-center">
                   {f.label}
@@ -261,6 +271,28 @@ export function ProPlanManager() {
                       className="data-[state=checked]:bg-primary"
                     />
                   </TableCell>
+                  <TableCell>
+                    {u.pro_activated_at ? (
+                      <div>
+                        <p className="text-xs text-foreground">{format(new Date(u.pro_activated_at), "dd/MM/yyyy")}</p>
+                        <p className="text-[10px] text-muted-foreground">{format(new Date(u.pro_activated_at), "HH:mm")}</p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {u.last_access_at ? (
+                      <div>
+                        <p className="text-xs text-foreground">
+                          {formatDistanceToNow(new Date(u.last_access_at), { addSuffix: true, locale: ptBR })}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{format(new Date(u.last_access_at), "dd/MM/yyyy HH:mm")}</p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   {PRO_FEATURES.map((f) => (
                     <TableCell key={f.key} className="text-center">
                       <Switch
@@ -276,7 +308,7 @@ export function ProPlanManager() {
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4 + PRO_FEATURES.length} className="text-center text-muted-foreground text-sm py-8">
+                <TableCell colSpan={6 + PRO_FEATURES.length} className="text-center text-muted-foreground text-sm py-8">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
