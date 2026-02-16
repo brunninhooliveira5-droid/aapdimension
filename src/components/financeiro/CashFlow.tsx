@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, Pencil, Check, X, Wallet } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, Pencil, Check, X, Wallet, FileDown } from "lucide-react";
+import { generateCashFlowPdf } from "@/lib/cashflow-pdf";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from "recharts";
 
 interface DayProjection {
@@ -289,16 +290,37 @@ export function CashFlow() {
       <Card className="gradient-card border-border">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Projeção de Saldo</CardTitle>
-          <Select value={horizon} onValueChange={(v) => setHorizon(v as "30" | "60" | "90")}>
-            <SelectTrigger className="w-[120px] h-8 text-xs bg-accent border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="30">30 dias</SelectItem>
-              <SelectItem value="60">60 dias</SelectItem>
-              <SelectItem value="90">90 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() =>
+                generateCashFlowPdf({
+                  initialBalance,
+                  balanceType: useManual ? "Manual" : "Calculado",
+                  horizon,
+                  projections,
+                  summary30: s30,
+                  summary60: s60,
+                  summary90: s90,
+                })
+              }
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              Exportar PDF
+            </Button>
+            <Select value={horizon} onValueChange={(v) => setHorizon(v as "30" | "60" | "90")}>
+              <SelectTrigger className="w-[120px] h-8 text-xs bg-accent border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 dias</SelectItem>
+                <SelectItem value="60">60 dias</SelectItem>
+                <SelectItem value="90">90 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-[350px]">
