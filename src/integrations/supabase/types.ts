@@ -46,7 +46,9 @@ export type Database = {
       cutting_material_thicknesses: {
         Row: {
           created_at: string
+          dimension_default_factor: number | null
           id: string
+          is_dimension_preset: boolean
           label: string
           material_id: string
           sheet_height: number
@@ -57,7 +59,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dimension_default_factor?: number | null
           id?: string
+          is_dimension_preset?: boolean
           label: string
           material_id: string
           sheet_height?: number
@@ -68,7 +72,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dimension_default_factor?: number | null
           id?: string
+          is_dimension_preset?: boolean
           label?: string
           material_id?: string
           sheet_height?: number

@@ -15,31 +15,63 @@
  */
 
 // ─────────────────────────────────────────────────────
-// ETAPA 2 — FATOR DE VELOCIDADE POR ESPESSURA
+// ORIGENS DO FATOR DE VELOCIDADE
 // ─────────────────────────────────────────────────────
-// O fator é configurado pelo administrador na aba Materiais,
-// dentro de cada espessura cadastrada (campo "Fator Velocidade").
-//
-// Valores sugeridos por padrão ao criar uma espessura:
-// | Espessura   | Fator |
-// |-------------|-------|
-// | ≤ 1mm       | 1.00  |
-// | ≤ 3mm       | 0.70  |
-// | ≤ 6mm       | 0.45  |
-// | ≤ 10mm      | 0.30  |
-// | ≤ 15mm      | 0.20  |
-// | > 15mm      | 0.12  |
-//
-// O fator é sempre lido do banco de dados (cutting_material_thicknesses.speed_factor).
-// A função abaixo é mantida apenas como fallback para espessuras sem fator configurado.
-export function getDefaultSpeedFactor(thicknessMM: number): number {
-  if (thicknessMM <= 1) return 1;
-  if (thicknessMM <= 3) return 0.7;
-  if (thicknessMM <= 6) return 0.45;
-  if (thicknessMM <= 10) return 0.3;
-  if (thicknessMM <= 15) return 0.2;
-  return 0.12;
+export type SpeedFactorOrigin =
+  | "Preset Dimension"
+  | "Personalizado pelo Admin"
+  | "Fallback padrão 1.0";
+
+/**
+ * Determina a origem do fator de velocidade com base nos metadados.
+ * - Se is_dimension_preset=true e speed_factor === dimension_default_factor → "Preset Dimension"
+ * - Se is_dimension_preset=true mas speed_factor !== dimension_default_factor → "Personalizado pelo Admin"
+ * - Se speed_factor veio do banco (>0) → "Personalizado pelo Admin"
+ * - Se não existe fator cadastrado → "Fallback padrão 1.0"
+ */
+export function determineSpeedFactorOrigin(
+  speedFactor: number,
+  isDimensionPreset: boolean,
+  dimensionDefaultFactor: number | null,
+  hasDbFactor: boolean
+): SpeedFactorOrigin {
+  if (!hasDbFactor || speedFactor <= 0) return "Fallback padrão 1.0";
+  if (isDimensionPreset && dimensionDefaultFactor !== null && speedFactor === dimensionDefaultFactor) {
+    return "Preset Dimension";
+  }
+  if (isDimensionPreset) return "Personalizado pelo Admin";
+  return "Personalizado pelo Admin";
 }
+
+// ─────────────────────────────────────────────────────
+// PRESETS DIMENSION (para seeding e restauração)
+// ─────────────────────────────────────────────────────
+export const DIMENSION_PRESETS: Record<string, { thicknesses: { value: string; label: string; speedFactor: number }[] }> = {
+  "MDF": {
+    thicknesses: [
+      { value: "3", label: "3 mm", speedFactor: 0.70 },
+      { value: "6", label: "6 mm", speedFactor: 0.55 },
+      { value: "10", label: "10 mm", speedFactor: 0.35 },
+      { value: "15", label: "15 mm", speedFactor: 0.22 },
+    ],
+  },
+  "PVC": {
+    thicknesses: [
+      { value: "3", label: "3 mm", speedFactor: 0.65 },
+      { value: "6", label: "6 mm", speedFactor: 0.50 },
+      { value: "10", label: "10 mm", speedFactor: 0.40 },
+      { value: "15", label: "15 mm", speedFactor: 0.28 },
+    ],
+  },
+  "Acrílico": {
+    thicknesses: [
+      { value: "3", label: "3 mm", speedFactor: 0.60 },
+      { value: "6", label: "6 mm", speedFactor: 0.45 },
+      { value: "10", label: "10 mm", speedFactor: 0.25 },
+      { value: "15", label: "15 mm", speedFactor: 0.18 },
+    ],
+  },
+};
 
 // ─────────────────────────────────────────────────────
 // ETAPA 2 — VELOCIDADE EFETIVA DE CORTE
@@ -64,10 +96,6 @@ export function calculateEffectiveSpeed(
 // ─────────────────────────────────────────────────────
 // Fórmula:
 //   estimatedTimeMin = (pathLengthM / effectiveSpeedMmin) × quantidade
-//
-// pathLengthM:        comprimento total extraído do arquivo (metros)
-// effectiveSpeedMmin: velocidade efetiva (metros/min)
-// quantity:           número de passadas/peças
 export function calculateEstimatedTime(
   pathLengthM: number,
   effectiveSpeedMmin: number,
@@ -80,9 +108,6 @@ export function calculateEstimatedTime(
 // ─────────────────────────────────────────────────────
 // ETAPA 5 — DEFINIÇÃO DE PREÇOS POR MINUTO
 // ─────────────────────────────────────────────────────
-// Fórmulas:
-//   minPricePerMinute       = costPerMinute × 1.15 (sustentável, 15% acima do custo)
-//   suggestedPricePerMinute = costPerMinute × (1 + margem_lucro / 100)
 export function calculatePricePerMinute(
   costPerMinute: number,
   profitMarginPercent: number
@@ -95,10 +120,6 @@ export function calculatePricePerMinute(
 // ─────────────────────────────────────────────────────
 // ETAPA 6 — PREÇO DO CORTE (PROCESSO)
 // ─────────────────────────────────────────────────────
-// Fórmula:
-//   cutCost = estimatedTimeMin × suggestedPricePerMinute
-//
-// NÃO aplica ajuste de material sobre o tempo.
 export function calculateCutCost(
   estimatedTimeMin: number,
   suggestedPricePerMinute: number
@@ -109,11 +130,6 @@ export function calculateCutCost(
 // ─────────────────────────────────────────────────────
 // ETAPA 7 — CUSTO DO MATERIAL (INSUMO SEPARADO)
 // ─────────────────────────────────────────────────────
-// Se material do cliente: materialCost = 0
-// Se "Meu Material":
-//   materialCost   = pricePerM2 × areaM2 × quantity
-//   materialMarkup = materialCost × (ajuste_material% / 100)
-//   totalMaterial   = materialCost + materialMarkup
 export function calculateMaterialCost(
   isUserMaterial: boolean,
   pricePerM2: number,
@@ -133,8 +149,6 @@ export function calculateMaterialCost(
 // ─────────────────────────────────────────────────────
 // ETAPA 8 — TOTAL FINAL DO ORÇAMENTO
 // ─────────────────────────────────────────────────────
-// Fórmula:
-//   totalPrice = cutCost + totalMaterial
 export function calculateTotalPrice(cutCost: number, totalMaterial: number): number {
   return cutCost + totalMaterial;
 }
@@ -153,6 +167,7 @@ export interface QuoteCalculationResult {
   // ETAPA 2 — Velocidade
   baseSpeedMMmin: number;
   speedFactor: number;
+  speedFactorOrigin: SpeedFactorOrigin;
   effectiveSpeedMMmin: number;
   effectiveSpeedMmin: number;
 
@@ -205,6 +220,10 @@ export interface CalculateQuoteInput {
   materialAdjustmentPercent: number;
   // Speed factor from cutting_material_thicknesses (admin-editable)
   speedFactor: number;
+  // Preset metadata
+  isDimensionPreset: boolean;
+  dimensionDefaultFactor: number | null;
+  hasDbFactor: boolean;
 }
 
 /**
@@ -215,8 +234,15 @@ export function calculateQuote(input: CalculateQuoteInput): QuoteCalculationResu
   const pathLengthM = input.pathLengthMM / 1000;
   const fileAreaM2 = (input.bboxWidthMM * input.bboxHeightMM) / 1_000_000;
 
-  // ETAPA 2 — usa speedFactor do banco (admin-editável)
-  const speedFactor = input.speedFactor > 0 ? input.speedFactor : getDefaultSpeedFactor(input.thicknessValue);
+  // ETAPA 2 — usa speedFactor do banco; fallback = 1.0
+  const speedFactor = input.hasDbFactor && input.speedFactor > 0 ? input.speedFactor : 1.0;
+  const speedFactorOrigin = determineSpeedFactorOrigin(
+    speedFactor,
+    input.isDimensionPreset,
+    input.dimensionDefaultFactor,
+    input.hasDbFactor
+  );
+
   const { effectiveSpeedMMmin, effectiveSpeedMmin } =
     calculateEffectiveSpeed(input.baseSpeedMMmin, speedFactor);
 
@@ -239,6 +265,7 @@ export function calculateQuote(input: CalculateQuoteInput): QuoteCalculationResu
     fileAreaM2: Math.round(fileAreaM2 * 10000) / 10000,
     baseSpeedMMmin: input.baseSpeedMMmin,
     speedFactor,
+    speedFactorOrigin,
     effectiveSpeedMMmin: Math.round(effectiveSpeedMMmin * 100) / 100,
     effectiveSpeedMmin: Math.round(effectiveSpeedMmin * 10000) / 10000,
     estimatedTimeMin: Math.round(estimatedTimeMin * 100) / 100,

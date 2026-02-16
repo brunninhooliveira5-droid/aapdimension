@@ -2,25 +2,12 @@
  * ══════════════════════════════════════════════════════
  * MÓDULO DE GERAÇÃO DE PDF — ORÇAMENTO DE CORTE CNC
  * ══════════════════════════════════════════════════════
- *
- * FLUXO DE GERAÇÃO:
- *   1. Coleta dos dados do orçamento (QuoteCalculationResult + inputs do usuário)
- *   2. Validação dos dados obrigatórios
- *   3. Montagem do layout (cabeçalho → corpo → tabela → rodapé)
- *   4. Inserção dos valores calculados
- *   5. Geração do arquivo (Blob)
- *   6. Download via link programático
- *
- * INDEPENDÊNCIA:
- *   Este módulo NÃO contém lógica de cálculo.
- *   Recebe apenas dados já calculados.
- *
- * ══════════════════════════════════════════════════════
  */
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { PdfSettings } from "@/components/cutting-quote/PdfConfiguration";
+import type { SpeedFactorOrigin } from "@/lib/cutting-calculations";
 
 export interface PdfQuoteData {
   // Dados gerais
@@ -34,21 +21,21 @@ export interface PdfQuoteData {
 
   // Resumo técnico
   pathLengthM: number;
+  baseSpeedMMmin: number;
+  speedFactor: number;
+  speedFactorOrigin: SpeedFactorOrigin;
   effectiveSpeedMMmin: number;
   estimatedTimeMin: number;
 
   // Resumo financeiro
-  cutPrice: number;         // Valor do corte (editável pelo usuário)
-  materialCost: number;     // Valor do material (0 se do cliente)
-  totalPrice: number;       // Total final
+  cutPrice: number;
+  materialCost: number;
+  totalPrice: number;
 
   // Extras
   deliveryDeadline: string;
 }
 
-/**
- * Converte hex (#rrggbb) para [R, G, B]
- */
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
   return [
@@ -58,9 +45,6 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-/**
- * Converte imagem URL para data URL via canvas (evita CORS no jsPDF)
- */
 async function imageToDataUrl(url: string): Promise<string | null> {
   try {
     const img = new Image();
@@ -89,27 +73,6 @@ async function imageToDataUrl(url: string): Promise<string | null> {
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-/**
- * ── ETAPA PRINCIPAL: Gera o PDF e dispara o download ──
- *
- * Estrutura do documento:
- * ┌──────────────────────────────────────┐
- * │  CABEÇALHO (barra colorida)         │
- * │  Logo + Nome da empresa + Contato   │
- * ├──────────────────────────────────────┤
- * │  CORPO                              │
- * │  Endereço | Data | Cliente | Prazo  │
- * ├──────────────────────────────────────┤
- * │  TABELA — Resumo do Orçamento       │
- * │  Arquivo | Máquina | Material       │
- * │  Espessura | Quantidade             │
- * │  Comprimento | Velocidade | Tempo   │
- * │  Valor do Corte | Valor Material    │
- * │  TOTAL                              │
- * ├──────────────────────────────────────┤
- * │  RODAPÉ (texto livre)               │
- * └──────────────────────────────────────┘
- */
 export async function generateQuotePDF(
   data: PdfQuoteData,
   settings: PdfSettings | null
@@ -127,7 +90,6 @@ export async function generateQuotePDF(
   doc.setFillColor(...primaryRgb);
   doc.rect(0, 0, pageW, 32, "F");
 
-  // Logo
   if (s.logo_url) {
     try {
       const dataUrl = await imageToDataUrl(s.logo_url);
@@ -146,12 +108,10 @@ export async function generateQuotePDF(
     } catch { /* skip logo */ }
   }
 
-  // Nome da empresa
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.text(s.company_name || "Orçamento de Corte CNC", pageW - 14, 16, { align: "right" });
 
-  // Contato
   doc.setFontSize(8);
   const contactParts: string[] = [];
   if (s.company_phone) contactParts.push(s.company_phone);
@@ -202,13 +162,15 @@ export async function generateQuotePDF(
   body.push(["Quantidade", String(data.quantity)]);
 
   // Resumo técnico
-  body.push(["", ""]); // separator
+  body.push(["", ""]);
   body.push(["Comprimento de Corte", `${data.pathLengthM.toFixed(2)} m`]);
+  body.push(["Velocidade Base", `${data.baseSpeedMMmin.toFixed(0)} mm/min`]);
+  body.push(["Fator de Velocidade", `${data.speedFactor.toFixed(2)} (${data.speedFactorOrigin})`]);
   body.push(["Velocidade Efetiva", `${data.effectiveSpeedMMmin.toFixed(0)} mm/min`]);
   body.push(["Tempo Estimado", `${data.estimatedTimeMin.toFixed(1)} min`]);
 
   // Resumo financeiro
-  body.push(["", ""]); // separator
+  body.push(["", ""]);
   if (s.show_cutting_value !== false) body.push(["Valor do Corte", fmtBRL(data.cutPrice)]);
   if (s.show_material_value !== false && data.materialCost > 0) {
     body.push(["Valor do Material", fmtBRL(data.materialCost)]);
@@ -224,7 +186,6 @@ export async function generateQuotePDF(
     styles: { fontSize: 10 },
     headStyles: { fillColor: primaryRgb },
     didParseCell: (cellData: any) => {
-      // Bold + accent color for TOTAL row
       if (cellData.row.index === body.length - 1) {
         cellData.cell.styles.fontStyle = "bold";
         cellData.cell.styles.fontSize = 12;
@@ -232,7 +193,6 @@ export async function generateQuotePDF(
           cellData.cell.styles.textColor = accentRgb;
         }
       }
-      // Gray for separator rows
       if (cellData.row.raw && cellData.row.raw[0] === "" && cellData.row.raw[1] === "") {
         cellData.cell.styles.minCellHeight = 2;
         cellData.cell.styles.fontSize = 2;
