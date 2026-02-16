@@ -28,6 +28,9 @@ interface SavedQuote {
   created_at: string;
   status: string;
   file_path: string | null;
+  material_cost: number;
+  material_owner: string;
+  total_price: number;
 }
 
 export function SavedQuotes() {
@@ -167,7 +170,7 @@ export function SavedQuotes() {
                   <TableHead>Espessura</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Tempo</TableHead>
-                  <TableHead className="text-right">Preço Sugerido</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -195,7 +198,14 @@ export function SavedQuotes() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
-                    <TableCell className="text-xs text-right font-medium text-primary">{fmt(Number(q.suggested_sale))}</TableCell>
+                    <TableCell className="text-xs text-right font-medium text-primary">
+                      {fmt(Number(q.total_price) || Number(q.suggested_sale))}
+                      {Number(q.material_cost) > 0 && (
+                        <span className="block text-[10px] text-muted-foreground font-normal">
+                          Corte: {fmt(Number(q.suggested_sale))} + Material: {fmt(Number(q.material_cost))}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
@@ -271,8 +281,18 @@ export function SavedQuotes() {
                   <p className="font-medium">{Number(selectedQuote.estimated_time_min).toFixed(1)} min</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Preço Sugerido</p>
-                  <p className="font-medium text-primary">{fmt(Number(selectedQuote.suggested_sale))}</p>
+                  <p className="text-muted-foreground text-xs">Valor do Corte</p>
+                  <p className="font-medium">{fmt(Number(selectedQuote.suggested_sale))}</p>
+                </div>
+                {Number(selectedQuote.material_cost) > 0 && (
+                  <div>
+                    <p className="text-muted-foreground text-xs">Valor do Material</p>
+                    <p className="font-medium">{fmt(Number(selectedQuote.material_cost))}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-muted-foreground text-xs">Valor Total</p>
+                  <p className="font-medium text-primary">{fmt(Number(selectedQuote.total_price) || Number(selectedQuote.suggested_sale))}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Status</p>

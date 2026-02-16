@@ -20,6 +20,8 @@ interface QuoteRow {
   suggested_sale: number;
   created_at: string;
   status: string;
+  total_price: number;
+  material_cost: number;
 }
 
 const COLORS = [
@@ -64,7 +66,7 @@ export function QuoteReports() {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
       const existing = map.get(key) || { month: label, total: 0, count: 0, cost: 0 };
-      existing.total += Number(q.suggested_sale);
+      existing.total += Number(q.total_price) || Number(q.suggested_sale);
       existing.cost += Number(q.estimated_cost);
       existing.count += 1;
       map.set(key, existing);
@@ -84,11 +86,12 @@ export function QuoteReports() {
 
   const summaryStats = useMemo(() => {
     if (!quotes.length) return { savedRevenue: 0, totalCost: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0 };
+    const getTotal = (q: QuoteRow) => Number(q.total_price) || Number(q.suggested_sale);
     const closedQuotes = quotes.filter((q) => q.status === "fechado");
     const openQuotes = quotes.filter((q) => q.status !== "fechado");
-    const savedRevenue = openQuotes.reduce((s, q) => s + Number(q.suggested_sale), 0);
+    const savedRevenue = openQuotes.reduce((s, q) => s + getTotal(q), 0);
     const totalCost = quotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
-    const closedRevenue = closedQuotes.reduce((s, q) => s + Number(q.suggested_sale), 0);
+    const closedRevenue = closedQuotes.reduce((s, q) => s + getTotal(q), 0);
     return {
       savedRevenue,
       totalCost,
