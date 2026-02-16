@@ -116,6 +116,7 @@ export type Database = {
           estimated_cost: number
           estimated_time_min: number
           file_name: string
+          file_path: string | null
           id: string
           machine_id: string | null
           machine_name: string
@@ -136,6 +137,7 @@ export type Database = {
           estimated_cost?: number
           estimated_time_min?: number
           file_name: string
+          file_path?: string | null
           id?: string
           machine_id?: string | null
           machine_name?: string
@@ -156,6 +158,7 @@ export type Database = {
           estimated_cost?: number
           estimated_time_min?: number
           file_name?: string
+          file_path?: string | null
           id?: string
           machine_id?: string | null
           machine_name?: string
