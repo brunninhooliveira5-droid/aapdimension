@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/StatCard";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock, Calendar, Receipt, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock, Calendar, Receipt, Wallet, FileDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { exportWeeklySummaryPdf } from "@/lib/finance-export";
 
 interface PayableRow {
   id: string;
@@ -244,11 +246,32 @@ export function FinanceDashboard() {
 
       {/* Weekly Summary */}
       <div className="gradient-card rounded-lg border border-border p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            Resumo Semanal ({formatDate(weekStart)} – {formatDate(weekEnd)})
-          </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Resumo Semanal ({formatDate(weekStart)} – {formatDate(weekEnd)})
+            </h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => exportWeeklySummaryPdf({
+              weekStart,
+              weekEnd,
+              totalReceivedWeek: weeklySummary.totalReceivedWeek,
+              totalPaidWeek: weeklySummary.totalPaidWeek,
+              balance: weeklySummary.balance,
+              totalDuePay: weeklySummary.totalDuePay,
+              totalDueRec: weeklySummary.totalDueRec,
+              topReceipts: weeklySummary.topReceipts.map(r => ({ label: r.client, amount: Number(r.amount) })),
+              topPayments: weeklySummary.topPayments.map(p => ({ label: p.supplier, amount: Number(p.amount) })),
+              pendingItems: weeklySummary.pendingItems.slice(0, 5),
+            })}
+          >
+            <FileDown className="w-3.5 h-3.5" /> Exportar PDF
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
