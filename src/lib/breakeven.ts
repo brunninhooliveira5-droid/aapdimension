@@ -17,7 +17,7 @@ export interface BreakEvenMetrics extends BreakEvenInputs {
   lucroOperacional: number;
   pontoEquilibrio: number;
   percentAtingido: number;
-  status: "positivo" | "atencao" | "critico";
+  status: "positivo" | "atencao" | "critico" | "sem_receita";
 }
 
 export async function getBreakEvenMetrics(): Promise<BreakEvenMetrics> {
@@ -84,10 +84,13 @@ export function computeBreakEven(inputs: BreakEvenInputs): BreakEvenMetrics {
   }
 
   const percentAtingido =
+    receitaMensal <= 0 ? 0 :
     pontoEquilibrio > 0 ? Math.min((receitaMensal / pontoEquilibrio) * 100, 200) : 0;
 
-  let status: "positivo" | "atencao" | "critico";
-  if (percentTotalReceita <= 70) {
+  let status: "positivo" | "atencao" | "critico" | "sem_receita";
+  if (receitaMensal <= 0) {
+    status = "sem_receita";
+  } else if (percentTotalReceita <= 70) {
     status = "positivo";
   } else if (percentTotalReceita <= 90) {
     status = "atencao";

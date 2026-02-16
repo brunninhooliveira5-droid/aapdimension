@@ -41,6 +41,7 @@ export function BreakEvenDetail({ onNavigate }: Props) {
     positivo: { label: "Saudável", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", barColor: "#10b981" },
     atencao: { label: "Atenção", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30", barColor: "#f59e0b" },
     critico: { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", barColor: "#ef4444" },
+    sem_receita: { label: "Sem Receita", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30", barColor: "#3b82f6" },
   };
   const sc = statusConfig[m.status];
 
@@ -50,6 +51,8 @@ export function BreakEvenDetail({ onNavigate }: Props) {
     { name: "Desp. Variável", valor: m.despesaVariavel, fill: "#f97316" },
     { name: m.lucroOperacional >= 0 ? "Lucro" : "Prejuízo", valor: m.lucroOperacional, fill: m.lucroOperacional >= 0 ? "#10b981" : "#ef4444" },
   ];
+
+  const isSemReceita = m.status === "sem_receita";
 
   return (
     <div className="space-y-6">
@@ -63,42 +66,65 @@ export function BreakEvenDetail({ onNavigate }: Props) {
           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${sc.bg} ${sc.color}`}>{sc.label}</span>
         </div>
 
-        {/* Progress bar */}
+        {isSemReceita && (
+          <p className="text-sm text-blue-400 bg-blue-500/5 rounded px-3 py-2">
+            Não é possível atingir o ponto de equilíbrio sem faturamento. Cadastre receitas para avaliar a saúde operacional.
+          </p>
+        )}
+
+        {/* Progress bar - Saúde Operacional */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Receita vs Ponto de Equilíbrio</span>
-            <span className={`font-bold ${sc.color}`}>{m.percentAtingido.toFixed(1)}%</span>
+            <span className="text-muted-foreground">Saúde Operacional – Receita vs Ponto de Equilíbrio</span>
+            <span className={`font-bold ${sc.color}`}>{isSemReceita ? "N/A" : `${m.percentAtingido.toFixed(1)}%`}</span>
           </div>
           <div className="w-full h-4 bg-accent/40 rounded-full overflow-hidden relative">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(m.percentAtingido / 2, 100)}%`, backgroundColor: sc.barColor }}
-            />
-            {/* PE marker at 50% = 100% achieved */}
-            <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/50" style={{ left: "50%" }} />
+            {!isSemReceita && (
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${Math.min(m.percentAtingido / 2, 100)}%`, backgroundColor: sc.barColor }}
+              />
+            )}
+            {!isSemReceita && (
+              <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/50" style={{ left: "50%" }} />
+            )}
           </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>R$ 0</span>
-            <span>PE: {fmt(m.pontoEquilibrio)}</span>
-            <span>200%</span>
-          </div>
+          {!isSemReceita && (
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>R$ 0</span>
+              <span>PE: {fmt(m.pontoEquilibrio)}</span>
+              <span>200%</span>
+            </div>
+          )}
         </div>
 
-        {/* KPIs 2x2 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label="Receita Mensal (3m)" value={fmt(m.receitaMensal)} icon={TrendingUp} color="text-emerald-400" />
-          <KpiCard label="Despesas Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} color="text-amber-400" />
-          <KpiCard label="Despesa Variável" value={fmt(m.despesaVariavel)} icon={DollarSign} color="text-orange-400" />
-          <KpiCard label="Ponto de Equilíbrio" value={fmt(m.pontoEquilibrio)} icon={Target} color="text-primary" />
+        {/* KPIs - Saúde Operacional */}
+        <div className="space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Saúde Operacional</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <KpiCard label="Receita Mensal (3m)" value={fmt(m.receitaMensal)} icon={TrendingUp} color={m.receitaMensal > 0 ? "text-emerald-400" : "text-muted-foreground"} />
+            <KpiCard label="Despesas Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} color="text-amber-400" />
+            <KpiCard label="Despesa Variável" value={fmt(m.despesaVariavel)} icon={DollarSign} color="text-orange-400" />
+            <KpiCard label="Ponto de Equilíbrio" value={isSemReceita ? "N/A" : fmt(m.pontoEquilibrio)} icon={Target} color="text-primary" />
+          </div>
         </div>
       </div>
 
-      {/* Details grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label="Saldo Caixa" value={fmt(m.saldoCaixa)} sub={m.saldoCaixa >= 0 ? "Positivo" : "Negativo"} positive={m.saldoCaixa >= 0} />
-        <MetricCard label="Cobertura do Caixa" value={`${m.mesesCobertura} meses`} sub={`${m.coberturaCaixa.toFixed(1)}x custos fixos`} positive={m.mesesCobertura >= 3} />
-        <MetricCard label="Lucro Operacional" value={`${m.lucroOperacional >= 0 ? "+" : "-"}${fmt(m.lucroOperacional)}`} sub="Receita - Despesa Total" positive={m.lucroOperacional >= 0} />
-        <MetricCard label="Comprometimento" value={`${m.percentTotalReceita.toFixed(1)}%`} sub={`Fixo: ${m.percentFixoReceita.toFixed(1)}%`} positive={m.percentTotalReceita <= 70} />
+      {/* Details grid - separated by concept */}
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-1">Liquidez</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <MetricCard label="Saldo Caixa" value={fmt(m.saldoCaixa)} sub={m.saldoCaixa >= 0 ? "Positivo" : "Negativo"} positive={m.saldoCaixa >= 0} />
+          <MetricCard label="Cobertura do Caixa" value={`${m.mesesCobertura} meses`} sub={`${m.coberturaCaixa.toFixed(1)}x custos fixos`} positive={m.mesesCobertura >= 3} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-1">Resultado Operacional</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <MetricCard label="Lucro Operacional" value={isSemReceita ? "N/A" : `${m.lucroOperacional >= 0 ? "+" : "-"}${fmt(m.lucroOperacional)}`} sub="Receita - Despesa Total" positive={!isSemReceita && m.lucroOperacional >= 0} />
+          <MetricCard label="Comprometimento" value={isSemReceita ? "N/A" : `${m.percentTotalReceita.toFixed(1)}%`} sub={isSemReceita ? "Sem receita" : `Fixo: ${m.percentFixoReceita.toFixed(1)}%`} positive={!isSemReceita && m.percentTotalReceita <= 70} />
+        </div>
       </div>
 
       {/* Chart */}
