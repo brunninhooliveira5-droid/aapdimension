@@ -1,4 +1,5 @@
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown } from "lucide-react";
+import { useState } from "react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -20,6 +21,16 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const basicMenuItems = [
   { title: "Home", url: "/", icon: Home, section: "home" },
@@ -45,15 +56,51 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, logout, hasAccess, hasProAccess } = useAuth();
+  const { user, session, logout, hasAccess, hasProAccess } = useAuth();
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
 
+  const handleRequestPro = async () => {
+    const userId = session?.user?.id;
+    if (!user || !userId) return;
+    setRequesting(true);
+    try {
+      // Check if there's already a pending request
+      const { data: existing } = await supabase
+        .from("pro_access_requests" as any)
+        .select("id, status")
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existing) {
+        toast.info("Você já possui uma solicitação pendente.");
+        setRequestDialogOpen(false);
+        setRequesting(false);
+        return;
+      }
+
+      await supabase
+        .from("pro_access_requests" as any)
+        .insert({ user_id: userId, status: "pending" } as any);
+
+      toast.success("Solicitação enviada! O administrador será notificado.");
+      setRequestDialogOpen(false);
+    } catch {
+      toast.error("Erro ao enviar solicitação.");
+    }
+    setRequesting(false);
+  };
+
   const visibleBasicItems = basicMenuItems.filter((item) => hasAccess(item.section));
   const visibleProItems = proMenuItems.filter((item) => hasAccess(item.section));
+
+  const isPro = hasProAccess();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -150,6 +197,40 @@ export function AppSidebar() {
                   })}
                 </TooltipProvider>
               </SidebarMenu>
+
+              {/* Solicitar PRO button for non-PRO users */}
+              {!isPro && !collapsed && (
+                <div className="mx-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRequestDialogOpen(true)}
+                    className="w-full gap-1.5 text-[11px] border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Solicitar Acesso PRO
+                  </Button>
+                </div>
+              )}
+              {!isPro && collapsed && (
+                <div className="mx-1 mt-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setRequestDialogOpen(true)}
+                        className="w-full h-8 border-primary/30 text-primary hover:bg-primary/10"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">
+                      Solicitar Acesso PRO
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
             </SidebarGroupContent>
           </SidebarGroup>
         )}
@@ -160,7 +241,7 @@ export function AppSidebar() {
           <div className="flex items-center gap-2 px-2 animate-fade-in">
             <div className="relative w-7 h-7 rounded-full bg-accent flex items-center justify-center">
               <span className="text-xs font-medium text-accent-foreground">{user.initials}</span>
-              {hasProAccess() && (
+              {isPro && (
                 <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
                   <Crown className="w-2 h-2 text-primary-foreground" />
                 </span>
@@ -169,9 +250,13 @@ export function AppSidebar() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
-                {hasProAccess() && (
+                {isPro ? (
                   <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider text-primary">
                     <Star className="w-2 h-2 fill-primary" />PRO
+                  </span>
+                ) : (
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-muted px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                    FREE
                   </span>
                 )}
               </div>
@@ -190,6 +275,30 @@ export function AppSidebar() {
           {!collapsed && <span className="text-xs">Sair</span>}
         </Button>
       </div>
+
+      {/* Dialog de solicitação PRO */}
+      <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary fill-primary/30" />
+              Solicitar Acesso PRO
+            </DialogTitle>
+            <DialogDescription>
+              Ao solicitar, o administrador será notificado e poderá ativar seu acesso PRO. Você terá acesso a funcionalidades como Gestão Financeira e Orçamento de Corte.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requesting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRequestPro} disabled={requesting} className="gap-1.5">
+              <Sparkles className="h-4 w-4" />
+              {requesting ? "Enviando..." : "Enviar Solicitação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 }

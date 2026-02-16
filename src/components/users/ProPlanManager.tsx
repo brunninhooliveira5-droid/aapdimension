@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, ShieldCheck, ToggleLeft, ToggleRight, Search, Calendar, Clock } from "lucide-react";
+import { Star, ShieldCheck, Search, Calendar, Clock, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface UserWithPlan {
   id: string;
@@ -25,6 +31,7 @@ interface UserWithPlan {
   has_plan_row: boolean;
   pro_activated_at: string | null;
   last_access_at: string | null;
+  has_pending_request: boolean;
 }
 
 const PRO_FEATURES = [
@@ -51,14 +58,16 @@ export function ProPlanManager() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: plans }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: plans }, { data: requests }] = await Promise.all([
       supabase.from("profiles").select("id, name, email, company, approved"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("user_plans").select("*"),
+      supabase.from("pro_access_requests" as any).select("user_id, status").eq("status", "pending"),
     ]);
 
     const roleMap = new Map(roles?.map((r) => [r.user_id, r.role as UserRole]) ?? []);
     const planMap = new Map(plans?.map((p) => [p.user_id, p]) ?? []);
+    const pendingSet = new Set((requests as any[] ?? []).map((r: any) => r.user_id));
 
     const mapped: UserWithPlan[] = (profiles ?? [])
       .filter((p: any) => p.approved || roleMap.get(p.id) === "admin_master")
@@ -81,6 +90,7 @@ export function ProPlanManager() {
           has_plan_row: !!plan,
           pro_activated_at: (plan as any)?.pro_activated_at ?? null,
           last_access_at: (plan as any)?.last_access_at ?? null,
+          has_pending_request: pendingSet.has(p.id),
         };
       });
 
@@ -122,6 +132,15 @@ export function ProPlanManager() {
         max_financial_entries: newProAccess ? -1 : 0,
         ...(newProAccess ? { pro_activated_at: new Date().toISOString() } : {}),
       } as any);
+    }
+
+    // If approving PRO, also update pending request to approved
+    if (newProAccess && user.has_pending_request) {
+      await supabase
+        .from("pro_access_requests" as any)
+        .update({ status: "approved", reviewed_at: new Date().toISOString() } as any)
+        .eq("user_id", user.id)
+        .eq("status", "pending");
     }
 
     toast.success(
@@ -168,6 +187,8 @@ export function ProPlanManager() {
       u.company.toLowerCase().includes(search.toLowerCase())
   );
 
+  const pendingCount = users.filter((u) => u.has_pending_request).length;
+
   if (loading) {
     return (
       <div className="p-8 text-center text-muted-foreground text-sm">
@@ -186,7 +207,7 @@ export function ProPlanManager() {
             Gerenciamento de Acesso PRO
           </h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div className="space-y-1">
             <p className="text-2xl font-bold text-foreground">
               {users.filter((u) => u.pro_access).length}
@@ -202,6 +223,15 @@ export function ProPlanManager() {
           <div className="space-y-1">
             <p className="text-2xl font-bold text-foreground">{users.length}</p>
             <p className="text-muted-foreground">Total de usuários</p>
+          </div>
+          <div className="space-y-1">
+            <p className={`text-2xl font-bold ${pendingCount > 0 ? "text-warning" : "text-foreground"}`}>
+              {pendingCount}
+            </p>
+            <p className="text-muted-foreground flex items-center gap-1">
+              {pendingCount > 0 && <Bell className="w-3 h-3 text-warning" />}
+              Solicitações pendentes
+            </p>
           </div>
         </div>
       </div>
@@ -241,12 +271,31 @@ export function ProPlanManager() {
               return (
                 <TableRow key={u.id} className="border-border">
                   <TableCell>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{u.name}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                      {u.company && (
-                        <p className="text-[10px] text-muted-foreground">{u.company}</p>
-                      )}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-foreground">{u.name}</p>
+                          {u.has_pending_request && (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-warning border border-warning/30">
+                                    <Bell className="w-2.5 h-2.5" />
+                                    Solicitou PRO
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-xs">
+                                  Este usuário solicitou acesso PRO
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        {u.company && (
+                          <p className="text-[10px] text-muted-foreground">{u.company}</p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
