@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
+import { ProPlanManager } from "@/components/users/ProPlanManager";
 
 interface ManagedUser {
   id: string;
@@ -152,6 +153,10 @@ const UsersPage = () => {
             <CheckCircle className="w-3.5 h-3.5" />
             Aprovados ({approvedUsers.length})
           </TabsTrigger>
+          <TabsTrigger value="plans" className="gap-2">
+            <Star className="w-3.5 h-3.5" />
+            Planos PRO
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Users */}
@@ -260,6 +265,11 @@ const UsersPage = () => {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        {/* PRO Plans */}
+        <TabsContent value="plans">
+          <ProPlanManager />
         </TabsContent>
       </Tabs>
 
