@@ -22,10 +22,14 @@ export interface PdfQuoteData {
   // Resumo técnico
   pathLengthM: number;
   baseSpeedMMmin: number;
+  baseSpeedOrigin: string;
   speedFactor: number;
   speedFactorOrigin: SpeedFactorOrigin;
   effectiveSpeedMMmin: number;
   estimatedTimeMin: number;
+  passesFinal: number;
+  passesOrigin: string;
+  effectiveCutLengthM: number;
 
   // Resumo financeiro
   cutPrice: number;
@@ -165,7 +169,17 @@ export async function generateQuotePDF(
 
   // Resumo técnico
   body.push(["", ""]);
-  body.push(["Comprimento de Corte", `${data.pathLengthM.toFixed(2)} m`]);
+  body.push(["Comprimento Original", `${data.pathLengthM.toFixed(2)} m`]);
+  if (data.passesFinal > 1) {
+    const passesLabel = data.passesOrigin === "manual_override" ? `${data.passesFinal} (Override manual)` : `${data.passesFinal}`;
+    body.push(["Passadas", passesLabel]);
+    body.push(["Comprimento Efetivo", `${data.effectiveCutLengthM.toFixed(2)} m`]);
+  }
+  const speedLabel = data.baseSpeedOrigin === "manual_override" ? `${data.baseSpeedMMmin.toFixed(0)} mm/min (Override)` : `${data.baseSpeedMMmin.toFixed(0)} mm/min (Simulador)`;
+  body.push(["Velocidade Base", speedLabel]);
+  body.push(["Fator de Velocidade", `${data.speedFactor.toFixed(2)} (${data.speedFactorOrigin})`]);
+  body.push(["Velocidade Efetiva", `${data.effectiveSpeedMMmin.toFixed(0)} mm/min`]);
+  body.push(["Tempo Estimado", `${data.estimatedTimeMin.toFixed(1)} min`]);
 
   // Resumo financeiro
   body.push(["", ""]);

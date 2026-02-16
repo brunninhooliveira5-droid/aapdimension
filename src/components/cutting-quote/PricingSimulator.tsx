@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Clock, Ruler, TrendingUp, Save, Check } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { DollarSign, Clock, Ruler, TrendingUp, Save, Check, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -17,6 +18,12 @@ export interface PricingData {
   suggestedPrice: number;
   avgCutSpeed: number;       // mm/min — velocidade base do simulador
   profitMarginPercent: number; // margem de lucro configurada
+  // Admin override limits
+  minSpeedOverrideMMmin: number;
+  maxSpeedOverrideMMmin: number;
+  maxPassesOverride: number;
+  allowUserOverrideSpeed: boolean;
+  allowUserOverridePasses: boolean;
 }
 
 interface PricingSimulatorProps {
@@ -38,7 +45,11 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const [productiveHours, setProductiveHours] = useState(160);
   const [profitMargin, setProfitMargin] = useState(30);
   const [avgCutSpeed, setAvgCutSpeed] = useState(2);
-
+  const [minSpeedOverride, setMinSpeedOverride] = useState(500);
+  const [maxSpeedOverride, setMaxSpeedOverride] = useState(12000);
+  const [maxPassesOverride, setMaxPassesOverride] = useState(10);
+  const [allowOverrideSpeed, setAllowOverrideSpeed] = useState(true);
+  const [allowOverridePasses, setAllowOverridePasses] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -65,6 +76,11 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           setProductiveHours(Number(data.productive_hours) || 160);
           setProfitMargin(Number(data.profit_margin) || 30);
           setAvgCutSpeed(Number(data.avg_cut_speed) || 2);
+          setMinSpeedOverride(Number(data.min_speed_override_mmmin) || 500);
+          setMaxSpeedOverride(Number(data.max_speed_override_mmmin) || 12000);
+          setMaxPassesOverride(Number(data.max_passes_override) || 10);
+          setAllowOverrideSpeed(data.allow_user_override_speed ?? true);
+          setAllowOverridePasses(data.allow_user_override_passes ?? true);
         }
         setLoaded(true);
       });
@@ -82,8 +98,12 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const suggestedPrice = costPerMinute * marginMultiplier;
 
   useEffect(() => {
-    onPricingChange({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin });
-  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin]);
+    onPricingChange({
+      costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
+      minSpeedOverrideMMmin: minSpeedOverride, maxSpeedOverrideMMmin: maxSpeedOverride, maxPassesOverride,
+      allowUserOverrideSpeed: allowOverrideSpeed, allowUserOverridePasses: allowOverridePasses,
+    });
+  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Auto-save with debounce
   const saveSettings = useCallback(async () => {
@@ -96,6 +116,11 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       maintenance_cost: maintenanceCost, other_machine: otherMachine,
       productive_hours: productiveHours, profit_margin: profitMargin,
       avg_cut_speed: avgCutSpeed, updated_at: new Date().toISOString(),
+      min_speed_override_mmmin: minSpeedOverride,
+      max_speed_override_mmmin: maxSpeedOverride,
+      max_passes_override: maxPassesOverride,
+      allow_user_override_speed: allowOverrideSpeed,
+      allow_user_override_passes: allowOverridePasses,
     };
 
     // Upsert: insert or update on conflict
@@ -110,7 +135,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
-  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed]);
+  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Debounce auto-save: save 1.5s after last change
   useEffect(() => {
@@ -118,7 +143,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(saveSettings, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, loaded]);
+  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -215,6 +240,44 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Admin Override Config */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary" />
+            Limites de Override (Admin)
+          </CardTitle>
+          <CardDescription>Controle o que o operador pode ajustar no resultado do orçamento</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <Label className="text-xs">Velocidade Mínima (mm/min)</Label>
+              <Input type="number" min={1} value={minSpeedOverride || ""} onChange={(e) => setMinSpeedOverride(Number(e.target.value))} placeholder="500" />
+            </div>
+            <div>
+              <Label className="text-xs">Velocidade Máxima (mm/min)</Label>
+              <Input type="number" min={1} value={maxSpeedOverride || ""} onChange={(e) => setMaxSpeedOverride(Number(e.target.value))} placeholder="12000" />
+            </div>
+            <div>
+              <Label className="text-xs">Máximo de Passadas</Label>
+              <Input type="number" min={1} max={50} value={maxPassesOverride || ""} onChange={(e) => setMaxPassesOverride(Number(e.target.value))} placeholder="10" />
+            </div>
+          </div>
+          <Separator />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Permitir override de velocidade</Label>
+              <Switch checked={allowOverrideSpeed} onCheckedChange={setAllowOverrideSpeed} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Permitir override de passadas</Label>
+              <Switch checked={allowOverridePasses} onCheckedChange={setAllowOverridePasses} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Results */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

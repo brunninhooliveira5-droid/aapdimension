@@ -21,6 +21,11 @@ export default function CuttingQuotePage() {
     suggestedPrice: 0,
     avgCutSpeed: 0,
     profitMarginPercent: 30,
+    minSpeedOverrideMMmin: 500,
+    maxSpeedOverrideMMmin: 12000,
+    maxPassesOverride: 10,
+    allowUserOverrideSpeed: true,
+    allowUserOverridePasses: true,
   });
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
 
@@ -51,7 +56,14 @@ export default function CuttingQuotePage() {
           const minPrice = costPerMinute * 1.15;
           const suggestedPrice = costPerMinute * marginMultiplier;
 
-          setPricing({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin });
+          setPricing({
+            costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
+            minSpeedOverrideMMmin: Number(data.min_speed_override_mmmin) || 500,
+            maxSpeedOverrideMMmin: Number(data.max_speed_override_mmmin) || 12000,
+            maxPassesOverride: Number(data.max_passes_override) || 10,
+            allowUserOverrideSpeed: data.allow_user_override_speed ?? true,
+            allowUserOverridePasses: data.allow_user_override_passes ?? true,
+          });
         }
       });
 
