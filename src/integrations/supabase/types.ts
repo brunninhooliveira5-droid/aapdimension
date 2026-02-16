@@ -43,6 +43,65 @@ export type Database = {
           },
         ]
       }
+      customer_files: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string
+          description: string
+          display_name: string
+          file_name_original: string
+          file_size: number
+          file_url: string
+          id: string
+          mime_type: string
+          published: boolean
+          tags: string[] | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by: string
+          description?: string
+          display_name: string
+          file_name_original: string
+          file_size?: number
+          file_url: string
+          id?: string
+          mime_type?: string
+          published?: boolean
+          tags?: string[] | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          display_name?: string
+          file_name_original?: string
+          file_size?: number
+          file_url?: string
+          id?: string
+          mime_type?: string
+          published?: boolean
+          tags?: string[] | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_files_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "file_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cutting_material_thicknesses: {
         Row: {
           created_at: string
@@ -272,6 +331,39 @@ export type Database = {
           pdf_admin_url?: string | null
           pdf_url?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      file_categories: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
