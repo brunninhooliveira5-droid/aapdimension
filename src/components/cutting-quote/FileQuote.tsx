@@ -217,6 +217,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [result, setResult] = useState<QuoteResult | null>(null);
   const [editablePrice, setEditablePrice] = useState(0);
   const [editableMaterialPriceM2, setEditableMaterialPriceM2] = useState(0);
+  const [editableMaterialM2, setEditableMaterialM2] = useState(0);
   const [materialOwner, setMaterialOwner] = useState<"cliente" | "usuario">("cliente");
   const [customerName, setCustomerName] = useState("");
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
@@ -487,6 +488,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       });
       setEditablePrice(Math.round(suggestedSale * 100) / 100);
       setEditableMaterialPriceM2(Math.round(pricePerM2 * 100) / 100);
+      setEditableMaterialM2(Math.round(sheetM2 * 10000) / 10000);
       setMaterialOwner("cliente");
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
@@ -497,7 +499,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * (result.sheetM2 || 1) * quantity : 0;
+  const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * editableMaterialM2 * quantity : 0;
   const totalPrice = editablePrice + materialCost;
 
   const exportPDF = () => {
@@ -527,7 +529,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
     if (materialOwner === "usuario") {
       body.push(
-        ["Área da Chapa (m²)", result.sheetM2.toFixed(4)],
+        ["Área Utilizada (m²)", editableMaterialM2.toFixed(4)],
         ["Valor/m² do Material", fmt(editableMaterialPriceM2)],
         ["Custo do Material", fmt(materialCost)],
       );
@@ -801,24 +803,37 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-3 space-y-2">
                     <p className="text-xs font-medium text-primary">Custo do Material</p>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={editableMaterialPriceM2 || ""}
+                            onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
+                            className="h-8 pl-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">m² utilizado (editável)</Label>
                         <Input
                           type="number"
                           min={0}
-                          step={0.01}
-                          value={editableMaterialPriceM2 || ""}
-                          onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
-                          className="h-8 pl-8 text-sm"
+                          step={0.0001}
+                          value={editableMaterialM2 || ""}
+                          onChange={(e) => setEditableMaterialM2(Number(e.target.value))}
+                          className="h-8 text-sm mt-1"
                         />
                       </div>
                     </div>
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
-                          {fmt(editableMaterialPriceM2)}/m² × {result.sheetM2.toFixed(4)} m² × {quantity}
+                          {fmt(editableMaterialPriceM2)}/m² × {editableMaterialM2.toFixed(4)} m² × {quantity}
                         </span>
                         <span className="font-medium">{fmt(materialCost)}</span>
                       </div>
