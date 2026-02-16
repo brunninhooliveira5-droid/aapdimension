@@ -384,6 +384,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [editableMaterialCost, setEditableMaterialCost] = useState(0);
   const [materialOwner, setMaterialOwner] = useState<"cliente" | "usuario">("cliente");
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
   const [serviceValue, setServiceValue] = useState(0);
   const [serviceValueIncluded, setServiceValueIncluded] = useState(false);
@@ -799,6 +800,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       await generateQuotePDF(
         {
           customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
           date: new Date().toLocaleDateString("pt-BR"),
           machineName: result.machineName,
           material: result.material,
@@ -1015,14 +1017,23 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
               <CardDescription>{result.fileName}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Customer Name & Delivery */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Customer Name, Phone & Delivery */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Nome do Cliente</Label>
                   <Input
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Nome do cliente"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Contato / Telefone</Label>
+                  <Input
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="(00) 00000-0000"
                     className="mt-1"
                   />
                 </div>
