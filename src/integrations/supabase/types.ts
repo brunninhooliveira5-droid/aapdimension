@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          pro_access: boolean
+          sections: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          pro_access?: boolean
+          sections?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          pro_access?: boolean
+          sections?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bulletin_reads: {
         Row: {
           bulletin_id: string

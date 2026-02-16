@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +14,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
 import { ProPlanManager } from "@/components/users/ProPlanManager";
+
+interface AccessTemplate {
+  id: string;
+  name: string;
+  sections: Record<string, string>;
+  pro_access: boolean;
+}
 
 interface ManagedUser {
   id: string;
@@ -46,6 +54,13 @@ const UsersPage = () => {
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formRole, setFormRole] = useState<UserRole>("operador");
+
+  // Template & multi-select state
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [templates, setTemplates] = useState<AccessTemplate[]>([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -84,9 +99,106 @@ const UsersPage = () => {
     setLoading(false);
   };
 
+  const fetchTemplates = async () => {
+    const { data } = await supabase.from("access_templates" as any).select("*").order("name");
+    setTemplates((data as any[] ?? []).map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      sections: t.sections ?? {},
+      pro_access: t.pro_access ?? false,
+    })));
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchTemplates();
   }, []);
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleAllApproved = () => {
+    const nonAdminApproved = approvedUsers.filter(u => u.role !== "admin_master");
+    if (selectedUserIds.size === nonAdminApproved.length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(nonAdminApproved.map(u => u.id)));
+    }
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplateId || selectedUserIds.size === 0) return;
+    const tpl = templates.find(t => t.id === selectedTemplateId);
+    if (!tpl) return;
+    setApplyingTemplate(true);
+
+    try {
+      // For each selected user, upsert section_access and optionally pro plan
+      for (const uid of selectedUserIds) {
+        // Check if user already has access row
+        const { data: existing } = await supabase
+          .from("user_section_access" as any)
+          .select("id")
+          .eq("user_id", uid)
+          .single();
+
+        if (existing) {
+          await supabase
+            .from("user_section_access" as any)
+            .update({ sections: tpl.sections } as any)
+            .eq("user_id", uid);
+        } else {
+          await supabase
+            .from("user_section_access" as any)
+            .insert({ user_id: uid, sections: tpl.sections } as any);
+        }
+
+        // Update PRO access
+        const { data: planRow } = await supabase
+          .from("user_plans")
+          .select("id")
+          .eq("user_id", uid)
+          .single();
+
+        const proFeatures = tpl.pro_access ? ["gestao_financeira", "orcamento"] : [];
+        const planPayload = {
+          pro_access: tpl.pro_access,
+          plan: tpl.pro_access ? "pro" : "free",
+          features_enabled: proFeatures,
+          max_quotes_per_month: tpl.pro_access ? -1 : 5,
+          max_financial_entries: tpl.pro_access ? -1 : 0,
+          ...(tpl.pro_access ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
+        };
+
+        if (planRow) {
+          await supabase.from("user_plans").update(planPayload as any).eq("user_id", uid);
+        } else {
+          await supabase.from("user_plans").insert({ user_id: uid, ...planPayload } as any);
+        }
+      }
+
+      toast.success(`Template "${tpl.name}" aplicado a ${selectedUserIds.size} usuário(s)!`);
+      setSelectedUserIds(new Set());
+      setTemplateDialogOpen(false);
+      setSelectedTemplateId("");
+      fetchUsers();
+    } catch {
+      toast.error("Erro ao aplicar template.");
+    }
+    setApplyingTemplate(false);
+  };
+
+  const handleDeleteTemplate = async (tplId: string) => {
+    await supabase.from("access_templates" as any).delete().eq("id", tplId);
+    toast.success("Template excluído.");
+    fetchTemplates();
+  };
 
   const openEdit = (u: ManagedUser) => {
     setEditingUser(u);
@@ -232,10 +344,37 @@ const UsersPage = () => {
 
         {/* Approved Users */}
         <TabsContent value="approved">
+          {/* Batch actions bar */}
+          {selectedUserIds.size > 0 && (
+            <div className="flex items-center gap-3 mb-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+              <span className="text-sm font-medium text-foreground">
+                {selectedUserIds.size} usuário(s) selecionado(s)
+              </span>
+              <Button size="sm" className="gap-1.5" onClick={() => {
+                if (templates.length === 0) {
+                  toast.error("Nenhum template salvo. Salve um template na página de controle de acesso de um usuário.");
+                  return;
+                }
+                setTemplateDialogOpen(true);
+              }}>
+                <BookmarkCheck className="w-3.5 h-3.5" />
+                Aplicar Template
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedUserIds(new Set())} className="text-muted-foreground">
+                Limpar seleção
+              </Button>
+            </div>
+          )}
           <div className="gradient-card rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={approvedUsers.filter(u => u.role !== "admin_master").length > 0 && selectedUserIds.size === approvedUsers.filter(u => u.role !== "admin_master").length}
+                      onCheckedChange={toggleAllApproved}
+                    />
+                  </TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Nome</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">E-mail</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Empresa</TableHead>
@@ -246,6 +385,14 @@ const UsersPage = () => {
               <TableBody>
                 {approvedUsers.map((u) => (
                   <TableRow key={u.id} className="border-border">
+                    <TableCell>
+                      {u.role !== "admin_master" ? (
+                        <Checkbox
+                          checked={selectedUserIds.has(u.id)}
+                          onCheckedChange={() => toggleUserSelection(u.id)}
+                        />
+                      ) : <span className="w-4" />}
+                    </TableCell>
                     <TableCell className="text-foreground font-medium text-sm">{u.name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{u.company}</TableCell>
@@ -333,6 +480,68 @@ const UsersPage = () => {
               <Button variant="outline" className="border-border">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Apply Template Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Aplicar Template de Acesso</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Selecione um template para aplicar a {selectedUserIds.size} usuário(s) selecionado(s). Isso substituirá as configurações de acesso atuais.
+          </p>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {templates.map((tpl) => (
+              <div
+                key={tpl.id}
+                onClick={() => setSelectedTemplateId(tpl.id)}
+                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                  selectedTemplateId === tpl.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-accent"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BookmarkCheck className={`w-4 h-4 ${selectedTemplateId === tpl.id ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-sm font-medium text-foreground">{tpl.name}</span>
+                  {tpl.pro_access && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary border border-primary/30">
+                      <Star className="w-2 h-2 fill-primary" />PRO
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTemplate(tpl.id);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+            {templates.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhum template disponível. Salve um template na página de controle de acesso de um usuário.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button
+              disabled={!selectedTemplateId || applyingTemplate}
+              onClick={handleApplyTemplate}
+            >
+              {applyingTemplate ? "Aplicando..." : "Aplicar Template"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
