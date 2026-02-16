@@ -928,12 +928,12 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           <CardContent className="space-y-4">
             {/* File Upload */}
             <div>
-              <Label className="text-xs">Arquivo (DXF ou SVG)</Label>
+              <Label className="text-xs">Arquivo SVG</Label>
               <div
                 className="mt-1 border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => fileRef.current?.click()}
               >
-                <input ref={fileRef} type="file" accept=".dxf,.svg" className="hidden" onChange={handleFile} />
+                <input ref={fileRef} type="file" accept=".svg" className="hidden" onChange={handleFile} />
                 {file ? (
                   <div className="flex items-center justify-center gap-2 text-sm">
                     <FileText className="w-5 h-5 text-primary" />
