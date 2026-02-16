@@ -27,6 +27,8 @@ export interface PdfSettings {
   show_delivery: boolean;
   show_date: boolean;
   show_customer: boolean;
+  show_service_value: boolean;
+  label_service_value: string;
   footer_text: string;
 }
 
@@ -46,6 +48,8 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_delivery: true,
   show_date: true,
   show_customer: true,
+  show_service_value: true,
+  label_service_value: "Valor de Serviço",
   footer_text: "",
 };
 
@@ -87,6 +91,8 @@ export function PdfConfiguration() {
         show_delivery: d.show_delivery ?? true,
         show_date: d.show_date ?? true,
         show_customer: d.show_customer ?? true,
+        show_service_value: d.show_service_value ?? true,
+        label_service_value: d.label_service_value || "Valor de Serviço",
         footer_text: d.footer_text || "",
       });
     }
@@ -172,7 +178,8 @@ export function PdfConfiguration() {
     ...(settings.show_thickness ? [["Espessura", "3 mm"]] : []),
     ...(settings.show_cutting_value ? [["Valor do Corte", fmt(185)]] : []),
     ...(settings.show_material_value ? [["Valor do Material", fmt(42.5)]] : []),
-    ["TOTAL", fmt(227.5)],
+    ...(settings.show_service_value ? [[settings.label_service_value || "Valor de Serviço", fmt(50)]] : []),
+    ["TOTAL", fmt(277.5)],
   ];
 
   return (
@@ -396,6 +403,7 @@ export function PdfConfiguration() {
             { key: "show_cutting_value" as const, label: "Valor do Corte" },
             { key: "show_material_value" as const, label: "Valor do Material" },
             { key: "show_delivery" as const, label: "Prazo de Entrega" },
+            { key: "show_service_value" as const, label: "Valor de Serviço" },
           ].map(({ key, label }) => (
             <div key={key} className="flex items-center justify-between">
               <Label className="text-sm">{label}</Label>
@@ -404,6 +412,26 @@ export function PdfConfiguration() {
           ))}
         </CardContent>
       </Card>
+
+      {/* Service Value Label */}
+      {settings.show_service_value && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-primary" />
+              Rótulo do Serviço
+            </CardTitle>
+            <CardDescription>Texto exibido como nome da linha de serviço no PDF</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Input
+              value={settings.label_service_value}
+              onChange={(e) => update("label_service_value", e.target.value)}
+              placeholder="Valor de Serviço"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Footer */}
       <Card>

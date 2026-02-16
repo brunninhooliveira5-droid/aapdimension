@@ -30,6 +30,8 @@ export interface PdfQuoteData {
   // Resumo financeiro
   cutPrice: number;
   materialCost: number;
+  serviceValue: number;
+  serviceValueIncluded: boolean;
   totalPrice: number;
 
   // Extras
@@ -174,6 +176,10 @@ export async function generateQuotePDF(
   if (s.show_cutting_value !== false) body.push(["Valor do Corte", fmtBRL(data.cutPrice)]);
   if (s.show_material_value !== false && data.materialCost > 0) {
     body.push(["Valor do Material", fmtBRL(data.materialCost)]);
+  }
+  if (s.show_service_value !== false && data.serviceValueIncluded && data.serviceValue > 0) {
+    const serviceLabel = s.label_service_value || "Valor de Serviço";
+    body.push([serviceLabel, fmtBRL(data.serviceValue)]);
   }
   body.push(["", ""]);
   body.push(["TOTAL", fmtBRL(data.totalPrice)]);
