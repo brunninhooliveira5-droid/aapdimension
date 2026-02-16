@@ -9,13 +9,22 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface Thickness {
+  id: string;
+  value: string;
+  label: string;
+  sheet_width: number;
+  sheet_height: number;
+  unit_price: number;
+}
+
 export function MaterialsManagement() {
   const { session } = useAuth();
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string; price_adjustment: number } | null>(null);
   const [materialAdjustment, setMaterialAdjustment] = useState(0);
-  const [materialThicknesses, setMaterialThicknesses] = useState<{ id: string; value: string; label: string }[]>([]);
+  const [materialThicknesses, setMaterialThicknesses] = useState<Thickness[]>([]);
   const [newThickness, setNewThickness] = useState("");
 
   useEffect(() => {
@@ -56,7 +65,7 @@ export function MaterialsManagement() {
     setMaterialAdjustment(mat.price_adjustment || 0);
     const { data } = await supabase
       .from("cutting_material_thicknesses")
-      .select("id, value, label")
+      .select("id, value, label, sheet_width, sheet_height, unit_price")
       .eq("material_id", mat.id)
       .order("value");
     if (data) setMaterialThicknesses(data as any);
@@ -68,7 +77,7 @@ export function MaterialsManagement() {
     const { data, error } = await supabase
       .from("cutting_material_thicknesses")
       .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm` } as any)
-      .select("id, value, label")
+      .select("id, value, label, sheet_width, sheet_height, unit_price")
       .single();
     if (!error && data) {
       setMaterialThicknesses((prev) => [...prev, data as any].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
@@ -85,6 +94,28 @@ export function MaterialsManagement() {
     }
   };
 
+  const updateThicknessField = (id: string, field: keyof Thickness, value: number) => {
+    setMaterialThicknesses((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
+    );
+  };
+
+  const saveThickness = async (t: Thickness) => {
+    const { error } = await supabase
+      .from("cutting_material_thicknesses")
+      .update({
+        sheet_width: t.sheet_width,
+        sheet_height: t.sheet_height,
+        unit_price: t.unit_price,
+      } as any)
+      .eq("id", t.id);
+    if (!error) {
+      toast.success(`Espessura ${t.label} salva!`);
+    } else {
+      toast.error("Erro ao salvar espessura.");
+    }
+  };
+
   const saveMaterialAdjustment = async () => {
     if (!selectedMaterial) return;
     const { error } = await supabase
@@ -98,6 +129,19 @@ export function MaterialsManagement() {
     }
   };
 
+  const calcM2 = (width: number, height: number) => {
+    if (width <= 0 || height <= 0) return 0;
+    return (width * height) / 1_000_000; // mm² to m²
+  };
+
+  const calcPricePerM2 = (unitPrice: number, width: number, height: number) => {
+    const m2 = calcM2(width, height);
+    if (m2 <= 0 || unitPrice <= 0) return 0;
+    return unitPrice / m2;
+  };
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -110,7 +154,7 @@ export function MaterialsManagement() {
               <Layers className="w-4 h-4 text-primary" />
               {selectedMaterial.name}
             </CardTitle>
-            <CardDescription>Gerencie as espessuras e ajuste de preço deste material</CardDescription>
+            <CardDescription>Gerencie espessuras, tamanho da chapa, valor unitário e ajuste de preço</CardDescription>
           </>
         ) : (
           <>
@@ -160,16 +204,78 @@ export function MaterialsManagement() {
                 <Plus className="w-3.5 h-3.5" /> Adicionar
               </Button>
             </div>
+
             {materialThicknesses.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {materialThicknesses.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-secondary/50 text-sm">
-                    <span>{t.label}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteThickness(t.id)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {materialThicknesses.map((t) => {
+                  const m2 = calcM2(t.sheet_width, t.sheet_height);
+                  const priceM2 = calcPricePerM2(t.unit_price, t.sheet_width, t.sheet_height);
+                  return (
+                    <Card key={t.id} className="bg-secondary/30 border-border">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{t.label}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteThickness(t.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Largura Chapa (mm)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={t.sheet_width || ""}
+                              onChange={(e) => updateThicknessField(t.id, "sheet_width", Number(e.target.value))}
+                              className="h-8 text-xs"
+                              placeholder="1000"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Comprimento Chapa (mm)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={t.sheet_height || ""}
+                              onChange={(e) => updateThicknessField(t.id, "sheet_height", Number(e.target.value))}
+                              className="h-8 text-xs"
+                              placeholder="2000"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Valor Unitário (R$)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={t.unit_price || ""}
+                              onChange={(e) => updateThicknessField(t.id, "unit_price", Number(e.target.value))}
+                              className="h-8 text-xs"
+                              placeholder="0,00"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex gap-4 text-[10px] text-muted-foreground">
+                            {m2 > 0 && (
+                              <span>
+                                Área: <span className="text-foreground font-medium">{m2.toFixed(2)} m²</span>
+                              </span>
+                            )}
+                            {priceM2 > 0 && (
+                              <span>
+                                Valor/m²: <span className="text-primary font-medium">{fmt(priceM2)}</span>
+                              </span>
+                            )}
+                          </div>
+                          <Button onClick={() => saveThickness(t)} size="sm" variant="outline" className="h-7 text-xs gap-1">
+                            <Save className="w-3 h-3" /> Salvar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-2">Nenhuma espessura cadastrada para este material.</p>
