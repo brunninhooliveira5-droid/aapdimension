@@ -7,7 +7,10 @@ import { CashFlow } from "@/components/financeiro/CashFlow";
 import Financial from "@/pages/Financial";
 import { FinanceReports } from "@/components/financeiro/FinanceReports";
 import { FinanceCategories } from "@/components/financeiro/FinanceCategories";
-import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet, FileBarChart, Tags } from "lucide-react";
+import { LegalModule } from "@/components/financeiro/LegalModule";
+import { DebtsModule } from "@/components/financeiro/DebtsModule";
+import { DecisionSimulator } from "@/components/financeiro/DecisionSimulator";
+import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet, FileBarChart, Tags, Scale, CreditCard, Calculator } from "lucide-react";
 
 export default function GestaoFinanceiraPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -51,6 +54,18 @@ export default function GestaoFinanceiraPage() {
             <Tags className="w-4 h-4" />
             Categorias
           </TabsTrigger>
+          <TabsTrigger value="legal" className="gap-1.5 data-[state=active]:bg-background">
+            <Scale className="w-4 h-4" />
+            Jurídico
+          </TabsTrigger>
+          <TabsTrigger value="debts" className="gap-1.5 data-[state=active]:bg-background">
+            <CreditCard className="w-4 h-4" />
+            Dívidas
+          </TabsTrigger>
+          <TabsTrigger value="simulator" className="gap-1.5 data-[state=active]:bg-background">
+            <Calculator className="w-4 h-4" />
+            Simulador
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -79,6 +94,18 @@ export default function GestaoFinanceiraPage() {
 
         <TabsContent value="categories" className="mt-4">
           <FinanceCategories />
+        </TabsContent>
+
+        <TabsContent value="legal" className="mt-4">
+          <LegalModule />
+        </TabsContent>
+
+        <TabsContent value="debts" className="mt-4">
+          <DebtsModule />
+        </TabsContent>
+
+        <TabsContent value="simulator" className="mt-4">
+          <DecisionSimulator />
         </TabsContent>
       </Tabs>
     </div>

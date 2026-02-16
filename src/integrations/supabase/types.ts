@@ -302,6 +302,126 @@ export type Database = {
           },
         ]
       }
+      debts_client_delinquency: {
+        Row: {
+          client: string
+          collection_action: string | null
+          contact_info: string | null
+          created_at: string
+          created_by: string
+          current_amount: number
+          days_overdue: number
+          description: string
+          id: string
+          notes: string | null
+          original_amount: number
+          original_due_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client: string
+          collection_action?: string | null
+          contact_info?: string | null
+          created_at?: string
+          created_by: string
+          current_amount?: number
+          days_overdue?: number
+          description?: string
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          original_due_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client?: string
+          collection_action?: string | null
+          contact_info?: string | null
+          created_at?: string
+          created_by?: string
+          current_amount?: number
+          days_overdue?: number
+          description?: string
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          original_due_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      debts_loans: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          created_at: string
+          created_by: string
+          creditor: string
+          description: string
+          end_date: string | null
+          id: string
+          installments_paid: number
+          installments_total: number
+          interest_rate: number
+          loan_type: string
+          monthly_payment: number
+          next_due_date: string | null
+          notes: string | null
+          outstanding_balance: number
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          created_by: string
+          creditor: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          installments_paid?: number
+          installments_total?: number
+          interest_rate?: number
+          loan_type?: string
+          monthly_payment?: number
+          next_due_date?: string | null
+          notes?: string | null
+          outstanding_balance?: number
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string
+          creditor?: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          installments_paid?: number
+          installments_total?: number
+          interest_rate?: number
+          loan_type?: string
+          monthly_payment?: number
+          next_due_date?: string | null
+          notes?: string | null
+          outstanding_balance?: number
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dimension_equipment: {
         Row: {
           category: string
@@ -670,6 +790,171 @@ export type Database = {
           status?: string
           total_installments?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      legal_cases: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          case_number: string
+          case_type: string
+          counterparty: string
+          court: string | null
+          created_at: string
+          created_by: string
+          description: string
+          estimated_value: number
+          filed_date: string
+          id: string
+          lawyer: string | null
+          next_hearing_date: string | null
+          notes: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          case_number?: string
+          case_type?: string
+          counterparty: string
+          court?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          estimated_value?: number
+          filed_date?: string
+          id?: string
+          lawyer?: string | null
+          next_hearing_date?: string | null
+          notes?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          case_number?: string
+          case_type?: string
+          counterparty?: string
+          court?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          estimated_value?: number
+          filed_date?: string
+          id?: string
+          lawyer?: string | null
+          next_hearing_date?: string | null
+          notes?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      legal_collections: {
+        Row: {
+          amount: number
+          attachment_name: string | null
+          attachment_url: string | null
+          collection_type: string
+          created_at: string
+          created_by: string
+          debtor: string
+          description: string
+          id: string
+          notes: string | null
+          original_due_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          collection_type?: string
+          created_at?: string
+          created_by: string
+          debtor: string
+          description?: string
+          id?: string
+          notes?: string | null
+          original_due_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          collection_type?: string
+          created_at?: string
+          created_by?: string
+          debtor?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          original_due_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      legal_contracts: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          contract_type: string
+          counterparty: string
+          created_at: string
+          created_by: string
+          description: string
+          end_date: string | null
+          id: string
+          notes: string | null
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          contract_type?: string
+          counterparty: string
+          created_at?: string
+          created_by: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          title: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          contract_type?: string
+          counterparty?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          value?: number
         }
         Relationships: []
       }
