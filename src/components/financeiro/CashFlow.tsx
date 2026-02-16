@@ -25,9 +25,15 @@ interface FlowEntry {
   status: string;
 }
 
+interface FixedExpense {
+  monthly_value: number;
+  due_day: number;
+}
+
 export function CashFlow() {
   const [payables, setPayables] = useState<FlowEntry[]>([]);
   const [receivables, setReceivables] = useState<FlowEntry[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculatedBalance, setCalculatedBalance] = useState(0);
   const [manualBalance, setManualBalance] = useState<string>("");
@@ -48,7 +54,7 @@ export function CashFlow() {
     end.setDate(end.getDate() + 90);
     const endStr = end.toISOString().split("T")[0];
 
-    const [{ data: pay }, { data: rec }, { data: paidRec }, { data: paidPay }] = await Promise.all([
+    const [{ data: pay }, { data: rec }, { data: paidRec }, { data: paidPay }, { data: fixed }] = await Promise.all([
       supabase
         .from("finance_accounts_payable")
         .select("amount, due_date, status")
@@ -67,6 +73,10 @@ export function CashFlow() {
         .from("finance_accounts_payable")
         .select("amount")
         .eq("status", "pago"),
+      supabase
+        .from("finance_fixed_expenses")
+        .select("monthly_value, due_day")
+        .eq("is_active", true),
     ]);
 
     const totalReceived = (paidRec ?? []).reduce((s, r) => s + Number(r.amount), 0);
@@ -78,6 +88,9 @@ export function CashFlow() {
     );
     setReceivables(
       (rec ?? []).map((r: any) => ({ amount: Number(r.amount), date: r.expected_date, status: r.status }))
+    );
+    setFixedExpenses(
+      (fixed ?? []).map((f: any) => ({ monthly_value: Number(f.monthly_value), due_day: Number(f.due_day) }))
     );
     setLoading(false);
   };
@@ -93,21 +106,29 @@ export function CashFlow() {
     for (let i = 0; i <= days; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dayOfMonth = d.getDate();
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(dayOfMonth).padStart(2, "0")}`;
 
       const dayReceivable = receivables
         .filter((r) => r.date === dateStr)
         .reduce((s, r) => s + r.amount, 0);
 
-      const dayPayable = payables
+      let dayPayable = payables
         .filter((p) => p.date === dateStr)
         .reduce((s, p) => s + p.amount, 0);
+
+      // Add fixed expenses on their due day
+      for (const fe of fixedExpenses) {
+        if (dayOfMonth === fe.due_day) {
+          dayPayable += fe.monthly_value;
+        }
+      }
 
       runningBalance += dayReceivable - dayPayable;
 
       result.push({
         date: dateStr,
-        label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: `${String(dayOfMonth).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
         receivable: dayReceivable,
         payable: dayPayable,
         net: dayReceivable - dayPayable,
@@ -116,7 +137,7 @@ export function CashFlow() {
     }
 
     return result;
-  }, [payables, receivables, initialBalance, horizon]);
+  }, [payables, receivables, fixedExpenses, initialBalance, horizon]);
 
   const summaryAt = (days: number) => {
     const slice = projections.slice(0, days + 1);
