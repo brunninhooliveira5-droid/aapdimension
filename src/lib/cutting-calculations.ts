@@ -17,9 +17,10 @@
 // ─────────────────────────────────────────────────────
 // ETAPA 2 — FATOR DE VELOCIDADE POR ESPESSURA
 // ─────────────────────────────────────────────────────
-// Materiais mais espessos exigem menor velocidade de corte.
-// O fator é multiplicado pela velocidade base do simulador.
+// O fator é configurado pelo administrador na aba Materiais,
+// dentro de cada espessura cadastrada (campo "Fator Velocidade").
 //
+// Valores sugeridos por padrão ao criar uma espessura:
 // | Espessura   | Fator |
 // |-------------|-------|
 // | ≤ 1mm       | 1.00  |
@@ -28,7 +29,10 @@
 // | ≤ 10mm      | 0.30  |
 // | ≤ 15mm      | 0.20  |
 // | > 15mm      | 0.12  |
-export function getSpeedFactor(thicknessMM: number): number {
+//
+// O fator é sempre lido do banco de dados (cutting_material_thicknesses.speed_factor).
+// A função abaixo é mantida apenas como fallback para espessuras sem fator configurado.
+export function getDefaultSpeedFactor(thicknessMM: number): number {
   if (thicknessMM <= 1) return 1;
   if (thicknessMM <= 3) return 0.7;
   if (thicknessMM <= 6) return 0.45;
@@ -45,12 +49,11 @@ export function getSpeedFactor(thicknessMM: number): number {
 //   effectiveSpeedMmin  = effectiveSpeedMMmin / 1000
 //
 // baseSpeedMMmin: configurado no Simulador de Precificação
-// speedFactor:    determinado pela espessura do material
+// speedFactor:    configurado pelo admin na espessura do material
 export function calculateEffectiveSpeed(
   baseSpeedMMmin: number,
-  thicknessMM: number
+  speedFactor: number
 ): { effectiveSpeedMMmin: number; effectiveSpeedMmin: number; speedFactor: number } {
-  const speedFactor = getSpeedFactor(thicknessMM);
   const effectiveSpeedMMmin = baseSpeedMMmin * speedFactor;
   const effectiveSpeedMmin = effectiveSpeedMMmin / 1000;
   return { effectiveSpeedMMmin, effectiveSpeedMmin, speedFactor };
@@ -200,6 +203,8 @@ export interface CalculateQuoteInput {
   pricePerM2: number;
   unitPrice: number;
   materialAdjustmentPercent: number;
+  // Speed factor from cutting_material_thicknesses (admin-editable)
+  speedFactor: number;
 }
 
 /**
@@ -210,9 +215,10 @@ export function calculateQuote(input: CalculateQuoteInput): QuoteCalculationResu
   const pathLengthM = input.pathLengthMM / 1000;
   const fileAreaM2 = (input.bboxWidthMM * input.bboxHeightMM) / 1_000_000;
 
-  // ETAPA 2
-  const { effectiveSpeedMMmin, effectiveSpeedMmin, speedFactor } =
-    calculateEffectiveSpeed(input.baseSpeedMMmin, input.thicknessValue);
+  // ETAPA 2 — usa speedFactor do banco (admin-editável)
+  const speedFactor = input.speedFactor > 0 ? input.speedFactor : getDefaultSpeedFactor(input.thicknessValue);
+  const { effectiveSpeedMMmin, effectiveSpeedMmin } =
+    calculateEffectiveSpeed(input.baseSpeedMMmin, speedFactor);
 
   // ETAPA 3
   const estimatedTimeMin = calculateEstimatedTime(pathLengthM, effectiveSpeedMmin, input.quantity);

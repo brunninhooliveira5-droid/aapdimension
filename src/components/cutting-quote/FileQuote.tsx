@@ -437,7 +437,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     const matId = material.replace("custom_", "");
     supabase
       .from("cutting_material_thicknesses")
-      .select("value, label, sheet_width, sheet_height, unit_price")
+      .select("value, label, sheet_width, sheet_height, unit_price, speed_factor")
       .eq("material_id", matId)
       .order("value")
       .then(({ data }) => {
@@ -691,6 +691,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const sheetW = selectedThickness?.sheet_width || 0;
       const sheetH = selectedThickness?.sheet_height || 0;
       const unitPrice = selectedThickness?.unit_price || 0;
+      const speedFactor = selectedThickness?.speed_factor ?? 1;
       const sheetM2 = sheetW > 0 && sheetH > 0 ? (sheetW * sheetH) / 1_000_000 : 0;
       const pricePerM2 = sheetM2 > 0 && unitPrice > 0 ? unitPrice / sheetM2 : 0;
 
@@ -713,6 +714,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         pricePerM2,
         unitPrice,
         materialAdjustmentPercent: adjustment,
+        speedFactor,
       });
 
       setResult(calcResult);

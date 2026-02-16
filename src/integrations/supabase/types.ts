@@ -51,6 +51,7 @@ export type Database = {
           material_id: string
           sheet_height: number
           sheet_width: number
+          speed_factor: number
           unit_price: number
           value: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           material_id: string
           sheet_height?: number
           sheet_width?: number
+          speed_factor?: number
           unit_price?: number
           value: string
         }
@@ -71,6 +73,7 @@ export type Database = {
           material_id?: string
           sheet_height?: number
           sheet_width?: number
+          speed_factor?: number
           unit_price?: number
           value?: string
         }
