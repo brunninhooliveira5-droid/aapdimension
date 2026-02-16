@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
-import { ShieldCheck, ShieldAlert, ShieldX, CheckCircle, FileDown, Settings, TrendingUp, TrendingDown, Wallet, CalendarClock } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, CheckCircle, FileDown, Settings, TrendingUp, TrendingDown, Wallet, CalendarClock, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -392,6 +392,44 @@ export function DecisionAssistant() {
     doc.save(`decisao-${description || "simulacao"}-${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
+  const [applying, setApplying] = useState(false);
+
+  const applyInstallment = async (opt: InstallmentOption) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) { toast.error("Usuário não autenticado"); return; }
+    const label = description || "Simulação";
+    setApplying(true);
+    try {
+      const now = new Date();
+      const parentId = crypto.randomUUID();
+      const entries = [];
+      for (let i = 1; i <= opt.parcelas; i++) {
+        const dueDate = new Date(now.getFullYear(), now.getMonth() + i, now.getDate());
+        entries.push({
+          id: i === 1 ? parentId : undefined,
+          parent_id: i === 1 ? null : parentId,
+          supplier: label,
+          description: `${label} — parcela ${i}/${opt.parcelas}`,
+          amount: Math.round(opt.valorParcela * 100) / 100,
+          due_date: dueDate.toISOString().split("T")[0],
+          status: "aberto",
+          installment_number: i,
+          total_installments: opt.parcelas,
+          created_by: userId,
+          is_recurring: false,
+        });
+      }
+      const { error } = await supabase.from("finance_accounts_payable").insert(entries);
+      if (error) throw error;
+      toast.success(`${opt.parcelas} parcelas de ${fmt(opt.valorParcela)} lançadas em Contas a Pagar!`);
+    } catch (err: any) {
+      toast.error("Erro ao lançar parcelas: " + (err.message || "erro desconhecido"));
+    } finally {
+      setApplying(false);
+    }
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground p-4 text-center">Carregando dados financeiros...</p>;
 
   return (
@@ -522,6 +560,9 @@ export function DecisionAssistant() {
                 <p className="text-sm font-semibold text-emerald-400">
                   Parcelamento recomendado: {analysis.bestInstallment.parcelas}x de {fmt(analysis.bestInstallment.valorParcela)}
                 </p>
+                <Button size="sm" variant="outline" className="ml-auto gap-1.5" disabled={applying} onClick={() => applyInstallment(analysis.bestInstallment!)}>
+                  <Send className="w-3.5 h-3.5" /> {applying ? "Lançando..." : "Lançar em Contas a Pagar"}
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground ml-7">
                 Impacto mensal: {analysis.bestInstallment.comprometimento.toFixed(1)}% da receita média ({fmt(avgMonthlyRevenue)}/mês)
@@ -605,6 +646,11 @@ export function DecisionAssistant() {
                         <p className="text-xs text-muted-foreground">Comprometimento: {opt.comprometimento.toFixed(1)}%</p>
                         <p className="text-xs text-muted-foreground">{opt.pctReceita.toFixed(1)}% da receita média mensal</p>
                       </div>
+                      {opt.decision !== "NÃO RECOMENDADO" && (
+                        <Button size="sm" variant="outline" className="w-full gap-1.5 mt-1" disabled={applying} onClick={() => applyInstallment(opt)}>
+                          <Send className="w-3.5 h-3.5" /> {applying ? "Lançando..." : "Lançar"}
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
