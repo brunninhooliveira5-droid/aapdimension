@@ -1339,12 +1339,12 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
                     <Input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={serviceValue || ""}
-                      onChange={(e) => setServiceValue(Math.max(0, Number(e.target.value)))}
+                      type="text"
+                      inputMode="decimal"
+                      value={serviceValue > 0 ? serviceValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
+                      onChange={(e) => setServiceValue(Number(e.target.value.replace(/[^\d]/g, "")) / 100)}
                       className="pl-10 text-sm"
+                      placeholder="0,00"
                     />
                   </div>
                   {serviceValueIncluded && serviceValue === 0 && (
