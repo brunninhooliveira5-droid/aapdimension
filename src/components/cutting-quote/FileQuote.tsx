@@ -939,7 +939,16 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       doc.text(lines, 14, finalY + 12);
     }
 
-    doc.save(`orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`);
+    // Use blob + link click to work inside sandboxed iframes
+    const pdfBlob = doc.output("blob");
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = `orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     toast.success("PDF exportado com sucesso!");
     } catch (err: any) {
       console.error("Erro ao gerar PDF:", err?.message, err?.stack, err);
