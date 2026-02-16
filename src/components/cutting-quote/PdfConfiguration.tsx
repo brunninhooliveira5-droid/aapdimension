@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Settings2, Upload, Trash2, Save, Building2, Palette, Eye } from "lucide-react";
+import { Settings2, Upload, Trash2, Save, Building2, Palette, Eye, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -164,8 +164,98 @@ export function PdfConfiguration() {
     return <p className="text-sm text-muted-foreground py-8 text-center">Carregando configurações...</p>;
   }
 
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // Mock data for preview
+  const mockRows = [
+    ...(settings.show_material ? [["Material", "Aço Carbono"]] : []),
+    ...(settings.show_thickness ? [["Espessura", "3 mm"]] : []),
+    ...(settings.show_cutting_value ? [["Valor do Corte", fmt(185)]] : []),
+    ...(settings.show_material_value ? [["Valor do Material", fmt(42.5)]] : []),
+    ["TOTAL", fmt(227.5)],
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Live Preview */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="w-4 h-4 text-primary" />
+            Preview do PDF
+          </CardTitle>
+          <CardDescription>Visualização em tempo real do orçamento exportado</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto" style={{ maxWidth: 520, aspectRatio: "210/297" }}>
+            {/* Header bar */}
+            <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: settings.primary_color }}>
+              <div className="flex items-center gap-3">
+                {settings.logo_url && (
+                  <img src={settings.logo_url} alt="Logo" className="h-8 w-auto object-contain rounded" style={{ background: "rgba(255,255,255,0.15)", padding: 2 }} />
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-white font-semibold text-sm">{settings.company_name || "Nome da Empresa"}</p>
+                {(settings.company_phone || settings.company_email) && (
+                  <p className="text-white/70 text-[9px] mt-0.5">
+                    {[settings.company_phone, settings.company_email].filter(Boolean).join(" | ")}
+                  </p>
+                )}
+                {settings.company_cnpj && (
+                  <p className="text-white/70 text-[9px]">CNPJ: {settings.company_cnpj}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-3 space-y-2">
+              {settings.company_address && (
+                <p className="text-gray-400 text-[8px]">{settings.company_address}</p>
+              )}
+              <div className="space-y-0.5">
+                {settings.show_date && <p className="text-gray-700 text-[9px]">Data: {new Date().toLocaleDateString("pt-BR")}</p>}
+                {settings.show_customer && <p className="text-gray-700 text-[9px]">Cliente: João da Silva</p>}
+                {settings.show_delivery && <p className="text-gray-700 text-[9px]">Prazo de Entrega: 5 dias úteis</p>}
+              </div>
+
+              {/* Table */}
+              <table className="w-full mt-2 text-[9px] border-collapse">
+                <thead>
+                  <tr>
+                    <th className="text-left text-white px-2 py-1 rounded-tl" style={{ backgroundColor: settings.primary_color }}>Item</th>
+                    <th className="text-left text-white px-2 py-1 rounded-tr" style={{ backgroundColor: settings.primary_color }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockRows.map((row, i) => {
+                    const isTotal = row[0] === "TOTAL";
+                    return (
+                      <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                        <td className={`px-2 py-1 text-gray-700 ${isTotal ? "font-bold text-[10px]" : ""}`}>{row[0]}</td>
+                        <td
+                          className={`px-2 py-1 ${isTotal ? "font-bold text-[10px]" : "text-gray-700"}`}
+                          style={isTotal ? { color: settings.accent_color } : undefined}
+                        >
+                          {row[1]}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Footer */}
+              {settings.footer_text && (
+                <p className="text-gray-400 text-[7px] mt-3 pt-2 border-t border-gray-100 leading-relaxed">
+                  {settings.footer_text}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Company Info */}
       <Card>
         <CardHeader className="pb-3">
