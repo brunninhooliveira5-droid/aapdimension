@@ -556,8 +556,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     const f = e.target.files?.[0];
     if (!f) return;
     const ext = f.name.split(".").pop()?.toLowerCase();
-    if (ext !== "dxf" && ext !== "svg") {
-      toast.error("Apenas arquivos DXF ou SVG são aceitos.");
+    if (ext !== "svg") {
+      toast.error("Apenas arquivos SVG são aceitos.");
       return;
     }
     setFile(f);
@@ -945,7 +945,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 ) : (
                   <div className="space-y-1">
                     <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Clique para enviar arquivo DXF ou SVG</p>
+                    <p className="text-sm text-muted-foreground">Clique para enviar arquivo SVG</p>
                   </div>
                 )}
               </div>
