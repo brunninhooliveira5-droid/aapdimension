@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2 } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ interface ManagedUser {
   role: UserRole;
   approved: boolean;
   rejected: boolean;
+  hasCustomAccess: boolean;
 }
 
 const assignableRoles: { value: UserRole; label: string }[] = [
@@ -47,15 +49,20 @@ const UsersPage = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("*");
-
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
+    const [{ data: profiles }, { data: roles }, { data: accessRows }] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("user_section_access" as any).select("user_id, sections"),
+    ]);
 
     const roleMap = new Map(roles?.map(r => [r.user_id, r.role as UserRole]) ?? []);
+    const accessMap = new Set<string>();
+    (accessRows as any[] ?? []).forEach((row: any) => {
+      // Has custom access if any section is not default ("visible")
+      const sections = row.sections ?? {};
+      const hasCustom = Object.values(sections).some((v: any) => v !== "visible");
+      if (hasCustom) accessMap.add(row.user_id);
+    });
 
     const mapped: ManagedUser[] = (profiles ?? []).map((p: any) => ({
       id: p.id,
@@ -70,6 +77,7 @@ const UsersPage = () => {
       role: roleMap.get(p.id) ?? "operador",
       approved: p.approved ?? false,
       rejected: p.rejected ?? false,
+      hasCustomAccess: accessMap.has(p.id),
     }));
 
     setUsers(mapped);
@@ -242,13 +250,30 @@ const UsersPage = () => {
                     <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{u.company}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                        u.role === "admin" || u.role === "admin_master" ? "bg-warning/15 text-warning border-warning/30" :
-                        u.role === "operador" ? "bg-info/15 text-info border-info/30" :
-                        "bg-success/15 text-success border-success/30"
-                      }`}>
-                        {roleLabels[u.role]}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          u.role === "admin" || u.role === "admin_master" ? "bg-warning/15 text-warning border-warning/30" :
+                          u.role === "operador" ? "bg-info/15 text-info border-info/30" :
+                          "bg-success/15 text-success border-success/30"
+                        }`}>
+                          {roleLabels[u.role]}
+                        </span>
+                        {u.hasCustomAccess && (
+                          <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary border border-primary/20">
+                                  <SlidersHorizontal className="w-2.5 h-2.5" />
+                                  Personalizado
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Este usuário possui configurações de acesso personalizadas
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
