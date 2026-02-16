@@ -92,7 +92,7 @@ export function QuoteReports() {
     const savedRevenue = openQuotes.reduce((s, q) => s + getTotal(q), 0);
     const totalCost = quotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
     const closedRevenue = closedQuotes.reduce((s, q) => s + getTotal(q), 0);
-    const closedProfit = closedQuotes.reduce((s, q) => s + (Number(q.suggested_sale) - Number(q.material_cost)), 0);
+    const closedProfit = closedQuotes.reduce((s, q) => s + (Number(q.suggested_sale) - Number(q.material_cost)) + (Number((q as any).service_value) || 0), 0);
     return {
       savedRevenue,
       totalCost,
