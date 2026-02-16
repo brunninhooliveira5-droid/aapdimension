@@ -351,7 +351,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     // Generate preview
     const text = await f.text();
     if (ext === "svg") {
-      // Wrap SVG for consistent styled preview with forced visible colors
+      // Parse SVG, apply visible colors, then convert to data URI for reliable rendering
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(text, "image/svg+xml");
       const svgEl = svgDoc.querySelector("svg");
@@ -362,26 +362,23 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           const h = parseFloat(svgEl.getAttribute("height") || "100");
           svgEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
         }
-        // Remove fixed width/height so it scales to container
+        // Remove fixed dimensions so it scales
         svgEl.removeAttribute("width");
         svgEl.removeAttribute("height");
-        svgEl.setAttribute("style", "width:100%;height:100%;max-height:280px;");
-        
-        // Inject a style element to force all strokes/fills visible on dark bg
+
+        // Inject style to force visible strokes on dark backgrounds
         const styleEl = svgDoc.createElementNS("http://www.w3.org/2000/svg", "style");
-        styleEl.textContent = `
-          * {
-            stroke: hsl(38, 92%, 55%) !important;
-            fill: none !important;
-            stroke-width: inherit;
-          }
-          svg { overflow: visible; }
-        `;
+        styleEl.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; } svg { overflow: visible; }`;
         svgEl.insertBefore(styleEl, svgEl.firstChild);
-        
-        setFilePreview(svgEl.outerHTML);
+
+        // Convert to base64 data URI for <img> rendering (avoids sanitization issues)
+        const svgString = new XMLSerializer().serializeToString(svgEl);
+        const encoded = btoa(unescape(encodeURIComponent(svgString)));
+        setFilePreview(`data:image/svg+xml;base64,${encoded}`);
       } else {
-        setFilePreview(text);
+        // Fallback: use raw text as data URI
+        const encoded = btoa(unescape(encodeURIComponent(text)));
+        setFilePreview(`data:image/svg+xml;base64,${encoded}`);
       }
     } else {
       const svgPreview = await generateDxfSvgPreview(text);
@@ -522,10 +519,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
             </Button>
           </CardHeader>
           <CardContent>
-            <div
-              className="w-full h-[300px] bg-secondary/30 rounded-lg border border-border flex items-center justify-center overflow-hidden p-4"
-              dangerouslySetInnerHTML={{ __html: filePreview }}
-            />
+            <div className="w-full h-[300px] bg-secondary/30 rounded-lg border border-border flex items-center justify-center overflow-hidden p-4">
+              {filePreview.startsWith("data:") ? (
+                <img src={filePreview} alt="Preview SVG" className="max-w-full max-h-full object-contain" />
+              ) : (
+                <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: filePreview }} />
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
