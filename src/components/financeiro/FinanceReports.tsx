@@ -2,8 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, Table as TableIcon, BarChart3 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Download, FileText, Table as TableIcon, BarChart3, CalendarIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface PayableRow {
   amount: number;
@@ -42,7 +47,15 @@ export function FinanceReports() {
   const [receivables, setReceivables] = useState<ReceivableRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [periodMode, setPeriodMode] = useState<"preset" | "custom">("preset");
   const [months, setMonths] = useState("6");
+  const [startDate, setStartDate] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    d.setDate(1);
+    return d;
+  });
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [view, setView] = useState<"dre" | "comparison">("dre");
 
   useEffect(() => {
@@ -63,14 +76,31 @@ export function FinanceReports() {
   // Generate month keys for selected range
   const monthKeys = useMemo(() => {
     const keys: string[] = [];
-    const n = Number(months);
-    for (let i = n - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    if (periodMode === "preset") {
+      const n = Number(months);
+      for (let i = n - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      }
+    } else if (startDate && endDate) {
+      const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+      while (current <= end) {
+        keys.push(`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`);
+        current.setMonth(current.getMonth() + 1);
+      }
     }
     return keys;
-  }, [months]);
+  }, [periodMode, months, startDate, endDate]);
+
+  const periodLabel = useMemo(() => {
+    if (periodMode === "preset") return `últimos ${months} meses`;
+    if (startDate && endDate) {
+      return `${format(startDate, "dd/MM/yyyy")} a ${format(endDate, "dd/MM/yyyy")}`;
+    }
+    return "período customizado";
+  }, [periodMode, months, startDate, endDate]);
 
   // Monthly aggregations
   const monthlyData = useMemo(() => {
@@ -127,7 +157,7 @@ export function FinanceReports() {
     if (view === "dre") {
       const lines = [
         "DRE Simplificado",
-        `Período: últimos ${months} meses`,
+        `Período: ${periodLabel}`,
         "",
         "RECEITAS",
         ...dre.revenuesByCategory.map(([name, val]) => `${name};${val.toFixed(2)}`),
@@ -140,7 +170,7 @@ export function FinanceReports() {
         `Resultado Líquido;${dre.resultado.toFixed(2)}`,
         `Margem (%);${dre.margin.toFixed(1)}`,
       ];
-      downloadFile(lines.join("\n"), `dre-${months}meses.csv`, "text/csv;charset=utf-8;");
+      downloadFile(lines.join("\n"), `dre-${periodLabel.replace(/\//g, "-")}.csv`, "text/csv;charset=utf-8;");
     } else {
       const header = ["Mês", "Receitas", "Despesas", "Resultado"].join(";");
       const rows = monthlyData.map(m => [m.label, m.receitas.toFixed(2), m.despesas.toFixed(2), m.resultado.toFixed(2)].join(";"));
@@ -150,7 +180,7 @@ export function FinanceReports() {
         monthlyData.reduce((s, m) => s + m.despesas, 0).toFixed(2),
         monthlyData.reduce((s, m) => s + m.resultado, 0).toFixed(2),
       ].join(";");
-      downloadFile([header, ...rows, "", totals].join("\n"), `comparativo-${months}meses.csv`, "text/csv;charset=utf-8;");
+      downloadFile([header, ...rows, "", totals].join("\n"), `comparativo-${periodLabel.replace(/\//g, "-")}.csv`, "text/csv;charset=utf-8;");
     }
   };
 
@@ -164,7 +194,7 @@ export function FinanceReports() {
     doc.setFontSize(16);
     doc.text(view === "dre" ? "DRE Simplificado" : "Comparativo Mensal", pageW / 2, 20, { align: "center" });
     doc.setFontSize(10);
-    doc.text(`Período: últimos ${months} meses`, pageW / 2, 28, { align: "center" });
+    doc.text(`Período: ${periodLabel}`, pageW / 2, 28, { align: "center" });
 
     if (view === "dre") {
       let y = 38;
@@ -238,7 +268,7 @@ export function FinanceReports() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = view === "dre" ? `dre-${months}meses.pdf` : `comparativo-${months}meses.pdf`;
+    a.download = view === "dre" ? `dre-${periodLabel.replace(/\//g, "-")}.pdf` : `comparativo-${periodLabel.replace(/\//g, "-")}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -280,16 +310,75 @@ export function FinanceReports() {
           </Button>
         </div>
 
-        <Select value={months} onValueChange={setMonths}>
-          <SelectTrigger className="w-[140px] bg-accent border-border">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="3">3 meses</SelectItem>
-            <SelectItem value="6">6 meses</SelectItem>
-            <SelectItem value="12">12 meses</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-1 bg-accent/50 rounded-lg border border-border p-1">
+          <Button
+            variant={periodMode === "preset" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setPeriodMode("preset")}
+          >
+            Predefinido
+          </Button>
+          <Button
+            variant={periodMode === "custom" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setPeriodMode("custom")}
+          >
+            Personalizado
+          </Button>
+        </div>
+
+        {periodMode === "preset" ? (
+          <Select value={months} onValueChange={setMonths}>
+            <SelectTrigger className="w-[140px] bg-accent border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 meses</SelectItem>
+              <SelectItem value="6">6 meses</SelectItem>
+              <SelectItem value="12">12 meses</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="flex gap-2 items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal gap-1.5", !startDate && "text-muted-foreground")}>
+                  <CalendarIcon className="w-3.5 h-3.5" />
+                  {startDate ? format(startDate, "dd/MM/yyyy") : "Início"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  locale={ptBR}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-muted-foreground text-sm">até</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal gap-1.5", !endDate && "text-muted-foreground")}>
+                  <CalendarIcon className="w-3.5 h-3.5" />
+                  {endDate ? format(endDate, "dd/MM/yyyy") : "Fim"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                  locale={ptBR}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
 
         <div className="flex gap-2 ml-auto">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
@@ -377,7 +466,7 @@ export function FinanceReports() {
         <div className="space-y-4">
           {/* Chart */}
           <div className="gradient-card rounded-lg border border-border p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Receitas vs Despesas — Últimos {months} meses</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Receitas vs Despesas — {periodLabel}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
