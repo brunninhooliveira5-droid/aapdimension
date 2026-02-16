@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, BarChart3, Settings2 } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2 } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
+import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
 import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
 import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
@@ -38,36 +39,46 @@ export default function CuttingQuotePage() {
         <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos DXF/SVG</p>
       </div>
 
-      {/* Simulator + Materials side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <PricingSimulator onPricingChange={setPricing} />
-        </div>
-        <div>
-          <MaterialsManagement />
-        </div>
-      </div>
-
-      {/* Tabs for Quote, Reports, PDF Config */}
-      <Tabs defaultValue="quote" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+      <Tabs defaultValue="simulator" className="w-full">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6">
+          <TabsTrigger value="simulator" className="gap-2">
+            <Calculator className="w-4 h-4" /> Simulador
+          </TabsTrigger>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="w-4 h-4" /> Salvos
+          </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <BarChart3 className="w-4 h-4" /> Relatórios
+          </TabsTrigger>
+          <TabsTrigger value="materials" className="gap-2">
+            <Layers className="w-4 h-4" /> Materiais
           </TabsTrigger>
           <TabsTrigger value="pdf-config" className="gap-2">
             <Settings2 className="w-4 h-4" /> Config. PDF
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="simulator">
+          <PricingSimulator onPricingChange={setPricing} />
+        </TabsContent>
+
         <TabsContent value="quote">
           <FileQuote pricing={pricing} machines={machines} />
         </TabsContent>
 
+        <TabsContent value="history">
+          <SavedQuotes />
+        </TabsContent>
+
         <TabsContent value="reports">
           <QuoteReports />
+        </TabsContent>
+
+        <TabsContent value="materials">
+          <MaterialsManagement />
         </TabsContent>
 
         <TabsContent value="pdf-config">

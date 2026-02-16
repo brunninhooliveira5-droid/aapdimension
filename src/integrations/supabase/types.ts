@@ -110,7 +110,6 @@ export type Database = {
       }
       cutting_quotes: {
         Row: {
-          client_name: string
           cost_per_minute: number
           created_at: string
           estimated_cost: number
@@ -124,13 +123,11 @@ export type Database = {
           path_length_m: number
           path_length_mm: number
           quantity: number
-          status: string
           suggested_sale: number
           thickness: string
           user_id: string
         }
         Insert: {
-          client_name?: string
           cost_per_minute?: number
           created_at?: string
           estimated_cost?: number
@@ -144,13 +141,11 @@ export type Database = {
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
-          status?: string
           suggested_sale?: number
           thickness: string
           user_id: string
         }
         Update: {
-          client_name?: string
           cost_per_minute?: number
           created_at?: string
           estimated_cost?: number
@@ -164,7 +159,6 @@ export type Database = {
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
-          status?: string
           suggested_sale?: number
           thickness?: string
           user_id?: string
