@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, AreaChart, Area } from "recharts";
-import { Calculator, TrendingUp, Target, DollarSign } from "lucide-react";
+import { Calculator, TrendingUp, Target, DollarSign, FileDown } from "lucide-react";
+import { generateScenarioPdf, generateInvestmentPdf, generateCashFlowProjectionPdf } from "@/lib/simulator-pdf";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -40,8 +41,17 @@ function ScenarioSimulator() {
 
   const lastMonth = projectionData[projectionData.length - 1];
 
+  const handleExportPdf = () => {
+    generateScenarioPdf({ currentRevenue, currentExpense, months, revenueGrowth, expenseGrowth, projectionData });
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5">
+          <FileDown className="w-4 h-4" />Exportar PDF
+        </Button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div><Label>Receita Atual (R$/mês)</Label><Input type="number" value={currentRevenue} onChange={e => setCurrentRevenue(Number(e.target.value))} /></div>
         <div><Label>Despesa Atual (R$/mês)</Label><Input type="number" value={currentExpense} onChange={e => setCurrentExpense(Number(e.target.value))} /></div>
@@ -125,8 +135,17 @@ function InvestmentAnalysis() {
     return { paybackMonths, npv: Math.round(npv), roi: Math.round(roi * 100) / 100, totalReturn: Math.round(totalReturn), netMonthly, cashflowData };
   }, [investmentCost, monthlyReturn, monthlyCost, analysisPeriod, discountRate]);
 
+  const handleExportPdf = () => {
+    generateInvestmentPdf({ investmentCost, monthlyReturn, monthlyCost, analysisPeriod, discountRate, ...analysis });
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5">
+          <FileDown className="w-4 h-4" />Exportar PDF
+        </Button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div><Label>Investimento (R$)</Label><Input type="number" value={investmentCost} onChange={e => setInvestmentCost(Number(e.target.value))} /></div>
         <div><Label>Retorno Mensal (R$)</Label><Input type="number" value={monthlyReturn} onChange={e => setMonthlyReturn(Number(e.target.value))} /></div>
@@ -181,8 +200,17 @@ function CashFlowProjection() {
     return data;
   }, [initialBalance, monthlyInflow, monthlyOutflow, projMonths, inflowVariation, outflowVariation]);
 
+  const handleExportPdf = () => {
+    generateCashFlowProjectionPdf({ initialBalance, monthlyInflow, monthlyOutflow, projMonths, inflowVariation, outflowVariation, projData });
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5">
+          <FileDown className="w-4 h-4" />Exportar PDF
+        </Button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div><Label>Saldo Inicial (R$)</Label><Input type="number" value={initialBalance} onChange={e => setInitialBalance(Number(e.target.value))} /></div>
         <div><Label>Entradas/mês (R$)</Label><Input type="number" value={monthlyInflow} onChange={e => setMonthlyInflow(Number(e.target.value))} /></div>
