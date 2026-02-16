@@ -262,6 +262,8 @@ interface QuoteResult {
   pricePerM2: number;
   unitPrice: number;
   fileAreaM2: number;
+  bboxWidthMM: number;
+  bboxHeightMM: number;
 }
 
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
@@ -282,6 +284,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [materialOwner, setMaterialOwner] = useState<"cliente" | "usuario">("cliente");
   const [customerName, setCustomerName] = useState("");
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
+  const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
 
   // Load custom materials
@@ -498,23 +501,25 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
       let pathLengthUnits = 0;
       let fileAreaM2 = 0;
+      let bboxWidthMM = 0;
+      let bboxHeightMM = 0;
 
       if (ext === "svg") {
         pathLengthUnits = parseSVGPathLength(text);
-        // SVG bbox in px, convert to mm (0.2646 mm/px at 96dpi), then to m²
         const bbox = parseSVGBBoxArea(text);
-        const wMM = bbox.width * 0.2646;
-        const hMM = bbox.height * 0.2646;
-        fileAreaM2 = (wMM * hMM) / 1_000_000;
+        bboxWidthMM = bbox.width * 0.2646;
+        bboxHeightMM = bbox.height * 0.2646;
+        fileAreaM2 = (bboxWidthMM * bboxHeightMM) / 1_000_000;
       } else {
         pathLengthUnits = await parseDXFPathLength(text);
-        // DXF bbox already in mm
         const DxfParser = (await import("dxf-parser")).default;
         const dxfParser = new DxfParser();
         try {
           const dxf = dxfParser.parseSync(text);
           const bbox = parseDXFBBoxArea(dxf);
-          fileAreaM2 = (bbox.width * bbox.height) / 1_000_000;
+          bboxWidthMM = bbox.width;
+          bboxHeightMM = bbox.height;
+          fileAreaM2 = (bboxWidthMM * bboxHeightMM) / 1_000_000;
         } catch { /* ignore */ }
       }
 
@@ -564,6 +569,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         pricePerM2: Math.round(pricePerM2 * 100) / 100,
         unitPrice: Math.round(unitPrice * 100) / 100,
         fileAreaM2: roundedFileAreaM2,
+        bboxWidthMM: Math.round(bboxWidthMM * 100) / 100,
+        bboxHeightMM: Math.round(bboxHeightMM * 100) / 100,
       });
       setEditablePrice(Math.round(suggestedSale * 100) / 100);
       const calcPriceM2 = Math.round(pricePerM2 * 100) / 100;
@@ -848,6 +855,47 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <p className="text-lg font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
                 </CardContent>
               </Card>
+
+              {/* Minimum Sheet Info */}
+              {result.bboxWidthMM > 0 && result.bboxHeightMM > 0 && (
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Ruler className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs font-medium">Chapa Mínima Necessária</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Margem (mm):</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={sheetMargin}
+                        onChange={(e) => setSheetMargin(Math.max(0, Number(e.target.value)))}
+                        className="h-7 w-20 text-xs"
+                      />
+                    </div>
+                    {(() => {
+                      const finalW = result.bboxWidthMM + 2 * sheetMargin;
+                      const finalH = result.bboxHeightMM + 2 * sheetMargin;
+                      const areaM2 = (finalW * finalH) / 1_000_000;
+                      return (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">
+                            {finalW.toFixed(1)} × {finalH.toFixed(1)} mm
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Área ocupada: {areaM2.toFixed(4)} m²
+                          </p>
+                          <p className="text-[10px] text-muted-foreground italic">
+                            Dimensão mínima baseada no envelope do arquivo. Não inclui otimização ou nesting.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Material Owner Toggle */}
               <div>
