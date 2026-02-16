@@ -804,6 +804,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const exportPDF = async () => {
     if (!result) return;
+    try {
     const s = pdfSettings;
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
@@ -930,6 +931,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
     doc.save(`orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`);
     toast.success("PDF exportado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    }
   };
 
   const saveQuote = async () => {

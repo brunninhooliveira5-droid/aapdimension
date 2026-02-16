@@ -85,19 +85,21 @@ export function QuoteReports() {
   }, [quotes]);
 
   const summaryStats = useMemo(() => {
-    if (!quotes.length) return { savedRevenue: 0, totalCost: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0 };
+    if (!quotes.length) return { savedRevenue: 0, totalCost: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0, closedProfit: 0 };
     const getTotal = (q: QuoteRow) => Number(q.total_price) || Number(q.suggested_sale);
     const closedQuotes = quotes.filter((q) => q.status === "fechado");
     const openQuotes = quotes.filter((q) => q.status !== "fechado");
     const savedRevenue = openQuotes.reduce((s, q) => s + getTotal(q), 0);
     const totalCost = quotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
     const closedRevenue = closedQuotes.reduce((s, q) => s + getTotal(q), 0);
+    const closedProfit = closedQuotes.reduce((s, q) => s + (Number(q.suggested_sale) - Number(q.material_cost)), 0);
     return {
       savedRevenue,
       totalCost,
       totalQuotes: quotes.length,
       closedRevenue,
       closedCount: closedQuotes.length,
+      closedProfit,
     };
   }, [quotes]);
 
@@ -151,7 +153,8 @@ export function QuoteReports() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <DollarSign className="w-3.5 h-3.5" /> Lucro Estimado
             </div>
-            <p className="text-xl font-bold text-primary">{fmt(summaryStats.closedRevenue - summaryStats.totalCost)}</p>
+            <p className="text-xl font-bold text-primary">{fmt(summaryStats.closedProfit)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Corte - Material (fechados)</p>
           </CardContent>
         </Card>
       </div>

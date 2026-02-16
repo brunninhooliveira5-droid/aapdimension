@@ -87,6 +87,7 @@ export function SavedQuotes() {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const exportQuotePDF = (q: SavedQuote) => {
+    try {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text("Orçamento de Corte CNC", 14, 22);
@@ -113,6 +114,10 @@ export function SavedQuotes() {
     });
 
     doc.save(`orcamento_${q.file_name.replace(/\.\w+$/, "")}.pdf`);
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar PDF.");
+    }
   };
 
   const downloadOriginalFile = async (q: SavedQuote) => {
