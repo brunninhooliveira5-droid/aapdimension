@@ -1,4 +1,4 @@
-import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, DollarSign, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -23,7 +23,8 @@ const menuItems = [
   { title: "Equipamentos Dimension", url: "/equipamentos", icon: Package, section: "equipamentos" },
   
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
-  { title: "Boletos", url: "/financeiro", icon: DollarSign, section: "financeiro" },
+  { title: "Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira" },
+  { title: "Boletos", url: "/boletos", icon: Receipt, section: "financeiro" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },

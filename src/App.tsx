@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import BulletinsPage from "./pages/BulletinsPage";
 import CuttingQuotePage from "./pages/CuttingQuotePage";
 import FilesPage from "./pages/FilesPage";
+import GestaoFinanceiraPage from "./pages/GestaoFinanceiraPage";
 
 const queryClient = new QueryClient();
 
@@ -53,7 +54,8 @@ const AppRoutes = () => {
         <Route path="/manutencao" element={<RoleGate section="manutencao"><Maintenance /></RoleGate>} />
         <Route path="/equipamentos" element={<RoleGate section="equipamentos"><EquipmentCatalog /></RoleGate>} />
         <Route path="/pecas" element={<RoleGate section="pecas"><PartsStores /></RoleGate>} />
-        <Route path="/financeiro" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
+        <Route path="/boletos" element={<RoleGate section="financeiro"><Financial /></RoleGate>} />
+        <Route path="/gestao-financeira" element={<RoleGate section="gestao_financeira"><GestaoFinanceiraPage /></RoleGate>} />
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
         <Route path="/usuarios" element={<RoleGate section="usuarios"><UsersPage /></RoleGate>} />
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
