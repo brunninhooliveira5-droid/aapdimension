@@ -22,8 +22,38 @@ export default function CuttingQuotePage() {
   });
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
 
+  // Load pricing settings directly so it doesn't depend on Simulator tab rendering
   useEffect(() => {
     if (!session?.user) return;
+
+    // Load pricing settings
+    supabase
+      .from("pricing_settings" as any)
+      .select("*")
+      .eq("user_id", session.user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          const productiveHours = Number(data.productive_hours) || 160;
+          const profitMargin = Number(data.profit_margin) || 30;
+          const avgCutSpeed = Number(data.avg_cut_speed) || 2;
+
+          const totalFixed = (Number(data.rent) || 0) + (Number(data.electricity) || 0) + (Number(data.internet) || 0) + (Number(data.other_fixed) || 0);
+          const totalMachine = (Number(data.machine_cost) || 0) + (Number(data.gas_consumable) || 0) + (Number(data.maintenance_cost) || 0) + (Number(data.other_machine) || 0);
+          const totalMonthlyCost = totalFixed + totalMachine;
+
+          const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
+          const costPerMinute = costPerHour / 60;
+          const costPerMeter = avgCutSpeed > 0 ? costPerMinute / avgCutSpeed : 0;
+          const marginMultiplier = 1 + profitMargin / 100;
+          const minPrice = costPerMinute;
+          const suggestedPrice = costPerMinute * marginMultiplier;
+
+          setPricing({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice });
+        }
+      });
+
+    // Load machines
     supabase
       .from("machines")
       .select("*")
