@@ -49,6 +49,9 @@ export type Database = {
           id: string
           label: string
           material_id: string
+          sheet_height: number
+          sheet_width: number
+          unit_price: number
           value: string
         }
         Insert: {
@@ -56,6 +59,9 @@ export type Database = {
           id?: string
           label: string
           material_id: string
+          sheet_height?: number
+          sheet_width?: number
+          unit_price?: number
           value: string
         }
         Update: {
@@ -63,6 +69,9 @@ export type Database = {
           id?: string
           label?: string
           material_id?: string
+          sheet_height?: number
+          sheet_width?: number
+          unit_price?: number
           value?: string
         }
         Relationships: [

@@ -351,7 +351,21 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     // Generate preview
     const text = await f.text();
     if (ext === "svg") {
-      setFilePreview(text);
+      // Wrap SVG for consistent styled preview
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(text, "image/svg+xml");
+      const svgEl = svgDoc.querySelector("svg");
+      if (svgEl) {
+        svgEl.setAttribute("style", "width:100%;height:100%");
+        if (!svgEl.getAttribute("viewBox")) {
+          const w = svgEl.getAttribute("width") || "100";
+          const h = svgEl.getAttribute("height") || "100";
+          svgEl.setAttribute("viewBox", `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+        }
+        setFilePreview(svgEl.outerHTML);
+      } else {
+        setFilePreview(text);
+      }
     } else {
       const svgPreview = await generateDxfSvgPreview(text);
       setFilePreview(svgPreview);
