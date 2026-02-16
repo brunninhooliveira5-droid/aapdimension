@@ -362,6 +362,29 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           const h = svgEl.getAttribute("height") || "100";
           svgEl.setAttribute("viewBox", `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
         }
+        // Force visible stroke colors on all shape elements for dark backgrounds
+        const shapeEls = svgEl.querySelectorAll("path, line, circle, rect, ellipse, polyline, polygon");
+        shapeEls.forEach((el) => {
+          const stroke = el.getAttribute("stroke");
+          const fill = el.getAttribute("fill");
+          const style = el.getAttribute("style") || "";
+          // If stroke is black/none/missing and fill is none/transparent, force visible color
+          const isBlackOrMissing = (c: string | null) => !c || c === "none" || c === "#000" || c === "#000000" || c === "black" || c === "rgb(0,0,0)";
+          if (isBlackOrMissing(stroke) && (!fill || fill === "none" || fill === "transparent")) {
+            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
+            if (!stroke && !style.includes("stroke-width")) {
+              el.setAttribute("stroke-width", "1");
+            }
+          } else if (isBlackOrMissing(stroke) && !isBlackOrMissing(fill)) {
+            // Has a fill but black stroke - make stroke visible too
+            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
+          }
+          // If fill is black, make it transparent so shapes show as outlines
+          if (fill === "#000" || fill === "#000000" || fill === "black") {
+            el.setAttribute("fill", "none");
+            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
+          }
+        });
         setFilePreview(svgEl.outerHTML);
       } else {
         setFilePreview(text);
