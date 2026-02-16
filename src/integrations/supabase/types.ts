@@ -377,6 +377,201 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_accounts_payable: {
+        Row: {
+          amount: number
+          attachment_name: string | null
+          attachment_url: string | null
+          category_id: string | null
+          cost_center: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string
+          id: string
+          installment_number: number | null
+          is_recurring: boolean
+          notes: string | null
+          parent_id: string | null
+          payment_date: string | null
+          payment_method: string | null
+          recurrence_period: string | null
+          status: string
+          supplier: string
+          total_installments: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          cost_center?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          due_date: string
+          id?: string
+          installment_number?: number | null
+          is_recurring?: boolean
+          notes?: string | null
+          parent_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recurrence_period?: string | null
+          status?: string
+          supplier: string
+          total_installments?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          cost_center?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string
+          id?: string
+          installment_number?: number | null
+          is_recurring?: boolean
+          notes?: string | null
+          parent_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recurrence_period?: string | null
+          status?: string
+          supplier?: string
+          total_installments?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_accounts_payable_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_accounts_payable_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts_payable"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_accounts_receivable: {
+        Row: {
+          amount: number
+          attachment_name: string | null
+          attachment_url: string | null
+          category_id: string | null
+          client: string
+          created_at: string
+          created_by: string
+          description: string
+          expected_date: string
+          id: string
+          installment_number: number | null
+          notes: string | null
+          parent_id: string | null
+          receipt_method: string | null
+          received_date: string | null
+          status: string
+          total_installments: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          client: string
+          created_at?: string
+          created_by: string
+          description?: string
+          expected_date: string
+          id?: string
+          installment_number?: number | null
+          notes?: string | null
+          parent_id?: string | null
+          receipt_method?: string | null
+          received_date?: string | null
+          status?: string
+          total_installments?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attachment_name?: string | null
+          attachment_url?: string | null
+          category_id?: string | null
+          client?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          expected_date?: string
+          id?: string
+          installment_number?: number | null
+          notes?: string | null
+          parent_id?: string | null
+          receipt_method?: string | null
+          received_date?: string | null
+          status?: string
+          total_installments?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_accounts_receivable_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_accounts_receivable_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts_receivable"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_summary: {
         Row: {
           id: string
