@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -431,13 +432,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   }, [session]);
 
   // Load thicknesses for selected material in the quote form
-  const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string }[]>([]);
+  const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string; sheet_width: number; sheet_height: number; unit_price: number; speed_factor: number; is_dimension_preset: boolean; dimension_default_factor: number | null }[]>([]);
   useEffect(() => {
     if (!material) { setAvailableThicknesses([]); return; }
     const matId = material.replace("custom_", "");
     supabase
       .from("cutting_material_thicknesses")
-      .select("value, label, sheet_width, sheet_height, unit_price, speed_factor")
+      .select("value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
       .eq("material_id", matId)
       .order("value")
       .then(({ data }) => {
@@ -691,7 +692,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const sheetW = selectedThickness?.sheet_width || 0;
       const sheetH = selectedThickness?.sheet_height || 0;
       const unitPrice = selectedThickness?.unit_price || 0;
-      const speedFactor = selectedThickness?.speed_factor ?? 1;
+      const speedFactor = selectedThickness?.speed_factor ?? 0;
+      const isDimensionPreset = selectedThickness?.is_dimension_preset ?? false;
+      const dimensionDefaultFactor = selectedThickness?.dimension_default_factor ?? null;
+      const hasDbFactor = speedFactor > 0;
       const sheetM2 = sheetW > 0 && sheetH > 0 ? (sheetW * sheetH) / 1_000_000 : 0;
       const pricePerM2 = sheetM2 > 0 && unitPrice > 0 ? unitPrice / sheetM2 : 0;
 
@@ -715,6 +719,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         unitPrice,
         materialAdjustmentPercent: adjustment,
         speedFactor,
+        isDimensionPreset,
+        dimensionDefaultFactor,
+        hasDbFactor,
       });
 
       setResult(calcResult);
@@ -758,6 +765,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           quantity: result.quantity,
           fileName: result.fileName,
           pathLengthM: result.pathLengthM,
+          baseSpeedMMmin: result.baseSpeedMMmin,
+          speedFactor: result.speedFactor,
+          speedFactorOrigin: result.speedFactorOrigin,
           effectiveSpeedMMmin: result.effectiveSpeedMMmin,
           estimatedTimeMin: result.estimatedTimeMin,
           cutPrice: editablePrice,
@@ -998,16 +1008,53 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 )}
               </div>
 
+              {/* Speed Factor Origin Alert */}
+              {result.speedFactorOrigin === "Fallback padrão 1.0" && (
+                <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">
+                    Fator não cadastrado para esta espessura. Usando 1.0 (sem redução). Configure o fator na aba Materiais.
+                  </span>
+                </div>
+              )}
+
               {/* Technical Summary */}
               <div className="grid grid-cols-3 gap-2">
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <Gauge className="w-4 h-4 text-primary mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Velocidade Efetiva</p>
-                    <p className="text-sm font-bold">{result.effectiveSpeedMMmin.toFixed(0)} mm/min</p>
-                    <p className="text-[9px] text-muted-foreground">Base: {result.baseSpeedMMmin} × Fator: {result.speedFactor}</p>
-                  </CardContent>
-                </Card>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Card className="bg-secondary/50 border-border cursor-help">
+                        <CardContent className="p-3 text-center">
+                          <Gauge className="w-4 h-4 text-primary mx-auto mb-1" />
+                          <p className="text-[10px] text-muted-foreground">Velocidade Efetiva</p>
+                          <p className="text-sm font-bold">{result.effectiveSpeedMMmin.toFixed(0)} mm/min</p>
+                          <p className="text-[9px] text-muted-foreground">Base: {result.baseSpeedMMmin} × Fator: {result.speedFactor}</p>
+                          <div className="mt-1">
+                            {result.speedFactorOrigin === "Preset Dimension" && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
+                                <Zap className="w-2.5 h-2.5" /> Preset Dimension
+                              </span>
+                            )}
+                            {result.speedFactorOrigin === "Personalizado pelo Admin" && (
+                              <span className="text-[9px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                Personalizado
+                              </span>
+                            )}
+                            {result.speedFactorOrigin === "Fallback padrão 1.0" && (
+                              <span className="text-[9px] bg-yellow-500/15 text-yellow-600 px-1.5 py-0.5 rounded-full">
+                                Fallback 1.0
+                              </span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                      <p className="font-medium mb-1">Velocidade efetiva = Velocidade base (Simulador) × Fator (Material/Espessura)</p>
+                      <p className="text-muted-foreground">O fator recomendado Dimension é um valor padrão para estimativa de tempo e custo.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Card className="bg-secondary/50 border-border">
                   <CardContent className="p-3 text-center">
                     <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
