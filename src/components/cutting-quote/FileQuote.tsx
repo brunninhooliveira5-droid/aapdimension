@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -383,6 +384,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [materialOwner, setMaterialOwner] = useState<"cliente" | "usuario">("cliente");
   const [customerName, setCustomerName] = useState("");
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
+  const [serviceValue, setServiceValue] = useState(0);
+  const [serviceValueIncluded, setServiceValueIncluded] = useState(false);
   const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
@@ -409,7 +412,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       .then(({ data }) => {
         if (data) {
           const d = data as any;
-          setPdfSettings({
+           setPdfSettings({
             company_name: d.company_name || "",
             company_phone: d.company_phone || "",
             company_email: d.company_email || "",
@@ -426,6 +429,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
             show_date: d.show_date ?? true,
             show_customer: d.show_customer ?? true,
             footer_text: d.footer_text || "",
+            show_service_value: d.show_service_value ?? true,
+            label_service_value: d.label_service_value || "Valor de Serviço",
           });
         }
       });
@@ -749,8 +754,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     result?.materialAdjustmentPercent || 0
   );
 
-  // ── ETAPA 8: Total final ──
-  const totalPrice = calculateTotalPrice(editablePrice, materialCost);
+  // ── ETAPA 8: Total final (inclui serviço se ativo) ──
+  const serviceAmount = serviceValueIncluded ? serviceValue : 0;
+  const totalPrice = calculateTotalPrice(editablePrice, materialCost) + serviceAmount;
 
   const exportPDF = async () => {
     if (!result) return;
@@ -772,6 +778,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           estimatedTimeMin: result.estimatedTimeMin,
           cutPrice: editablePrice,
           materialCost,
+          serviceValue: serviceValueIncluded ? serviceValue : 0,
+          serviceValueIncluded,
           totalPrice,
           deliveryDeadline: deliveryDeadline.trim(),
         },
@@ -817,6 +825,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       material_cost: materialCost,
       material_owner: materialOwner,
       total_price: totalPrice,
+      service_value: serviceValue,
+      service_value_included: serviceValueIncluded,
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");
@@ -1202,6 +1212,41 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   Sugerido: {fmt(result.cutCost)} | Mínimo: {fmt(result.minCutCost)}
                 </p>
               </div>
+
+              {/* Service Value */}
+              <Card className="bg-secondary/50 border-border">
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Wrench className="w-3 h-3" /> Valor de Serviço
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground">Incluir no total</span>
+                      <Switch
+                        checked={serviceValueIncluded}
+                        onCheckedChange={setServiceValueIncluded}
+                      />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={serviceValue || ""}
+                      onChange={(e) => setServiceValue(Math.max(0, Number(e.target.value)))}
+                      className="pl-10 text-sm"
+                    />
+                  </div>
+                  {serviceValueIncluded && serviceValue === 0 && (
+                    <p className="text-[10px] text-yellow-600">Valor de serviço igual a zero</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {serviceValueIncluded ? "✅ Valor de Serviço incluído no total" : "Valor de Serviço não incluído"}
+                  </p>
+                </CardContent>
+              </Card>
 
               {/* Total */}
               <Card className="bg-primary/10 border-primary/30">

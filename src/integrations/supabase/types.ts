@@ -136,6 +136,8 @@ export type Database = {
           path_length_m: number
           path_length_mm: number
           quantity: number
+          service_value: number
+          service_value_included: boolean
           status: string
           suggested_sale: number
           thickness: string
@@ -160,6 +162,8 @@ export type Database = {
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
+          service_value?: number
+          service_value_included?: boolean
           status?: string
           suggested_sale?: number
           thickness: string
@@ -184,6 +188,8 @@ export type Database = {
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
+          service_value?: number
+          service_value_included?: boolean
           status?: string
           suggested_sale?: number
           thickness?: string
@@ -616,6 +622,7 @@ export type Database = {
           created_at: string
           footer_text: string | null
           id: string
+          label_service_value: string | null
           logo_url: string | null
           primary_color: string | null
           show_customer: boolean | null
@@ -624,6 +631,7 @@ export type Database = {
           show_delivery: boolean | null
           show_material: boolean | null
           show_material_value: boolean | null
+          show_service_value: boolean | null
           show_thickness: boolean | null
           updated_at: string
           user_id: string
@@ -638,6 +646,7 @@ export type Database = {
           created_at?: string
           footer_text?: string | null
           id?: string
+          label_service_value?: string | null
           logo_url?: string | null
           primary_color?: string | null
           show_customer?: boolean | null
@@ -646,6 +655,7 @@ export type Database = {
           show_delivery?: boolean | null
           show_material?: boolean | null
           show_material_value?: boolean | null
+          show_service_value?: boolean | null
           show_thickness?: boolean | null
           updated_at?: string
           user_id: string
@@ -660,6 +670,7 @@ export type Database = {
           created_at?: string
           footer_text?: string | null
           id?: string
+          label_service_value?: string | null
           logo_url?: string | null
           primary_color?: string | null
           show_customer?: boolean | null
@@ -668,6 +679,7 @@ export type Database = {
           show_delivery?: boolean | null
           show_material?: boolean | null
           show_material_value?: boolean | null
+          show_service_value?: boolean | null
           show_thickness?: boolean | null
           updated_at?: string
           user_id?: string
