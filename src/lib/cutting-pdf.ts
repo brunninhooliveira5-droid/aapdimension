@@ -12,6 +12,7 @@ import type { SpeedFactorOrigin } from "@/lib/cutting-calculations";
 export interface PdfQuoteData {
   // Dados gerais
   customerName: string;
+  customerPhone: string;
   date: string;
   machineName: string;
   material: string;
@@ -149,6 +150,9 @@ export async function generateQuotePDF(
   if (s.show_customer !== false && data.customerName.trim()) {
     doc.setFontSize(10);
     doc.text(`Cliente: ${data.customerName.trim()}`, 14, yPos);
+    if (data.customerPhone.trim()) {
+      doc.text(`Contato: ${data.customerPhone.trim()}`, 105, yPos);
+    }
     yPos += 6;
   }
   if (s.show_delivery !== false && data.deliveryDeadline.trim()) {
