@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, AreaChart, Area } from "recharts";
-import { Calculator, TrendingUp, Target, DollarSign, FileDown } from "lucide-react";
+import { Calculator, TrendingUp, Target, DollarSign, FileDown, ShieldCheck } from "lucide-react";
 import { generateScenarioPdf, generateInvestmentPdf, generateCashFlowProjectionPdf } from "@/lib/simulator-pdf";
+import { DecisionAssistant } from "./DecisionAssistant";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -258,12 +259,14 @@ export function DecisionSimulator() {
         <Calculator className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold text-foreground">Simulador de Decisão</h2>
       </div>
-      <Tabs defaultValue="scenarios" className="w-full">
-        <TabsList className="bg-muted/50 border border-border">
+      <Tabs defaultValue="assistant" className="w-full">
+        <TabsList className="bg-muted/50 border border-border flex-wrap h-auto">
+          <TabsTrigger value="assistant" className="gap-1.5 data-[state=active]:bg-background"><ShieldCheck className="w-3.5 h-3.5" />Assistente</TabsTrigger>
           <TabsTrigger value="scenarios" className="gap-1.5 data-[state=active]:bg-background"><TrendingUp className="w-3.5 h-3.5" />Cenários</TabsTrigger>
           <TabsTrigger value="investment" className="gap-1.5 data-[state=active]:bg-background"><Target className="w-3.5 h-3.5" />Investimentos</TabsTrigger>
           <TabsTrigger value="cashflow" className="gap-1.5 data-[state=active]:bg-background"><DollarSign className="w-3.5 h-3.5" />Projeção Caixa</TabsTrigger>
         </TabsList>
+        <TabsContent value="assistant" className="mt-4"><DecisionAssistant /></TabsContent>
         <TabsContent value="scenarios" className="mt-4"><ScenarioSimulator /></TabsContent>
         <TabsContent value="investment" className="mt-4"><InvestmentAnalysis /></TabsContent>
         <TabsContent value="cashflow" className="mt-4"><CashFlowProjection /></TabsContent>

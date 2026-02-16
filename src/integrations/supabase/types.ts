@@ -692,6 +692,86 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_fixed_expenses: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string
+          due_day: number
+          id: string
+          is_active: boolean
+          monthly_value: number
+          name: string
+          notes: string | null
+          payment_method: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by: string
+          due_day?: number
+          id?: string
+          is_active?: boolean
+          monthly_value?: number
+          name: string
+          notes?: string | null
+          payment_method?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string
+          due_day?: number
+          id?: string
+          is_active?: boolean
+          monthly_value?: number
+          name?: string
+          notes?: string | null
+          payment_method?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_fixed_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_simulator_settings: {
+        Row: {
+          created_at: string
+          id: string
+          max_installments: number
+          minimum_cash_reserve: number
+          projection_horizon_months: number
+          safe_commitment_limit: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_installments?: number
+          minimum_cash_reserve?: number
+          projection_horizon_months?: number
+          safe_commitment_limit?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_installments?: number
+          minimum_cash_reserve?: number
+          projection_horizon_months?: number
+          safe_commitment_limit?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_summary: {
         Row: {
           id: string

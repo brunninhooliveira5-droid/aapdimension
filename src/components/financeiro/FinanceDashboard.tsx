@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exportWeeklySummaryPdf } from "@/lib/finance-export";
+import { BreakEvenIndicator } from "./BreakEvenIndicator";
 
 interface PayableRow {
   id: string;
@@ -410,6 +411,9 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
           </div>
         </div>
       )}
+
+      {/* Break-Even Indicator */}
+      <BreakEvenIndicator />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
