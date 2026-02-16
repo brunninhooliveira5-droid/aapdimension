@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -199,6 +199,9 @@ interface QuoteResult {
   estimatedCost: number;
   minRecommended: number;
   suggestedSale: number;
+  sheetM2: number;
+  pricePerM2: number;
+  unitPrice: number;
 }
 
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
@@ -213,7 +216,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
   const [editablePrice, setEditablePrice] = useState(0);
+  const [editableMaterialPriceM2, setEditableMaterialPriceM2] = useState(0);
+  const [materialOwner, setMaterialOwner] = useState<"cliente" | "usuario">("cliente");
   const [customerName, setCustomerName] = useState("");
+  const [deliveryDeadline, setDeliveryDeadline] = useState("");
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
 
   // Load custom materials
@@ -235,7 +241,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     const matId = material.replace("custom_", "");
     supabase
       .from("cutting_material_thicknesses")
-      .select("value, label")
+      .select("value, label, sheet_width, sheet_height, unit_price")
       .eq("material_id", matId)
       .order("value")
       .then(({ data }) => {
@@ -456,6 +462,14 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const machine = machines.find((m) => m.id === machineId);
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
 
+      // Get sheet/material info from selected thickness
+      const selectedThickness = availableThicknesses.find((t: any) => t.value === thickness) as any;
+      const sheetW = selectedThickness?.sheet_width || 0;
+      const sheetH = selectedThickness?.sheet_height || 0;
+      const unitPrice = selectedThickness?.unit_price || 0;
+      const sheetM2 = sheetW > 0 && sheetH > 0 ? (sheetW * sheetH) / 1_000_000 : 0;
+      const pricePerM2 = sheetM2 > 0 && unitPrice > 0 ? unitPrice / sheetM2 : 0;
+
       setResult({
         fileName: file.name,
         pathLengthMM,
@@ -467,8 +481,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         estimatedCost: Math.round(estimatedCost * 100) / 100,
         minRecommended: Math.round(minRecommended * 100) / 100,
         suggestedSale: Math.round(suggestedSale * 100) / 100,
+        sheetM2: Math.round(sheetM2 * 10000) / 10000,
+        pricePerM2: Math.round(pricePerM2 * 100) / 100,
+        unitPrice: Math.round(unitPrice * 100) / 100,
       });
       setEditablePrice(Math.round(suggestedSale * 100) / 100);
+      setEditableMaterialPriceM2(Math.round(pricePerM2 * 100) / 100);
+      setMaterialOwner("cliente");
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
     } finally {
@@ -478,28 +497,58 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * (result.sheetM2 || 1) * quantity : 0;
+  const totalPrice = editablePrice + materialCost;
+
   const exportPDF = () => {
     if (!result) return;
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text("Orçamento de Corte CNC", 14, 22);
     doc.setFontSize(10);
-    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 30);
+    let yPos = 30;
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, yPos);
+    yPos += 6;
     if (customerName.trim()) {
-      doc.text(`Cliente: ${customerName.trim()}`, 14, 36);
+      doc.text(`Cliente: ${customerName.trim()}`, 14, yPos);
+      yPos += 6;
+    }
+    if (deliveryDeadline.trim()) {
+      doc.text(`Prazo de Entrega: ${deliveryDeadline.trim()}`, 14, yPos);
+      yPos += 6;
     }
 
+    const body: string[][] = [
+      ["Material", result.material],
+      ["Espessura", result.thickness],
+      ["Tempo Estimado de Corte", `${result.estimatedTimeMin.toFixed(2)} min`],
+      ["Valor do Corte", fmt(editablePrice)],
+    ];
+
+    if (materialOwner === "usuario") {
+      body.push(
+        ["Área da Chapa (m²)", result.sheetM2.toFixed(4)],
+        ["Valor/m² do Material", fmt(editableMaterialPriceM2)],
+        ["Custo do Material", fmt(materialCost)],
+      );
+    }
+
+    body.push(["", ""]);
+    body.push(["TOTAL", fmt(totalPrice)]);
+
     autoTable(doc, {
-      startY: customerName.trim() ? 44 : 38,
+      startY: yPos + 4,
       head: [["Item", "Valor"]],
-      body: [
-        ["Material", result.material],
-        ["Espessura", result.thickness],
-        ["Tempo Estimado de Corte", `${result.estimatedTimeMin.toFixed(2)} min`],
-        ["Preço Total", fmt(editablePrice)],
-      ],
+      body,
       theme: "striped",
       styles: { fontSize: 10 },
+      didParseCell: (data: any) => {
+        // Bold the TOTAL row
+        if (data.row.index === body.length - 1) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fontSize = 12;
+        }
+      },
     });
 
     doc.save(`orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`);
@@ -665,15 +714,28 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
               <CardDescription>{result.fileName}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Customer Name */}
-              <div>
-                <Label className="text-xs">Nome do Cliente</Label>
-                <Input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Nome do cliente para o PDF"
-                  className="mt-1"
-                />
+              {/* Customer Name & Delivery */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Nome do Cliente</Label>
+                  <Input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Nome do cliente"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1">
+                    <CalendarClock className="w-3 h-3" /> Prazo de Entrega
+                  </Label>
+                  <Input
+                    value={deliveryDeadline}
+                    onChange={(e) => setDeliveryDeadline(e.target.value)}
+                    placeholder="Ex: 5 dias úteis"
+                    className="mt-1"
+                  />
+                </div>
               </div>
 
               <Separator />
@@ -687,6 +749,18 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <p className="text-xs text-muted-foreground">Espessura</p>
                   <p className="text-sm font-medium">{result.thickness}</p>
                 </div>
+                {result.sheetM2 > 0 && (
+                  <>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Área da Chapa</p>
+                      <p className="text-sm font-medium">{result.sheetM2.toFixed(4)} m²</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Valor/m²</p>
+                      <p className="text-sm font-medium text-primary">{fmt(result.pricePerM2)}</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Card className="bg-secondary/50 border-border">
@@ -697,9 +771,61 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 </CardContent>
               </Card>
 
-              {/* Editable Price */}
+              {/* Material Owner Toggle */}
               <div>
-                <Label className="text-xs">Preço Total (editável)</Label>
+                <Label className="text-xs flex items-center gap-1 mb-2">
+                  <Package className="w-3 h-3" /> Material fornecido por:
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={materialOwner === "cliente" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setMaterialOwner("cliente")}
+                  >
+                    Cliente
+                  </Button>
+                  <Button
+                    variant={materialOwner === "usuario" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setMaterialOwner("usuario")}
+                  >
+                    Meu Material
+                  </Button>
+                </div>
+              </div>
+
+              {/* Material cost section when user provides material */}
+              {materialOwner === "usuario" && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-xs font-medium text-primary">Custo do Material</p>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={editableMaterialPriceM2 || ""}
+                          onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
+                          className="h-8 pl-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Custo material ({result.sheetM2.toFixed(2)} m² × {quantity})</span>
+                      <span className="font-medium">{fmt(materialCost)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Editable Cutting Price */}
+              <div>
+                <Label className="text-xs">Valor do Corte (editável)</Label>
                 <div className="relative mt-1">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
                   <Input
@@ -712,9 +838,17 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Sugerido: {fmt(result.suggestedSale)} — Modifique antes de gerar o PDF
+                  Sugerido: {fmt(result.suggestedSale)}
                 </p>
               </div>
+
+              {/* Total */}
+              <Card className="bg-primary/10 border-primary/30">
+                <CardContent className="p-3 flex justify-between items-center">
+                  <span className="text-sm font-medium">TOTAL</span>
+                  <span className="text-xl font-bold text-primary">{fmt(totalPrice)}</span>
+                </CardContent>
+              </Card>
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 gap-2" onClick={exportPDF}>
