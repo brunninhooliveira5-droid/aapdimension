@@ -33,6 +33,8 @@ interface SavedQuote {
   material_cost: number;
   material_owner: string;
   total_price: number;
+  client_name: string;
+  client_phone: string;
 }
 
 export function SavedQuotes() {
@@ -328,6 +330,26 @@ export function SavedQuotes() {
 
           {selectedQuote && (
             <div className="space-y-4">
+              {/* Client Info */}
+              {(selectedQuote.client_name || selectedQuote.client_phone) && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedQuote.client_name && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Cliente</p>
+                      <p className="font-medium">{selectedQuote.client_name}</p>
+                    </div>
+                  )}
+                  {selectedQuote.client_phone && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Contato</p>
+                      <p className="font-medium">{selectedQuote.client_phone}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(selectedQuote.client_name || selectedQuote.client_phone) && <Separator />}
+
               {/* Quote Info */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>

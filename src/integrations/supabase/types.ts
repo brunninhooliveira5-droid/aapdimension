@@ -122,6 +122,7 @@ export type Database = {
           base_speed_final_mmmin: number
           base_speed_origin: string
           client_name: string
+          client_phone: string
           cost_per_minute: number
           created_at: string
           effective_cut_length_m: number
@@ -155,6 +156,7 @@ export type Database = {
           base_speed_final_mmmin?: number
           base_speed_origin?: string
           client_name?: string
+          client_phone?: string
           cost_per_minute?: number
           created_at?: string
           effective_cut_length_m?: number
@@ -188,6 +190,7 @@ export type Database = {
           base_speed_final_mmmin?: number
           base_speed_origin?: string
           client_name?: string
+          client_phone?: string
           cost_per_minute?: number
           created_at?: string
           effective_cut_length_m?: number
