@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History, BarChart3, Layers } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2 } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
 import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -39,7 +40,7 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue="simulator" className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-5">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6">
           <TabsTrigger value="simulator" className="gap-2">
             <Calculator className="w-4 h-4" /> Simulador
           </TabsTrigger>
@@ -54,6 +55,9 @@ export default function CuttingQuotePage() {
           </TabsTrigger>
           <TabsTrigger value="materials" className="gap-2">
             <Layers className="w-4 h-4" /> Materiais
+          </TabsTrigger>
+          <TabsTrigger value="pdf-config" className="gap-2">
+            <Settings2 className="w-4 h-4" /> Config. PDF
           </TabsTrigger>
         </TabsList>
 
@@ -75,6 +79,21 @@ export default function CuttingQuotePage() {
 
         <TabsContent value="materials">
           <MaterialsManagement />
+        </TabsContent>
+
+        <TabsContent value="pdf-config">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-primary" />
+                Configuração de PDF
+              </CardTitle>
+              <CardDescription>Configure o layout e as informações do PDF de orçamento</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Em breve: personalize o PDF exportado.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
