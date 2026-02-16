@@ -56,7 +56,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, session, logout, hasAccess, hasProAccess } = useAuth();
+  const { user, session, logout, hasAccess, getSectionVisibility, hasProAccess } = useAuth();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
@@ -70,7 +70,6 @@ export function AppSidebar() {
     if (!user || !userId) return;
     setRequesting(true);
     try {
-      // Check if there's already a pending request
       const { data: existing } = await supabase
         .from("pro_access_requests" as any)
         .select("id, status")
@@ -97,6 +96,7 @@ export function AppSidebar() {
     setRequesting(false);
   };
 
+  // Filter items: show if visible or locked (not hidden)
   const visibleBasicItems = basicMenuItems.filter((item) => hasAccess(item.section));
   const visibleProItems = proMenuItems.filter((item) => hasAccess(item.section));
 
@@ -122,6 +122,33 @@ export function AppSidebar() {
             <SidebarMenu>
               {visibleBasicItems.map((item) => {
                 const isActive = item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
+                const visibility = getSectionVisibility(item.section);
+
+                if (visibility === "locked") {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="w-full">
+                              <SidebarMenuButton
+                                tooltip={item.title}
+                                className="opacity-50 cursor-not-allowed pointer-events-auto hover:bg-transparent"
+                              >
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">{item.title}</span>
+                              </SidebarMenuButton>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="text-xs">
+                            Acesso bloqueado pelo administrador
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </SidebarMenuItem>
+                  );
+                }
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
@@ -160,8 +187,10 @@ export function AppSidebar() {
                   {visibleProItems.map((item) => {
                     const isActive = location.pathname.startsWith(item.url);
                     const hasPro = hasProAccess(item.proFeature);
+                    const visibility = getSectionVisibility(item.section);
 
-                    if (!hasPro) {
+                    // Locked by admin or no PRO access
+                    if (visibility === "locked" || !hasPro) {
                       return (
                         <SidebarMenuItem key={item.title}>
                           <Tooltip>
@@ -177,7 +206,7 @@ export function AppSidebar() {
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="text-xs">
-                              Recurso disponível no Acesso PRO
+                              {visibility === "locked" ? "Acesso bloqueado pelo administrador" : "Recurso disponível no Acesso PRO"}
                             </TooltipContent>
                           </Tooltip>
                         </SidebarMenuItem>

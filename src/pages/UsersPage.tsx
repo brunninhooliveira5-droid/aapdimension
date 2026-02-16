@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -252,10 +252,13 @@ const UsersPage = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/usuarios/${u.id}/acesso`)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Controle de acesso">
+                          <Settings2 className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => navigate(`/dashboard/${u.id}`)} className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Ver dashboard">
                           <Eye className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(u)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(u)} className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                       </div>
