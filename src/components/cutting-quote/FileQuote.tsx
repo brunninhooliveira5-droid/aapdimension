@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -386,6 +387,11 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
   const [serviceValue, setServiceValue] = useState(0);
   const [serviceValueIncluded, setServiceValueIncluded] = useState(false);
+  // Override states
+  const [overridePasses, setOverridePasses] = useState(1);
+  const [passesOverridden, setPassesOverridden] = useState(false);
+  const [overrideBaseSpeed, setOverrideBaseSpeed] = useState(0);
+  const [speedOverridden, setSpeedOverridden] = useState(false);
   const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
@@ -736,6 +742,11 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       setEditableMaterialM2(calcResult.fileAreaM2);
       setEditableMaterialCost(Math.round(calcPriceM2 * calcResult.fileAreaM2 * 100) / 100);
       setMaterialOwner("cliente");
+      // Initialize overrides from calculated result
+      setOverridePasses(quantity);
+      setPassesOverridden(false);
+      setOverrideBaseSpeed(pricing.avgCutSpeed);
+      setSpeedOverridden(false);
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
     } finally {
@@ -744,6 +755,26 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // ── RECÁLCULO COM OVERRIDES ──
+  const currentBaseSpeed = speedOverridden ? overrideBaseSpeed : (result?.baseSpeedMMmin || 0);
+  const currentPasses = passesOverridden ? overridePasses : quantity;
+  const currentSpeedFactor = result?.speedFactor || 1;
+  const currentEffectiveSpeedMMmin = currentBaseSpeed * currentSpeedFactor;
+  const currentEffectiveSpeedMmin = currentEffectiveSpeedMMmin / 1000;
+  const currentEffectiveCutLengthM = (result?.pathLengthM || 0) * currentPasses;
+  const currentEstimatedTimeMin = currentEffectiveSpeedMmin > 0 ? currentEffectiveCutLengthM / currentEffectiveSpeedMmin : 0;
+
+  // Recalculate cut cost with overridden time
+  const recalcSuggestedPricePerMin = result?.suggestedPricePerMinute || 0;
+  const recalcCutCost = Math.round(currentEstimatedTimeMin * recalcSuggestedPricePerMin * 100) / 100;
+
+  // Auto-update editable price when overrides change
+  useEffect(() => {
+    if (result && (passesOverridden || speedOverridden)) {
+      setEditablePrice(recalcCutCost);
+    }
+  }, [recalcCutCost, passesOverridden, speedOverridden]);
 
   // ── ETAPA 7: Custo do material (insumo separado) ──
   const { totalMaterial: materialCost } = calculateMaterialCost(
@@ -758,6 +789,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const serviceAmount = serviceValueIncluded ? serviceValue : 0;
   const totalPrice = calculateTotalPrice(editablePrice, materialCost) + serviceAmount;
 
+  // Override origin labels
+  const passesOrigin = passesOverridden ? "manual_override" : "default";
+  const baseSpeedOrigin = speedOverridden ? "manual_override" : "simulator";
+
   const exportPDF = async () => {
     if (!result) return;
     try {
@@ -771,11 +806,15 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           quantity: result.quantity,
           fileName: result.fileName,
           pathLengthM: result.pathLengthM,
-          baseSpeedMMmin: result.baseSpeedMMmin,
-          speedFactor: result.speedFactor,
+          baseSpeedMMmin: currentBaseSpeed,
+          baseSpeedOrigin,
+          speedFactor: currentSpeedFactor,
           speedFactorOrigin: result.speedFactorOrigin,
-          effectiveSpeedMMmin: result.effectiveSpeedMMmin,
-          estimatedTimeMin: result.estimatedTimeMin,
+          effectiveSpeedMMmin: currentEffectiveSpeedMMmin,
+          estimatedTimeMin: Math.round(currentEstimatedTimeMin * 100) / 100,
+          passesFinal: currentPasses,
+          passesOrigin,
+          effectiveCutLengthM: Math.round(currentEffectiveCutLengthM * 100) / 100,
           cutPrice: editablePrice,
           materialCost,
           serviceValue: serviceValueIncluded ? serviceValue : 0,
@@ -816,8 +855,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       path_length_mm: result.pathLengthMM,
       path_length_m: result.pathLengthM,
       quantity,
-      estimated_time_min: result.estimatedTimeMin,
-      estimated_cost: result.cutCost,
+      estimated_time_min: Math.round(currentEstimatedTimeMin * 100) / 100,
+      estimated_cost: recalcCutCost,
       min_recommended: result.minCutCost,
       suggested_sale: editablePrice,
       cost_per_minute: pricing.costPerMinute,
@@ -827,6 +866,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       total_price: totalPrice,
       service_value: serviceValue,
       service_value_included: serviceValueIncluded,
+      passes_final: currentPasses,
+      passes_origin: passesOrigin,
+      base_speed_final_mmmin: currentBaseSpeed,
+      base_speed_origin: baseSpeedOrigin,
+      speed_factor_used: currentSpeedFactor,
+      effective_speed_mmmin: Math.round(currentEffectiveSpeedMMmin * 100) / 100,
+      effective_cut_length_m: Math.round(currentEffectiveCutLengthM * 100) / 100,
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");
@@ -948,7 +994,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
             {/* Quantity */}
             <div>
-              <Label className="text-xs">Quantidade de Passadas</Label>
+              <Label className="text-xs">Quantidade</Label>
               <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} />
             </div>
 
@@ -1028,55 +1074,117 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 </div>
               )}
 
+              {/* Overrides: Passadas e Velocidade */}
+              <Card className="bg-secondary/50 border-border">
+                <CardContent className="p-3 space-y-3">
+                  <p className="text-xs font-medium flex items-center gap-1">
+                    <Gauge className="w-3.5 h-3.5 text-primary" /> Ajustes do Cálculo
+                  </p>
+
+                  {/* Passes Override */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] text-muted-foreground">Passadas</Label>
+                      {passesOverridden && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/40 text-primary">Override manual</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={pricing.maxPassesOverride}
+                        value={currentPasses}
+                        onChange={(e) => {
+                          if (!pricing.allowUserOverridePasses) return;
+                          const val = Math.max(1, Math.min(pricing.maxPassesOverride, Number(e.target.value)));
+                          setOverridePasses(val);
+                          setPassesOverridden(true);
+                        }}
+                        disabled={!pricing.allowUserOverridePasses}
+                        className="h-7 w-20 text-xs"
+                      />
+                      {passesOverridden && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[10px] gap-1 px-2"
+                          onClick={() => { setPassesOverridden(false); setOverridePasses(quantity); }}
+                        >
+                          <RotateCcw className="w-3 h-3" /> Restaurar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Speed Override */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] text-muted-foreground">Velocidade Base (mm/min)</Label>
+                      {speedOverridden && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/40 text-primary">Override manual</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={pricing.minSpeedOverrideMMmin}
+                        max={pricing.maxSpeedOverrideMMmin}
+                        step={10}
+                        value={currentBaseSpeed || ""}
+                        onChange={(e) => {
+                          if (!pricing.allowUserOverrideSpeed) return;
+                          const val = Math.max(pricing.minSpeedOverrideMMmin, Math.min(pricing.maxSpeedOverrideMMmin, Number(e.target.value)));
+                          setOverrideBaseSpeed(val);
+                          setSpeedOverridden(true);
+                        }}
+                        disabled={!pricing.allowUserOverrideSpeed}
+                        className="h-7 w-28 text-xs"
+                      />
+                      {speedOverridden && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[10px] gap-1 px-2"
+                          onClick={() => { setSpeedOverridden(false); setOverrideBaseSpeed(pricing.avgCutSpeed); }}
+                        >
+                          <RotateCcw className="w-3 h-3" /> Simulador
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">
+                      Fator: {currentSpeedFactor.toFixed(2)} ({result.speedFactorOrigin}) → Efetiva: {currentEffectiveSpeedMMmin.toFixed(0)} mm/min
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Technical Summary */}
               <div className="grid grid-cols-3 gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Card className="bg-secondary/50 border-border cursor-help">
-                        <CardContent className="p-3 text-center">
-                          <Gauge className="w-4 h-4 text-primary mx-auto mb-1" />
-                          <p className="text-[10px] text-muted-foreground">Velocidade Efetiva</p>
-                          <p className="text-sm font-bold">{result.effectiveSpeedMMmin.toFixed(0)} mm/min</p>
-                          <p className="text-[9px] text-muted-foreground">Base: {result.baseSpeedMMmin} × Fator: {result.speedFactor}</p>
-                          <div className="mt-1">
-                            {result.speedFactorOrigin === "Preset Dimension" && (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
-                                <Zap className="w-2.5 h-2.5" /> Preset Dimension
-                              </span>
-                            )}
-                            {result.speedFactorOrigin === "Personalizado pelo Admin" && (
-                              <span className="text-[9px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">
-                                Personalizado
-                              </span>
-                            )}
-                            {result.speedFactorOrigin === "Fallback padrão 1.0" && (
-                              <span className="text-[9px] bg-yellow-500/15 text-yellow-600 px-1.5 py-0.5 rounded-full">
-                                Fallback 1.0
-                              </span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-                      <p className="font-medium mb-1">Velocidade efetiva = Velocidade base (Simulador) × Fator (Material/Espessura)</p>
-                      <p className="text-muted-foreground">O fator recomendado Dimension é um valor padrão para estimativa de tempo e custo.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Card className="bg-secondary/50 border-border">
-                  <CardContent className="p-3 text-center">
-                    <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
-                    <p className="text-[10px] text-muted-foreground">Tempo Estimado</p>
-                    <p className="text-sm font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
-                  </CardContent>
-                </Card>
                 <Card className="bg-secondary/50 border-border">
                   <CardContent className="p-3 text-center">
                     <Ruler className="w-4 h-4 text-primary mx-auto mb-1" />
                     <p className="text-[10px] text-muted-foreground">Comprimento</p>
                     <p className="text-sm font-bold">{result.pathLengthM.toFixed(2)} m</p>
+                    {currentPasses > 1 && (
+                      <p className="text-[9px] text-muted-foreground">Efetivo: {currentEffectiveCutLengthM.toFixed(2)} m</p>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <Gauge className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Vel. Efetiva</p>
+                    <p className="text-sm font-bold">{currentEffectiveSpeedMMmin.toFixed(0)} mm/min</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Tempo Estimado</p>
+                    <p className="text-sm font-bold">{currentEstimatedTimeMin.toFixed(1)} min</p>
                   </CardContent>
                 </Card>
               </div>

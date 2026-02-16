@@ -119,9 +119,13 @@ export type Database = {
       }
       cutting_quotes: {
         Row: {
+          base_speed_final_mmmin: number
+          base_speed_origin: string
           client_name: string
           cost_per_minute: number
           created_at: string
+          effective_cut_length_m: number
+          effective_speed_mmmin: number
           estimated_cost: number
           estimated_time_min: number
           file_name: string
@@ -133,11 +137,14 @@ export type Database = {
           material_cost: number
           material_owner: string
           min_recommended: number
+          passes_final: number
+          passes_origin: string
           path_length_m: number
           path_length_mm: number
           quantity: number
           service_value: number
           service_value_included: boolean
+          speed_factor_used: number
           status: string
           suggested_sale: number
           thickness: string
@@ -145,9 +152,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          base_speed_final_mmmin?: number
+          base_speed_origin?: string
           client_name?: string
           cost_per_minute?: number
           created_at?: string
+          effective_cut_length_m?: number
+          effective_speed_mmmin?: number
           estimated_cost?: number
           estimated_time_min?: number
           file_name: string
@@ -159,11 +170,14 @@ export type Database = {
           material_cost?: number
           material_owner?: string
           min_recommended?: number
+          passes_final?: number
+          passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
           service_value?: number
           service_value_included?: boolean
+          speed_factor_used?: number
           status?: string
           suggested_sale?: number
           thickness: string
@@ -171,9 +185,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          base_speed_final_mmmin?: number
+          base_speed_origin?: string
           client_name?: string
           cost_per_minute?: number
           created_at?: string
+          effective_cut_length_m?: number
+          effective_speed_mmmin?: number
           estimated_cost?: number
           estimated_time_min?: number
           file_name?: string
@@ -185,11 +203,14 @@ export type Database = {
           material_cost?: number
           material_owner?: string
           min_recommended?: number
+          passes_final?: number
+          passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
           quantity?: number
           service_value?: number
           service_value_included?: boolean
+          speed_factor_used?: number
           status?: string
           suggested_sale?: number
           thickness?: string
@@ -688,6 +709,8 @@ export type Database = {
       }
       pricing_settings: {
         Row: {
+          allow_user_override_passes: boolean
+          allow_user_override_speed: boolean
           avg_cut_speed: number
           electricity: number
           gas_consumable: number
@@ -695,6 +718,9 @@ export type Database = {
           internet: number
           machine_cost: number
           maintenance_cost: number
+          max_passes_override: number
+          max_speed_override_mmmin: number
+          min_speed_override_mmmin: number
           other_fixed: number
           other_machine: number
           productive_hours: number
@@ -704,6 +730,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          allow_user_override_passes?: boolean
+          allow_user_override_speed?: boolean
           avg_cut_speed?: number
           electricity?: number
           gas_consumable?: number
@@ -711,6 +739,9 @@ export type Database = {
           internet?: number
           machine_cost?: number
           maintenance_cost?: number
+          max_passes_override?: number
+          max_speed_override_mmmin?: number
+          min_speed_override_mmmin?: number
           other_fixed?: number
           other_machine?: number
           productive_hours?: number
@@ -720,6 +751,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          allow_user_override_passes?: boolean
+          allow_user_override_speed?: boolean
           avg_cut_speed?: number
           electricity?: number
           gas_consumable?: number
@@ -727,6 +760,9 @@ export type Database = {
           internet?: number
           machine_cost?: number
           maintenance_cost?: number
+          max_passes_override?: number
+          max_speed_override_mmmin?: number
+          min_speed_override_mmmin?: number
           other_fixed?: number
           other_machine?: number
           productive_hours?: number
