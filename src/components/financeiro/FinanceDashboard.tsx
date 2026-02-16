@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/StatCard";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock, Calendar, Receipt, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine } from "recharts";
 import { Badge } from "@/components/ui/badge";
 
@@ -64,8 +64,41 @@ export function FinanceDashboard() {
     fetch();
   }, []);
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+
+  // Weekly summary (current week: Monday to Sunday)
+  const weekStart = useMemo(() => {
+    const d = new Date(now);
+    const day = d.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    d.setDate(d.getDate() - diff);
+    return d.toISOString().split("T")[0];
+  }, []);
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().split("T")[0];
+  }, [weekStart]);
+
+  const weeklySummary = useMemo(() => {
+    const paidThisWeek = payables.filter(p => p.status === "pago" && p.payment_date && p.payment_date >= weekStart && p.payment_date <= weekEnd);
+    const receivedThisWeek = receivables.filter(r => r.status === "recebido" && r.received_date && r.received_date >= weekStart && r.received_date <= weekEnd);
+    const dueSoonPay = payables.filter(p => p.status !== "pago" && p.due_date >= weekStart && p.due_date <= weekEnd);
+    const dueSoonRec = receivables.filter(r => r.status !== "recebido" && r.expected_date >= weekStart && r.expected_date <= weekEnd);
+
+    const totalPaidWeek = paidThisWeek.reduce((s, p) => s + Number(p.amount), 0);
+    const totalReceivedWeek = receivedThisWeek.reduce((s, r) => s + Number(r.amount), 0);
+    const totalDuePay = dueSoonPay.reduce((s, p) => s + Number(p.amount), 0);
+    const totalDueRec = dueSoonRec.reduce((s, r) => s + Number(r.amount), 0);
+
+    const topPayments = [...paidThisWeek].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 3);
+    const topReceipts = [...receivedThisWeek].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 3);
+    const pendingItems = [...dueSoonPay.map(p => ({ label: p.supplier, amount: Number(p.amount), date: p.due_date, type: "pagar" as const })), ...dueSoonRec.map(r => ({ label: r.client, amount: Number(r.amount), date: r.expected_date, type: "receber" as const }))].sort((a, b) => a.date.localeCompare(b.date));
+
+    return { totalPaidWeek, totalReceivedWeek, totalDuePay, totalDueRec, topPayments, topReceipts, pendingItems, balance: totalReceivedWeek - totalPaidWeek };
+  }, [payables, receivables, weekStart, weekEnd]);
 
   const totalPayable30 = useMemo(
     () => payables.filter(p => p.status !== "pago" && p.due_date <= in30).reduce((s, p) => s + Number(p.amount), 0),
@@ -207,6 +240,93 @@ export function FinanceDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard title="Total Pago (acumulado)" value={fmt(totalPaid)} icon={DollarSign} />
         <StatCard title="Atrasado (Pagar)" value={fmt(overduePayable)} icon={Clock} variant={overduePayable > 0 ? "danger" : "default"} />
+      </div>
+
+      {/* Weekly Summary */}
+      <div className="gradient-card rounded-lg border border-border p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
+            Resumo Semanal ({formatDate(weekStart)} – {formatDate(weekEnd)})
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-md bg-accent/40 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Recebido</p>
+            <p className="text-lg font-bold text-emerald-400 mt-1">{fmt(weeklySummary.totalReceivedWeek)}</p>
+          </div>
+          <div className="rounded-md bg-accent/40 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pago</p>
+            <p className="text-lg font-bold text-red-400 mt-1">{fmt(weeklySummary.totalPaidWeek)}</p>
+          </div>
+          <div className="rounded-md bg-accent/40 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo Semana</p>
+            <p className={`text-lg font-bold mt-1 ${weeklySummary.balance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(weeklySummary.balance)}</p>
+          </div>
+          <div className="rounded-md bg-accent/40 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</p>
+            <p className="text-lg font-bold text-amber-400 mt-1">{fmt(weeklySummary.totalDuePay + weeklySummary.totalDueRec)}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-xs font-medium text-muted-foreground">Maiores Recebimentos</span>
+            </div>
+            {weeklySummary.topReceipts.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 italic">Nenhum recebimento na semana</p>
+            ) : (
+              weeklySummary.topReceipts.map(r => (
+                <div key={r.id} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
+                  <span className="text-foreground truncate mr-2">{r.client}</span>
+                  <span className="text-emerald-400 font-medium whitespace-nowrap">{fmt(Number(r.amount))}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Receipt className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-xs font-medium text-muted-foreground">Maiores Pagamentos</span>
+            </div>
+            {weeklySummary.topPayments.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 italic">Nenhum pagamento na semana</p>
+            ) : (
+              weeklySummary.topPayments.map(p => (
+                <div key={p.id} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
+                  <span className="text-foreground truncate mr-2">{p.supplier}</span>
+                  <span className="text-red-400 font-medium whitespace-nowrap">{fmt(Number(p.amount))}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-medium text-muted-foreground">Pendentes da Semana</span>
+            </div>
+            {weeklySummary.pendingItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 italic">Nenhum vencimento na semana</p>
+            ) : (
+              weeklySummary.pendingItems.slice(0, 5).map((item, i) => (
+                <div key={i} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${item.type === "pagar" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+                      {item.type === "pagar" ? "Pagar" : "Receber"}
+                    </Badge>
+                    <span className="text-foreground truncate">{item.label}</span>
+                  </div>
+                  <span className="text-foreground font-medium whitespace-nowrap ml-2">{fmt(item.amount)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Alerts Panel */}
