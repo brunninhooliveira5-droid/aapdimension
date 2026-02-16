@@ -2,11 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus, Search, Trash2, Pencil, CalendarDays, FileDown, TableIcon } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, CalendarDays, FileDown, TableIcon, CalendarIcon } from "lucide-react";
 import { exportFinanceListPdf, exportFinanceListCsv } from "@/lib/finance-export";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -52,6 +56,8 @@ export function AccountsPayable() {
 
   const [dialog, setDialog] = useState<{ open: boolean; item?: PayableRow }>({ open: false });
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" });
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,13 +76,23 @@ export function AccountsPayable() {
     return items.filter(item => {
       if (statusFilter !== "todos" && item.status !== statusFilter) return false;
       if (categoryFilter !== "todos" && item.category_id !== categoryFilter) return false;
+      if (dateFrom) {
+        const d = new Date(item.due_date);
+        if (d < dateFrom) return false;
+      }
+      if (dateTo) {
+        const d = new Date(item.due_date);
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        if (d > end) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         return item.supplier.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [items, statusFilter, categoryFilter, search]);
+  }, [items, statusFilter, categoryFilter, search, dateFrom, dateTo]);
 
   const handleDelete = async () => {
     const { error } = await supabase.from("finance_accounts_payable").delete().eq("id", deleteConfirm.id);
@@ -135,6 +151,31 @@ export function AccountsPayable() {
             {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 w-[140px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Data início"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 w-[140px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateTo ? format(dateTo, "dd/MM/yyyy") : "Data fim"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+          </PopoverContent>
+        </Popover>
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Limpar datas</Button>
+        )}
         {canEdit && (
           <Button size="sm" className="gap-1.5" onClick={() => setDialog({ open: true })}>
             <Plus className="w-4 h-4" /> Nova Conta
