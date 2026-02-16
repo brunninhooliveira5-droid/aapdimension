@@ -351,40 +351,34 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     // Generate preview
     const text = await f.text();
     if (ext === "svg") {
-      // Wrap SVG for consistent styled preview
+      // Wrap SVG for consistent styled preview with forced visible colors
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(text, "image/svg+xml");
       const svgEl = svgDoc.querySelector("svg");
       if (svgEl) {
-        svgEl.setAttribute("style", "width:100%;height:100%");
+        // Ensure viewBox exists
         if (!svgEl.getAttribute("viewBox")) {
-          const w = svgEl.getAttribute("width") || "100";
-          const h = svgEl.getAttribute("height") || "100";
-          svgEl.setAttribute("viewBox", `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+          const w = parseFloat(svgEl.getAttribute("width") || "100");
+          const h = parseFloat(svgEl.getAttribute("height") || "100");
+          svgEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
         }
-        // Force visible stroke colors on all shape elements for dark backgrounds
-        const shapeEls = svgEl.querySelectorAll("path, line, circle, rect, ellipse, polyline, polygon");
-        shapeEls.forEach((el) => {
-          const stroke = el.getAttribute("stroke");
-          const fill = el.getAttribute("fill");
-          const style = el.getAttribute("style") || "";
-          // If stroke is black/none/missing and fill is none/transparent, force visible color
-          const isBlackOrMissing = (c: string | null) => !c || c === "none" || c === "#000" || c === "#000000" || c === "black" || c === "rgb(0,0,0)";
-          if (isBlackOrMissing(stroke) && (!fill || fill === "none" || fill === "transparent")) {
-            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
-            if (!stroke && !style.includes("stroke-width")) {
-              el.setAttribute("stroke-width", "1");
-            }
-          } else if (isBlackOrMissing(stroke) && !isBlackOrMissing(fill)) {
-            // Has a fill but black stroke - make stroke visible too
-            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
+        // Remove fixed width/height so it scales to container
+        svgEl.removeAttribute("width");
+        svgEl.removeAttribute("height");
+        svgEl.setAttribute("style", "width:100%;height:100%;max-height:280px;");
+        
+        // Inject a style element to force all strokes/fills visible on dark bg
+        const styleEl = svgDoc.createElementNS("http://www.w3.org/2000/svg", "style");
+        styleEl.textContent = `
+          * {
+            stroke: hsl(38, 92%, 55%) !important;
+            fill: none !important;
+            stroke-width: inherit;
           }
-          // If fill is black, make it transparent so shapes show as outlines
-          if (fill === "#000" || fill === "#000000" || fill === "black") {
-            el.setAttribute("fill", "none");
-            el.setAttribute("stroke", "hsl(38, 92%, 55%)");
-          }
-        });
+          svg { overflow: visible; }
+        `;
+        svgEl.insertBefore(styleEl, svgEl.firstChild);
+        
         setFilePreview(svgEl.outerHTML);
       } else {
         setFilePreview(text);
