@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/StatCard";
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Clock, ArrowUpCircle, ArrowDownCircle, Bell, CalendarClock } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine } from "recharts";
 import { Badge } from "@/components/ui/badge";
 
 interface PayableRow {
@@ -153,7 +153,8 @@ export function FinanceDashboard() {
 
   // Monthly chart data (last 6 months)
   const monthlyData = useMemo(() => {
-    const months: { label: string; receitas: number; despesas: number }[] = [];
+    const months: { label: string; receitas: number; despesas: number; resultado: number; acumulado: number }[] = [];
+    let acumulado = 0;
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
@@ -168,7 +169,10 @@ export function FinanceDashboard() {
         .filter(p => p.status === "pago" && p.payment_date?.startsWith(key))
         .reduce((s, p) => s + Number(p.amount), 0);
 
-      months.push({ label, receitas, despesas });
+      const resultado = receitas - despesas;
+      acumulado += resultado;
+
+      months.push({ label, receitas, despesas, resultado, acumulado });
     }
     return months;
   }, [payables, receivables]);
@@ -286,6 +290,49 @@ export function FinanceDashboard() {
             </ResponsiveContainer>
           )}
         </div>
+      </div>
+
+      {/* Monthly Evolution Chart */}
+      <div className="gradient-card rounded-lg border border-border p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Evolução Mensal — Receitas, Despesas e Resultado Acumulado</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradReceitas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradDespesas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--chart-5))" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="hsl(var(--chart-5))" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradAcumulado" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+            <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${v < 0 ? "-" : ""}${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(0)}k` : Math.abs(v)}`} />
+            <Tooltip
+              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+              formatter={(value: number, name: string) => {
+                const labels: Record<string, string> = { receitas: "Receitas", despesas: "Despesas", acumulado: "Acumulado" };
+                return [fmt(value), labels[name] || name];
+              }}
+            />
+            <Legend
+              formatter={(value: string) => {
+                const labels: Record<string, string> = { receitas: "Receitas", despesas: "Despesas", acumulado: "Acumulado" };
+                return labels[value] || value;
+              }}
+            />
+            <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="4 4" strokeOpacity={0.5} />
+            <Area type="monotone" dataKey="receitas" stroke="hsl(var(--chart-2))" fill="url(#gradReceitas)" strokeWidth={2} dot={{ r: 3 }} />
+            <Area type="monotone" dataKey="despesas" stroke="hsl(var(--chart-5))" fill="url(#gradDespesas)" strokeWidth={2} dot={{ r: 3 }} />
+            <Area type="monotone" dataKey="acumulado" stroke="hsl(var(--primary))" fill="url(#gradAcumulado)" strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4 }} />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
