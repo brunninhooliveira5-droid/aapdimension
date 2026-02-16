@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
@@ -56,6 +59,8 @@ const UserAccessPage = () => {
   const [hasPlanRow, setHasPlanRow] = useState(false);
   const [sections, setSections] = useState<Record<string, Visibility>>({});
   const [hasAccessRow, setHasAccessRow] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
 
   useEffect(() => {
     if (!userId) return;
@@ -181,6 +186,10 @@ const UserAccessPage = () => {
           <h1 className="text-xl font-bold text-foreground">Controle de Acesso</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Gerencie a visibilidade dos módulos para este usuário</p>
         </div>
+        <Button variant="outline" onClick={() => setTemplateDialogOpen(true)} className="gap-2 border-border">
+          <BookmarkPlus className="h-4 w-4" />
+          Salvar como Template
+        </Button>
         <Button onClick={handleSave} disabled={saving} className="gap-2">
           <Save className="h-4 w-4" />
           {saving ? "Salvando..." : "Salvar Alterações"}
@@ -318,6 +327,55 @@ const UserAccessPage = () => {
           ))}
         </div>
       </div>
+
+      {/* Save as Template Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Salvar como Template</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Salve a configuração atual de acesso como um template reutilizável para aplicar a múltiplos usuários.
+          </p>
+          <div className="space-y-2">
+            <Label className="text-foreground">Nome do Template</Label>
+            <Input
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Ex: Acesso Operador Padrão"
+              className="bg-accent border-border"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button
+              disabled={!templateName.trim()}
+              onClick={async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+                const { error } = await supabase.from("access_templates" as any).insert({
+                  name: templateName.trim(),
+                  sections,
+                  pro_access: proAccess,
+                  created_by: user.id,
+                } as any);
+                if (error) {
+                  toast.error("Erro ao salvar template.");
+                } else {
+                  toast.success(`Template "${templateName.trim()}" salvo com sucesso!`);
+                  setTemplateDialogOpen(false);
+                  setTemplateName("");
+                }
+              }}
+            >
+              <BookmarkPlus className="h-4 w-4 mr-2" />
+              Salvar Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
