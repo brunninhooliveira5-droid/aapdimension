@@ -933,7 +933,19 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   };
 
   const saveQuote = async () => {
-    if (!result || !session?.user) return;
+    if (!result || !session?.user || !file) return;
+
+    // Upload original file to storage
+    let filePath: string | null = null;
+    const fileExt = file.name.split(".").pop();
+    const storagePath = `${session.user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from("cutting-files")
+      .upload(storagePath, file);
+    if (!uploadError) {
+      filePath = storagePath;
+    }
+
     const { error } = await supabase.from("cutting_quotes" as any).insert({
       user_id: session.user.id,
       file_name: result.fileName,
@@ -949,6 +961,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       min_recommended: result.minRecommended,
       suggested_sale: result.suggestedSale,
       cost_per_minute: pricing.costPerMinute,
+      file_path: filePath,
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");

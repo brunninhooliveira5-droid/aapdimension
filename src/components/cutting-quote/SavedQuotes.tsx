@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, History, Download, CheckCircle, FileText } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -25,12 +27,14 @@ interface SavedQuote {
   suggested_sale: number;
   created_at: string;
   status: string;
+  file_path: string | null;
 }
 
 export function SavedQuotes() {
   const { session } = useAuth();
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
 
   const fetchQuotes = async () => {
     if (!session?.user) return;
@@ -48,12 +52,18 @@ export function SavedQuotes() {
   }, [session]);
 
   const deleteQuote = async (id: string) => {
+    const quote = quotes.find((q) => q.id === id);
+    // Delete file from storage if exists
+    if (quote?.file_path) {
+      await supabase.storage.from("cutting-files").remove([quote.file_path]);
+    }
     const { error } = await supabase.from("cutting_quotes" as any).delete().eq("id", id);
     if (error) {
       toast.error("Erro ao excluir orçamento.");
     } else {
       toast.success("Orçamento excluído.");
       setQuotes((prev) => prev.filter((q) => q.id !== id));
+      if (selectedQuote?.id === id) setSelectedQuote(null);
     }
   };
 
@@ -102,6 +112,24 @@ export function SavedQuotes() {
     doc.save(`orcamento_${q.file_name.replace(/\.\w+$/, "")}.pdf`);
   };
 
+  const downloadOriginalFile = async (q: SavedQuote) => {
+    if (!q.file_path) {
+      toast.error("Arquivo original não disponível para este orçamento.");
+      return;
+    }
+    const { data, error } = await supabase.storage.from("cutting-files").download(q.file_path);
+    if (error || !data) {
+      toast.error("Erro ao baixar arquivo.");
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = q.file_name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Carregando orçamentos...</p>;
   }
@@ -119,81 +147,178 @@ export function SavedQuotes() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <History className="w-4 h-4 text-primary" />
-          Orçamentos Salvos
-        </CardTitle>
-        <CardDescription>{quotes.length} orçamento(s) encontrado(s)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Arquivo</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Espessura</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Tempo</TableHead>
-                <TableHead className="text-right">Preço Sugerido</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {quotes.map((q) => (
-                <TableRow key={q.id}>
-                  <TableCell className="text-xs">{new Date(q.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell className="text-xs font-medium">{q.file_name}</TableCell>
-                  <TableCell className="text-xs">{q.material}</TableCell>
-                  <TableCell className="text-xs">{q.thickness}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={q.status === "fechado" ? "default" : "secondary"}
-                      className={`text-[10px] cursor-pointer ${q.status === "fechado" ? "bg-green-600 hover:bg-green-700" : ""}`}
-                      onClick={() => toggleStatus(q)}
-                    >
-                      {q.status === "fechado" ? <><CheckCircle className="w-3 h-3 mr-1" /> Fechado</> : <><FileText className="w-3 h-3 mr-1" /> Orçamento</>}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
-                  <TableCell className="text-xs text-right font-medium text-primary">{fmt(Number(q.suggested_sale))}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
-                        <Download className="w-3.5 h-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir orçamento?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Deseja excluir o orçamento "{q.file_name}"? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteQuote(q.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" />
+            Orçamentos Salvos
+          </CardTitle>
+          <CardDescription>{quotes.length} orçamento(s) encontrado(s)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Arquivo</TableHead>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Espessura</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Tempo</TableHead>
+                  <TableHead className="text-right">Preço Sugerido</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {quotes.map((q) => (
+                  <TableRow key={q.id}>
+                    <TableCell className="text-xs">{new Date(q.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => setSelectedQuote(q)}
+                        className="text-xs font-medium text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {q.file_name}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-xs">{q.material}</TableCell>
+                    <TableCell className="text-xs">{q.thickness}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={q.status === "fechado" ? "default" : "secondary"}
+                        className={`text-[10px] cursor-pointer ${q.status === "fechado" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        onClick={() => toggleStatus(q)}
+                      >
+                        {q.status === "fechado" ? <><CheckCircle className="w-3 h-3 mr-1" /> Fechado</> : <><FileText className="w-3 h-3 mr-1" /> Orçamento</>}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
+                    <TableCell className="text-xs text-right font-medium text-primary">{fmt(Number(q.suggested_sale))}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
+                          <Download className="w-3.5 h-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir orçamento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Deseja excluir o orçamento "{q.file_name}"? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteQuote(q.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quote Detail Dialog */}
+      <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && setSelectedQuote(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <File className="w-4 h-4 text-primary" />
+              {selectedQuote?.file_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedQuote && (
+            <div className="space-y-4">
+              {/* Quote Info */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs">Material</p>
+                  <p className="font-medium">{selectedQuote.material}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Espessura</p>
+                  <p className="font-medium">{selectedQuote.thickness}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Máquina</p>
+                  <p className="font-medium">{selectedQuote.machine_name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Quantidade</p>
+                  <p className="font-medium">{selectedQuote.quantity}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Comprimento de Corte</p>
+                  <p className="font-medium">{Number(selectedQuote.path_length_m).toFixed(2)} m</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Tempo Estimado</p>
+                  <p className="font-medium">{Number(selectedQuote.estimated_time_min).toFixed(1)} min</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Preço Sugerido</p>
+                  <p className="font-medium text-primary">{fmt(Number(selectedQuote.suggested_sale))}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Status</p>
+                  <Badge
+                    variant={selectedQuote.status === "fechado" ? "default" : "secondary"}
+                    className={`text-[10px] ${selectedQuote.status === "fechado" ? "bg-green-600" : ""}`}
+                  >
+                    {selectedQuote.status === "fechado" ? "Fechado" : "Orçamento"}
+                  </Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Download Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Downloads</p>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => downloadOriginalFile(selectedQuote)}
+                    disabled={!selectedQuote.file_path}
+                  >
+                    <FileDown className="w-4 h-4" />
+                    Baixar Arquivo Original ({selectedQuote.file_name.split(".").pop()?.toUpperCase()})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => exportQuotePDF(selectedQuote)}
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar PDF do Orçamento
+                  </Button>
+                </div>
+                {!selectedQuote.file_path && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Arquivo original não disponível (orçamento salvo antes desta funcionalidade).
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
