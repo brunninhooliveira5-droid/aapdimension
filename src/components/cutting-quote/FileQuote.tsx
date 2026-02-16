@@ -57,17 +57,13 @@ function parseSVGPathLength(svgText: string): number {
   const doc = parser.parseFromString(svgText, "image/svg+xml");
   let totalLength = 0;
 
-  // Get all path elements
   const paths = doc.querySelectorAll("path");
   paths.forEach((path) => {
     try {
       totalLength += path.getTotalLength();
-    } catch {
-      // fallback: estimate from d attribute
-    }
+    } catch { /* fallback */ }
   });
 
-  // Lines
   doc.querySelectorAll("line").forEach((line) => {
     const x1 = parseFloat(line.getAttribute("x1") || "0");
     const y1 = parseFloat(line.getAttribute("y1") || "0");
@@ -76,20 +72,17 @@ function parseSVGPathLength(svgText: string): number {
     totalLength += Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   });
 
-  // Circles
   doc.querySelectorAll("circle").forEach((circle) => {
     const r = parseFloat(circle.getAttribute("r") || "0");
     totalLength += 2 * Math.PI * r;
   });
 
-  // Rects
   doc.querySelectorAll("rect").forEach((rect) => {
     const w = parseFloat(rect.getAttribute("width") || "0");
     const h = parseFloat(rect.getAttribute("height") || "0");
     totalLength += 2 * (w + h);
   });
 
-  // Polylines & polygons
   doc.querySelectorAll("polyline, polygon").forEach((el) => {
     const points = (el.getAttribute("points") || "").trim().split(/[\s,]+/).map(Number);
     for (let i = 0; i < points.length - 2; i += 2) {
@@ -104,15 +97,81 @@ function parseSVGPathLength(svgText: string): number {
     }
   });
 
-  // Ellipses
   doc.querySelectorAll("ellipse").forEach((ellipse) => {
     const rx = parseFloat(ellipse.getAttribute("rx") || "0");
     const ry = parseFloat(ellipse.getAttribute("ry") || "0");
-    // Approximation
     totalLength += Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
   });
 
   return totalLength;
+}
+
+// Calculate bounding box area of SVG content in user units (px)
+function parseSVGBBoxArea(svgText: string): { width: number; height: number } {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, "image/svg+xml");
+  const svgEl = doc.querySelector("svg");
+  if (!svgEl) return { width: 0, height: 0 };
+
+  // Try to get dimensions from viewBox or width/height attributes
+  const vb = svgEl.getAttribute("viewBox");
+  if (vb) {
+    const parts = vb.split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      return { width: parts[2], height: parts[3] };
+    }
+  }
+
+  const w = parseFloat(svgEl.getAttribute("width") || "0");
+  const h = parseFloat(svgEl.getAttribute("height") || "0");
+  return { width: w, height: h };
+}
+
+// Calculate bounding box area of DXF content in DXF units (mm)
+function parseDXFBBoxArea(dxf: any): { width: number; height: number } {
+  if (!dxf?.entities) return { width: 0, height: 0 };
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  const updateBounds = (x: number, y: number) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+
+  for (const entity of dxf.entities) {
+    switch (entity.type) {
+      case "LINE":
+        entity.vertices?.forEach((v: any) => updateBounds(v.x, v.y));
+        break;
+      case "CIRCLE":
+        updateBounds(entity.center.x - entity.radius, entity.center.y - entity.radius);
+        updateBounds(entity.center.x + entity.radius, entity.center.y + entity.radius);
+        break;
+      case "ARC":
+        updateBounds(entity.center.x - entity.radius, entity.center.y - entity.radius);
+        updateBounds(entity.center.x + entity.radius, entity.center.y + entity.radius);
+        break;
+      case "LWPOLYLINE":
+      case "POLYLINE":
+        entity.vertices?.forEach((v: any) => updateBounds(v.x, v.y));
+        break;
+      case "ELLIPSE": {
+        const rx = entity.majorAxisEndPoint ? Math.sqrt(entity.majorAxisEndPoint.x ** 2 + entity.majorAxisEndPoint.y ** 2) : 1;
+        const ry = rx * (entity.axisRatio || 1);
+        updateBounds(entity.center.x - rx, entity.center.y - ry);
+        updateBounds(entity.center.x + rx, entity.center.y + ry);
+        break;
+      }
+      case "SPLINE":
+        entity.controlPoints?.forEach((v: any) => updateBounds(v.x, v.y));
+        break;
+    }
+  }
+
+  if (minX === Infinity) return { width: 0, height: 0 };
+  return { width: maxX - minX, height: maxY - minY };
 }
 
 async function parseDXFPathLength(text: string): Promise<number> {
@@ -202,6 +261,7 @@ interface QuoteResult {
   sheetM2: number;
   pricePerM2: number;
   unitPrice: number;
+  fileAreaM2: number;
 }
 
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
@@ -437,10 +497,25 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const ext = file.name.split(".").pop()?.toLowerCase();
 
       let pathLengthUnits = 0;
+      let fileAreaM2 = 0;
+
       if (ext === "svg") {
         pathLengthUnits = parseSVGPathLength(text);
+        // SVG bbox in px, convert to mm (0.2646 mm/px at 96dpi), then to m²
+        const bbox = parseSVGBBoxArea(text);
+        const wMM = bbox.width * 0.2646;
+        const hMM = bbox.height * 0.2646;
+        fileAreaM2 = (wMM * hMM) / 1_000_000;
       } else {
         pathLengthUnits = await parseDXFPathLength(text);
+        // DXF bbox already in mm
+        const DxfParser = (await import("dxf-parser")).default;
+        const dxfParser = new DxfParser();
+        try {
+          const dxf = dxfParser.parseSync(text);
+          const bbox = parseDXFBBoxArea(dxf);
+          fileAreaM2 = (bbox.width * bbox.height) / 1_000_000;
+        } catch { /* ignore */ }
       }
 
       // Assume units are mm for DXF, px for SVG (≈ 0.2646 mm/px at 96dpi)
@@ -472,6 +547,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const sheetM2 = sheetW > 0 && sheetH > 0 ? (sheetW * sheetH) / 1_000_000 : 0;
       const pricePerM2 = sheetM2 > 0 && unitPrice > 0 ? unitPrice / sheetM2 : 0;
 
+      const roundedFileAreaM2 = Math.round(fileAreaM2 * 10000) / 10000;
+
       setResult({
         fileName: file.name,
         pathLengthMM,
@@ -486,13 +563,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         sheetM2: Math.round(sheetM2 * 10000) / 10000,
         pricePerM2: Math.round(pricePerM2 * 100) / 100,
         unitPrice: Math.round(unitPrice * 100) / 100,
+        fileAreaM2: roundedFileAreaM2,
       });
       setEditablePrice(Math.round(suggestedSale * 100) / 100);
       const calcPriceM2 = Math.round(pricePerM2 * 100) / 100;
-      const calcM2 = Math.round(sheetM2 * 10000) / 10000;
       setEditableMaterialPriceM2(calcPriceM2);
-      setEditableMaterialM2(calcM2);
-      setEditableMaterialCost(Math.round(calcPriceM2 * calcM2 * 100) / 100);
+      setEditableMaterialM2(roundedFileAreaM2);
+      setEditableMaterialCost(Math.round(calcPriceM2 * roundedFileAreaM2 * 100) / 100);
       setMaterialOwner("cliente");
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
@@ -503,7 +580,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const materialCost = materialOwner === "usuario" ? editableMaterialPriceM2 : 0;
+  const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * editableMaterialM2 * quantity : 0;
   const totalPrice = editablePrice + materialCost;
 
   const exportPDF = () => {
@@ -802,22 +879,38 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-3 space-y-2">
                     <p className="text-xs font-medium text-primary">Custo do Material</p>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={editableMaterialPriceM2 || ""}
+                            onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
+                            className="h-8 pl-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">m² do arquivo (editável)</Label>
                         <Input
                           type="number"
                           min={0}
-                          step={0.01}
-                          value={editableMaterialPriceM2 || ""}
-                          onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
-                          className="h-8 pl-8 text-sm"
+                          step={0.0001}
+                          value={editableMaterialM2 || ""}
+                          onChange={(e) => setEditableMaterialM2(Number(e.target.value))}
+                          className="h-8 text-sm mt-1"
                         />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        m² da chapa: {editableMaterialM2.toFixed(4)} m²
-                      </p>
+                    </div>
+                    <div className="flex justify-between text-xs pt-1">
+                      <span className="text-muted-foreground">
+                        {fmt(editableMaterialPriceM2)}/m² × {editableMaterialM2.toFixed(4)} m² × {quantity}
+                      </span>
+                      <span className="font-medium text-primary">{fmt(materialCost)}</span>
                     </div>
                   </CardContent>
                 </Card>
