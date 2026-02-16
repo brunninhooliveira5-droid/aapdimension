@@ -1,134 +1,113 @@
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { Shield, TrendingUp } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react";
+import { getBreakEvenMetrics, BreakEvenMetrics } from "@/lib/breakeven";
+import { Shield, ArrowRight, TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 const fmt = (v: number) => `R$ ${Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-export function BreakEvenIndicator() {
-  const [currentBalance, setCurrentBalance] = useState(0);
-  const [fixedMonthlyCosts, setFixedMonthlyCosts] = useState(0);
-  const [futureReceivables, setFutureReceivables] = useState(0);
-  const [futurePayables, setFuturePayables] = useState(0);
-  const [showProjected, setShowProjected] = useState(false);
+interface Props {
+  onNavigate?: (section: string) => void;
+}
+
+export function BreakEvenIndicator({ onNavigate }: Props) {
+  const [metrics, setMetrics] = useState<BreakEvenMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
-      const today = new Date();
-      const end90 = new Date(today);
-      end90.setDate(end90.getDate() + 90);
-      const endStr = end90.toISOString().split("T")[0];
-
-      const [{ data: paidRec }, { data: paidPay }, { data: fixedExp }, { data: futRec }, { data: futPay }] = await Promise.all([
-        supabase.from("finance_accounts_receivable").select("amount").eq("status", "recebido"),
-        supabase.from("finance_accounts_payable").select("amount").eq("status", "pago"),
-        supabase.from("finance_fixed_expenses").select("monthly_value").eq("is_active", true),
-        supabase.from("finance_accounts_receivable").select("amount").in("status", ["aberto", "parcelado", "atrasado"]).lte("expected_date", endStr),
-        supabase.from("finance_accounts_payable").select("amount").in("status", ["aberto", "parcelado", "atrasado"]).lte("due_date", endStr),
-      ]);
-      const totalRec = (paidRec ?? []).reduce((s, r) => s + Number(r.amount), 0);
-      const totalPaid = (paidPay ?? []).reduce((s, r) => s + Number(r.amount), 0);
-      setCurrentBalance(totalRec - totalPaid);
-      setFixedMonthlyCosts((fixedExp ?? []).reduce((s, f) => s + Number(f.monthly_value), 0));
-      setFutureReceivables((futRec ?? []).reduce((s, r) => s + Number(r.amount), 0));
-      setFuturePayables((futPay ?? []).reduce((s, r) => s + Number(r.amount), 0));
-      setLoading(false);
-    };
-    fetch();
+    getBreakEvenMetrics().then(m => { setMetrics(m); setLoading(false); });
   }, []);
 
-  const conservativeRunway = fixedMonthlyCosts > 0 ? currentBalance / fixedMonthlyCosts : Infinity;
-  const netMonthlyFlow = (futureReceivables - futurePayables) / 3; // avg over 3 months
-  const projectedRunway = fixedMonthlyCosts > 0
-    ? (fixedMonthlyCosts - netMonthlyFlow > 0
-      ? currentBalance / (fixedMonthlyCosts - netMonthlyFlow)
-      : Infinity)
-    : Infinity;
-
-  const activeRunway = showProjected ? projectedRunway : conservativeRunway;
-
-  const statusColor = activeRunway >= 3 ? "text-emerald-400" : activeRunway >= 1 ? "text-amber-400" : "text-red-400";
-  const statusBg = activeRunway >= 3 ? "bg-emerald-500/10 border-emerald-500/30" : activeRunway >= 1 ? "bg-amber-500/10 border-amber-500/30" : "bg-red-500/10 border-red-500/30";
-  const statusLabel = activeRunway >= 3 ? "Saudável" : activeRunway >= 1 ? "Atenção" : "Crítico";
-
-  const projData = useMemo(() => {
-    if (fixedMonthlyCosts <= 0) return [];
-    const data = [];
-    let bal = currentBalance;
-    const monthlyDrain = showProjected ? Math.max(fixedMonthlyCosts - netMonthlyFlow, 0) : fixedMonthlyCosts;
-    const months = monthlyDrain > 0 ? Math.min(Math.ceil(currentBalance / monthlyDrain) + 2, 24) : 12;
-    for (let i = 0; i <= months; i++) {
-      data.push({ mes: i === 0 ? "Atual" : `M${i}`, saldo: Math.round(bal) });
-      bal -= monthlyDrain;
-    }
-    return data;
-  }, [currentBalance, fixedMonthlyCosts, netMonthlyFlow, showProjected]);
-
   if (loading) return null;
-  if (fixedMonthlyCosts <= 0) return null;
 
-  return (
-    <div className={`gradient-card rounded-lg border ${statusBg} p-4 space-y-3`}>
-      <div className="flex items-center justify-between">
+  // Empty state
+  if (!metrics || metrics.totalDespesasFixas <= 0) {
+    return (
+      <div className="gradient-card rounded-lg border border-border p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Shield className={`w-5 h-5 ${statusColor}`} />
+          <Target className="w-5 h-5 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">Ponto de Equilíbrio</h3>
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusBg} ${statusColor}`}>
-          {statusLabel}
+        <p className="text-xs text-muted-foreground">
+          Cadastre Contas Fixas para calcular o Ponto de Equilíbrio.
+        </p>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onNavigate?.("payable")}>
+          <ArrowRight className="w-3.5 h-3.5" /> Ir para Contas Fixas
+        </Button>
+      </div>
+    );
+  }
+
+  const m = metrics;
+  const statusConfig = {
+    positivo: { label: "Saudável", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", barColor: "bg-emerald-500" },
+    atencao: { label: "Atenção", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30", barColor: "bg-amber-500" },
+    critico: { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", barColor: "bg-red-500" },
+  };
+  const sc = statusConfig[m.status];
+
+  return (
+    <div className={`gradient-card rounded-lg border ${sc.bg} p-4 space-y-3`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield className={`w-5 h-5 ${sc.color}`} />
+          <h3 className="text-sm font-semibold text-foreground">Ponto de Equilíbrio</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sc.bg} ${sc.color}`}>{sc.label}</span>
+          <Button size="sm" variant="ghost" className="gap-1 text-xs h-7" onClick={() => onNavigate?.("breakeven-detail")}>
+            Ver detalhes <ArrowRight className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">% Atingido do PE</span>
+          <span className={`font-semibold ${sc.color}`}>{m.percentAtingido.toFixed(1)}%</span>
+        </div>
+        <div className="w-full h-2.5 bg-accent/40 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${sc.barColor}`}
+            style={{ width: `${Math.min(m.percentAtingido, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* KPIs grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        <KpiMini label="Receita Mensal" value={fmt(m.receitaMensal)} icon={TrendingUp} positive />
+        <KpiMini label="Desp. Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} />
+        <KpiMini label="Desp. Variável" value={fmt(m.despesaVariavel)} icon={TrendingDown} />
+        <KpiMini label="PE (R$)" value={fmt(m.pontoEquilibrio)} icon={Target} />
+        <KpiMini label="Cobertura" value={`${m.mesesCobertura} meses`} icon={Wallet} positive={m.mesesCobertura >= 3} />
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">
+          Lucro Operacional: <span className={m.lucroOperacional >= 0 ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"}>
+            {m.lucroOperacional >= 0 ? "+" : "-"}{fmt(m.lucroOperacional)}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          Comprometimento: <span className={`font-semibold ${m.percentTotalReceita <= 70 ? "text-emerald-400" : m.percentTotalReceita <= 90 ? "text-amber-400" : "text-red-400"}`}>
+            {m.percentTotalReceita.toFixed(1)}%
+          </span>
         </span>
       </div>
+    </div>
+  );
+}
 
-      <div className="flex items-center gap-2">
-        <Switch checked={showProjected} onCheckedChange={setShowProjected} className="scale-75" />
-        <Label className="text-[10px] text-muted-foreground">
-          {showProjected ? "Runway Projetado (c/ receitas)" : "Runway Conservador (só fixos)"}
-        </Label>
+function KpiMini({ label, value, icon: Icon, positive }: { label: string; value: string; icon: any; positive?: boolean }) {
+  return (
+    <div className="rounded-md bg-accent/30 p-2 text-center">
+      <div className="flex items-center justify-center gap-1 mb-0.5">
+        <Icon className={`w-3 h-3 ${positive ? "text-emerald-400" : "text-muted-foreground"}`} />
       </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Caixa Atual</p>
-          <p className={`text-lg font-bold ${currentBalance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(currentBalance)}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Custos Fixos/mês</p>
-          <p className="text-lg font-bold text-foreground">{fmt(fixedMonthlyCosts)}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Runway</p>
-          <p className={`text-lg font-bold ${statusColor}`}>
-            {activeRunway === Infinity ? "∞" : `${Math.floor(activeRunway)} meses`}
-          </p>
-        </div>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        {activeRunway === Infinity
-          ? "Sem custos fixos cadastrados."
-          : showProjected
-            ? `Considerando receitas futuras (~${fmt(netMonthlyFlow)}/mês), seu caixa cobre ${Math.floor(activeRunway)} meses.`
-            : `Seu caixa atual cobre ${Math.floor(activeRunway)} meses de custos fixos (visão conservadora, sem receitas variáveis).`
-        }
-      </p>
-
-      {projData.length > 0 && (
-        <div className="h-[160px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={projData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-              <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
-              <Area type="monotone" dataKey="saldo" stroke={activeRunway >= 3 ? "#10b981" : activeRunway >= 1 ? "#f59e0b" : "#ef4444"} fill={activeRunway >= 3 ? "#10b981" : activeRunway >= 1 ? "#f59e0b" : "#ef4444"} fillOpacity={0.1} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-tight">{label}</p>
+      <p className="text-xs font-bold text-foreground mt-0.5">{value}</p>
     </div>
   );
 }

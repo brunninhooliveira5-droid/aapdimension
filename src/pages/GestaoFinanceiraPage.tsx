@@ -9,6 +9,7 @@ import { FinanceCategories } from "@/components/financeiro/FinanceCategories";
 import { LegalModule } from "@/components/financeiro/LegalModule";
 import { DebtsModule } from "@/components/financeiro/DebtsModule";
 import { DecisionSimulator } from "@/components/financeiro/DecisionSimulator";
+import { BreakEvenDetail } from "@/components/financeiro/BreakEvenDetail";
 import {
   LayoutDashboard,
   ArrowDownCircle,
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   Receipt,
   Menu,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -38,6 +40,7 @@ const sections = [
   { id: "legal", label: "Jurídico", icon: Scale },
   { id: "debts", label: "Dívidas", icon: CreditCard },
   { id: "simulator", label: "Simulador", icon: Calculator },
+  { id: "breakeven-detail", label: "Ponto de Equilíbrio", icon: Target },
 ] as const;
 
 type SectionId = (typeof sections)[number]["id"];
@@ -77,6 +80,8 @@ export default function GestaoFinanceiraPage() {
         return <DebtsModule />;
       case "simulator":
         return <DecisionSimulator />;
+      case "breakeven-detail":
+        return <BreakEvenDetail onNavigate={handleNavigate} />;
       default:
         return null;
     }
