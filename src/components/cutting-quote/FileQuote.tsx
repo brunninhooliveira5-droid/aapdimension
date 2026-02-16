@@ -368,7 +368,7 @@ interface FileQuoteProps {
 }
 
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
-  const { user, session } = useAuth();
+  const { user, session, getSectionVisibility } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -794,8 +794,14 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const passesOrigin = passesOverridden ? "manual_override" : "default";
   const baseSpeedOrigin = speedOverridden ? "manual_override" : "simulator";
 
+  const canExportPdf = getSectionVisibility("orcamento_pdf") === "visible";
+
   const exportPDF = async () => {
     if (!result) return;
+    if (!canExportPdf) {
+      toast.info("Para exportar PDFs de orçamento, entre em contato com o administrador para ativar essa funcionalidade no seu plano.", { duration: 6000 });
+      return;
+    }
     try {
       await generateQuotePDF(
         {
@@ -1379,7 +1385,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 gap-2" onClick={exportPDF}>
-                  <Download className="w-4 h-4" /> Exportar PDF
+                  <Download className="w-4 h-4" />
+                  {canExportPdf ? "Exportar PDF" : "Exportar PDF 🔒"}
                 </Button>
                 <Button className="flex-1 gap-2" onClick={saveQuote}>
                   <Save className="w-4 h-4" /> Salvar Orçamento

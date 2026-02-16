@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History, BarChart3, Layers, Settings2 } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
@@ -8,11 +8,12 @@ import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
 import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function CuttingQuotePage() {
-  const { session } = useAuth();
+  const { session, getSectionVisibility } = useAuth();
   const [pricing, setPricing] = useState<PricingData>({
     costPerHour: 0,
     costPerMinute: 0,
@@ -76,6 +77,8 @@ export default function CuttingQuotePage() {
       });
   }, [session]);
 
+  const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible";
+
   return (
     <div className="space-y-6">
       <div>
@@ -91,8 +94,19 @@ export default function CuttingQuotePage() {
           <TabsTrigger value="simulator" className="gap-2">
             <Calculator className="w-4 h-4" /> Simulador
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
+          <TabsTrigger
+            value="history"
+            className="gap-2"
+            disabled={!canAccessSalvos}
+            onClick={(e) => {
+              if (!canAccessSalvos) {
+                e.preventDefault();
+                toast.info("Para acessar o histórico de orçamentos salvos, entre em contato com o administrador para ativar essa funcionalidade no seu plano.", { duration: 6000 });
+              }
+            }}
+          >
             <History className="w-4 h-4" /> Salvos
+            {!canAccessSalvos && <Lock className="w-3 h-3 ml-0.5 text-muted-foreground" />}
           </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <BarChart3 className="w-4 h-4" /> Relatórios
@@ -113,9 +127,11 @@ export default function CuttingQuotePage() {
           <FileQuote pricing={pricing} machines={machines} />
         </TabsContent>
 
-        <TabsContent value="history">
-          <SavedQuotes />
-        </TabsContent>
+        {canAccessSalvos && (
+          <TabsContent value="history">
+            <SavedQuotes />
+          </TabsContent>
+        )}
 
         <TabsContent value="reports">
           <QuoteReports />
