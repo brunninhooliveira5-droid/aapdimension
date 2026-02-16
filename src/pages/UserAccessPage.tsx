@@ -32,6 +32,11 @@ const ALL_SECTIONS: SectionConfig[] = [
   { key: "orcamento", label: "Orçamento de Corte (PRO)", icon: Calculator, isPro: true },
 ];
 
+const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
+  { key: "orcamento_pdf", label: "Exportar PDF do Orçamento", icon: Eye, isPro: true },
+  { key: "orcamento_salvos", label: "Aba Salvos (Histórico)", icon: Eye, isPro: true },
+];
+
 const visibilityOptions: { value: Visibility; label: string; icon: React.ElementType; description: string; color: string }[] = [
   { value: "visible", label: "Visível", icon: Eye, description: "Usuário pode acessar normalmente", color: "bg-success/15 text-success border-success/30" },
   { value: "locked", label: "Com cadeado", icon: Lock, description: "Aparece no menu mas não pode clicar", color: "bg-warning/15 text-warning border-warning/30" },
@@ -275,6 +280,26 @@ const UserAccessPage = () => {
           <p className="text-xs text-muted-foreground mt-2 italic">
             Ative o Acesso PRO acima para configurar estes módulos.
           </p>
+        )}
+
+        {/* Orçamento sub-features */}
+        {proAccess && sections["orcamento"] !== "hidden" && (
+          <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Sub-controles do Orçamento de Corte
+            </p>
+            {ORCAMENTO_SUB_FEATURES.map((section) => (
+              <SectionRow
+                key={section.key}
+                section={section}
+                visibility={sections[section.key] ?? "hidden"}
+                onChange={(v) => handleVisibilityChange(section.key, v)}
+              />
+            ))}
+            <p className="text-[10px] text-muted-foreground italic">
+              Quando oculto, o usuário verá uma mensagem para entrar em contato com o administrador.
+            </p>
+          </div>
         )}
       </div>
 
