@@ -6,8 +6,8 @@ import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
 import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
+import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -82,18 +82,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="pdf-config">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-primary" />
-                Configuração de PDF
-              </CardTitle>
-              <CardDescription>Configure o layout e as informações do PDF de orçamento</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Em breve: personalize o PDF exportado.</p>
-            </CardContent>
-          </Card>
+          <PdfConfiguration />
         </TabsContent>
       </Tabs>
     </div>

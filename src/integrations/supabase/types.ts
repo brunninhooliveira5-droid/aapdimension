@@ -578,6 +578,75 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_quote_settings: {
+        Row: {
+          accent_color: string | null
+          company_address: string | null
+          company_cnpj: string | null
+          company_email: string | null
+          company_name: string | null
+          company_phone: string | null
+          created_at: string
+          footer_text: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          show_customer: boolean | null
+          show_cutting_value: boolean | null
+          show_date: boolean | null
+          show_delivery: boolean | null
+          show_material: boolean | null
+          show_material_value: boolean | null
+          show_thickness: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string | null
+          company_address?: string | null
+          company_cnpj?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          created_at?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          show_customer?: boolean | null
+          show_cutting_value?: boolean | null
+          show_date?: boolean | null
+          show_delivery?: boolean | null
+          show_material?: boolean | null
+          show_material_value?: boolean | null
+          show_thickness?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string | null
+          company_address?: string | null
+          company_cnpj?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          created_at?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          show_customer?: boolean | null
+          show_cutting_value?: boolean | null
+          show_date?: boolean | null
+          show_delivery?: boolean | null
+          show_material?: boolean | null
+          show_material_value?: boolean | null
+          show_thickness?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pricing_settings: {
         Row: {
           avg_cut_speed: number
