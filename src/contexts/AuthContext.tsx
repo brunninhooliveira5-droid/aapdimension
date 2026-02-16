@@ -19,6 +19,14 @@ const rolePermissions: Record<UserRole, string[]> = {
   financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
 };
 
+interface UserPlan {
+  plan: string;
+  pro_access: boolean;
+  features_enabled: string[];
+  max_quotes_per_month: number;
+  max_financial_entries: number;
+}
+
 interface Profile {
   name: string;
   email: string;
@@ -26,6 +34,7 @@ interface Profile {
   company: string;
   role: UserRole;
   approved: boolean;
+  userPlan: UserPlan | null;
 }
 
 interface SignupExtra {
@@ -46,6 +55,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, role?: UserRole, extra?: SignupExtra) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   hasAccess: (section: string) => boolean;
+  hasProAccess: (feature?: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -56,20 +66,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string, email: string): Promise<Profile | null> => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
+    const [{ data: profile }, { data: roleData }, { data: planData }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+      supabase.from("user_plans").select("*").eq("user_id", userId).single(),
+    ]);
 
     const role = (roleData?.role as UserRole) ?? "operador";
     const approved = (profile as any)?.approved ?? false;
+
+    const userPlan: UserPlan | null = planData
+      ? {
+          plan: planData.plan,
+          pro_access: planData.pro_access,
+          features_enabled: planData.features_enabled ?? [],
+          max_quotes_per_month: planData.max_quotes_per_month,
+          max_financial_entries: planData.max_financial_entries,
+        }
+      : null;
+
+    // admin_master always has full pro access
+    if (role === "admin_master" && userPlan) {
+      userPlan.pro_access = true;
+    }
 
     const p: Profile = {
       name: profile?.name ?? email.split("@")[0],
@@ -78,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company: profile?.company ?? "",
       role,
       approved,
+      userPlan,
     };
 
     return p;
@@ -169,6 +189,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return rolePermissions[user.role]?.includes(section) ?? false;
   };
 
+  const hasProAccess = (feature?: string): boolean => {
+    if (!user) return false;
+    // admin_master always has pro access
+    if (user.role === "admin_master") return true;
+    if (!user.userPlan) return false;
+    if (!user.userPlan.pro_access) return false;
+    if (feature && !user.userPlan.features_enabled.includes(feature)) return false;
+    return true;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -180,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         hasAccess,
+        hasProAccess,
       }}
     >
       {children}
