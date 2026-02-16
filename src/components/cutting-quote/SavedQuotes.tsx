@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 interface SavedQuote {
   id: string;
@@ -90,7 +90,7 @@ export function SavedQuotes() {
     doc.setFontSize(10);
     doc.text(`Data: ${new Date(q.created_at).toLocaleDateString("pt-BR")}`, 14, 30);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 38,
       head: [["Item", "Valor"]],
       body: [
