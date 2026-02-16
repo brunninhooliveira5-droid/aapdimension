@@ -834,11 +834,20 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           img.src = s.logo_url;
         });
         if (img.complete && img.naturalWidth > 0) {
-          const ratio = img.naturalWidth / img.naturalHeight;
-          const logoH = 18;
-          const logoW = logoH * ratio;
-          const format = s.logo_url.toLowerCase().includes(".jpg") || s.logo_url.toLowerCase().includes(".jpeg") ? "JPEG" : "PNG";
-          doc.addImage(img, format, 14, 7, logoW, logoH);
+          // Convert to data URL via canvas to avoid CORS issues with jsPDF
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const isJpeg = s.logo_url.toLowerCase().includes(".jpg") || s.logo_url.toLowerCase().includes(".jpeg");
+            const dataUrl = canvas.toDataURL(isJpeg ? "image/jpeg" : "image/png");
+            const ratio = img.naturalWidth / img.naturalHeight;
+            const logoH = 18;
+            const logoW = logoH * ratio;
+            doc.addImage(dataUrl, isJpeg ? "JPEG" : "PNG", 14, 7, logoW, logoH);
+          }
         }
       } catch { /* skip logo */ }
     }
