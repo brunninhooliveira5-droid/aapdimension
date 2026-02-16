@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, History, Download } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, History, Download, CheckCircle, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ interface SavedQuote {
   min_recommended: number;
   suggested_sale: number;
   created_at: string;
+  status: string;
 }
 
 export function SavedQuotes() {
@@ -52,6 +54,20 @@ export function SavedQuotes() {
     } else {
       toast.success("Orçamento excluído.");
       setQuotes((prev) => prev.filter((q) => q.id !== id));
+    }
+  };
+
+  const toggleStatus = async (q: SavedQuote) => {
+    const newStatus = q.status === "fechado" ? "orcamento" : "fechado";
+    const { error } = await supabase
+      .from("cutting_quotes" as any)
+      .update({ status: newStatus } as any)
+      .eq("id", q.id);
+    if (error) {
+      toast.error("Erro ao atualizar status.");
+    } else {
+      toast.success(newStatus === "fechado" ? "Orçamento fechado!" : "Status revertido para orçamento.");
+      setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
     }
   };
 
@@ -120,6 +136,7 @@ export function SavedQuotes() {
                 <TableHead>Arquivo</TableHead>
                 <TableHead>Material</TableHead>
                 <TableHead>Espessura</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Tempo</TableHead>
                 <TableHead className="text-right">Preço Sugerido</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -132,6 +149,15 @@ export function SavedQuotes() {
                   <TableCell className="text-xs font-medium">{q.file_name}</TableCell>
                   <TableCell className="text-xs">{q.material}</TableCell>
                   <TableCell className="text-xs">{q.thickness}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={q.status === "fechado" ? "default" : "secondary"}
+                      className={`text-[10px] cursor-pointer ${q.status === "fechado" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                      onClick={() => toggleStatus(q)}
+                    >
+                      {q.status === "fechado" ? <><CheckCircle className="w-3 h-3 mr-1" /> Fechado</> : <><FileText className="w-3 h-3 mr-1" /> Orçamento</>}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
                   <TableCell className="text-xs text-right font-medium text-primary">{fmt(Number(q.suggested_sale))}</TableCell>
                   <TableCell className="text-right">
