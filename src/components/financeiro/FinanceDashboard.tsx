@@ -45,7 +45,11 @@ const COLORS = [
   "#ffc658",
 ];
 
-export function FinanceDashboard() {
+interface FinanceDashboardProps {
+  onNavigate?: (section: string) => void;
+}
+
+export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
   const [payables, setPayables] = useState<PayableRow[]>([]);
   const [receivables, setReceivables] = useState<ReceivableRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -231,17 +235,29 @@ export function FinanceDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards — clickable */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="A Receber (30 dias)" value={fmt(totalReceivable30)} icon={ArrowUpCircle} variant="highlight" />
-        <StatCard title="A Pagar (30 dias)" value={fmt(totalPayable30)} icon={ArrowDownCircle} variant="warning" />
-        <StatCard title="Resultado (Recebido - Pago)" value={fmt(resultado)} icon={resultado >= 0 ? TrendingUp : TrendingDown} variant={resultado >= 0 ? "highlight" : "danger"} />
-        <StatCard title="Inadimplência (Receber)" value={fmt(overdueReceivable)} icon={AlertTriangle} variant={overdueReceivable > 0 ? "danger" : "default"} />
+        <div onClick={() => onNavigate?.("receivable")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="A Receber (30 dias)" value={fmt(totalReceivable30)} icon={ArrowUpCircle} variant="highlight" />
+        </div>
+        <div onClick={() => onNavigate?.("payable")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="A Pagar (30 dias)" value={fmt(totalPayable30)} icon={ArrowDownCircle} variant="warning" />
+        </div>
+        <div onClick={() => onNavigate?.("cashflow")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="Resultado (Recebido - Pago)" value={fmt(resultado)} icon={resultado >= 0 ? TrendingUp : TrendingDown} variant={resultado >= 0 ? "highlight" : "danger"} />
+        </div>
+        <div onClick={() => onNavigate?.("debts")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="Inadimplência (Receber)" value={fmt(overdueReceivable)} icon={AlertTriangle} variant={overdueReceivable > 0 ? "danger" : "default"} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard title="Total Pago (acumulado)" value={fmt(totalPaid)} icon={DollarSign} />
-        <StatCard title="Atrasado (Pagar)" value={fmt(overduePayable)} icon={Clock} variant={overduePayable > 0 ? "danger" : "default"} />
+        <div onClick={() => onNavigate?.("reports")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="Total Pago (acumulado)" value={fmt(totalPaid)} icon={DollarSign} />
+        </div>
+        <div onClick={() => onNavigate?.("payable")} className="cursor-pointer transition-transform hover:scale-[1.02]">
+          <StatCard title="Atrasado (Pagar)" value={fmt(overduePayable)} icon={Clock} variant={overduePayable > 0 ? "danger" : "default"} />
+        </div>
       </div>
 
       {/* Weekly Summary */}
@@ -435,48 +451,6 @@ export function FinanceDashboard() {
         </div>
       </div>
 
-      {/* Monthly Evolution Chart */}
-      <div className="gradient-card rounded-lg border border-border p-4">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Evolução Mensal — Receitas, Despesas e Resultado Acumulado</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="gradReceitas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gradDespesas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--chart-5))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--chart-5))" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gradAcumulado" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-            <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${v < 0 ? "-" : ""}${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(0)}k` : Math.abs(v)}`} />
-            <Tooltip
-              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-              formatter={(value: number, name: string) => {
-                const labels: Record<string, string> = { receitas: "Receitas", despesas: "Despesas", acumulado: "Acumulado" };
-                return [fmt(value), labels[name] || name];
-              }}
-            />
-            <Legend
-              formatter={(value: string) => {
-                const labels: Record<string, string> = { receitas: "Receitas", despesas: "Despesas", acumulado: "Acumulado" };
-                return labels[value] || value;
-              }}
-            />
-            <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="4 4" strokeOpacity={0.5} />
-            <Area type="monotone" dataKey="receitas" stroke="hsl(var(--chart-2))" fill="url(#gradReceitas)" strokeWidth={2} dot={{ r: 3 }} />
-            <Area type="monotone" dataKey="despesas" stroke="hsl(var(--chart-5))" fill="url(#gradDespesas)" strokeWidth={2} dot={{ r: 3 }} />
-            <Area type="monotone" dataKey="acumulado" stroke="hsl(var(--primary))" fill="url(#gradAcumulado)" strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4 }} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
     </div>
   );
 }

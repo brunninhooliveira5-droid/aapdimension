@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinanceDashboard } from "@/components/financeiro/FinanceDashboard";
 import { AccountsPayable } from "@/components/financeiro/AccountsPayable";
 import { AccountsReceivable } from "@/components/financeiro/AccountsReceivable";
@@ -10,104 +9,125 @@ import { FinanceCategories } from "@/components/financeiro/FinanceCategories";
 import { LegalModule } from "@/components/financeiro/LegalModule";
 import { DebtsModule } from "@/components/financeiro/DebtsModule";
 import { DecisionSimulator } from "@/components/financeiro/DecisionSimulator";
-import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet, FileBarChart, Tags, Scale, CreditCard, Calculator } from "lucide-react";
+import {
+  LayoutDashboard,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Wallet,
+  FileBarChart,
+  Tags,
+  Scale,
+  CreditCard,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const sections = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "payable", label: "Contas a Pagar", icon: ArrowDownCircle },
+  { id: "receivable", label: "Contas a Receber", icon: ArrowUpCircle },
+  { id: "cashflow", label: "Fluxo de Caixa", icon: Wallet },
+  { id: "boletos", label: "Boletos", icon: Receipt },
+  { id: "reports", label: "Relatórios", icon: FileBarChart },
+  { id: "categories", label: "Categorias", icon: Tags },
+  { id: "legal", label: "Jurídico", icon: Scale },
+  { id: "debts", label: "Dívidas", icon: CreditCard },
+  { id: "simulator", label: "Simulador", icon: Calculator },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
 
 export default function GestaoFinanceiraPage() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+  const [collapsed, setCollapsed] = useState(false);
+
+  const activeLabel = sections.find((s) => s.id === activeSection)?.label ?? "";
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return <FinanceDashboard onNavigate={(s) => setActiveSection(s as SectionId)} />;
+      case "payable":
+        return <AccountsPayable />;
+      case "receivable":
+        return <AccountsReceivable />;
+      case "cashflow":
+        return <CashFlow />;
+      case "boletos":
+        return <Financial />;
+      case "reports":
+        return <FinanceReports />;
+      case "categories":
+        return <FinanceCategories />;
+      case "legal":
+        return <LegalModule />;
+      case "debts":
+        return <DebtsModule />;
+      case "simulator":
+        return <DecisionSimulator />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Gestão Financeira</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Controle completo de contas a pagar, receber, caixa e relatórios
-        </p>
-      </div>
+    <div className="flex gap-0 animate-fade-in min-h-[calc(100vh-4rem)]">
+      {/* Vertical sidebar navigation */}
+      <aside
+        className={cn(
+          "shrink-0 border-r border-border bg-card/50 flex flex-col transition-all duration-200",
+          collapsed ? "w-14" : "w-52"
+        )}
+      >
+        <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+          {!collapsed && (
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Financeiro
+            </h2>
+          )}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="p-1 rounded-md hover:bg-accent text-muted-foreground transition-colors ml-auto"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start bg-accent/50 border border-border overflow-x-auto">
-          <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:bg-background">
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="payable" className="gap-1.5 data-[state=active]:bg-background">
-            <ArrowDownCircle className="w-4 h-4" />
-            Contas a Pagar
-          </TabsTrigger>
-          <TabsTrigger value="receivable" className="gap-1.5 data-[state=active]:bg-background">
-            <ArrowUpCircle className="w-4 h-4" />
-            Contas a Receber
-          </TabsTrigger>
-          <TabsTrigger value="cashflow" className="gap-1.5 data-[state=active]:bg-background">
-            <Wallet className="w-4 h-4" />
-            Fluxo de Caixa
-          </TabsTrigger>
-          <TabsTrigger value="boletos" className="gap-1.5 data-[state=active]:bg-background">
-            <Receipt className="w-4 h-4" />
-            Boletos de Clientes
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-1.5 data-[state=active]:bg-background">
-            <FileBarChart className="w-4 h-4" />
-            Relatórios
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-1.5 data-[state=active]:bg-background">
-            <Tags className="w-4 h-4" />
-            Categorias
-          </TabsTrigger>
-          <TabsTrigger value="legal" className="gap-1.5 data-[state=active]:bg-background">
-            <Scale className="w-4 h-4" />
-            Jurídico
-          </TabsTrigger>
-          <TabsTrigger value="debts" className="gap-1.5 data-[state=active]:bg-background">
-            <CreditCard className="w-4 h-4" />
-            Dívidas
-          </TabsTrigger>
-          <TabsTrigger value="simulator" className="gap-1.5 data-[state=active]:bg-background">
-            <Calculator className="w-4 h-4" />
-            Simulador
-          </TabsTrigger>
-        </TabsList>
+        <nav className="flex-1 py-2 space-y-0.5 px-2 overflow-y-auto">
+          {sections.map((section) => {
+            const isActive = activeSection === section.id;
+            return (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                title={collapsed ? section.label : undefined}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                  isActive
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <section.icon className={cn("w-4 h-4 shrink-0", isActive && "text-primary")} />
+                {!collapsed && <span className="truncate">{section.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
 
-        <TabsContent value="dashboard" className="mt-4">
-          <FinanceDashboard />
-        </TabsContent>
-
-        <TabsContent value="payable" className="mt-4">
-          <AccountsPayable />
-        </TabsContent>
-
-        <TabsContent value="receivable" className="mt-4">
-          <AccountsReceivable />
-        </TabsContent>
-
-        <TabsContent value="cashflow" className="mt-4">
-          <CashFlow />
-        </TabsContent>
-
-        <TabsContent value="boletos" className="mt-4">
-          <Financial />
-        </TabsContent>
-
-        <TabsContent value="reports" className="mt-4">
-          <FinanceReports />
-        </TabsContent>
-
-        <TabsContent value="categories" className="mt-4">
-          <FinanceCategories />
-        </TabsContent>
-
-        <TabsContent value="legal" className="mt-4">
-          <LegalModule />
-        </TabsContent>
-
-        <TabsContent value="debts" className="mt-4">
-          <DebtsModule />
-        </TabsContent>
-
-        <TabsContent value="simulator" className="mt-4">
-          <DecisionSimulator />
-        </TabsContent>
-      </Tabs>
+      {/* Main content */}
+      <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">
+        {activeSection !== "dashboard" && (
+          <div className="mb-4">
+            <h1 className="text-lg font-bold text-foreground">{activeLabel}</h1>
+          </div>
+        )}
+        {renderContent()}
+      </main>
     </div>
   );
 }
