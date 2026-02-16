@@ -1,4 +1,4 @@
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -158,11 +158,23 @@ export function AppSidebar() {
       <div className="mt-auto p-3 border-t border-sidebar-border space-y-2">
         {!collapsed && user && (
           <div className="flex items-center gap-2 px-2 animate-fade-in">
-            <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center">
+            <div className="relative w-7 h-7 rounded-full bg-accent flex items-center justify-center">
               <span className="text-xs font-medium text-accent-foreground">{user.initials}</span>
+              {hasProAccess() && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
+                  <Crown className="w-2 h-2 text-primary-foreground" />
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
+                {hasProAccess() && (
+                  <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider text-primary">
+                    <Star className="w-2 h-2 fill-primary" />PRO
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground truncate">{roleLabels[user.role]}</p>
             </div>
           </div>
