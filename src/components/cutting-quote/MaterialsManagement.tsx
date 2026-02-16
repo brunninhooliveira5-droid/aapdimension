@@ -9,6 +9,16 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Sugere fator padrão baseado na espessura (mesmo que o antigo hardcoded)
+function getDefaultSpeedFactor(thicknessMM: number): number {
+  if (thicknessMM <= 1) return 1;
+  if (thicknessMM <= 3) return 0.7;
+  if (thicknessMM <= 6) return 0.45;
+  if (thicknessMM <= 10) return 0.3;
+  if (thicknessMM <= 15) return 0.2;
+  return 0.12;
+}
+
 interface Thickness {
   id: string;
   value: string;
@@ -16,6 +26,7 @@ interface Thickness {
   sheet_width: number;
   sheet_height: number;
   unit_price: number;
+  speed_factor: number;
 }
 
 export function MaterialsManagement() {
@@ -65,7 +76,7 @@ export function MaterialsManagement() {
     setMaterialAdjustment(mat.price_adjustment || 0);
     const { data } = await supabase
       .from("cutting_material_thicknesses")
-      .select("id, value, label, sheet_width, sheet_height, unit_price")
+      .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor")
       .eq("material_id", mat.id)
       .order("value");
     if (data) setMaterialThicknesses(data as any);
@@ -76,8 +87,8 @@ export function MaterialsManagement() {
     const val = newThickness.trim();
     const { data, error } = await supabase
       .from("cutting_material_thicknesses")
-      .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm` } as any)
-      .select("id, value, label, sheet_width, sheet_height, unit_price")
+      .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm`, speed_factor: getDefaultSpeedFactor(parseFloat(val)) } as any)
+      .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor")
       .single();
     if (!error && data) {
       setMaterialThicknesses((prev) => [...prev, data as any].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
@@ -107,6 +118,7 @@ export function MaterialsManagement() {
         sheet_width: t.sheet_width,
         sheet_height: t.sheet_height,
         unit_price: t.unit_price,
+        speed_factor: t.speed_factor,
       } as any)
       .eq("id", t.id);
     if (!error) {
@@ -219,7 +231,7 @@ export function MaterialsManagement() {
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Largura Chapa (mm)</Label>
                             <Input
@@ -253,6 +265,22 @@ export function MaterialsManagement() {
                               className="h-8 text-xs"
                               placeholder="0,00"
                             />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Fator Velocidade</Label>
+                            <Input
+                              type="number"
+                              min={0.01}
+                              max={1}
+                              step={0.01}
+                              value={t.speed_factor || ""}
+                              onChange={(e) => updateThicknessField(t.id, "speed_factor", Number(e.target.value))}
+                              className="h-8 text-xs"
+                              placeholder="1.00"
+                            />
+                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                              0.01–1.00 (1 = vel. total)
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-1">
