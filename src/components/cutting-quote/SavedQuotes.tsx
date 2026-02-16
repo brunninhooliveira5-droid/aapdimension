@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, History, Download, CheckCircle, FileText, FileDown, File } from "lucide-react";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -38,6 +40,26 @@ export function SavedQuotes() {
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "orcamento" | "fechado">("todos");
+  const [materialFilter, setMaterialFilter] = useState("todos");
+
+  const uniqueMaterials = useMemo(() => {
+    const mats = new Set(quotes.map((q) => q.material));
+    return Array.from(mats).sort();
+  }, [quotes]);
+
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter((q) => {
+      const matchSearch = searchTerm === "" || 
+        q.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        q.material.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        q.machine_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = statusFilter === "todos" || q.status === statusFilter;
+      const matchMaterial = materialFilter === "todos" || q.material === materialFilter;
+      return matchSearch && matchStatus && matchMaterial;
+    });
+  }, [quotes, searchTerm, statusFilter, materialFilter]);
 
   const fetchQuotes = async () => {
     if (!session?.user) return;
@@ -162,9 +184,48 @@ export function SavedQuotes() {
             <History className="w-4 h-4 text-primary" />
             Orçamentos Salvos
           </CardTitle>
-          <CardDescription>{quotes.length} orçamento(s) encontrado(s)</CardDescription>
+           <CardDescription>{filteredQuotes.length} de {quotes.length} orçamento(s)</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por arquivo, material ou máquina..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+              {searchTerm && (
+                <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" onClick={() => setSearchTerm("")}>
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="orcamento">Orçamento</SelectItem>
+                <SelectItem value="fechado">Fechado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={materialFilter} onValueChange={setMaterialFilter}>
+              <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                <SelectValue placeholder="Material" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {uniqueMaterials.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -180,7 +241,14 @@ export function SavedQuotes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quotes.map((q) => (
+                {filteredQuotes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
+                      Nenhum orçamento encontrado com os filtros aplicados.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                filteredQuotes.map((q) => (
                   <TableRow key={q.id}>
                     <TableCell className="text-xs">{new Date(q.created_at).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
@@ -240,7 +308,8 @@ export function SavedQuotes() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ))
+                )}
               </TableBody>
             </Table>
           </div>
