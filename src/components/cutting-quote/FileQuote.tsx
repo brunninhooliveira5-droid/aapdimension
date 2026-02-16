@@ -849,6 +849,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
     const { error } = await supabase.from("cutting_quotes" as any).insert({
       user_id: session.user.id,
+      client_name: customerName.trim(),
+      client_phone: customerPhone.trim(),
       file_name: result.fileName,
       material: result.material,
       thickness: result.thickness,
