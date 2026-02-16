@@ -196,12 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return "hidden";
     // admin_master always has full access
     if (user.role === "admin_master") return "visible";
-    // Check if role even allows this section
-    const roleAllows = rolePermissions[user.role]?.includes(section) ?? false;
-    if (!roleAllows) return "hidden";
-    // Check per-user override
+    // Check per-user override first (set by admin_master, takes priority)
     const override = user.sectionAccess[section];
     if (override) return override;
+    // Fallback: check if role allows this section
+    const roleAllows = rolePermissions[user.role]?.includes(section) ?? false;
+    if (!roleAllows) return "hidden";
     // Default: visible if role allows
     return "visible";
   };
