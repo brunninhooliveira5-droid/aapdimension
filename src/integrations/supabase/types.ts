@@ -1653,6 +1653,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_plans: {
+        Row: {
+          created_at: string
+          features_enabled: string[]
+          id: string
+          max_financial_entries: number
+          max_quotes_per_month: number
+          plan: string
+          pro_access: boolean
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          features_enabled?: string[]
+          id?: string
+          max_financial_entries?: number
+          max_quotes_per_month?: number
+          plan?: string
+          pro_access?: boolean
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          features_enabled?: string[]
+          id?: string
+          max_financial_entries?: number
+          max_quotes_per_month?: number
+          plan?: string
+          pro_access?: boolean
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
