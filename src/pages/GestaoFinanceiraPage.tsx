@@ -6,7 +6,8 @@ import { AccountsReceivable } from "@/components/financeiro/AccountsReceivable";
 import { CashFlow } from "@/components/financeiro/CashFlow";
 import Financial from "@/pages/Financial";
 import { FinanceReports } from "@/components/financeiro/FinanceReports";
-import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet, FileBarChart } from "lucide-react";
+import { FinanceCategories } from "@/components/financeiro/FinanceCategories";
+import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet, FileBarChart, Tags } from "lucide-react";
 
 export default function GestaoFinanceiraPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -46,6 +47,10 @@ export default function GestaoFinanceiraPage() {
             <FileBarChart className="w-4 h-4" />
             Relatórios
           </TabsTrigger>
+          <TabsTrigger value="categories" className="gap-1.5 data-[state=active]:bg-background">
+            <Tags className="w-4 h-4" />
+            Categorias
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -70,6 +75,10 @@ export default function GestaoFinanceiraPage() {
 
         <TabsContent value="reports" className="mt-4">
           <FinanceReports />
+        </TabsContent>
+
+        <TabsContent value="categories" className="mt-4">
+          <FinanceCategories />
         </TabsContent>
       </Tabs>
     </div>
