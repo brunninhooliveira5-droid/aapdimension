@@ -39,13 +39,13 @@ export default function CuttingQuotePage() {
         <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos DXF/SVG</p>
       </div>
 
-      <Tabs defaultValue="simulator" className="w-full">
+      <Tabs defaultValue="quote" className="w-full">
         <TabsList className="grid w-full max-w-4xl grid-cols-6">
-          <TabsTrigger value="simulator" className="gap-2">
-            <Calculator className="w-4 h-4" /> Simulador
-          </TabsTrigger>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
+          </TabsTrigger>
+          <TabsTrigger value="simulator" className="gap-2">
+            <Calculator className="w-4 h-4" /> Simulador
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="w-4 h-4" /> Salvos
