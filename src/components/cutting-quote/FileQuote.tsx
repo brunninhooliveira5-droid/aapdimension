@@ -106,25 +106,175 @@ function parseSVGPathLength(svgText: string): number {
   return totalLength;
 }
 
-// Calculate bounding box area of SVG content in user units (px)
-function parseSVGBBoxArea(svgText: string): { width: number; height: number } {
+// Parse SVG unit value, returns { value, unit }
+function parseSVGDimension(attr: string | null): { value: number; unit: string } {
+  if (!attr) return { value: 0, unit: "" };
+  const match = attr.trim().match(/^([\d.]+)\s*(mm|cm|in|px|pt|%)?$/i);
+  if (match) return { value: parseFloat(match[1]), unit: (match[2] || "").toLowerCase() };
+  const num = parseFloat(attr);
+  return { value: isNaN(num) ? 0 : num, unit: "" };
+}
+
+// Convert a value in a given unit to mm
+function unitToMM(value: number, unit: string): number {
+  switch (unit) {
+    case "mm": return value;
+    case "cm": return value * 10;
+    case "in": return value * 25.4;
+    case "pt": return value * 25.4 / 72;
+    case "px": return value * 25.4 / 96;
+    default: return value * 25.4 / 96; // unitless = px at 96dpi
+  }
+}
+
+// Calculate bounding box of SVG elements in viewBox coordinate system
+function computeSVGElementsBBox(svgEl: Element): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let found = false;
+
+  const update = (x: number, y: number) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    found = true;
+  };
+
+  svgEl.querySelectorAll("rect").forEach((r) => {
+    const x = parseFloat(r.getAttribute("x") || "0");
+    const y = parseFloat(r.getAttribute("y") || "0");
+    const w = parseFloat(r.getAttribute("width") || "0");
+    const h = parseFloat(r.getAttribute("height") || "0");
+    update(x, y);
+    update(x + w, y + h);
+  });
+
+  svgEl.querySelectorAll("circle").forEach((c) => {
+    const cx = parseFloat(c.getAttribute("cx") || "0");
+    const cy = parseFloat(c.getAttribute("cy") || "0");
+    const r = parseFloat(c.getAttribute("r") || "0");
+    update(cx - r, cy - r);
+    update(cx + r, cy + r);
+  });
+
+  svgEl.querySelectorAll("ellipse").forEach((e) => {
+    const cx = parseFloat(e.getAttribute("cx") || "0");
+    const cy = parseFloat(e.getAttribute("cy") || "0");
+    const rx = parseFloat(e.getAttribute("rx") || "0");
+    const ry = parseFloat(e.getAttribute("ry") || "0");
+    update(cx - rx, cy - ry);
+    update(cx + rx, cy + ry);
+  });
+
+  svgEl.querySelectorAll("line").forEach((l) => {
+    update(parseFloat(l.getAttribute("x1") || "0"), parseFloat(l.getAttribute("y1") || "0"));
+    update(parseFloat(l.getAttribute("x2") || "0"), parseFloat(l.getAttribute("y2") || "0"));
+  });
+
+  svgEl.querySelectorAll("polyline, polygon").forEach((el) => {
+    const pts = (el.getAttribute("points") || "").trim().split(/[\s,]+/).map(Number);
+    for (let i = 0; i < pts.length - 1; i += 2) update(pts[i], pts[i + 1]);
+  });
+
+  svgEl.querySelectorAll("path").forEach((p) => {
+    const d = p.getAttribute("d") || "";
+    // Extract numeric coords from path data for rough bbox
+    const nums = d.match(/-?[\d.]+/g);
+    if (nums) {
+      for (let i = 0; i < nums.length - 1; i += 2) {
+        update(parseFloat(nums[i]), parseFloat(nums[i + 1]));
+      }
+    }
+  });
+
+  return found ? { minX, minY, maxX, maxY } : null;
+}
+
+interface SVGBBoxResult {
+  widthMM: number;
+  heightMM: number;
+  diagnosis: string;
+}
+
+// Calculate bounding box area of SVG content in real mm
+function parseSVGBBoxMM(svgText: string): SVGBBoxResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
   const svgEl = doc.querySelector("svg");
-  if (!svgEl) return { width: 0, height: 0 };
+  if (!svgEl) return { widthMM: 0, heightMM: 0, diagnosis: "SVG não encontrado" };
 
-  // Try to get dimensions from viewBox or width/height attributes
-  const vb = svgEl.getAttribute("viewBox");
-  if (vb) {
-    const parts = vb.split(/[\s,]+/).map(Number);
+  const widthAttr = svgEl.getAttribute("width");
+  const heightAttr = svgEl.getAttribute("height");
+  const viewBoxAttr = svgEl.getAttribute("viewBox");
+
+  const wDim = parseSVGDimension(widthAttr);
+  const hDim = parseSVGDimension(heightAttr);
+
+  // Determine detected unit
+  const detectedUnit = wDim.unit || hDim.unit || "px";
+  const isPixelBased = detectedUnit === "px" || detectedUnit === "" || detectedUnit === "pt";
+
+  // Convert document width/height to mm
+  const docWidthMM = wDim.value > 0 ? unitToMM(wDim.value, wDim.unit || "px") : 0;
+  const docHeightMM = hDim.value > 0 ? unitToMM(hDim.value, hDim.unit || "px") : 0;
+
+  // Parse viewBox
+  let vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+  let hasViewBox = false;
+  if (viewBoxAttr) {
+    const parts = viewBoxAttr.split(/[\s,]+/).map(Number);
     if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
-      return { width: parts[2], height: parts[3] };
+      [vbX, vbY, vbW, vbH] = parts;
+      hasViewBox = true;
     }
   }
 
-  const w = parseFloat(svgEl.getAttribute("width") || "0");
-  const h = parseFloat(svgEl.getAttribute("height") || "0");
-  return { width: w, height: h };
+  // Determine scale: viewBox units → mm
+  let scaleX = 1;
+  let scaleY = 1;
+  if (hasViewBox && docWidthMM > 0 && docHeightMM > 0) {
+    scaleX = docWidthMM / vbW;
+    scaleY = docHeightMM / vbH;
+  } else if (hasViewBox && (docWidthMM === 0 || docHeightMM === 0)) {
+    // No explicit width/height but has viewBox — treat viewBox units as px
+    scaleX = 25.4 / 96;
+    scaleY = 25.4 / 96;
+  } else if (!hasViewBox && docWidthMM > 0) {
+    // No viewBox, width/height define the coordinate space directly
+    // The coordinate units ARE the document units
+    scaleX = docWidthMM / wDim.value;
+    scaleY = docHeightMM / hDim.value;
+  } else {
+    // No viewBox, no width/height → assume px
+    scaleX = 25.4 / 96;
+    scaleY = 25.4 / 96;
+  }
+
+  // Compute element bounding box in viewBox/coordinate units
+  const elementsBBox = computeSVGElementsBBox(svgEl);
+
+  let finalWidthMM: number;
+  let finalHeightMM: number;
+
+  if (elementsBBox) {
+    // Use actual element bounds
+    finalWidthMM = (elementsBBox.maxX - elementsBBox.minX) * scaleX;
+    finalHeightMM = (elementsBBox.maxY - elementsBBox.minY) * scaleY;
+  } else if (hasViewBox) {
+    finalWidthMM = vbW * scaleX;
+    finalHeightMM = vbH * scaleY;
+  } else {
+    finalWidthMM = docWidthMM;
+    finalHeightMM = docHeightMM;
+  }
+
+  const diagnosis = `Unidade detectada: ${detectedUnit}${isPixelBased ? " | DPI assumido: 96" : ""} | width/height: ${widthAttr || "N/A"} × ${heightAttr || "N/A"} | viewBox: ${viewBoxAttr || "N/A"}`;
+
+  return {
+    widthMM: Math.abs(finalWidthMM),
+    heightMM: Math.abs(finalHeightMM),
+    diagnosis,
+  };
 }
 
 // Calculate bounding box area of DXF content in DXF units (mm)
@@ -264,6 +414,7 @@ interface QuoteResult {
   fileAreaM2: number;
   bboxWidthMM: number;
   bboxHeightMM: number;
+  svgDiagnosis?: string;
 }
 
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
@@ -504,11 +655,14 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       let bboxWidthMM = 0;
       let bboxHeightMM = 0;
 
+      let svgDiagnosis: string | undefined;
+
       if (ext === "svg") {
         pathLengthUnits = parseSVGPathLength(text);
-        const bbox = parseSVGBBoxArea(text);
-        bboxWidthMM = bbox.width * 0.2646;
-        bboxHeightMM = bbox.height * 0.2646;
+        const svgBBox = parseSVGBBoxMM(text);
+        bboxWidthMM = svgBBox.widthMM;
+        bboxHeightMM = svgBBox.heightMM;
+        svgDiagnosis = svgBBox.diagnosis;
         fileAreaM2 = (bboxWidthMM * bboxHeightMM) / 1_000_000;
       } else {
         pathLengthUnits = await parseDXFPathLength(text);
@@ -523,8 +677,31 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         } catch { /* ignore */ }
       }
 
-      // Assume units are mm for DXF, px for SVG (≈ 0.2646 mm/px at 96dpi)
-      const pathLengthMM = ext === "svg" ? pathLengthUnits * 0.2646 : pathLengthUnits;
+      // For SVG: use the same scale derived from parseSVGBBoxMM for path length
+      // The parseSVGPathLength returns in viewBox units; we need to convert to mm
+      let pathLengthMM: number;
+      if (ext === "svg") {
+        // Determine scale from SVG document
+        const tempParser = new DOMParser();
+        const tempDoc = tempParser.parseFromString(text, "image/svg+xml");
+        const tempSvg = tempDoc.querySelector("svg");
+        let svgScale = 25.4 / 96; // default px→mm
+        if (tempSvg) {
+          const wA = tempSvg.getAttribute("width");
+          const hA = tempSvg.getAttribute("height");
+          const vbA = tempSvg.getAttribute("viewBox");
+          const wD = parseSVGDimension(wA);
+          const vbParts = vbA?.split(/[\s,]+/).map(Number);
+          if (wD.value > 0 && vbParts && vbParts.length === 4 && vbParts[2] > 0) {
+            svgScale = unitToMM(wD.value, wD.unit || "px") / vbParts[2];
+          } else if (wD.value > 0 && wD.unit) {
+            svgScale = unitToMM(1, wD.unit || "px");
+          }
+        }
+        pathLengthMM = pathLengthUnits * svgScale;
+      } else {
+        pathLengthMM = pathLengthUnits; // DXF already in mm
+      }
       const pathLengthM = pathLengthMM / 1000;
 
       const thicknessNum = parseFloat(thickness);
@@ -571,6 +748,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         fileAreaM2: roundedFileAreaM2,
         bboxWidthMM: Math.round(bboxWidthMM * 100) / 100,
         bboxHeightMM: Math.round(bboxHeightMM * 100) / 100,
+        svgDiagnosis,
       });
       setEditablePrice(Math.round(suggestedSale * 100) / 100);
       const calcPriceM2 = Math.round(pricePerM2 * 100) / 100;
@@ -887,6 +1065,11 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                           <p className="text-xs text-muted-foreground">
                             Área ocupada: {areaM2.toFixed(4)} m²
                           </p>
+                          {result.svgDiagnosis && (
+                            <p className="text-[10px] text-muted-foreground font-mono break-all">
+                              {result.svgDiagnosis}
+                            </p>
+                          )}
                           <p className="text-[10px] text-muted-foreground italic">
                             Dimensão mínima baseada no envelope do arquivo. Não inclui otimização ou nesting.
                           </p>
