@@ -5,53 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PricingData } from "./PricingSimulator";
 import type { Tables } from "@/integrations/supabase/types";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import type { PdfSettings } from "./PdfConfiguration";
+import { calculateQuote, calculateMaterialCost, calculateTotalPrice, type QuoteCalculationResult } from "@/lib/cutting-calculations";
+import { generateQuotePDF } from "@/lib/cutting-pdf";
 
-const MATERIALS = [
-  { value: "aço_carbono", label: "Aço Carbono" },
-  { value: "aço_inox", label: "Aço Inoxidável" },
-  { value: "alumínio", label: "Alumínio" },
-  { value: "latão", label: "Latão" },
-  { value: "cobre", label: "Cobre" },
-  { value: "acrílico", label: "Acrílico" },
-  { value: "mdf", label: "MDF" },
-  { value: "compensado", label: "Compensado" },
-];
-
-const THICKNESSES = [
-  { value: "0.5", label: "0,5 mm" },
-  { value: "1", label: "1 mm" },
-  { value: "1.5", label: "1,5 mm" },
-  { value: "2", label: "2 mm" },
-  { value: "3", label: "3 mm" },
-  { value: "4", label: "4 mm" },
-  { value: "5", label: "5 mm" },
-  { value: "6", label: "6 mm" },
-  { value: "8", label: "8 mm" },
-  { value: "10", label: "10 mm" },
-  { value: "12", label: "12 mm" },
-  { value: "15", label: "15 mm" },
-  { value: "20", label: "20 mm" },
-  { value: "25", label: "25 mm" },
-];
-
-// Speed factor: thicker material = slower cut
-const getSpeedFactor = (thickness: number): number => {
-  if (thickness <= 1) return 1;
-  if (thickness <= 3) return 0.7;
-  if (thickness <= 6) return 0.45;
-  if (thickness <= 10) return 0.3;
-  if (thickness <= 15) return 0.2;
-  return 0.12;
-};
+// MATERIALS and THICKNESSES are no longer used as defaults
+// (custom materials from DB are used instead)
+// Kept as empty arrays for backward compat
 
 function parseSVGPathLength(svgText: string): number {
   const parser = new DOMParser();
@@ -398,26 +364,6 @@ interface FileQuoteProps {
   machines: Tables<"machines">[];
 }
 
-interface QuoteResult {
-  fileName: string;
-  pathLengthMM: number;
-  pathLengthM: number;
-  material: string;
-  thickness: string;
-  machineName: string;
-  estimatedTimeMin: number;
-  estimatedCost: number;
-  minRecommended: number;
-  suggestedSale: number;
-  sheetM2: number;
-  pricePerM2: number;
-  unitPrice: number;
-  fileAreaM2: number;
-  bboxWidthMM: number;
-  bboxHeightMM: number;
-  svgDiagnosis?: string;
-}
-
 export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const { user, session } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -428,7 +374,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [machineId, setMachineId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<QuoteResult | null>(null);
+  const [result, setResult] = useState<QuoteCalculationResult | null>(null);
   const [editablePrice, setEditablePrice] = useState(0);
   const [editableMaterialPriceM2, setEditableMaterialPriceM2] = useState(0);
   const [editableMaterialM2, setEditableMaterialM2] = useState(0);
@@ -679,16 +625,19 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       return;
     }
 
+    if (pricing.avgCutSpeed <= 0) {
+      toast.error("Configure a velocidade de corte no Simulador de Precificação.");
+      return;
+    }
+
     setLoading(true);
     try {
       const text = await file.text();
       const ext = file.name.split(".").pop()?.toLowerCase();
 
       let pathLengthUnits = 0;
-      let fileAreaM2 = 0;
       let bboxWidthMM = 0;
       let bboxHeightMM = 0;
-
       let svgDiagnosis: string | undefined;
 
       if (ext === "svg") {
@@ -697,7 +646,6 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         bboxWidthMM = svgBBox.widthMM;
         bboxHeightMM = svgBBox.heightMM;
         svgDiagnosis = svgBBox.diagnosis;
-        fileAreaM2 = (bboxWidthMM * bboxHeightMM) / 1_000_000;
       } else {
         pathLengthUnits = await parseDXFPathLength(text);
         const DxfParser = (await import("dxf-parser")).default;
@@ -707,22 +655,18 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           const bbox = parseDXFBBoxArea(dxf);
           bboxWidthMM = bbox.width;
           bboxHeightMM = bbox.height;
-          fileAreaM2 = (bboxWidthMM * bboxHeightMM) / 1_000_000;
         } catch { /* ignore */ }
       }
 
-      // For SVG: use the same scale derived from parseSVGBBoxMM for path length
-      // The parseSVGPathLength returns in viewBox units; we need to convert to mm
+      // SVG: convert viewBox units → mm
       let pathLengthMM: number;
       if (ext === "svg") {
-        // Determine scale from SVG document
         const tempParser = new DOMParser();
         const tempDoc = tempParser.parseFromString(text, "image/svg+xml");
         const tempSvg = tempDoc.querySelector("svg");
-        let svgScale = 25.4 / 96; // default px→mm
+        let svgScale = 25.4 / 96;
         if (tempSvg) {
           const wA = tempSvg.getAttribute("width");
-          const hA = tempSvg.getAttribute("height");
           const vbA = tempSvg.getAttribute("viewBox");
           const wD = parseSVGDimension(wA);
           const vbParts = vbA?.split(/[\s,]+/).map(Number);
@@ -734,28 +678,15 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
         }
         pathLengthMM = pathLengthUnits * svgScale;
       } else {
-        pathLengthMM = pathLengthUnits; // DXF already in mm
+        pathLengthMM = pathLengthUnits;
       }
-      const pathLengthM = pathLengthMM / 1000;
-
-      const thicknessNum = parseFloat(thickness);
-      const speedFactor = getSpeedFactor(thicknessNum);
-      const baseCutSpeed = 2; // m/min baseline
-      const effectiveSpeed = baseCutSpeed * speedFactor;
-      const estimatedTimeMin = effectiveSpeed > 0 ? (pathLengthM / effectiveSpeed) * quantity : 0;
-
-      const estimatedCost = estimatedTimeMin * pricing.costPerMinute;
-      const minRecommended = estimatedTimeMin * pricing.minPrice;
-      // Apply material-specific price adjustment
-      const matId = material.replace("custom_", "");
-      const currentMat = customMaterials.find((m) => m.id === matId);
-      const adjustment = currentMat?.price_adjustment || 0;
-      const suggestedSale = estimatedTimeMin * pricing.suggestedPrice * (1 + adjustment / 100);
 
       const machine = machines.find((m) => m.id === machineId);
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
+      const matId = material.replace("custom_", "");
+      const currentMat = customMaterials.find((m) => m.id === matId);
+      const adjustment = currentMat?.price_adjustment || 0;
 
-      // Get sheet/material info from selected thickness
       const selectedThickness = availableThicknesses.find((t: any) => t.value === thickness) as any;
       const sheetW = selectedThickness?.sheet_width || 0;
       const sheetH = selectedThickness?.sheet_height || 0;
@@ -763,32 +694,33 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       const sheetM2 = sheetW > 0 && sheetH > 0 ? (sheetW * sheetH) / 1_000_000 : 0;
       const pricePerM2 = sheetM2 > 0 && unitPrice > 0 ? unitPrice / sheetM2 : 0;
 
-      const roundedFileAreaM2 = Math.round(fileAreaM2 * 10000) / 10000;
-
-      setResult({
-        fileName: file.name,
+      // ── CÁLCULO CENTRALIZADO (todas as etapas) ──
+      const calcResult = calculateQuote({
         pathLengthMM,
-        pathLengthM,
+        bboxWidthMM,
+        bboxHeightMM,
+        svgDiagnosis,
+        fileName: file.name,
         material: materialLabel,
         thickness: `${thickness} mm`,
+        thicknessValue: parseFloat(thickness),
         machineName: machine?.model || "—",
-        estimatedTimeMin: Math.round(estimatedTimeMin * 100) / 100,
-        estimatedCost: Math.round(estimatedCost * 100) / 100,
-        minRecommended: Math.round(minRecommended * 100) / 100,
-        suggestedSale: Math.round(suggestedSale * 100) / 100,
-        sheetM2: Math.round(sheetM2 * 10000) / 10000,
-        pricePerM2: Math.round(pricePerM2 * 100) / 100,
-        unitPrice: Math.round(unitPrice * 100) / 100,
-        fileAreaM2: roundedFileAreaM2,
-        bboxWidthMM: Math.round(bboxWidthMM * 100) / 100,
-        bboxHeightMM: Math.round(bboxHeightMM * 100) / 100,
-        svgDiagnosis,
+        quantity,
+        baseSpeedMMmin: pricing.avgCutSpeed,
+        costPerMinute: pricing.costPerMinute,
+        profitMarginPercent: pricing.profitMarginPercent,
+        sheetM2,
+        pricePerM2,
+        unitPrice,
+        materialAdjustmentPercent: adjustment,
       });
-      setEditablePrice(Math.round(suggestedSale * 100) / 100);
+
+      setResult(calcResult);
+      setEditablePrice(calcResult.cutCost);
       const calcPriceM2 = Math.round(pricePerM2 * 100) / 100;
       setEditableMaterialPriceM2(calcPriceM2);
-      setEditableMaterialM2(roundedFileAreaM2);
-      setEditableMaterialCost(Math.round(calcPriceM2 * roundedFileAreaM2 * 100) / 100);
+      setEditableMaterialM2(calcResult.fileAreaM2);
+      setEditableMaterialCost(Math.round(calcPriceM2 * calcResult.fileAreaM2 * 100) / 100);
       setMaterialOwner("cliente");
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar o arquivo.");
@@ -799,157 +731,41 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const materialCost = materialOwner === "usuario" && result ? editableMaterialPriceM2 * editableMaterialM2 * quantity : 0;
-  const totalPrice = editablePrice + materialCost;
+  // ── ETAPA 7: Custo do material (insumo separado) ──
+  const { totalMaterial: materialCost } = calculateMaterialCost(
+    materialOwner === "usuario" && !!result,
+    editableMaterialPriceM2,
+    editableMaterialM2,
+    quantity,
+    result?.materialAdjustmentPercent || 0
+  );
+
+  // ── ETAPA 8: Total final ──
+  const totalPrice = calculateTotalPrice(editablePrice, materialCost);
 
   const exportPDF = async () => {
     if (!result) return;
     try {
-    const s = pdfSettings;
-    const doc = new jsPDF();
-    const pageW = doc.internal.pageSize.getWidth();
-
-    // Parse hex color to RGB
-    const hexToRgb = (hex: string): [number, number, number] => {
-      const h = hex.replace("#", "");
-      return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
-    };
-    const primaryRgb = hexToRgb(s?.primary_color || "#1a1a2e");
-    const accentRgb = hexToRgb(s?.accent_color || "#e94560");
-
-    let yPos = 14;
-
-    // Header with color bar
-    doc.setFillColor(...primaryRgb);
-    doc.rect(0, 0, pageW, 32, "F");
-
-    // Logo
-    if (s?.logo_url) {
-      try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        await new Promise<void>((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.src = s.logo_url;
-        });
-        if (img.complete && img.naturalWidth > 0) {
-          // Convert to data URL via canvas to avoid CORS issues with jsPDF
-          const canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            const isJpeg = s.logo_url.toLowerCase().includes(".jpg") || s.logo_url.toLowerCase().includes(".jpeg");
-            const dataUrl = canvas.toDataURL(isJpeg ? "image/jpeg" : "image/png");
-            const ratio = img.naturalWidth / img.naturalHeight;
-            const logoH = 18;
-            const logoW = logoH * ratio;
-            doc.addImage(dataUrl, isJpeg ? "JPEG" : "PNG", 14, 7, logoW, logoH);
-          }
-        }
-      } catch { /* skip logo */ }
-    }
-
-    // Company name in header
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    const companyName = s?.company_name || "Orçamento de Corte CNC";
-    doc.text(companyName, pageW - 14, 16, { align: "right" });
-
-    // Company contact in header
-    doc.setFontSize(8);
-    const contactParts: string[] = [];
-    if (s?.company_phone) contactParts.push(s.company_phone);
-    if (s?.company_email) contactParts.push(s.company_email);
-    if (contactParts.length > 0) {
-      doc.text(contactParts.join(" | "), pageW - 14, 23, { align: "right" });
-    }
-    if (s?.company_cnpj) {
-      doc.text(`CNPJ: ${s.company_cnpj}`, pageW - 14, 28, { align: "right" });
-    }
-
-    doc.setTextColor(0, 0, 0);
-    yPos = 40;
-
-    // Company address
-    if (s?.company_address) {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text(s.company_address, 14, yPos);
-      yPos += 6;
-    }
-
-    // Date
-    if (s?.show_date !== false) {
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, yPos);
-      yPos += 6;
-    }
-    // Customer
-    if (s?.show_customer !== false && customerName.trim()) {
-      doc.setFontSize(10);
-      doc.text(`Cliente: ${customerName.trim()}`, 14, yPos);
-      yPos += 6;
-    }
-    // Delivery
-    if (s?.show_delivery !== false && deliveryDeadline.trim()) {
-      doc.setFontSize(10);
-      doc.text(`Prazo de Entrega: ${deliveryDeadline.trim()}`, 14, yPos);
-      yPos += 6;
-    }
-
-    // Build table body based on visibility settings
-    const body: string[][] = [];
-    if (s?.show_material !== false) body.push(["Material", result.material]);
-    if (s?.show_thickness !== false) body.push(["Espessura", result.thickness]);
-    if (s?.show_cutting_value !== false) body.push(["Valor do Corte", fmt(editablePrice)]);
-    if (s?.show_material_value !== false && materialOwner === "usuario") {
-      body.push(["Valor do Material", fmt(materialCost)]);
-    }
-    body.push(["", ""]);
-    body.push(["TOTAL", fmt(totalPrice)]);
-
-    autoTable(doc, {
-      startY: yPos + 4,
-      head: [["Item", "Valor"]],
-      body,
-      theme: "striped",
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: primaryRgb },
-      didParseCell: (data: any) => {
-        if (data.row.index === body.length - 1) {
-          data.cell.styles.fontStyle = "bold";
-          data.cell.styles.fontSize = 12;
-          if (data.column.index === 1) {
-            data.cell.styles.textColor = accentRgb;
-          }
-        }
-      },
-    });
-
-    // Footer text
-    if (s?.footer_text) {
-      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 60;
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 120);
-      const lines = doc.splitTextToSize(s.footer_text, pageW - 28);
-      doc.text(lines, 14, finalY + 12);
-    }
-
-    // Use blob + link click to work inside sandboxed iframes
-    const pdfBlob = doc.output("blob");
-    const blobUrl = URL.createObjectURL(pdfBlob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = `orcamento_${result.fileName.replace(/\.\w+$/, "")}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    toast.success("PDF exportado com sucesso!");
+      await generateQuotePDF(
+        {
+          customerName: customerName.trim(),
+          date: new Date().toLocaleDateString("pt-BR"),
+          machineName: result.machineName,
+          material: result.material,
+          thickness: result.thickness,
+          quantity: result.quantity,
+          fileName: result.fileName,
+          pathLengthM: result.pathLengthM,
+          effectiveSpeedMMmin: result.effectiveSpeedMMmin,
+          estimatedTimeMin: result.estimatedTimeMin,
+          cutPrice: editablePrice,
+          materialCost,
+          totalPrice,
+          deliveryDeadline: deliveryDeadline.trim(),
+        },
+        pdfSettings
+      );
+      toast.success("PDF exportado com sucesso!");
     } catch (err: any) {
       console.error("Erro ao gerar PDF:", err?.message, err?.stack, err);
       toast.error(`Erro ao gerar PDF: ${err?.message || "erro desconhecido"}`);
@@ -981,8 +797,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       path_length_m: result.pathLengthM,
       quantity,
       estimated_time_min: result.estimatedTimeMin,
-      estimated_cost: result.estimatedCost,
-      min_recommended: result.minRecommended,
+      estimated_cost: result.cutCost,
+      min_recommended: result.minCutCost,
       suggested_sale: editablePrice,
       cost_per_minute: pricing.costPerMinute,
       file_path: filePath,
@@ -1180,13 +996,31 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 )}
               </div>
 
-              <Card className="bg-secondary/50 border-border">
-                <CardContent className="p-3 text-center">
-                  <Clock className="w-5 h-5 text-info mx-auto mb-1" />
-                  <p className="text-[10px] text-muted-foreground">Tempo Estimado de Corte</p>
-                  <p className="text-lg font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
-                </CardContent>
-              </Card>
+              {/* Technical Summary */}
+              <div className="grid grid-cols-3 gap-2">
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <Gauge className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Velocidade Efetiva</p>
+                    <p className="text-sm font-bold">{result.effectiveSpeedMMmin.toFixed(0)} mm/min</p>
+                    <p className="text-[9px] text-muted-foreground">Base: {result.baseSpeedMMmin} × Fator: {result.speedFactor}</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Tempo Estimado</p>
+                    <p className="text-sm font-bold">{result.estimatedTimeMin.toFixed(1)} min</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <Ruler className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Comprimento</p>
+                    <p className="text-sm font-bold">{result.pathLengthM.toFixed(2)} m</p>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Minimum Sheet Info */}
               {result.bboxWidthMM > 0 && result.bboxHeightMM > 0 && (
@@ -1316,7 +1150,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Sugerido: {fmt(result.suggestedSale)}
+                  Sugerido: {fmt(result.cutCost)} | Mínimo: {fmt(result.minCutCost)}
                 </p>
               </div>
 

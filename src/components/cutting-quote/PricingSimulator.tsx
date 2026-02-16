@@ -15,6 +15,8 @@ export interface PricingData {
   costPerMeter: number;
   minPrice: number;
   suggestedPrice: number;
+  avgCutSpeed: number;       // mm/min — velocidade base do simulador
+  profitMarginPercent: number; // margem de lucro configurada
 }
 
 interface PricingSimulatorProps {
@@ -74,14 +76,14 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
 
   const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
   const costPerMinute = costPerHour / 60;
-  const costPerMeter = avgCutSpeed > 0 ? costPerMinute / avgCutSpeed : 0;
+  const costPerMeter = avgCutSpeed > 0 ? costPerMinute / (avgCutSpeed / 1000) : 0;
   const marginMultiplier = 1 + profitMargin / 100;
-  const minPrice = costPerMinute;
+  const minPrice = costPerMinute * 1.15; // preço mínimo sustentável (15% acima do custo)
   const suggestedPrice = costPerMinute * marginMultiplier;
 
   useEffect(() => {
-    onPricingChange({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice });
-  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice]);
+    onPricingChange({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin });
+  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin]);
 
   // Auto-save with debounce
   const saveSettings = useCallback(async () => {
