@@ -138,6 +138,7 @@ export type Database = {
           material_cost: number
           material_owner: string
           min_recommended: number
+          notes: string
           passes_final: number
           passes_origin: string
           path_length_m: number
@@ -172,6 +173,7 @@ export type Database = {
           material_cost?: number
           material_owner?: string
           min_recommended?: number
+          notes?: string
           passes_final?: number
           passes_origin?: string
           path_length_m?: number
@@ -206,6 +208,7 @@ export type Database = {
           material_cost?: number
           material_owner?: string
           min_recommended?: number
+          notes?: string
           passes_final?: number
           passes_origin?: string
           path_length_m?: number

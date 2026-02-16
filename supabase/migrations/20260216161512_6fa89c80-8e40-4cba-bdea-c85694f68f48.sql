@@ -1,0 +1,1 @@
+ALTER TABLE public.cutting_quotes ADD COLUMN notes text NOT NULL DEFAULT '';

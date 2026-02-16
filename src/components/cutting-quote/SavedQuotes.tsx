@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X } from "lucide-react";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -35,6 +37,7 @@ interface SavedQuote {
   total_price: number;
   client_name: string;
   client_phone: string;
+  notes: string;
 }
 
 export function SavedQuotes() {
@@ -42,6 +45,8 @@ export function SavedQuotes() {
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
+  const [notesText, setNotesText] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | "orcamento" | "fechado">("todos");
   const [materialFilter, setMaterialFilter] = useState("todos");
@@ -105,6 +110,28 @@ export function SavedQuotes() {
     } else {
       toast.success(newStatus === "fechado" ? "Orçamento fechado!" : "Status revertido para orçamento.");
       setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
+    }
+  };
+
+  const openQuoteDetail = (q: SavedQuote) => {
+    setSelectedQuote(q);
+    setNotesText(q.notes || "");
+  };
+
+  const saveNotes = async () => {
+    if (!selectedQuote) return;
+    setSavingNotes(true);
+    const { error } = await supabase
+      .from("cutting_quotes" as any)
+      .update({ notes: notesText } as any)
+      .eq("id", selectedQuote.id);
+    setSavingNotes(false);
+    if (error) {
+      toast.error("Erro ao salvar observações.");
+    } else {
+      toast.success("Observações salvas!");
+      setQuotes((prev) => prev.map((item) => item.id === selectedQuote.id ? { ...item, notes: notesText } : item));
+      setSelectedQuote({ ...selectedQuote, notes: notesText });
     }
   };
 
@@ -255,7 +282,7 @@ export function SavedQuotes() {
                     <TableCell className="text-xs">{new Date(q.created_at).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>
                       <button
-                        onClick={() => setSelectedQuote(q)}
+                        onClick={() => openQuoteDetail(q)}
                         className="text-xs font-medium text-primary hover:underline cursor-pointer text-left"
                       >
                         {q.file_name}
@@ -399,6 +426,28 @@ export function SavedQuotes() {
                     {selectedQuote.status === "fechado" ? "Fechado" : "Orçamento"}
                   </Badge>
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Observações */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Observações</Label>
+                <Textarea
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  placeholder="Adicione observações sobre este orçamento..."
+                  className="min-h-[80px] text-sm"
+                />
+                <Button
+                  size="sm"
+                  onClick={saveNotes}
+                  disabled={savingNotes || notesText === (selectedQuote?.notes || "")}
+                  className="gap-1"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingNotes ? "Salvando..." : "Salvar Observações"}
+                </Button>
               </div>
 
               <Separator />
