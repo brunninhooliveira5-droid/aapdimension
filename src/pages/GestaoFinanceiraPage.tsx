@@ -3,8 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinanceDashboard } from "@/components/financeiro/FinanceDashboard";
 import { AccountsPayable } from "@/components/financeiro/AccountsPayable";
 import { AccountsReceivable } from "@/components/financeiro/AccountsReceivable";
+import { CashFlow } from "@/components/financeiro/CashFlow";
 import Financial from "@/pages/Financial";
-import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt } from "lucide-react";
+import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Receipt, Wallet } from "lucide-react";
 
 export default function GestaoFinanceiraPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -32,6 +33,10 @@ export default function GestaoFinanceiraPage() {
             <ArrowUpCircle className="w-4 h-4" />
             Contas a Receber
           </TabsTrigger>
+          <TabsTrigger value="cashflow" className="gap-1.5 data-[state=active]:bg-background">
+            <Wallet className="w-4 h-4" />
+            Fluxo de Caixa
+          </TabsTrigger>
           <TabsTrigger value="boletos" className="gap-1.5 data-[state=active]:bg-background">
             <Receipt className="w-4 h-4" />
             Boletos de Clientes
@@ -48,6 +53,10 @@ export default function GestaoFinanceiraPage() {
 
         <TabsContent value="receivable" className="mt-4">
           <AccountsReceivable />
+        </TabsContent>
+
+        <TabsContent value="cashflow" className="mt-4">
+          <CashFlow />
         </TabsContent>
 
         <TabsContent value="boletos" className="mt-4">
