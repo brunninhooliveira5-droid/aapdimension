@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus, Search, Trash2, Pencil, CalendarDays } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, CalendarDays, FileDown, TableIcon } from "lucide-react";
+import { exportFinanceListPdf, exportFinanceListCsv } from "@/lib/finance-export";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -84,6 +85,24 @@ export function AccountsReceivable() {
 
   const totalFiltered = filtered.reduce((s, i) => s + Number(i.amount), 0);
 
+  const buildExportConfig = () => ({
+    title: "Contas a Receber",
+    columns: ["Cliente", "Descrição", "Categoria", "Valor", "Previsão", "Recebido", "Status"],
+    rows: filtered.map(item => ({
+      cols: [
+        item.client,
+        item.description || "—",
+        getCategoryName(item.category_id),
+        fmt(item.amount),
+        new Date(item.expected_date).toLocaleDateString("pt-BR"),
+        item.received_date ? new Date(item.received_date).toLocaleDateString("pt-BR") : "—",
+        item.status,
+      ],
+    })),
+    summary: `${filtered.length} registros — Total: ${fmt(totalFiltered)}`,
+    accentColor: [41, 128, 85] as [number, number, number],
+  });
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -114,6 +133,14 @@ export function AccountsReceivable() {
             <Plus className="w-4 h-4" /> Nova Conta
           </Button>
         )}
+        <div className="flex gap-1 ml-auto">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => exportFinanceListCsv(buildExportConfig())}>
+            <TableIcon className="w-3.5 h-3.5" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => exportFinanceListPdf(buildExportConfig())}>
+            <FileDown className="w-3.5 h-3.5" /> PDF
+          </Button>
+        </div>
       </div>
 
       {/* Summary */}
