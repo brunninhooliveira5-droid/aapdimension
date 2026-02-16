@@ -80,7 +80,7 @@ export default function CuttingQuotePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
-        <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos DXF/SVG</p>
+        <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos SVG</p>
       </div>
 
       <Tabs defaultValue="quote" className="w-full">
