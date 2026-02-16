@@ -503,7 +503,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const materialCost = materialOwner === "usuario" ? editableMaterialCost : 0;
+  const materialCost = materialOwner === "usuario" ? editableMaterialPriceM2 : 0;
   const totalPrice = editablePrice + materialCost;
 
   const exportPDF = () => {
@@ -807,35 +807,21 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-3 space-y-2">
                     <p className="text-xs font-medium text-primary">Custo do Material</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Valor/m² (ref.)</Label>
-                        <div className="text-xs text-muted-foreground mt-1 h-8 flex items-center">
-                          {fmt(editableMaterialPriceM2)}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">m² da chapa</Label>
-                        <div className="text-xs text-muted-foreground mt-1 h-8 flex items-center">
-                          {editableMaterialM2.toFixed(4)} m²
-                        </div>
-                      </div>
-                    </div>
                     <div>
-                      <Label className="text-[10px] text-muted-foreground">Custo do Material (editável)</Label>
+                      <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
-                          value={editableMaterialCost || ""}
-                          onChange={(e) => setEditableMaterialCost(Number(e.target.value))}
+                          value={editableMaterialPriceM2 || ""}
+                          onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
                           className="h-8 pl-8 text-sm"
                         />
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Calculado: {fmt(editableMaterialPriceM2 * editableMaterialM2 * quantity)} ({fmt(editableMaterialPriceM2)}/m² × {editableMaterialM2.toFixed(4)} m² × {quantity})
+                        m² da chapa: {editableMaterialM2.toFixed(4)} m²
                       </p>
                     </div>
                   </CardContent>
