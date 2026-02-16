@@ -57,6 +57,7 @@ export type Database = {
           mime_type: string
           published: boolean
           tags: string[] | null
+          training_sector_id: string | null
           updated_at: string
           version: string | null
         }
@@ -73,6 +74,7 @@ export type Database = {
           mime_type?: string
           published?: boolean
           tags?: string[] | null
+          training_sector_id?: string | null
           updated_at?: string
           version?: string | null
         }
@@ -89,6 +91,7 @@ export type Database = {
           mime_type?: string
           published?: boolean
           tags?: string[] | null
+          training_sector_id?: string | null
           updated_at?: string
           version?: string | null
         }
@@ -98,6 +101,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "file_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_files_training_sector_id_fkey"
+            columns: ["training_sector_id"]
+            isOneToOne: false
+            referencedRelation: "training_sectors"
             referencedColumns: ["id"]
           },
         ]
@@ -1046,6 +1056,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      training_sectors: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
