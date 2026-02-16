@@ -19,6 +19,8 @@ export default function CuttingQuotePage() {
     costPerMeter: 0,
     minPrice: 0,
     suggestedPrice: 0,
+    avgCutSpeed: 0,
+    profitMarginPercent: 30,
   });
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
 
@@ -44,12 +46,12 @@ export default function CuttingQuotePage() {
 
           const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
           const costPerMinute = costPerHour / 60;
-          const costPerMeter = avgCutSpeed > 0 ? costPerMinute / avgCutSpeed : 0;
+          const costPerMeter = avgCutSpeed > 0 ? costPerMinute / (avgCutSpeed / 1000) : 0;
           const marginMultiplier = 1 + profitMargin / 100;
-          const minPrice = costPerMinute;
+          const minPrice = costPerMinute * 1.15;
           const suggestedPrice = costPerMinute * marginMultiplier;
 
-          setPricing({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice });
+          setPricing({ costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin });
         }
       });
 
