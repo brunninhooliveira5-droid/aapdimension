@@ -21,6 +21,7 @@ import BulletinsPage from "./pages/BulletinsPage";
 import CuttingQuotePage from "./pages/CuttingQuotePage";
 import FilesPage from "./pages/FilesPage";
 import GestaoFinanceiraPage from "./pages/GestaoFinanceiraPage";
+import UserAccessPage from "./pages/UserAccessPage";
 
 const queryClient = new QueryClient();
 
@@ -32,8 +33,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleGate({ section, children }: { section: string; children: React.ReactNode }) {
-  const { hasAccess } = useAuth();
-  if (!hasAccess(section)) return <Navigate to="/" replace />;
+  const { getSectionVisibility } = useAuth();
+  const visibility = getSectionVisibility(section);
+  if (visibility === "hidden" || visibility === "locked") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -58,6 +60,7 @@ const AppRoutes = () => {
         <Route path="/gestao-financeira" element={<RoleGate section="gestao_financeira"><GestaoFinanceiraPage /></RoleGate>} />
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
         <Route path="/usuarios" element={<RoleGate section="usuarios"><UsersPage /></RoleGate>} />
+        <Route path="/usuarios/:userId/acesso" element={<RoleGate section="usuarios"><UserAccessPage /></RoleGate>} />
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
         <Route path="/orcamento" element={<RoleGate section="orcamento"><CuttingQuotePage /></RoleGate>} />
         <Route path="/arquivos" element={<RoleGate section="arquivos"><FilesPage /></RoleGate>} />

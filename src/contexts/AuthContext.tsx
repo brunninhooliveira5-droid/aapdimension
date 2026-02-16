@@ -19,6 +19,8 @@ const rolePermissions: Record<UserRole, string[]> = {
   financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
 };
 
+export type SectionVisibility = "visible" | "locked" | "hidden";
+
 interface UserPlan {
   plan: string;
   pro_access: boolean;
@@ -35,6 +37,7 @@ interface Profile {
   role: UserRole;
   approved: boolean;
   userPlan: UserPlan | null;
+  sectionAccess: Record<string, SectionVisibility>;
 }
 
 interface SignupExtra {
@@ -55,6 +58,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, role?: UserRole, extra?: SignupExtra) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   hasAccess: (section: string) => boolean;
+  getSectionVisibility: (section: string) => SectionVisibility;
   hasProAccess: (feature?: string) => boolean;
 }
 
@@ -66,10 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string, email: string): Promise<Profile | null> => {
-    const [{ data: profile }, { data: roleData }, { data: planData }] = await Promise.all([
+    const [{ data: profile }, { data: roleData }, { data: planData }, { data: accessData }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       supabase.from("user_plans").select("*").eq("user_id", userId).single(),
+      supabase.from("user_section_access" as any).select("sections").eq("user_id", userId).single(),
     ]);
 
     const role = (roleData?.role as UserRole) ?? "operador";
@@ -90,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userPlan.pro_access = true;
     }
 
+    const sectionAccess: Record<string, SectionVisibility> = (accessData as any)?.sections ?? {};
+
     const p: Profile = {
       name: profile?.name ?? email.split("@")[0],
       email: profile?.email ?? email,
@@ -98,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       approved,
       userPlan,
+      sectionAccess,
     };
 
     return p;
@@ -152,8 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
-
-    // The onAuthStateChange will handle the approval check
     return { error: null };
   };
 
@@ -176,8 +182,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) return { error: error.message };
-
-    // Sign out immediately — user must wait for approval
     await supabase.auth.signOut();
     return { error: null };
   };
@@ -188,14 +192,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
+  const getSectionVisibility = (section: string): SectionVisibility => {
+    if (!user) return "hidden";
+    // admin_master always has full access
+    if (user.role === "admin_master") return "visible";
+    // Check if role even allows this section
+    const roleAllows = rolePermissions[user.role]?.includes(section) ?? false;
+    if (!roleAllows) return "hidden";
+    // Check per-user override
+    const override = user.sectionAccess[section];
+    if (override) return override;
+    // Default: visible if role allows
+    return "visible";
+  };
+
   const hasAccess = (section: string): boolean => {
-    if (!user) return false;
-    return rolePermissions[user.role]?.includes(section) ?? false;
+    const vis = getSectionVisibility(section);
+    // "visible" and "locked" both show in the menu; "hidden" does not
+    return vis === "visible" || vis === "locked";
   };
 
   const hasProAccess = (feature?: string): boolean => {
     if (!user) return false;
-    // admin_master always has pro access
     if (user.role === "admin_master") return true;
     if (!user.userPlan) return false;
     if (!user.userPlan.pro_access) return false;
@@ -214,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         hasAccess,
+        getSectionVisibility,
         hasProAccess,
       }}
     >
