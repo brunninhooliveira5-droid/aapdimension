@@ -815,9 +815,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                         />
                       </div>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Custo material ({result.sheetM2.toFixed(2)} m² × {quantity})</span>
-                      <span className="font-medium">{fmt(materialCost)}</span>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {fmt(editableMaterialPriceM2)}/m² × {result.sheetM2.toFixed(4)} m² × {quantity}
+                        </span>
+                        <span className="font-medium">{fmt(materialCost)}</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
