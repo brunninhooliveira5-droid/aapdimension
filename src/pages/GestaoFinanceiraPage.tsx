@@ -169,17 +169,35 @@ export default function GestaoFinanceiraPage() {
       {/* Main content */}
       <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">
         {isMobile && (
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="mb-3 p-2 rounded-md hover:bg-accent text-muted-foreground transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-2 rounded-md hover:bg-accent text-muted-foreground transition-colors shrink-0"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            {activeSection !== "dashboard" && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <button onClick={() => setActiveSection("dashboard")} className="hover:text-foreground transition-colors">
+                  Dashboard
+                </button>
+                <ChevronRight className="w-3 h-3" />
+                <span className="text-foreground font-medium truncate">{activeLabel}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {!isMobile && activeSection !== "dashboard" && (
+          <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
+            <button onClick={() => setActiveSection("dashboard")} className="hover:text-foreground transition-colors">
+              Dashboard
+            </button>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-foreground font-medium">{activeLabel}</span>
+          </div>
         )}
         {activeSection !== "dashboard" && (
-          <div className="mb-4">
-            <h1 className="text-lg font-bold text-foreground">{activeLabel}</h1>
-          </div>
+          <h1 className="text-lg font-bold text-foreground mb-4">{activeLabel}</h1>
         )}
         {renderContent()}
       </main>
