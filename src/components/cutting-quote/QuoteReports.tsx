@@ -2,9 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, FileCheck, FileText } from "lucide-react";
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, FileCheck, FileText, CalendarIcon, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface QuoteRow {
   id: string;
@@ -44,6 +50,8 @@ export function QuoteReports() {
   const { session } = useAuth();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -57,11 +65,29 @@ export function QuoteReports() {
       });
   }, [session]);
 
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter((q) => {
+      const d = new Date(q.created_at);
+      if (startDate && d < startDate) return false;
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (d > end) return false;
+      }
+      return true;
+    });
+  }, [quotes, startDate, endDate]);
+
+  const clearFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const monthlyData = useMemo(() => {
     const map = new Map<string, { month: string; total: number; count: number; cost: number }>();
-    quotes.forEach((q) => {
+    filteredQuotes.forEach((q) => {
       const d = new Date(q.created_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
@@ -74,34 +100,34 @@ export function QuoteReports() {
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => v);
-  }, [quotes]);
+  }, [filteredQuotes]);
 
   const materialData = useMemo(() => {
     const map = new Map<string, number>();
-    quotes.forEach((q) => {
+    filteredQuotes.forEach((q) => {
       map.set(q.material, (map.get(q.material) || 0) + 1);
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [quotes]);
+  }, [filteredQuotes]);
 
   const summaryStats = useMemo(() => {
-    if (!quotes.length) return { savedRevenue: 0, totalCost: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0, closedProfit: 0 };
+    if (!filteredQuotes.length) return { savedRevenue: 0, totalCost: 0, totalQuotes: 0, closedRevenue: 0, closedCount: 0, closedProfit: 0 };
     const getTotal = (q: QuoteRow) => Number(q.total_price) || Number(q.suggested_sale);
-    const closedQuotes = quotes.filter((q) => q.status === "fechado");
-    const openQuotes = quotes.filter((q) => q.status !== "fechado");
+    const closedQuotes = filteredQuotes.filter((q) => q.status === "fechado");
+    const openQuotes = filteredQuotes.filter((q) => q.status !== "fechado");
     const savedRevenue = openQuotes.reduce((s, q) => s + getTotal(q), 0);
-    const totalCost = quotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
+    const totalCost = filteredQuotes.reduce((s, q) => s + Number(q.estimated_cost), 0);
     const closedRevenue = closedQuotes.reduce((s, q) => s + getTotal(q), 0);
     const closedProfit = closedQuotes.reduce((s, q) => s + (Number(q.suggested_sale) - Number(q.material_cost)) + (Number((q as any).service_value) || 0), 0);
     return {
       savedRevenue,
       totalCost,
-      totalQuotes: quotes.length,
+      totalQuotes: filteredQuotes.length,
       closedRevenue,
       closedCount: closedQuotes.length,
       closedProfit,
     };
-  }, [quotes]);
+  }, [filteredQuotes]);
 
   if (loading) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Carregando relatórios...</p>;
@@ -119,9 +145,52 @@ export function QuoteReports() {
     );
   }
 
+  const hasFilter = startDate || endDate;
+
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Period Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Filtrar por período:</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal min-w-[150px]", !startDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {startDate ? format(startDate, "dd/MM/yyyy") : "Data inicial"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={startDate} onSelect={setStartDate} locale={ptBR} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            <span className="text-xs text-muted-foreground">até</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal min-w-[150px]", !endDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {endDate ? format(endDate, "dd/MM/yyyy") : "Data final"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={endDate} onSelect={setEndDate} locale={ptBR} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {hasFilter && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs">
+                Limpar filtros
+              </Button>
+            )}
+            {hasFilter && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                {filteredQuotes.length} de {quotes.length} orçamento(s)
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
