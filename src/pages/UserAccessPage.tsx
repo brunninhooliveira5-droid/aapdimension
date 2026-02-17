@@ -32,7 +32,7 @@ const ALL_SECTIONS: SectionConfig[] = [
   { key: "manutencao", label: "Manutenção", icon: Calendar },
   { key: "equipamentos", label: "Equipamentos Dimension", icon: Package },
   { key: "pecas", label: "Peças e Acessórios", icon: ShoppingBag },
-  { key: "financeiro", label: "Boletos", icon: Receipt },
+  { key: "financeiro", label: "Faturas", icon: Receipt },
   { key: "configuracoes", label: "Configurações", icon: Settings },
   { key: "boletins", label: "Boletins Técnicos", icon: Newspaper },
   { key: "arquivos", label: "Arquivos", icon: FolderOpen },

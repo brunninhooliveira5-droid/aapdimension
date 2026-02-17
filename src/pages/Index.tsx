@@ -283,7 +283,7 @@ const Index = () => {
         </div>
         <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOpenDialog(true)}>
           <StatCard
-            title="Boletos em Aberto"
+            title="Faturas em Aberto"
             value={openInvoices.length}
             subtitle={nextDueInvoice ? `Próx. venc. ${new Date(nextDueInvoice.due_date).toLocaleDateString("pt-BR")}` : "Nenhum"}
             icon={DollarSign}
@@ -292,7 +292,7 @@ const Index = () => {
         </div>
         <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
           <StatCard
-            title="Boletos em Atraso"
+            title="Faturas em Atraso"
             value={overdueInvoices.length}
             subtitle={overdueInvoices.length > 0 ? "Requerem atenção" : "Nenhum atraso"}
             icon={AlertTriangle}
@@ -452,14 +452,14 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Dialog: Boletos em Aberto */}
+      {/* Dialog: Faturas em Aberto */}
       <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Boletos em Aberto</DialogTitle>
+            <DialogTitle>Faturas em Aberto</DialogTitle>
           </DialogHeader>
           {openInvoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum boleto em aberto.</p>
+            <p className="text-sm text-muted-foreground py-4">Nenhuma fatura em aberto.</p>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {openInvoices.map(inv => (
@@ -480,14 +480,14 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Boletos em Atraso */}
+      {/* Dialog: Faturas em Atraso */}
       <Dialog open={showOverdueDialog} onOpenChange={setShowOverdueDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Boletos em Atraso</DialogTitle>
+            <DialogTitle>Faturas em Atraso</DialogTitle>
           </DialogHeader>
           {overdueInvoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum boleto em atraso.</p>
+            <p className="text-sm text-muted-foreground py-4">Nenhuma fatura em atraso.</p>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {overdueInvoices.map(inv => (

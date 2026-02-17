@@ -35,7 +35,7 @@ const sections = [
   { id: "payable", label: "Contas a Pagar", icon: ArrowDownCircle },
   { id: "receivable", label: "Contas a Receber", icon: ArrowUpCircle },
   { id: "cashflow", label: "Fluxo de Caixa", icon: Wallet },
-  { id: "boletos", label: "Boletos", icon: Receipt },
+  { id: "boletos", label: "Faturas", icon: Receipt },
   { id: "reports", label: "Relatórios", icon: FileBarChart },
   { id: "categories", label: "Categorias", icon: Tags },
   { id: "legal", label: "Jurídico", icon: Scale },

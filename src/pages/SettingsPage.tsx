@@ -88,7 +88,7 @@ const SettingsPage = () => {
           <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Notificações</h3>
         </div>
         <div className="space-y-3">
-          {["Alertas de manutenção", "Vencimento de boletos", "Atualizações de chamados"].map(label => (
+          {["Alertas de manutenção", "Vencimento de faturas", "Atualizações de chamados"].map(label => (
             <div key={label} className="flex items-center justify-between">
               <Label className="text-sm text-foreground">{label}</Label>
               <Switch defaultChecked />

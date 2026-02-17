@@ -237,11 +237,11 @@ const Financial = () => {
       {!isAdmin && (
         <div className="gradient-card rounded-lg border border-border overflow-hidden">
           <div className="p-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Meus Boletos</h3>
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Minhas Faturas</h3>
           </div>
           <div className="divide-y divide-border/50">
             {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-4">Nenhum boleto cadastrado.</p>
+              <p className="text-sm text-muted-foreground p-4">Nenhuma fatura cadastrada.</p>
             ) : (
               invoices.map(inv => {
                 const files = invoiceFiles.filter(f => f.invoice_id === inv.id);
