@@ -221,23 +221,23 @@ const Financial = () => {
         </div>
       </div>
 
-      {/* Summary Cards - Admin only */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total Contratado" value={`R$ ${totalContracted.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} />
-          <StatCard title="Total Pago" value={`R$ ${totalPaid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={TrendingUp} variant="highlight" />
-          <StatCard title="Em Aberto" value={`R$ ${totalOpen.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Clock} variant="warning" />
-          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
-            <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
-          </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Contratado" value={`R$ ${totalContracted.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={DollarSign} />
+        <StatCard title="Total Pago" value={`R$ ${totalPaid.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={TrendingUp} variant="highlight" />
+        <StatCard title="Em Aberto" value={`R$ ${totalOpen.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Clock} variant="warning" />
+        <div className={isAdmin ? "cursor-pointer transition-transform hover:scale-[1.02]" : ""} onClick={isAdmin ? () => setShowOverdueDialog(true) : undefined}>
+          <StatCard title="Em Atraso" value={`R$ ${totalOverdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={AlertTriangle} variant={totalOverdue > 0 ? "danger" : "default"} />
         </div>
-      )}
+      </div>
 
-      {/* For regular users: show their invoices directly */}
+      {/* For regular users: show all their invoices with same admin-style detail view */}
       {!isAdmin && (
         <div className="gradient-card rounded-lg border border-border overflow-hidden">
           <div className="p-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Minhas Faturas</h3>
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Minhas Faturas ({invoices.length})
+            </h3>
           </div>
           <div className="divide-y divide-border/50">
             {invoices.length === 0 ? (
@@ -267,17 +267,19 @@ const Financial = () => {
                       </div>
                       <StatusBadge status={inv.status} />
                     </div>
-                    {/* Files */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {files.map(f => (
-                        <div key={f.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent/50 border border-border text-xs">
-                          <span className="text-foreground truncate max-w-[150px]">{f.file_name}</span>
-                          <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:text-primary/80" onClick={() => handleDownload(f.file_path, f.file_name)}>
-                            <Download className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                    {/* Files - download only */}
+                    {files.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {files.map(f => (
+                          <div key={f.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent/50 border border-border text-xs">
+                            <span className="text-foreground truncate max-w-[150px]">{f.file_name}</span>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:text-primary/80" onClick={() => handleDownload(f.file_path, f.file_name)}>
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
