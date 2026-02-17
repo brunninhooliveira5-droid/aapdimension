@@ -34,6 +34,7 @@ import { toast } from "sonner";
 
 const basicMenuItems = [
   { title: "Home", url: "/", altUrl: "/orcamento", icon: Home, section: "home" },
+  { title: "Propostas", url: "/propostas", icon: FileText, section: "propostas" },
   { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
   { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
@@ -49,7 +50,6 @@ const basicMenuItems = [
 const proMenuItems = [
   { title: "Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira", proFeature: "gestao_financeira" },
   { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento", proFeature: "orcamento" },
-  { title: "Propostas", url: "/propostas", icon: FileText, section: "propostas", proFeature: "propostas" },
 ];
 
 export function AppSidebar() {
