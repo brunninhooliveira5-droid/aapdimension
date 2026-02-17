@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2 } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -457,6 +457,26 @@ const UsersPage = () => {
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)} className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-warning"
+                          title="Resetar senha financeira"
+                          onClick={async () => {
+                            try {
+                              const { data, error } = await supabase.functions.invoke("finance-password", {
+                                body: { action: "reset", target_user_id: u.id },
+                              });
+                              if (error) throw error;
+                              if (data.error) { toast.error(data.error); return; }
+                              toast.success(`Senha financeira de ${u.name} foi resetada. Ele precisará criar uma nova no próximo acesso.`);
+                            } catch {
+                              toast.error("Erro ao resetar senha financeira.");
+                            }
+                          }}
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </TableCell>
