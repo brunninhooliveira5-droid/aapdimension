@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import heroWelcome from "@/assets/hero-welcome.png";
+import { ProStatusCard } from "@/components/ProStatusCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -52,6 +53,7 @@ const Index = () => {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
   const isAdminMaster = user?.role === "admin_master";
+  const isServico = user?.role === "servico";
   const { userId: viewUserId } = useParams<{ userId?: string }>();
 
   const [viewUserName, setViewUserName] = useState<string | null>(null);
@@ -73,6 +75,8 @@ const Index = () => {
   const [maintStatusFilter, setMaintStatusFilter] = useState("todos");
 
   useEffect(() => {
+    // Redirect handled in render
+    if (isServico) return;
     const fetchData = async () => {
       if (viewUserId) {
         const { data: profile } = await supabase
@@ -191,6 +195,9 @@ const Index = () => {
   const nextDueInvoice = openInvoices.length > 0
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
     : null;
+  if (isServico) {
+    return <Navigate to="/orcamento" replace />;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -214,6 +221,9 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* PRO Status Card */}
+      <ProStatusCard />
 
       {/* Financial Status Banner for regular users */}
       {!isAdmin && openInvoices.length > 0 && (

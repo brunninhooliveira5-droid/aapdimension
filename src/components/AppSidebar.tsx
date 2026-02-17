@@ -33,7 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const basicMenuItems = [
-  { title: "Home", url: "/", icon: Home, section: "home" },
+  { title: "Home", url: "/", altUrl: "/orcamento", icon: Home, section: "home" },
   { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
   { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
@@ -121,7 +121,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleBasicItems.map((item) => {
-                const isActive = item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
+                const effectiveUrl = item.altUrl && user?.role === "servico" ? item.altUrl : item.url;
+                const isActive = effectiveUrl === "/" ? location.pathname === "/" : location.pathname.startsWith(effectiveUrl);
                 const visibility = getSectionVisibility(item.section);
 
                 if (visibility === "locked") {
@@ -152,7 +153,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                      <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
+                      <NavLink to={effectiveUrl} end={effectiveUrl === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </NavLink>

@@ -1828,6 +1828,8 @@ export type Database = {
           plan: string
           pro_access: boolean
           pro_activated_at: string | null
+          pro_granted_by: string | null
+          pro_notes: string | null
           updated_at: string
           use_dimension_materials: boolean
           use_master_pricing: boolean
@@ -1844,6 +1846,8 @@ export type Database = {
           plan?: string
           pro_access?: boolean
           pro_activated_at?: string | null
+          pro_granted_by?: string | null
+          pro_notes?: string | null
           updated_at?: string
           use_dimension_materials?: boolean
           use_master_pricing?: boolean
@@ -1860,6 +1864,8 @@ export type Database = {
           plan?: string
           pro_access?: boolean
           pro_activated_at?: string | null
+          pro_granted_by?: string | null
+          pro_notes?: string | null
           updated_at?: string
           use_dimension_materials?: boolean
           use_master_pricing?: boolean
