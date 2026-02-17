@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
+import { format } from "date-fns";
 
 type Visibility = "visible" | "locked" | "hidden";
 
@@ -64,6 +69,15 @@ const UserAccessPage = () => {
   const [useMasterPricing, setUseMasterPricing] = useState(false);
   const [useDimensionMaterials, setUseDimensionMaterials] = useState(false);
 
+  // Bonus state
+  const [bonuses, setBonuses] = useState<any[]>([]);
+  const [showBonusDialog, setShowBonusDialog] = useState(false);
+  const [bonusAmount, setBonusAmount] = useState("");
+  const [bonusType, setBonusType] = useState("credito");
+  const [bonusDescription, setBonusDescription] = useState("");
+  const [bonusNotes, setBonusNotes] = useState("");
+  const [savingBonus, setSavingBonus] = useState(false);
+
   useEffect(() => {
     if (!userId) return;
     fetchData();
@@ -71,11 +85,12 @@ const UserAccessPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: profile }, { data: roleData }, { data: planData }, { data: accessData }] = await Promise.all([
+    const [{ data: profile }, { data: roleData }, { data: planData }, { data: accessData }, { data: bonusData }] = await Promise.all([
       supabase.from("profiles").select("name, email, company").eq("id", userId!).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId!).single(),
       supabase.from("user_plans").select("*").eq("user_id", userId!).single(),
       supabase.from("user_section_access" as any).select("sections").eq("user_id", userId!).single(),
+      supabase.from("service_bonuses" as any).select("*").eq("user_id", userId!).order("created_at", { ascending: false }),
     ]);
 
     setUserName(profile?.name ?? "");
@@ -87,6 +102,7 @@ const UserAccessPage = () => {
     setUseDimensionMaterials((planData as any)?.use_dimension_materials ?? false);
     setHasPlanRow(!!planData);
     setHasAccessRow(!!accessData);
+    setBonuses((bonusData as any[]) ?? []);
 
     // Build sections state from saved data or defaults
     const saved = (accessData as any)?.sections ?? {};
@@ -382,7 +398,170 @@ const UserAccessPage = () => {
         )}
       </div>
 
-      {/* Legend */}
+      {/* Bonus Section - only for servico users */}
+      {userRole === "servico" && (
+        <div className="gradient-card rounded-lg border border-border p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Gift className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Bônus do Cliente</p>
+                <p className="text-xs text-muted-foreground">Gerencie créditos e débitos de bônus</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs font-bold">
+                Saldo: {(() => {
+                  const credits = bonuses.filter(b => b.type === "credito").reduce((s: number, b: any) => s + Number(b.amount), 0);
+                  const debits = bonuses.filter(b => b.type === "debito").reduce((s: number, b: any) => s + Number(b.amount), 0);
+                  const bal = credits - debits;
+                  return bal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                })()}
+              </Badge>
+              <Button size="sm" className="gap-1.5 h-7 text-xs" onClick={() => { setBonusAmount(""); setBonusType("credito"); setBonusDescription(""); setBonusNotes(""); setShowBonusDialog(true); }}>
+                <Plus className="w-3 h-3" /> Novo
+              </Button>
+            </div>
+          </div>
+
+          {/* Bonus history */}
+          {bonuses.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum bônus registrado para este cliente.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Data</TableHead>
+                    <TableHead className="text-xs">Tipo</TableHead>
+                    <TableHead className="text-xs">Descrição</TableHead>
+                    <TableHead className="text-xs text-right">Valor</TableHead>
+                    <TableHead className="text-xs text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bonuses.map((b: any) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="text-xs">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          {format(new Date(b.created_at), "dd/MM/yyyy HH:mm")}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {b.type === "credito" ? (
+                          <Badge className="text-[10px] bg-primary gap-0.5"><TrendingUp className="w-3 h-3" />Crédito</Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[10px] gap-0.5"><TrendingDown className="w-3 h-3" />Débito</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <p className="truncate max-w-[200px]">{b.description}</p>
+                        {b.notes && <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{b.notes}</p>}
+                      </TableCell>
+                      <TableCell className={`text-xs text-right font-bold ${b.type === "credito" ? "text-primary" : "text-destructive"}`}>
+                        {b.type === "credito" ? "+" : "−"}{Number(b.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir registro de bônus?</AlertDialogTitle>
+                              <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => {
+                                const { error } = await supabase.from("service_bonuses" as any).delete().eq("id", b.id);
+                                if (error) { toast.error("Erro ao excluir."); return; }
+                                setBonuses(prev => prev.filter((x: any) => x.id !== b.id));
+                                toast.success("Registro excluído.");
+                              }}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Bonus Dialog */}
+      <Dialog open={showBonusDialog} onOpenChange={setShowBonusDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-4 h-4 text-primary" />
+              Novo Bônus — {userName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo *</Label>
+                <Select value={bonusType} onValueChange={setBonusType}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="credito">Crédito (+)</SelectItem>
+                    <SelectItem value="debito">Débito (−)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Valor (R$) *</Label>
+                <Input type="number" min="0.01" step="0.01" value={bonusAmount} onChange={e => setBonusAmount(e.target.value)} className="h-9 text-sm" placeholder="0,00" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descrição</Label>
+              <Input value={bonusDescription} onChange={e => setBonusDescription(e.target.value)} className="h-9 text-sm" placeholder="Ex: Bônus de indicação" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={bonusNotes} onChange={e => setBonusNotes(e.target.value)} className="text-sm min-h-[60px]" placeholder="Notas internas (opcional)" />
+            </div>
+            <Button className="w-full" disabled={savingBonus || !bonusAmount || Number(bonusAmount) <= 0} onClick={async () => {
+              setSavingBonus(true);
+              const { data: { user: authUser } } = await supabase.auth.getUser();
+              if (!authUser) { setSavingBonus(false); return; }
+              const { error } = await supabase.from("service_bonuses" as any).insert({
+                user_id: userId,
+                amount: Number(bonusAmount),
+                type: bonusType,
+                description: bonusDescription || (bonusType === "credito" ? "Bônus adicionado" : "Bônus removido"),
+                granted_by: authUser.id,
+                notes: bonusNotes || null,
+              } as any);
+              if (error) { toast.error("Erro ao registrar bônus."); }
+              else {
+                toast.success(`Bônus ${bonusType === "credito" ? "adicionado" : "debitado"} com sucesso.`);
+                setShowBonusDialog(false);
+                // Refresh bonuses
+                const { data: refreshed } = await supabase.from("service_bonuses" as any).select("*").eq("user_id", userId!).order("created_at", { ascending: false });
+                setBonuses((refreshed as any[]) ?? []);
+              }
+              setSavingBonus(false);
+            }}>
+              {savingBonus ? "Salvando..." : `Registrar ${bonusType === "credito" ? "Crédito" : "Débito"}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       <div className="gradient-card rounded-lg border border-border p-4">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Legenda</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
