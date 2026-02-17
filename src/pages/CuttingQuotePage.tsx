@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield, Users } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
 import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
 import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
+import { ServiceClientsTab } from "@/components/cutting-quote/ServiceClientsTab";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,6 +141,7 @@ export default function CuttingQuotePage() {
   }, [session]);
 
   const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible";
+  const canAccessClientes = user?.role === "admin_master";
 
   return (
     <div className="space-y-6">
@@ -192,7 +194,7 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue="quote" className="w-full">
-        <TabsList className="grid w-full max-w-4xl grid-cols-6">
+        <TabsList className={`grid w-full max-w-4xl ${canAccessClientes ? "grid-cols-7" : "grid-cols-6"}`}>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
@@ -222,6 +224,11 @@ export default function CuttingQuotePage() {
           <TabsTrigger value="pdf-config" className="gap-2">
             <Settings2 className="w-4 h-4" /> Config. PDF
           </TabsTrigger>
+          {canAccessClientes && (
+            <TabsTrigger value="clients" className="gap-2">
+              <Users className="w-4 h-4" /> Clientes
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="simulator">
@@ -263,6 +270,12 @@ export default function CuttingQuotePage() {
         <TabsContent value="pdf-config">
           <PdfConfiguration />
         </TabsContent>
+
+        {canAccessClientes && (
+          <TabsContent value="clients">
+            <ServiceClientsTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

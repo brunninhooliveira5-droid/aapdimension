@@ -42,6 +42,7 @@ const assignableRoles: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrador" },
   { value: "operador", label: "Operador" },
   { value: "financeiro", label: "Financeiro" },
+  { value: "servico", label: "Serviço" },
 ];
 
 const UsersPage = () => {
@@ -247,7 +248,7 @@ const UsersPage = () => {
           <ShieldCheck className="w-4 h-4 text-primary" />
           <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Permissões por Perfil</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div className="space-y-1">
             <p className="font-medium text-foreground">Administrador</p>
             <p className="text-muted-foreground">Acesso total a todas as áreas</p>
@@ -259,6 +260,10 @@ const UsersPage = () => {
           <div className="space-y-1">
             <p className="font-medium text-foreground">Financeiro</p>
             <p className="text-muted-foreground">Apenas Home, Financeiro e Config.</p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">Serviço</p>
+            <p className="text-muted-foreground">Equipamentos, Orçamento e Config.</p>
           </div>
         </div>
       </div>
@@ -401,6 +406,7 @@ const UsersPage = () => {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                           u.role === "admin" || u.role === "admin_master" ? "bg-warning/15 text-warning border-warning/30" :
                           u.role === "operador" ? "bg-info/15 text-info border-info/30" :
+                          u.role === "servico" ? "bg-primary/15 text-primary border-primary/30" :
                           "bg-success/15 text-success border-success/30"
                         }`}>
                           {roleLabels[u.role]}

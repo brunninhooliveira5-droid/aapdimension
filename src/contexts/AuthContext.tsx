@@ -3,13 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
-export type UserRole = "admin_master" | "admin" | "operador" | "financeiro";
+export type UserRole = "admin_master" | "admin" | "operador" | "financeiro" | "servico";
 
 export const roleLabels: Record<UserRole, string> = {
   admin_master: "Administrador Master",
   admin: "Administrador",
   operador: "Operador",
   financeiro: "Financeiro",
+  servico: "Serviço",
 };
 
 const rolePermissions: Record<UserRole, string[]> = {
@@ -17,6 +18,7 @@ const rolePermissions: Record<UserRole, string[]> = {
   admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos"],
   operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos"],
   financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
+  servico: ["home", "equipamentos", "configuracoes", "orcamento"],
 };
 
 export type SectionVisibility = "visible" | "locked" | "hidden";
