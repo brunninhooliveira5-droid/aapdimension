@@ -82,19 +82,15 @@ export default function CuttingQuotePage() {
       setUseDimensionMaterials((planData as any)?.use_dimension_materials ?? false);
 
       if (inheritMaster) {
-        // Find admin_master user and load their pricing
-        const { data: adminRole } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "admin_master")
-          .limit(1)
-          .single();
+        // Find admin_master user via secure RPC function (bypasses RLS)
+        const { data: adminMasterUserId, error: rpcError } = await supabase
+          .rpc("get_admin_master_user_id");
 
-        if (adminRole) {
+        if (adminMasterUserId && !rpcError) {
           const { data: masterSettings } = await supabase
             .from("pricing_settings" as any)
             .select("*")
-            .eq("user_id", adminRole.user_id)
+            .eq("user_id", adminMasterUserId)
             .maybeSingle();
 
           if (masterSettings) {
