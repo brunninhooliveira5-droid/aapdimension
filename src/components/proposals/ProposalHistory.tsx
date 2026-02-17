@@ -99,10 +99,17 @@ export function ProposalHistory() {
       .eq("user_id", session?.user?.id ?? "")
       .maybeSingle();
 
-    await generateProposalPdf({
+    const result = await generateProposalPdf({
       ...proposal,
       pdfSettings: pdfSettings as any,
     });
+
+    const url = URL.createObjectURL(result.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
