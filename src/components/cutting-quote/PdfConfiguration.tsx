@@ -108,8 +108,9 @@ export function PdfConfiguration() {
       toast.error("Nome da empresa é obrigatório.");
       return;
     }
-    if (!settings.company_email.trim()) {
-      toast.error("E-mail da empresa é obrigatório.");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!settings.company_email.trim() || !emailRegex.test(settings.company_email.trim())) {
+      toast.error("Informe um e-mail válido (ex: contato@empresa.com).");
       return;
     }
     setSaving(true);
