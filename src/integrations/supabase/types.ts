@@ -1962,6 +1962,7 @@ export type Database = {
           details: string
           id: string
           target_models: string[] | null
+          target_roles: string[] | null
           title: string
           updated_at: string
           valid_from: string
@@ -1975,6 +1976,7 @@ export type Database = {
           details?: string
           id?: string
           target_models?: string[] | null
+          target_roles?: string[] | null
           title: string
           updated_at?: string
           valid_from?: string
@@ -1988,6 +1990,7 @@ export type Database = {
           details?: string
           id?: string
           target_models?: string[] | null
+          target_roles?: string[] | null
           title?: string
           updated_at?: string
           valid_from?: string

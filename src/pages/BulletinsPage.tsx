@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Newspaper, X, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Newspaper, X, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, roleLabels, type UserRole } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -35,6 +35,7 @@ interface Bulletin {
   valid_from: string;
   valid_until: string | null;
   target_models: string[];
+  target_roles: string[];
   created_at: string;
 }
 
@@ -64,6 +65,15 @@ const BulletinsPage = () => {
   const [validUntil, setValidUntil] = useState("");
   const [targetAll, setTargetAll] = useState(true);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [targetAllRoles, setTargetAllRoles] = useState(true);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+  const availableRoles: { value: UserRole; label: string }[] = [
+    { value: "admin", label: roleLabels.admin },
+    { value: "operador", label: roleLabels.operador },
+    { value: "financeiro", label: roleLabels.financeiro },
+    { value: "servico", label: roleLabels.servico },
+  ];
 
   const fetchBulletins = async () => {
     const { data } = await supabase
@@ -88,6 +98,7 @@ const BulletinsPage = () => {
     setTitle(""); setContent(""); setDetails(""); setActive(true);
     setValidFrom(new Date().toISOString().split("T")[0]); setValidUntil("");
     setTargetAll(true); setSelectedModels([]); setEquipSearch("");
+    setTargetAllRoles(true); setSelectedRoles([]);
     setEditing(null);
   };
 
@@ -109,6 +120,14 @@ const BulletinsPage = () => {
       setTargetAll(false);
       setSelectedModels(models);
     }
+    const roles = b.target_roles ?? [];
+    if (roles.length === 0) {
+      setTargetAllRoles(true);
+      setSelectedRoles([]);
+    } else {
+      setTargetAllRoles(false);
+      setSelectedRoles(roles);
+    }
     setEquipSearch("");
     setShowDialog(true);
   };
@@ -117,6 +136,7 @@ const BulletinsPage = () => {
     if (!title.trim() || !content.trim()) { toast.error("Título e conteúdo são obrigatórios."); return; }
     setSaving(true);
     const models = targetAll ? [] : selectedModels;
+    const roles = targetAllRoles ? [] : selectedRoles;
     const payload = {
       title: title.trim(),
       content: content.trim(),
@@ -125,6 +145,7 @@ const BulletinsPage = () => {
       valid_from: validFrom,
       valid_until: validUntil || null,
       target_models: models,
+      target_roles: roles,
     };
 
     if (editing) {
@@ -160,6 +181,12 @@ const BulletinsPage = () => {
   const toggleModel = (name: string) => {
     setSelectedModels(prev =>
       prev.includes(name) ? prev.filter(m => m !== name) : [...prev, name]
+    );
+  };
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
 
@@ -200,6 +227,11 @@ const BulletinsPage = () => {
                   {(!b.target_models || b.target_models.length === 0)
                     ? "Todos os equipamentos"
                     : `Modelos: ${b.target_models.join(", ")}`}
+                </span>
+                <span>
+                  {(!b.target_roles || b.target_roles.length === 0)
+                    ? "Todos os perfis"
+                    : `Perfis: ${b.target_roles.map(r => roleLabels[r as UserRole] ?? r).join(", ")}`}
                 </span>
               </div>
             </div>
@@ -310,6 +342,51 @@ const BulletinsPage = () => {
                   </div>
                   <p className="text-[10px] text-muted-foreground">
                     Usuários com estes equipamentos cadastrados receberão o boletim.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Target Roles Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                Destinatários por Perfil
+              </Label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setTargetAllRoles(true); setSelectedRoles([]); }}
+                  className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${targetAllRoles ? "bg-primary text-primary-foreground border-primary" : "bg-accent border-border text-muted-foreground hover:text-foreground"}`}
+                >
+                  Todos os perfis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetAllRoles(false)}
+                  className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${!targetAllRoles ? "bg-primary text-primary-foreground border-primary" : "bg-accent border-border text-muted-foreground hover:text-foreground"}`}
+                >
+                  Por perfil
+                </button>
+              </div>
+
+              {!targetAllRoles && (
+                <div className="space-y-2 mt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {availableRoles.map(role => (
+                      <button
+                        key={role.value}
+                        type="button"
+                        onClick={() => toggleRole(role.value)}
+                        className={`text-xs px-3 py-1.5 rounded-md border transition-colors flex items-center gap-1.5 ${selectedRoles.includes(role.value) ? "bg-primary/15 text-primary border-primary/30 font-medium" : "bg-accent border-border text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {selectedRoles.includes(role.value) && <span className="text-[10px]">✓</span>}
+                        {role.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Apenas usuários com os perfis selecionados receberão o boletim.
                   </p>
                 </div>
               )}
