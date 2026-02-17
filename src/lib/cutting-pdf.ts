@@ -176,25 +176,15 @@ export async function generateQuotePDF(
   if (data.useDimensionMaterials) {
     body.push(["Fornecedor Material", "Dimension CNC"]);
   }
-  if (data.useMasterPricing) {
-    body.push(["Configuração", "Dimension CNC (Oficial)"]);
-  }
   if (s.show_thickness !== false) body.push(["Espessura", data.thickness]);
-  body.push(["Quantidade", String(data.quantity)]);
 
   // Resumo técnico
-  body.push(["", ""]);
-  body.push(["Comprimento Original", `${data.pathLengthM.toFixed(2)} m`]);
   if (data.passesFinal > 1) {
+    body.push(["", ""]);
     const passesLabel = data.passesOrigin === "manual_override" ? `${data.passesFinal} (Override manual)` : `${data.passesFinal}`;
     body.push(["Passadas", passesLabel]);
     body.push(["Comprimento Efetivo", `${data.effectiveCutLengthM.toFixed(2)} m`]);
   }
-  const speedLabel = data.baseSpeedOrigin === "manual_override" ? `${data.baseSpeedMMmin.toFixed(0)} mm/min (Override)` : `${data.baseSpeedMMmin.toFixed(0)} mm/min (Simulador)`;
-  body.push(["Velocidade Base", speedLabel]);
-  body.push(["Fator de Velocidade", `${data.speedFactor.toFixed(2)} (${data.speedFactorOrigin})`]);
-  body.push(["Velocidade Efetiva", `${data.effectiveSpeedMMmin.toFixed(0)} mm/min`]);
-  body.push(["Tempo Estimado", `${data.estimatedTimeMin.toFixed(1)} min`]);
 
   // Resumo financeiro
   body.push(["", ""]);
