@@ -55,6 +55,7 @@ const Financial = () => {
 
   // Upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const userFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState<string | null>(null);
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
   const [showUserInvoices, setShowUserInvoices] = useState(true);
@@ -143,7 +144,7 @@ const Financial = () => {
     toast.success("Status atualizado!");
   };
 
-  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, isUserUpload = false) => {
     const file = e.target.files?.[0];
     if (!file || !uploadingInvoiceId) return;
 
@@ -165,9 +166,10 @@ const Financial = () => {
       return;
     }
     setInvoiceFiles(prev => [...prev, data as InvoiceFile]);
-    toast.success("Arquivo enviado!");
+    toast.success("Comprovante enviado!");
     setUploadingInvoiceId(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    const ref = isUserUpload ? userFileInputRef : fileInputRef;
+    if (ref.current) ref.current.value = "";
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string) => {
@@ -287,7 +289,7 @@ const Financial = () => {
                         <StatusBadge status={inv.status} />
                       </div>
 
-                      {/* Files - download only */}
+                      {/* Files - download + upload comprovante */}
                       <div className="flex items-center gap-2 flex-wrap">
                         {files.map(f => (
                           <div
@@ -302,6 +304,18 @@ const Financial = () => {
                         {files.length === 0 && (
                           <span className="text-xs text-muted-foreground">Nenhum arquivo disponível</span>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => {
+                            setUploadingInvoiceId(inv.id);
+                            userFileInputRef.current?.click();
+                          }}
+                        >
+                          <Upload className="w-3 h-3" />
+                          Enviar Comprovante
+                        </Button>
                       </div>
                     </div>
                   );
@@ -479,8 +493,9 @@ const Financial = () => {
         </div>
       ) : null}
 
-      {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleUploadFile} />
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => handleUploadFile(e, false)} />
+      <input ref={userFileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={(e) => handleUploadFile(e, true)} />
 
       {/* Add User Dialog */}
       <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
