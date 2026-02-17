@@ -368,9 +368,11 @@ interface FileQuoteProps {
   useMasterPricing?: boolean;
   useDimensionMaterials?: boolean;
   isAdminMaster?: boolean;
+  pricingLoaded?: boolean;
+  masterPricingError?: boolean;
 }
 
-export function FileQuote({ pricing, machines, useMasterPricing = false, useDimensionMaterials = false, isAdminMaster = false }: FileQuoteProps) {
+export function FileQuote({ pricing, machines, useMasterPricing = false, useDimensionMaterials = false, isAdminMaster = false, pricingLoaded = true, masterPricingError = false }: FileQuoteProps) {
   const { user, session, getSectionVisibility } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -662,8 +664,27 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       return;
     }
 
+    // Pricing resolver: validate against the RESOLVED config (master or own)
+    if (!pricingLoaded) {
+      toast.error("Aguarde o carregamento das configurações de precificação.");
+      return;
+    }
+
+    if (masterPricingError && useMasterPricing) {
+      if (isAdminMaster) {
+        toast.error("Configuração de precificação master não encontrada. Configure o Simulador de Precificação.");
+      } else {
+        toast.error("Configuração Dimension indisponível no momento. Contate o suporte.");
+      }
+      return;
+    }
+
     if (pricing.avgCutSpeed <= 0) {
-      toast.error("Configure a velocidade de corte no Simulador de Precificação.");
+      if (useMasterPricing && !isAdminMaster) {
+        toast.error("Configuração Dimension indisponível no momento. Contate o suporte.");
+      } else {
+        toast.error("Configure a velocidade de corte no Simulador de Precificação.");
+      }
       return;
     }
 
