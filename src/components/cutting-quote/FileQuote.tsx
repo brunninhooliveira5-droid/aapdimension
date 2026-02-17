@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench, RotateCcw } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench, RotateCcw, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { PricingData } from "./PricingSimulator";
 import type { Tables } from "@/integrations/supabase/types";
 import type { PdfSettings } from "./PdfConfiguration";
-import { calculateQuote, calculateMaterialCost, calculateTotalPrice, type QuoteCalculationResult } from "@/lib/cutting-calculations";
+import { calculateQuote, calculateMaterialCost, calculateTotalPrice, applyMinimumCutPrice, MINIMUM_CUT_PRICE, type QuoteCalculationResult } from "@/lib/cutting-calculations";
 import { generateQuotePDF } from "@/lib/cutting-pdf";
 
 // MATERIALS and THICKNESSES are no longer used as defaults
@@ -737,7 +737,8 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       });
 
       setResult(calcResult);
-      setEditablePrice(calcResult.cutCost);
+      const { finalCutCost: initialCutCost } = applyMinimumCutPrice(calcResult.cutCost);
+      setEditablePrice(initialCutCost);
       const calcPriceM2 = Math.round(pricePerM2 * 100) / 100;
       setEditableMaterialPriceM2(calcPriceM2);
       setEditableMaterialM2(calcResult.fileAreaM2);
@@ -768,7 +769,10 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
   // Recalculate cut cost with overridden time
   const recalcSuggestedPricePerMin = result?.suggestedPricePerMinute || 0;
-  const recalcCutCost = Math.round(currentEstimatedTimeMin * recalcSuggestedPricePerMin * 100) / 100;
+  const recalcCutCostRaw = Math.round(currentEstimatedTimeMin * recalcSuggestedPricePerMin * 100) / 100;
+
+  // Apply minimum cut price lock
+  const { finalCutCost: recalcCutCost, minimumApplied: minCutPriceApplied } = applyMinimumCutPrice(recalcCutCostRaw);
 
   // Auto-update editable price when overrides change
   useEffect(() => {
@@ -786,9 +790,13 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
     result?.materialAdjustmentPercent || 0
   );
 
+  // Apply minimum cut price on editable price
+  const effectiveCutPrice = Math.max(editablePrice, MINIMUM_CUT_PRICE);
+  const editableMinApplied = result ? editablePrice < MINIMUM_CUT_PRICE : false;
+
   // ── ETAPA 8: Total final (inclui serviço se ativo) ──
   const serviceAmount = serviceValueIncluded ? serviceValue : 0;
-  const totalPrice = calculateTotalPrice(editablePrice, materialCost) + serviceAmount;
+  const totalPrice = calculateTotalPrice(effectiveCutPrice, materialCost) + serviceAmount;
 
   // Override origin labels
   const passesOrigin = passesOverridden ? "manual_override" : "default";
@@ -823,7 +831,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
           passesFinal: currentPasses,
           passesOrigin,
           effectiveCutLengthM: Math.round(currentEffectiveCutLengthM * 100) / 100,
-          cutPrice: editablePrice,
+          cutPrice: effectiveCutPrice,
           materialCost,
           serviceValue: serviceValueIncluded ? serviceValue : 0,
           serviceValueIncluded,
@@ -868,7 +876,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
       estimated_time_min: Math.round(currentEstimatedTimeMin * 100) / 100,
       estimated_cost: recalcCutCost,
       min_recommended: result.minCutCost,
-      suggested_sale: editablePrice,
+      suggested_sale: effectiveCutPrice,
       cost_per_minute: pricing.costPerMinute,
       file_path: filePath,
       material_cost: materialCost,
@@ -1321,6 +1329,16 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                 </Card>
               )}
 
+              {/* Minimum Cut Price Alert */}
+              {(editableMinApplied || minCutPriceApplied) && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-orange-500/10 border border-orange-500/30 text-xs">
+                  <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                  <span className="text-foreground">
+                    Valor mínimo de corte aplicado: <strong>{fmt(MINIMUM_CUT_PRICE)}</strong>. O valor calculado era inferior ao mínimo operacional.
+                  </span>
+                </div>
+              )}
+
               {/* Editable Cutting Price */}
               <div>
                 <Label className="text-xs">Valor do Corte (editável)</Label>
@@ -1328,7 +1346,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
                   <Input
                     type="number"
-                    min={0}
+                    min={MINIMUM_CUT_PRICE}
                     step={0.01}
                     value={editablePrice || ""}
                     onChange={(e) => setEditablePrice(Number(e.target.value))}
@@ -1336,7 +1354,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Sugerido: {fmt(result.cutCost)} | Mínimo: {fmt(result.minCutCost)}
+                  Sugerido: {fmt(result.cutCost)} | Mínimo operacional: {fmt(MINIMUM_CUT_PRICE)}
                 </p>
               </div>
 
