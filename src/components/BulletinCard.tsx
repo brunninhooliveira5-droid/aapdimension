@@ -17,9 +17,14 @@ interface Bulletin {
   details: string;
   valid_until: string | null;
   target_models: string[];
+  target_roles: string[];
 }
 
-export function BulletinCard() {
+interface BulletinCardProps {
+  filterByRole?: string;
+}
+
+export function BulletinCard({ filterByRole }: BulletinCardProps = {}) {
   const { user } = useAuth();
   const [bulletin, setBulletin] = useState<Bulletin | null>(null);
   const [isRead, setIsRead] = useState(false);
@@ -57,6 +62,13 @@ export function BulletinCard() {
       const activeBulletin = bulletins.find(b => {
         if (b.valid_until && b.valid_until < today) return false;
         if (readIds.has(b.id)) return false;
+        // Filter by target_roles if filterByRole is specified
+        const targetRoles: string[] = b.target_roles ?? [];
+        if (filterByRole) {
+          if (targetRoles.length > 0 && !targetRoles.includes(filterByRole)) return false;
+        } else {
+          // When no filterByRole, skip bulletins that target specific roles
+        }
         // If no target_models, show to everyone
         const targets: string[] = b.target_models ?? [];
         if (targets.length === 0) return true;
@@ -67,6 +79,10 @@ export function BulletinCard() {
       if (!activeBulletin) {
         const anyValid = bulletins.find(b => {
           if (b.valid_until && b.valid_until < today) return false;
+          const targetRoles: string[] = b.target_roles ?? [];
+          if (filterByRole) {
+            if (targetRoles.length > 0 && !targetRoles.includes(filterByRole)) return false;
+          }
           const targets: string[] = b.target_models ?? [];
           if (targets.length === 0) return true;
           return targets.some(t => userModels.has(t.toLowerCase()));

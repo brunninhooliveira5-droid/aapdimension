@@ -11,6 +11,7 @@ import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
 import { ServiceClientsTab } from "@/components/cutting-quote/ServiceClientsTab";
 import { ServiceBonusCard } from "@/components/cutting-quote/ServiceBonusCard";
 import { ServiceBonusManager } from "@/components/cutting-quote/ServiceBonusManager";
+import { BulletinCard } from "@/components/BulletinCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -152,6 +153,8 @@ export default function CuttingQuotePage() {
     <div className="space-y-6">
       {/* Bonus card for service users */}
       <ServiceBonusCard />
+      {/* Bulletin card for service users */}
+      {user?.role === "servico" && <BulletinCard filterByRole="servico" />}
 
       <div className="flex items-center justify-between">
         <div>
