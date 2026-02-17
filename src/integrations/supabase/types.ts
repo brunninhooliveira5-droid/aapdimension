@@ -73,6 +73,95 @@ export type Database = {
           },
         ]
       }
+      client_proposals: {
+        Row: {
+          base_price: number | null
+          client_company: string | null
+          client_document: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          created_by: string
+          delivery_days: number | null
+          description: string
+          id: string
+          included_items: Json
+          model_id: string | null
+          model_name: string
+          notes: string | null
+          optional_items: Json
+          optional_total: number | null
+          payment_conditions: string | null
+          pdf_url: string | null
+          status: string
+          tech_specs: string
+          total_price: number | null
+          updated_at: string
+          validity_days: number | null
+        }
+        Insert: {
+          base_price?: number | null
+          client_company?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          created_by: string
+          delivery_days?: number | null
+          description?: string
+          id?: string
+          included_items?: Json
+          model_id?: string | null
+          model_name?: string
+          notes?: string | null
+          optional_items?: Json
+          optional_total?: number | null
+          payment_conditions?: string | null
+          pdf_url?: string | null
+          status?: string
+          tech_specs?: string
+          total_price?: number | null
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Update: {
+          base_price?: number | null
+          client_company?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string
+          delivery_days?: number | null
+          description?: string
+          id?: string
+          included_items?: Json
+          model_id?: string | null
+          model_name?: string
+          notes?: string | null
+          optional_items?: Json
+          optional_total?: number | null
+          payment_conditions?: string | null
+          pdf_url?: string | null
+          status?: string
+          tech_specs?: string
+          total_price?: number | null
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_proposals_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_machine_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_files: {
         Row: {
           category_id: string
@@ -1658,6 +1747,127 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      proposal_machine_included_items: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_machine_included_items_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_machine_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_machine_models: {
+        Row: {
+          area_x: number | null
+          area_y: number | null
+          area_z: number | null
+          base_price: number | null
+          category: string | null
+          created_at: string
+          created_by: string
+          delivery_days: number | null
+          description: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          tech_specs: string
+          updated_at: string
+        }
+        Insert: {
+          area_x?: number | null
+          area_y?: number | null
+          area_z?: number | null
+          base_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by: string
+          delivery_days?: number | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          tech_specs?: string
+          updated_at?: string
+        }
+        Update: {
+          area_x?: number | null
+          area_y?: number | null
+          area_z?: number | null
+          base_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          delivery_days?: number | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          tech_specs?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      proposal_machine_optional_items: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string
+          name: string
+          price: number | null
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          name: string
+          price?: number | null
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          name?: string
+          price?: number | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_machine_optional_items_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_machine_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registered_equipment: {
         Row: {

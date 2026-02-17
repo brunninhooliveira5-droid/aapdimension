@@ -22,6 +22,7 @@ import CuttingQuotePage from "./pages/CuttingQuotePage";
 import FilesPage from "./pages/FilesPage";
 import GestaoFinanceiraPage from "./pages/GestaoFinanceiraPage";
 import UserAccessPage from "./pages/UserAccessPage";
+import ProposalsPage from "./pages/ProposalsPage";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ const AppRoutes = () => {
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
         <Route path="/orcamento" element={<RoleGate section="orcamento"><CuttingQuotePage /></RoleGate>} />
         <Route path="/arquivos" element={<RoleGate section="arquivos"><FilesPage /></RoleGate>} />
+        <Route path="/propostas" element={<RoleGate section="propostas"><ProposalsPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
