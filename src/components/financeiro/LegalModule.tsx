@@ -56,7 +56,7 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 // ========== CONTRACTS SUB-TAB ==========
 function ContractsTab() {
   const { user, session } = useAuth();
-  const canEdit = user?.role === "admin_master";
+  const canEdit = user?.role === "admin_master" || user?.role === "financeiro";
   const [items, setItems] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -174,7 +174,7 @@ function ContractDialog({ open, item, onClose, onSave }: { open: boolean; item?:
 // ========== CASES SUB-TAB ==========
 function CasesTab() {
   const { user, session } = useAuth();
-  const canEdit = user?.role === "admin_master";
+  const canEdit = user?.role === "admin_master" || user?.role === "financeiro";
   const [items, setItems] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -294,7 +294,7 @@ function CaseDialog({ open, item, onClose, onSave }: { open: boolean; item?: Leg
 // ========== COLLECTIONS SUB-TAB ==========
 function CollectionsTab() {
   const { user, session } = useAuth();
-  const canEdit = user?.role === "admin_master";
+  const canEdit = user?.role === "admin_master" || user?.role === "financeiro";
   const [items, setItems] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
