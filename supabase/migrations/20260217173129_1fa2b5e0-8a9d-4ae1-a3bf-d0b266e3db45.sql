@@ -1,0 +1,1 @@
+ALTER TABLE public.pdf_quote_settings ADD COLUMN IF NOT EXISTS company_cep TEXT DEFAULT NULL;

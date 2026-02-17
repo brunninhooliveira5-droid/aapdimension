@@ -1441,6 +1441,7 @@ export type Database = {
         Row: {
           accent_color: string | null
           company_address: string | null
+          company_cep: string | null
           company_cnpj: string | null
           company_email: string | null
           company_name: string | null
@@ -1465,6 +1466,7 @@ export type Database = {
         Insert: {
           accent_color?: string | null
           company_address?: string | null
+          company_cep?: string | null
           company_cnpj?: string | null
           company_email?: string | null
           company_name?: string | null
@@ -1489,6 +1491,7 @@ export type Database = {
         Update: {
           accent_color?: string | null
           company_address?: string | null
+          company_cep?: string | null
           company_cnpj?: string | null
           company_email?: string | null
           company_name?: string | null
