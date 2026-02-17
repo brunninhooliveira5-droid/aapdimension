@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,7 @@ const UserAccessPage = () => {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [useMasterPricing, setUseMasterPricing] = useState(false);
+  const [useDimensionMaterials, setUseDimensionMaterials] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -83,6 +84,7 @@ const UserAccessPage = () => {
     setUserRole((roleData?.role as UserRole) ?? "operador");
     setProAccess(planData?.pro_access ?? false);
     setUseMasterPricing((planData as any)?.use_master_pricing ?? false);
+    setUseDimensionMaterials((planData as any)?.use_dimension_materials ?? false);
     setHasPlanRow(!!planData);
     setHasAccessRow(!!accessData);
 
@@ -135,6 +137,7 @@ const UserAccessPage = () => {
             max_quotes_per_month: proAccess ? -1 : 5,
             max_financial_entries: proAccess ? -1 : 0,
             use_master_pricing: useMasterPricing,
+            use_dimension_materials: useDimensionMaterials,
             ...(proAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
           } as any)
           .eq("user_id", userId);
@@ -147,6 +150,7 @@ const UserAccessPage = () => {
           max_quotes_per_month: proAccess ? -1 : 5,
           max_financial_entries: proAccess ? -1 : 0,
           use_master_pricing: useMasterPricing,
+          use_dimension_materials: useDimensionMaterials,
           ...(proAccess ? { pro_activated_at: new Date().toISOString() } : {}),
         } as any);
         setHasPlanRow(true);
@@ -282,6 +286,37 @@ const UserAccessPage = () => {
             <div className="mt-3 p-2.5 rounded-md bg-primary/5 border border-primary/20">
               <p className="text-xs text-primary font-medium">
                 ⚡ Este usuário utiliza as configurações oficiais da Dimension CNC. As alterações feitas pelo Admin Master refletirão automaticamente nos orçamentos deste usuário.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dimension Materials inheritance */}
+      {proAccess && (
+        <div className="gradient-card rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Layers className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Usar materiais da Dimension</p>
+                <p className="text-xs text-muted-foreground">
+                  O usuário utilizará o catálogo oficial de materiais da Dimension (não poderá cadastrar materiais próprios)
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={useDimensionMaterials}
+              onCheckedChange={setUseDimensionMaterials}
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
+          {useDimensionMaterials && (
+            <div className="mt-3 p-2.5 rounded-md bg-primary/5 border border-primary/20">
+              <p className="text-xs text-primary font-medium">
+                📦 Este usuário utiliza o catálogo oficial de materiais da Dimension CNC. Ele não poderá cadastrar ou editar materiais, apenas selecionar do catálogo.
               </p>
             </div>
           )}
