@@ -1,6 +1,6 @@
 import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors, Camera } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,6 +68,9 @@ const Index = () => {
   const [recentTickets, setRecentTickets] = useState<TicketData[]>([]);
   const [upcomingMaintenances, setUpcomingMaintenances] = useState<MaintenanceData[]>([]);
   const [pendingServiceQuotes, setPendingServiceQuotes] = useState(0);
+  const [customBannerUrl, setCustomBannerUrl] = useState<string | null>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   // Filter states
   const [ticketSearch, setTicketSearch] = useState("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("todos");
@@ -197,6 +200,47 @@ const Index = () => {
     fetchData();
   }, [viewUserId]);
 
+  // Load custom banner
+  useEffect(() => {
+    const loadBanner = async () => {
+      const { data } = await supabase
+        .from("site_settings" as any)
+        .select("value")
+        .eq("key", "hero_banner_url")
+        .maybeSingle();
+      if ((data as any)?.value) setCustomBannerUrl((data as any).value);
+    };
+    loadBanner();
+  }, []);
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Selecione uma imagem válida"); return; }
+    setUploadingBanner(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `hero-banner.${ext}`;
+      const { error: upErr } = await supabase.storage.from("site-assets").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("site-assets").getPublicUrl(path);
+      const urlWithCache = `${publicUrl}?t=${Date.now()}`;
+      // Upsert setting
+      const { error: dbErr } = await (supabase as any).from("site_settings").upsert(
+        { key: "hero_banner_url", value: urlWithCache, updated_by: (await supabase.auth.getSession()).data.session?.user?.id },
+        { onConflict: "key" }
+      );
+      if (dbErr) throw dbErr;
+      setCustomBannerUrl(urlWithCache);
+      toast.success("Imagem de apresentação atualizada!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar imagem: " + err.message);
+    } finally {
+      setUploadingBanner(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  };
+
   const nextDueInvoice = openInvoices.length > 0
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
     : null;
@@ -208,7 +252,7 @@ const Index = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
       <div className="relative rounded-lg overflow-hidden h-40">
-        <img src={heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
+        <img src={customBannerUrl || heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center px-6">
           <div>
@@ -225,6 +269,21 @@ const Index = () => {
             </p>
           </div>
         </div>
+        {isAdminMaster && !isViewingUser && (
+          <>
+            <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+            <Button
+              size="sm"
+              variant="secondary"
+              className="absolute bottom-3 right-3 gap-1.5 text-xs opacity-80 hover:opacity-100"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={uploadingBanner}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              {uploadingBanner ? "Enviando..." : "Alterar foto"}
+            </Button>
+          </>
+        )}
       </div>
 
       {/* PRO Status Card */}
