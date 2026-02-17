@@ -9,6 +9,8 @@ import { QuoteReports } from "@/components/cutting-quote/QuoteReports";
 import { MaterialsManagement } from "@/components/cutting-quote/MaterialsManagement";
 import { PdfConfiguration } from "@/components/cutting-quote/PdfConfiguration";
 import { ServiceClientsTab } from "@/components/cutting-quote/ServiceClientsTab";
+import { ServiceBonusCard } from "@/components/cutting-quote/ServiceBonusCard";
+import { ServiceBonusManager } from "@/components/cutting-quote/ServiceBonusManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -148,6 +150,9 @@ export default function CuttingQuotePage() {
 
   return (
     <div className="space-y-6">
+      {/* Bonus card for service users */}
+      <ServiceBonusCard />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
@@ -275,7 +280,8 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         {canAccessClientes && (
-          <TabsContent value="clients">
+          <TabsContent value="clients" className="space-y-6">
+            <ServiceBonusManager />
             <ServiceClientsTab />
           </TabsContent>
         )}

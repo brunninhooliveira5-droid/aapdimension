@@ -1698,6 +1698,39 @@ export type Database = {
         }
         Relationships: []
       }
+      service_bonuses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          granted_by: string
+          id: string
+          notes: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string
+          granted_by: string
+          id?: string
+          notes?: string | null
+          type?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          granted_by?: string
+          id?: string
+          notes?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       technical_bulletins: {
         Row: {
           active: boolean
