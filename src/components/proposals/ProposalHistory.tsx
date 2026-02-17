@@ -6,8 +6,9 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Trash2, FileDown, FileText, ChevronDown } from "lucide-react";
+import { Search, Trash2, FileDown, FileText, ChevronDown, Filter } from "lucide-react";
 import { generateProposalPdf } from "@/lib/proposal-pdf";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -50,6 +51,8 @@ export function ProposalHistory() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [modelFilter, setModelFilter] = useState("todos");
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" });
 
   const fetchData = async () => {
@@ -64,9 +67,14 @@ export function ProposalHistory() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const uniqueModels = [...new Set(proposals.map(p => p.model_name).filter(Boolean))].sort();
+
   const filtered = proposals.filter(p => {
     const q = search.toLowerCase();
-    return !q || p.client_name.toLowerCase().includes(q) || p.model_name.toLowerCase().includes(q) || p.client_company?.toLowerCase().includes(q);
+    const matchSearch = !q || p.client_name.toLowerCase().includes(q) || p.model_name.toLowerCase().includes(q) || p.client_company?.toLowerCase().includes(q);
+    const matchStatus = statusFilter === "todos" || p.status === statusFilter;
+    const matchModel = modelFilter === "todos" || p.model_name === modelFilter;
+    return matchSearch && matchStatus && matchModel;
   });
 
   const handleDelete = async (id: string) => {
@@ -99,9 +107,34 @@ export function ProposalHistory() {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar proposta..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8" />
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="relative max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar proposta..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8" />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]">
+            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Status</SelectItem>
+            {Object.entries(statusMap).map(([key, val]) => (
+              <SelectItem key={key} value={key}>{val.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={modelFilter} onValueChange={setModelFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Modelo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Modelos</SelectItem>
+            {uniqueModels.map(m => (
+              <SelectItem key={m} value={m}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
