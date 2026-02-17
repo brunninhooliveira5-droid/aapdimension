@@ -32,6 +32,8 @@ export default function CuttingQuotePage() {
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
   const [useMasterPricing, setUseMasterPricing] = useState(false);
   const [useDimensionMaterials, setUseDimensionMaterials] = useState(false);
+  const [pricingLoaded, setPricingLoaded] = useState(false);
+  const [masterPricingError, setMasterPricingError] = useState(false);
 
   // Helper to compute pricing from raw settings
   const computePricing = (data: any): PricingData => {
@@ -65,10 +67,13 @@ export default function CuttingQuotePage() {
     if (!session?.user) return;
 
     const loadPricing = async () => {
+      setPricingLoaded(false);
+      setMasterPricingError(false);
+
       // Check if user has use_master_pricing flag
       const { data: planData } = await supabase
         .from("user_plans")
-        .select("use_master_pricing")
+        .select("use_master_pricing, use_dimension_materials")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
@@ -94,7 +99,11 @@ export default function CuttingQuotePage() {
 
           if (masterSettings) {
             setPricing(computePricing(masterSettings));
+          } else {
+            setMasterPricingError(true);
           }
+        } else {
+          setMasterPricingError(true);
         }
       } else {
         // Load own pricing settings
@@ -108,6 +117,8 @@ export default function CuttingQuotePage() {
           setPricing(computePricing(data));
         }
       }
+
+      setPricingLoaded(true);
     };
 
     loadPricing();
@@ -216,7 +227,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="quote">
-          <FileQuote pricing={pricing} machines={machines} useMasterPricing={useMasterPricing} useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} />
+          <FileQuote pricing={pricing} machines={machines} useMasterPricing={useMasterPricing} useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} pricingLoaded={pricingLoaded} masterPricingError={masterPricingError} />
         </TabsContent>
 
         {canAccessSalvos && (
