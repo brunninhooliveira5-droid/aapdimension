@@ -62,6 +62,7 @@ const UsersPage = () => {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [roleFilter, setRoleFilter] = useState("todos");
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -231,7 +232,8 @@ const UsersPage = () => {
   };
 
   const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
-  const approvedUsers = users.filter(u => u.approved || u.role === "admin_master");
+  const approvedUsersAll = users.filter(u => u.approved || u.role === "admin_master");
+  const approvedUsers = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -349,6 +351,23 @@ const UsersPage = () => {
 
         {/* Approved Users */}
         <TabsContent value="approved">
+          {/* Role filter */}
+          <div className="flex items-center gap-2 mb-3">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[180px] h-9 text-sm">
+                <SelectValue placeholder="Filtrar por perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os Perfis</SelectItem>
+                <SelectItem value="admin_master">Admin Master</SelectItem>
+                <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="operador">Operador</SelectItem>
+                <SelectItem value="financeiro">Financeiro</SelectItem>
+                <SelectItem value="servico">Serviço</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">{approvedUsers.length} de {approvedUsersAll.length} usuário(s)</span>
+          </div>
           {/* Batch actions bar */}
           {selectedUserIds.size > 0 && (
             <div className="flex items-center gap-3 mb-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
