@@ -298,7 +298,7 @@ const Index = () => {
           />
         </div>
         {isAdminMaster && !isViewingUser && (
-          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/orcamento")}>
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/orcamento?tab=clients")}>
             <StatCard
               title="Serviços de Corte"
               value={pendingServiceQuotes}
