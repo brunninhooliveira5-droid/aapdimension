@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -49,6 +49,7 @@ const basicMenuItems = [
 const proMenuItems = [
   { title: "Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira", proFeature: "gestao_financeira" },
   { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento", proFeature: "orcamento" },
+  { title: "Propostas", url: "/propostas", icon: FileText, section: "propostas", proFeature: "propostas" },
 ];
 
 export function AppSidebar() {
