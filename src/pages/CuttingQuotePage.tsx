@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield, Users } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
@@ -16,6 +17,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 export default function CuttingQuotePage() {
   const { session, user, getSectionVisibility } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "quote";
   const [pricing, setPricing] = useState<PricingData>({
     costPerHour: 0,
     costPerMinute: 0,
@@ -193,7 +196,7 @@ export default function CuttingQuotePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="quote" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className={`grid w-full max-w-4xl ${canAccessClientes ? "grid-cols-7" : "grid-cols-6"}`}>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
