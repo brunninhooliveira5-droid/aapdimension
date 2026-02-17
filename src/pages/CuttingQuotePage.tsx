@@ -34,6 +34,9 @@ export default function CuttingQuotePage() {
   const [useDimensionMaterials, setUseDimensionMaterials] = useState(false);
   const [pricingLoaded, setPricingLoaded] = useState(false);
   const [masterPricingError, setMasterPricingError] = useState(false);
+  // Debug temporário — pricingSource e pricingOwnerId
+  const [pricingSource, setPricingSource] = useState<"master" | "user" | null>(null);
+  const [pricingOwnerId, setPricingOwnerId] = useState<string | null>(null);
 
   // Helper to compute pricing from raw settings
   const computePricing = (data: any): PricingData => {
@@ -95,11 +98,17 @@ export default function CuttingQuotePage() {
 
           if (masterSettings) {
             setPricing(computePricing(masterSettings));
+            setPricingSource("master");
+            setPricingOwnerId(adminMasterUserId);
           } else {
             setMasterPricingError(true);
+            setPricingSource("master");
+            setPricingOwnerId(adminMasterUserId);
           }
         } else {
           setMasterPricingError(true);
+          setPricingSource("master");
+          setPricingOwnerId(null);
         }
       } else {
         // Load own pricing settings
@@ -112,6 +121,8 @@ export default function CuttingQuotePage() {
         if (data) {
           setPricing(computePricing(data));
         }
+        setPricingSource("user");
+        setPricingOwnerId(session.user.id);
       }
 
       setPricingLoaded(true);
@@ -136,6 +147,15 @@ export default function CuttingQuotePage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
           <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos SVG</p>
+          {/* Debug temporário — remover após validação */}
+          {pricingLoaded && (
+            <div className="mt-1 flex items-center gap-3 text-[10px] font-mono text-muted-foreground/60">
+              <span>source: <strong className="text-muted-foreground">{pricingSource}</strong></span>
+              <span>ownerId: <strong className="text-muted-foreground">{pricingOwnerId?.slice(0, 8) ?? "—"}</strong></span>
+              <span>sessionId: <strong className="text-muted-foreground">{session?.user?.id?.slice(0, 8) ?? "—"}</strong></span>
+              {masterPricingError && <span className="text-destructive">⚠ pricing não encontrado</span>}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {useMasterPricing && (
