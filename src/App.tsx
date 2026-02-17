@@ -40,13 +40,16 @@ function RoleGate({ section, children }: { section: string; children: React.Reac
 }
 
 const AppRoutes = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>;
+
+  // Redirect servico users to /orcamento after login
+  const homeRedirect = isAuthenticated && user?.role === "servico" ? "/orcamento" : "/";
   
   return (
     <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={homeRedirect} replace /> : <Login />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Index />} />
         <Route path="/dashboard/:userId" element={<RoleGate section="usuarios"><Index /></RoleGate>} />

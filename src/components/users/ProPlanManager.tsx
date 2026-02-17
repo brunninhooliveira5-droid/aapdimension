@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { type UserRole, roleLabels } from "@/contexts/AuthContext";
-import { format, formatDistanceToNow } from "date-fns";
+import { type UserRole, roleLabels, useAuth } from "@/contexts/AuthContext";
+import { format, formatDistanceToNow, differenceInDays, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Tooltip,
@@ -16,6 +16,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface UserWithPlan {
   id: string;
@@ -32,6 +39,8 @@ interface UserWithPlan {
   pro_activated_at: string | null;
   last_access_at: string | null;
   has_pending_request: boolean;
+  valid_until: string | null;
+  pro_granted_by: string | null;
 }
 
 const PRO_FEATURES = [
@@ -51,10 +60,12 @@ const planBadge = (plan: string) => {
 };
 
 export function ProPlanManager() {
+  const { session } = useAuth();
   const [users, setUsers] = useState<UserWithPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  const [validityDates, setValidityDates] = useState<Record<string, Date | undefined>>({});
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -91,9 +102,17 @@ export function ProPlanManager() {
           pro_activated_at: (plan as any)?.pro_activated_at ?? null,
           last_access_at: (plan as any)?.last_access_at ?? null,
           has_pending_request: pendingSet.has(p.id),
+          valid_until: plan?.valid_until ?? null,
+          pro_granted_by: (plan as any)?.pro_granted_by ?? null,
         };
       });
 
+    // Initialize validity dates from existing data
+    const dates: Record<string, Date | undefined> = {};
+    mapped.forEach((u) => {
+      if (u.valid_until) dates[u.id] = new Date(u.valid_until);
+    });
+    setValidityDates(dates);
     setUsers(mapped);
     setLoading(false);
   };
@@ -109,29 +128,39 @@ export function ProPlanManager() {
     const newProAccess = !user.pro_access;
     const newFeatures = newProAccess ? PRO_FEATURES.map((f) => f.key) : [];
     const newPlan = newProAccess ? "pro" : "free";
+    const adminUserId = session?.user?.id;
+
+    // If activating PRO, require a validity date
+    let validUntil = validityDates[user.id];
+    if (newProAccess && !validUntil) {
+      // Default: 30 days from now
+      validUntil = addDays(new Date(), 30);
+      setValidityDates((prev) => ({ ...prev, [user.id]: validUntil }));
+    }
+
+    const planData: any = {
+      pro_access: newProAccess,
+      plan: newPlan,
+      features_enabled: newFeatures,
+      max_quotes_per_month: newProAccess ? -1 : 5,
+      max_financial_entries: newProAccess ? -1 : 0,
+      ...(newProAccess
+        ? {
+            pro_activated_at: new Date().toISOString(),
+            valid_until: validUntil!.toISOString(),
+            pro_granted_by: adminUserId,
+          }
+        : {
+            pro_activated_at: null,
+            valid_until: null,
+            pro_granted_by: null,
+          }),
+    };
 
     if (user.has_plan_row) {
-      await supabase
-        .from("user_plans")
-        .update({
-          pro_access: newProAccess,
-          plan: newPlan,
-          features_enabled: newFeatures,
-          max_quotes_per_month: newProAccess ? -1 : 5,
-          max_financial_entries: newProAccess ? -1 : 0,
-          ...(newProAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
-        } as any)
-        .eq("user_id", user.id);
+      await supabase.from("user_plans").update(planData).eq("user_id", user.id);
     } else {
-      await supabase.from("user_plans").insert({
-        user_id: user.id,
-        pro_access: newProAccess,
-        plan: newPlan,
-        features_enabled: newFeatures,
-        max_quotes_per_month: newProAccess ? -1 : 5,
-        max_financial_entries: newProAccess ? -1 : 0,
-        ...(newProAccess ? { pro_activated_at: new Date().toISOString() } : {}),
-      } as any);
+      await supabase.from("user_plans").insert({ user_id: user.id, ...planData } as any);
     }
 
     // If approving PRO, also update pending request to approved
@@ -145,9 +174,25 @@ export function ProPlanManager() {
 
     toast.success(
       newProAccess
-        ? `Acesso PRO ativado para ${user.name}`
+        ? `Acesso PRO ativado para ${user.name} (válido até ${format(validUntil!, "dd/MM/yyyy")})`
         : `Acesso PRO desativado para ${user.name}`
     );
+    setSaving(null);
+    fetchUsers();
+  };
+
+  const updateValidity = async (user: UserWithPlan, date: Date) => {
+    setSaving(user.id);
+    setValidityDates((prev) => ({ ...prev, [user.id]: date }));
+
+    if (user.has_plan_row) {
+      await supabase
+        .from("user_plans")
+        .update({ valid_until: date.toISOString() } as any)
+        .eq("user_id", user.id);
+    }
+
+    toast.success(`Validade PRO de ${user.name} atualizada para ${format(date, "dd/MM/yyyy")}`);
     setSaving(null);
     fetchUsers();
   };
@@ -178,6 +223,14 @@ export function ProPlanManager() {
     toast.success("Permissões atualizadas");
     setSaving(null);
     fetchUsers();
+  };
+
+  const getValidityStatus = (validUntil: string | null) => {
+    if (!validUntil) return null;
+    const days = differenceInDays(new Date(validUntil), new Date());
+    if (days <= 0) return { label: "Expirado", color: "text-destructive", bg: "bg-destructive/15 border-destructive/30" };
+    if (days <= 7) return { label: `${days}d restantes`, color: "text-warning", bg: "bg-warning/15 border-warning/30" };
+    return { label: `${days}d restantes`, color: "text-primary", bg: "bg-primary/15 border-primary/30" };
   };
 
   const filtered = users.filter(
@@ -256,7 +309,7 @@ export function ProPlanManager() {
               <TableHead className="text-muted-foreground text-xs uppercase">Perfil</TableHead>
               <TableHead className="text-muted-foreground text-xs uppercase">Plano</TableHead>
               <TableHead className="text-muted-foreground text-xs uppercase text-center">PRO</TableHead>
-              <TableHead className="text-muted-foreground text-xs uppercase">Ativação PRO</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase">Validade PRO</TableHead>
               <TableHead className="text-muted-foreground text-xs uppercase">Último Acesso</TableHead>
               {PRO_FEATURES.map((f) => (
                 <TableHead key={f.key} className="text-muted-foreground text-xs uppercase text-center">
@@ -268,6 +321,7 @@ export function ProPlanManager() {
           <TableBody>
             {filtered.map((u) => {
               const isAdmin = u.role === "admin_master";
+              const validityStatus = getValidityStatus(u.valid_until);
               return (
                 <TableRow key={u.id} className="border-border">
                   <TableCell>
@@ -323,10 +377,44 @@ export function ProPlanManager() {
                     />
                   </TableCell>
                   <TableCell>
-                    {u.pro_activated_at ? (
-                      <div>
-                        <p className="text-xs text-foreground">{format(new Date(u.pro_activated_at), "dd/MM/yyyy")}</p>
-                        <p className="text-[10px] text-muted-foreground">{format(new Date(u.pro_activated_at), "HH:mm")}</p>
+                    {isAdmin ? (
+                      <span className="text-xs text-muted-foreground">Ilimitado</span>
+                    ) : u.pro_access ? (
+                      <div className="space-y-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-7 text-xs gap-1 border",
+                                validityStatus?.bg ?? "border-border"
+                              )}
+                            >
+                              <Calendar className="w-3 h-3" />
+                              {u.valid_until
+                                ? format(new Date(u.valid_until), "dd/MM/yyyy")
+                                : "Definir validade"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={validityDates[u.id]}
+                              onSelect={(date) => {
+                                if (date) updateValidity(u, date);
+                              }}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {validityStatus && (
+                          <p className={`text-[10px] font-medium ${validityStatus.color}`}>
+                            {validityStatus.label}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>

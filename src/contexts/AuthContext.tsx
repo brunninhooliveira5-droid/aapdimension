@@ -29,6 +29,8 @@ interface UserPlan {
   features_enabled: string[];
   max_quotes_per_month: number;
   max_financial_entries: number;
+  valid_until: string | null;
+  pro_activated_at: string | null;
 }
 
 interface Profile {
@@ -89,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           features_enabled: planData.features_enabled ?? [],
           max_quotes_per_month: planData.max_quotes_per_month,
           max_financial_entries: planData.max_financial_entries,
+          valid_until: planData.valid_until ?? null,
+          pro_activated_at: planData.pro_activated_at ?? null,
         }
       : null;
 
@@ -219,6 +223,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user.role === "admin_master") return true;
     if (!user.userPlan) return false;
     if (!user.userPlan.pro_access) return false;
+    // Check expiration
+    if (user.userPlan.valid_until) {
+      const expiresAt = new Date(user.userPlan.valid_until);
+      if (expiresAt <= new Date()) return false;
+    }
     if (feature && !user.userPlan.features_enabled.includes(feature)) return false;
     return true;
   };
