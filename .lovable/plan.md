@@ -1,48 +1,86 @@
 
 
-## Adicionar Badge "FREE" e Botao "Solicitar PRO" no Sidebar
+# Acesso Total do Financeiro ao Modulo Financeiro
 
-### O que sera feito
+## Resumo
+Atualmente, o perfil "financeiro" tem acesso limitado em algumas areas do modulo de Gestao Financeira. O objetivo e igualar suas permissoes as do Admin Master dentro do modulo financeiro.
 
-1. **Badge "FREE"** no perfil do sidebar para usuarios sem acesso PRO, com visual discreto (cinza/muted) para contrastar com o badge "PRO" dourado/primario.
+## Areas que precisam de ajuste
 
-2. **Botao "Solicitar PRO"** visivel apenas para usuarios sem acesso PRO, posicionado na secao ACESSO PRO do sidebar, permitindo que o usuario solicite a ativacao ao administrador.
+### 1. Juridico (Contratos, Processos, Cobrancas)
+- Hoje: financeiro so pode visualizar
+- Depois: financeiro podera criar, editar e excluir registros
 
-3. **Notificacao ao Admin Master** via registro no banco de dados quando um usuario solicitar acesso PRO.
+### 2. Categorias Financeiras
+- Hoje: financeiro so pode visualizar
+- Depois: financeiro podera criar, editar e desativar categorias
 
----
+### 3. Assistente de Decisao (Configuracoes do Simulador)
+- Hoje: somente admin_master pode alterar configuracoes (reserva minima, limite de comprometimento, etc.)
+- Depois: financeiro tambem podera ajustar essas configuracoes
 
-### Detalhes da implementacao
+## Detalhes Tecnicos
 
-#### 1. Badge FREE no perfil (AppSidebar.tsx)
+### Alteracoes no Banco de Dados (RLS Policies)
+Atualizacao de 4 tabelas para dar permissao total ao perfil `financeiro`:
 
-- Onde o badge PRO aparece hoje, adicionar um `else` para exibir badge "FREE" com estilo `bg-muted text-muted-foreground`
-- Remover o icone Crown do avatar para usuarios FREE
-- Manter a mesma estrutura visual, apenas trocando cores e texto
+| Tabela | Permissao Atual | Nova Permissao |
+|--------|----------------|----------------|
+| `finance_categories` | Somente leitura | Leitura + Escrita + Exclusao |
+| `legal_cases` | Somente leitura | Leitura + Escrita + Exclusao |
+| `legal_collections` | Somente leitura | Leitura + Escrita + Exclusao |
+| `legal_contracts` | Somente leitura | Leitura + Escrita + Exclusao |
 
-#### 2. Botao "Solicitar PRO" na secao ACESSO PRO (AppSidebar.tsx)
+Para cada tabela, a policy de SELECT existente sera substituida por uma policy ALL (acesso completo).
 
-- Abaixo dos itens bloqueados (com cadeado), adicionar um botao pequeno "Solicitar Acesso PRO"
-- Visivel apenas quando `!hasProAccess()`
-- Ao clicar, abre um dialog de confirmacao simples
-- Apos confirmar, registra a solicitacao no banco de dados e exibe toast de sucesso
+### Alteracoes no Frontend (5 arquivos)
 
-#### 3. Tabela de solicitacoes (migracao SQL)
+1. **`src/components/financeiro/LegalModule.tsx`** (3 pontos)
+   - `ContractsTab`: `canEdit = user?.role === "admin_master"` -> incluir `financeiro`
+   - `CasesTab`: idem
+   - `CollectionsTab`: idem
 
-- Criar tabela `pro_access_requests` com colunas: `id`, `user_id`, `status` (pending/approved/rejected), `created_at`, `reviewed_at`, `reviewed_by`
-- RLS: usuario pode inserir/ler suas proprias solicitacoes; admin_master pode ler todas
+2. **`src/components/financeiro/FinanceCategories.tsx`** (1 ponto)
+   - `canEdit = user?.role === "admin_master"` -> incluir `financeiro`
 
-#### 4. Visibilidade das solicitacoes para Admin Master
+3. **`src/components/financeiro/DecisionAssistant.tsx`** (1 ponto)
+   - `isAdmin = user?.role === "admin_master"` -> incluir `financeiro`
 
-- Na aba "Planos PRO" da pagina de usuarios (`ProPlanManager.tsx`), adicionar indicador visual (badge ou icone) nos usuarios que possuem solicitacao pendente
+### Migracao SQL
 
----
+```text
+-- Remover policies de somente leitura do financeiro
+DROP POLICY "Financeiro reads finance categories" ON finance_categories;
+DROP POLICY "Financeiro reads legal_cases" ON legal_cases;
+DROP POLICY "Financeiro reads legal_collections" ON legal_collections;
+DROP POLICY "Financeiro reads legal_contracts" ON legal_contracts;
 
-### Arquivos modificados
+-- Criar policies de acesso total para financeiro
+CREATE POLICY "Financeiro manages finance categories"
+  ON finance_categories FOR ALL
+  USING (has_role(auth.uid(), 'financeiro'))
+  WITH CHECK (has_role(auth.uid(), 'financeiro'));
 
-| Arquivo | Alteracao |
-|---|---|
-| `src/components/AppSidebar.tsx` | Badge FREE, botao solicitar PRO com dialog |
-| `src/components/users/ProPlanManager.tsx` | Indicador de solicitacao pendente |
-| `supabase/migrations/` | Nova tabela `pro_access_requests` com RLS |
+CREATE POLICY "Financeiro manages legal_cases"
+  ON legal_cases FOR ALL
+  USING (has_role(auth.uid(), 'financeiro'))
+  WITH CHECK (has_role(auth.uid(), 'financeiro'));
+
+CREATE POLICY "Financeiro manages legal_collections"
+  ON legal_collections FOR ALL
+  USING (has_role(auth.uid(), 'financeiro'))
+  WITH CHECK (has_role(auth.uid(), 'financeiro'));
+
+CREATE POLICY "Financeiro manages legal_contracts"
+  ON legal_contracts FOR ALL
+  USING (has_role(auth.uid(), 'financeiro'))
+  WITH CHECK (has_role(auth.uid(), 'financeiro'));
+```
+
+### Componentes ja com acesso correto (nao precisam de alteracao)
+- Contas a Pagar
+- Contas a Receber
+- Despesas Fixas
+- Dividas (Emprestimos e Inadimplencia)
+- Dashboard, Fluxo de Caixa, Relatorios (somente leitura por natureza)
 
