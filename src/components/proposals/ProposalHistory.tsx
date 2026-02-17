@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Trash2, FileDown, FileText } from "lucide-react";
+import { Search, Trash2, FileDown, FileText, ChevronDown } from "lucide-react";
 import { generateProposalPdf } from "@/lib/proposal-pdf";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Proposal {
   id: string;
@@ -41,6 +42,7 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
   aprovada: { label: "Aprovada", variant: "default" },
   recusada: { label: "Recusada", variant: "destructive" },
   expirada: { label: "Expirada", variant: "secondary" },
+  fechado: { label: "Fechado", variant: "default" },
 };
 
 export function ProposalHistory() {
@@ -72,6 +74,13 @@ export function ProposalHistory() {
     if (error) { toast.error("Erro ao excluir"); return; }
     toast.success("Proposta excluída");
     setDeleteConfirm({ open: false, id: "", name: "" });
+    fetchData();
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const { error } = await supabase.from("client_proposals").update({ status: newStatus }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar status"); return; }
+    toast.success("Status atualizado");
     fetchData();
   };
 
@@ -127,7 +136,23 @@ export function ProposalHistory() {
                     </td>
                     <td className="p-3">{p.model_name}</td>
                     <td className="p-3 text-right font-medium">{p.total_price > 0 ? fmt(p.total_price) : "—"}</td>
-                    <td className="p-3"><Badge variant={st.variant}>{st.label}</Badge></td>
+                    <td className="p-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80">
+                            <Badge variant={st.variant}>{st.label}</Badge>
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {Object.entries(statusMap).map(([key, val]) => (
+                            <DropdownMenuItem key={key} onClick={() => handleStatusChange(p.id, key)} className={p.status === key ? "font-bold" : ""}>
+                              {val.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                     <td className="p-3">
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => handleDownloadPdf(p)} title="Baixar PDF">
