@@ -16,6 +16,7 @@ export interface PdfSettings {
   company_phone: string;
   company_email: string;
   company_address: string;
+  company_cep: string;
   company_cnpj: string;
   logo_url: string;
   primary_color: string;
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: PdfSettings = {
   company_phone: "",
   company_email: "",
   company_address: "",
+  company_cep: "",
   company_cnpj: "",
   logo_url: "",
   primary_color: "#1a1a2e",
@@ -80,6 +82,7 @@ export function PdfConfiguration() {
         company_phone: d.company_phone || "",
         company_email: d.company_email || "",
         company_address: d.company_address || "",
+        company_cep: d.company_cep || "",
         company_cnpj: d.company_cnpj || "",
         logo_url: d.logo_url || "",
         primary_color: d.primary_color || "#1a1a2e",
@@ -101,6 +104,14 @@ export function PdfConfiguration() {
 
   const saveSettings = async () => {
     if (!session?.user) return;
+    if (!settings.company_name.trim()) {
+      toast.error("Nome da empresa é obrigatório.");
+      return;
+    }
+    if (!settings.company_email.trim()) {
+      toast.error("E-mail da empresa é obrigatório.");
+      return;
+    }
     setSaving(true);
     const payload = { ...settings, user_id: session.user.id, updated_at: new Date().toISOString() };
 
@@ -162,6 +173,28 @@ export function PdfConfiguration() {
     setSettings((s) => ({ ...s, logo_url: "" }));
   };
 
+  const maskCnpj = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 14);
+    return digits
+      .replace(/^(\d{2})(\d)/, "$1.$2")
+      .replace(/^(\d{2}\.\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, "$1/$2")
+      .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, "$1-$2");
+  };
+
+  const maskPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 2) return digits.replace(/^(\d{0,2})/, "($1");
+    if (digits.length <= 7) return digits.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
+    return digits.replace(/^(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
+  };
+
+  const maskCep = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return digits.replace(/^(\d{5})(\d{0,3})/, "$1-$2");
+  };
+
   const update = (key: keyof PdfSettings, value: any) => {
     setSettings((s) => ({ ...s, [key]: value }));
   };
@@ -217,8 +250,10 @@ export function PdfConfiguration() {
 
             {/* Body */}
             <div className="px-5 py-3 space-y-2">
-              {settings.company_address && (
-                <p className="text-gray-400 text-[8px]">{settings.company_address}</p>
+              {(settings.company_address || settings.company_cep) && (
+                <p className="text-gray-400 text-[8px]">
+                  {[settings.company_address, settings.company_cep ? `CEP: ${settings.company_cep}` : ""].filter(Boolean).join(" • ")}
+                </p>
               )}
               <div className="space-y-0.5">
                 {settings.show_date && <p className="text-gray-700 text-[9px]">Data: {new Date().toLocaleDateString("pt-BR")}</p>}
@@ -315,25 +350,31 @@ export function PdfConfiguration() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Nome da Empresa</Label>
-              <Input value={settings.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Sua Empresa Ltda" className="mt-1" />
+              <Label className="text-xs">Nome da Empresa <span className="text-destructive">*</span></Label>
+              <Input value={settings.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Sua Empresa Ltda" className="mt-1" required />
             </div>
             <div>
               <Label className="text-xs">CNPJ</Label>
-              <Input value={settings.company_cnpj} onChange={(e) => update("company_cnpj", e.target.value)} placeholder="00.000.000/0000-00" className="mt-1" />
+              <Input value={settings.company_cnpj} onChange={(e) => update("company_cnpj", maskCnpj(e.target.value))} placeholder="00.000.000/0000-00" className="mt-1" maxLength={18} />
             </div>
             <div>
               <Label className="text-xs">Telefone</Label>
-              <Input value={settings.company_phone} onChange={(e) => update("company_phone", e.target.value)} placeholder="(00) 00000-0000" className="mt-1" />
+              <Input value={settings.company_phone} onChange={(e) => update("company_phone", maskPhone(e.target.value))} placeholder="(00) 00000-0000" className="mt-1" maxLength={15} />
             </div>
             <div>
-              <Label className="text-xs">E-mail</Label>
-              <Input value={settings.company_email} onChange={(e) => update("company_email", e.target.value)} placeholder="contato@empresa.com" className="mt-1" />
+              <Label className="text-xs">E-mail <span className="text-destructive">*</span></Label>
+              <Input value={settings.company_email} onChange={(e) => update("company_email", e.target.value)} placeholder="contato@empresa.com" className="mt-1" type="email" required />
             </div>
           </div>
-          <div>
-            <Label className="text-xs">Endereço</Label>
-            <Input value={settings.company_address} onChange={(e) => update("company_address", e.target.value)} placeholder="Rua, número, bairro, cidade - UF" className="mt-1" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Endereço</Label>
+              <Input value={settings.company_address} onChange={(e) => update("company_address", e.target.value)} placeholder="Rua, número, bairro, cidade - UF" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">CEP</Label>
+              <Input value={settings.company_cep} onChange={(e) => update("company_cep", maskCep(e.target.value))} placeholder="00000-000" className="mt-1" maxLength={9} />
+            </div>
           </div>
         </CardContent>
       </Card>
