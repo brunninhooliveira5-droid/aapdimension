@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2 } from "lucide-react";
+import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,7 +65,7 @@ const Index = () => {
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
   const [recentTickets, setRecentTickets] = useState<TicketData[]>([]);
   const [upcomingMaintenances, setUpcomingMaintenances] = useState<MaintenanceData[]>([]);
-
+  const [pendingServiceQuotes, setPendingServiceQuotes] = useState(0);
   // Filter states
   const [ticketSearch, setTicketSearch] = useState("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("todos");
@@ -165,6 +165,23 @@ const Index = () => {
         })));
       } else {
         setUpcomingMaintenances([]);
+      }
+
+      // Fetch pending service quotes (admin_master only)
+      if (isAdminMaster && !viewUserId) {
+        const { data: roleRows } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "servico");
+        if (roleRows && roleRows.length > 0) {
+          const serviceIds = roleRows.map((r) => r.user_id);
+          const { count } = await supabase
+            .from("cutting_quotes" as any)
+            .select("*", { count: "exact", head: true })
+            .in("user_id", serviceIds)
+            .neq("status", "finalizado");
+          setPendingServiceQuotes(count ?? 0);
+        }
       }
     };
 
@@ -280,6 +297,17 @@ const Index = () => {
             icon={Calendar}
           />
         </div>
+        {isAdminMaster && !isViewingUser && (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/orcamento")}>
+            <StatCard
+              title="Serviços de Corte"
+              value={pendingServiceQuotes}
+              subtitle={pendingServiceQuotes > 0 ? "Pendentes de finalização" : "Todos finalizados"}
+              icon={Scissors}
+              variant={pendingServiceQuotes > 0 ? "warning" : "default"}
+            />
+          </div>
+        )}
       </div>
 
       {/* Bulletin Card */}
