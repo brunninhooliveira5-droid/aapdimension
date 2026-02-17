@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Search, Cpu, Package, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Cpu, Package, X, ImagePlus } from "lucide-react";
 
 interface MachineModel {
   id: string;
@@ -89,7 +89,13 @@ export function MachineSpecsCatalog() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(model => (
-            <div key={model.id} className={`gradient-card rounded-lg border border-border p-4 space-y-3 ${!model.is_active ? "opacity-50" : ""}`}>
+            <div key={model.id} className={`gradient-card rounded-lg border border-border overflow-hidden space-y-0 ${!model.is_active ? "opacity-50" : ""}`}>
+              {model.image_url && (
+                <div className="w-full h-36 bg-muted">
+                  <img src={model.image_url} alt={model.name} className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground truncate">{model.name}</h3>
@@ -129,6 +135,7 @@ export function MachineSpecsCatalog() {
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
+              </div>
             </div>
           ))}
         </div>
@@ -165,6 +172,7 @@ function ModelDialog({ open, model, onClose, onSaved }: {
 }) {
   const { session } = useAuth();
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -176,6 +184,9 @@ function ModelDialog({ open, model, onClose, onSaved }: {
   const [basePrice, setBasePrice] = useState("");
   const [deliveryDays, setDeliveryDays] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Included items
   const [includedItems, setIncludedItems] = useState<{ id?: string; name: string }[]>([]);
@@ -199,11 +210,15 @@ function ModelDialog({ open, model, onClose, onSaved }: {
       setBasePrice(model.base_price?.toString() ?? "");
       setDeliveryDays(model.delivery_days?.toString() ?? "");
       setIsActive(model.is_active);
+      setImageUrl(model.image_url);
+      setImagePreview(model.image_url);
+      setImageFile(null);
       loadItems(model.id);
     } else {
       setName(""); setCategory(""); setDescription(""); setTechSpecs("");
       setAreaX(""); setAreaY(""); setAreaZ("");
       setBasePrice(""); setDeliveryDays(""); setIsActive(true);
+      setImageUrl(null); setImagePreview(null); setImageFile(null);
       setIncludedItems([]); setOptionalItems([]);
     }
   }, [open, model]);
@@ -237,6 +252,13 @@ function ModelDialog({ open, model, onClose, onSaved }: {
     setOptionalItems(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSave = async () => {
     if (!name.trim()) { toast.error("Informe o nome do modelo"); return; }
     if (!session?.user?.id) return;
@@ -244,6 +266,17 @@ function ModelDialog({ open, model, onClose, onSaved }: {
 
     try {
       let modelId = model?.id;
+      let finalImageUrl = imageUrl;
+
+      // Upload image if new file selected
+      if (imageFile) {
+        const ext = imageFile.name.split(".").pop();
+        const filePath = `machine-models/${Date.now()}_${name.replace(/\s+/g, "_")}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("quote-logos").upload(filePath, imageFile, { upsert: true });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from("quote-logos").getPublicUrl(filePath);
+        finalImageUrl = urlData.publicUrl;
+      }
 
       const payload = {
         name: name.trim(),
@@ -256,6 +289,7 @@ function ModelDialog({ open, model, onClose, onSaved }: {
         base_price: basePrice ? parseFloat(basePrice) : null,
         delivery_days: deliveryDays ? parseInt(deliveryDays) : null,
         is_active: isActive,
+        image_url: finalImageUrl,
       };
 
       if (modelId) {
@@ -322,6 +356,36 @@ function ModelDialog({ open, model, onClose, onSaved }: {
               <Label>Linha / Categoria</Label>
               <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex: Linha Profissional" />
             </div>
+          </div>
+
+          {/* Image upload */}
+          <div>
+            <Label>Foto do Equipamento</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            {imagePreview ? (
+              <div className="relative mt-2 w-full h-40 rounded border border-border overflow-hidden bg-muted">
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <Button size="icon" variant="secondary" className="h-7 w-7" onClick={() => fileInputRef.current?.click()}>
+                    <ImagePlus className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="icon" variant="secondary" className="h-7 w-7" onClick={() => { setImagePreview(null); setImageFile(null); setImageUrl(null); }}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" className="mt-2 w-full h-24 border-dashed" onClick={() => fileInputRef.current?.click()}>
+                <ImagePlus className="w-5 h-5 mr-2 text-muted-foreground" />
+                <span className="text-muted-foreground text-sm">Adicionar foto</span>
+              </Button>
+            )}
           </div>
 
           <div>

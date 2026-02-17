@@ -52,6 +52,7 @@ interface ModelOption {
   area_z: number | null;
   base_price: number | null;
   delivery_days: number | null;
+  image_url: string | null;
 }
 
 const DEFAULT_DESCRIPTION = `A Dimension CNC desenvolve e fabrica equipamentos CNC robustos e confiáveis, projetados para oferecer alta precisão, estabilidade e produtividade em processos de usinagem.
@@ -196,9 +197,11 @@ export function ProposalCreator() {
           .eq("user_id", session.user.id)
           .maybeSingle();
 
+        const selectedModel = models.find(m => m.id === selectedModelId);
         const result = await generateProposalPdf({
           ...payload,
           id: (data as any).id,
+          equipment_image_url: selectedModel?.image_url || null,
           pdfSettings: pdfSettings as any,
         });
 
