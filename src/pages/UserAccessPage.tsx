@@ -36,13 +36,13 @@ const ALL_SECTIONS: SectionConfig[] = [
   { key: "configuracoes", label: "Configurações", icon: Settings },
   { key: "boletins", label: "Boletins Técnicos", icon: Newspaper },
   { key: "arquivos", label: "Arquivos", icon: FolderOpen },
+  { key: "orcamento", label: "Orçamento de Corte", icon: Calculator },
   { key: "gestao_financeira", label: "Financeiro (PRO)", icon: Landmark, isPro: true },
-  { key: "orcamento", label: "Orçamento de Corte (PRO)", icon: Calculator, isPro: true },
 ];
 
 const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
-  { key: "orcamento_pdf", label: "Exportar PDF do Orçamento", icon: Eye, isPro: true },
-  { key: "orcamento_salvos", label: "Aba Salvos (Histórico)", icon: Eye, isPro: true },
+  { key: "orcamento_pdf", label: "Exportar PDF do Orçamento", icon: Eye },
+  { key: "orcamento_salvos", label: "Aba Salvos (Histórico)", icon: Eye },
 ];
 
 const visibilityOptions: { value: Visibility; label: string; icon: React.ElementType; description: string; color: string }[] = [
@@ -270,7 +270,7 @@ const UserAccessPage = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Acesso PRO</p>
-              <p className="text-xs text-muted-foreground">Ativa funcionalidades premium (Financeiro e Orçamento de Corte)</p>
+              <p className="text-xs text-muted-foreground">Ativa funcionalidades premium (Financeiro)</p>
             </div>
           </div>
           <Switch
@@ -282,7 +282,7 @@ const UserAccessPage = () => {
       </div>
 
       {/* Master Pricing inheritance */}
-      {proAccess && (
+      {sections["orcamento"] !== "hidden" && (
         <div className="gradient-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -313,7 +313,7 @@ const UserAccessPage = () => {
       )}
 
       {/* Dimension Materials inheritance */}
-      {proAccess && (
+      {sections["orcamento"] !== "hidden" && (
         <div className="gradient-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -382,7 +382,7 @@ const UserAccessPage = () => {
         )}
 
         {/* Orçamento sub-features */}
-        {(proAccess || userRole === "servico") && sections["orcamento"] !== "hidden" && (
+        {sections["orcamento"] !== "hidden" && (
           <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Sub-controles do Orçamento de Corte
