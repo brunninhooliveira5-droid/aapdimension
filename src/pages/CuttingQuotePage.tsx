@@ -230,7 +230,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="materials">
-          <MaterialsManagement useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} />
+          <MaterialsManagement useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} useMasterPricing={useMasterPricing} />
         </TabsContent>
 
         <TabsContent value="pdf-config">

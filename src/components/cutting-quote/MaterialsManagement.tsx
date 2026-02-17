@@ -37,9 +37,10 @@ interface Thickness {
 interface MaterialsManagementProps {
   useDimensionMaterials?: boolean;
   isAdminMaster?: boolean;
+  useMasterPricing?: boolean;
 }
 
-export function MaterialsManagement({ useDimensionMaterials = false, isAdminMaster = false }: MaterialsManagementProps) {
+export function MaterialsManagement({ useDimensionMaterials = false, isAdminMaster = false, useMasterPricing = false }: MaterialsManagementProps) {
   const { session } = useAuth();
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
@@ -52,7 +53,7 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
   // Determine which table to use
   const materialsTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_materials" : useDimensionMaterials ? "dimension_cutting_materials" : "cutting_materials";
   const thicknessesTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_material_thicknesses" : useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
-  const isReadOnly = useDimensionMaterials && !isAdminMaster;
+  const isReadOnly = (useDimensionMaterials && !isAdminMaster) || (useMasterPricing && !isAdminMaster);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -507,13 +508,18 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
               </div>
             )}
 
-            {/* Read-only info banner */}
             {isReadOnly && (
               <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-xs flex items-start gap-2">
                 <Layers className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <div className="text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">Catálogo Oficial Dimension CNC</p>
-                  <p>Estes são os materiais oficiais configurados pelo administrador. Você pode visualizar, mas não editar.</p>
+                  <p className="font-medium text-foreground">
+                    {useDimensionMaterials ? "Catálogo Oficial Dimension CNC" : "Materiais Herdados"}
+                  </p>
+                  <p>
+                    {useDimensionMaterials
+                      ? "Estes são os materiais oficiais configurados pelo administrador. Você pode visualizar, mas não editar."
+                      : "As configurações de materiais são gerenciadas pelo administrador. Você pode visualizar, mas não editar ou cadastrar novos materiais."}
+                  </p>
                 </div>
               </div>
             )}
@@ -557,7 +563,9 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
               </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-2">
-                {isReadOnly ? "Nenhum material configurado no catálogo Dimension." : "Nenhum material personalizado cadastrado."}
+                {isReadOnly
+                  ? "Nenhum material configurado no catálogo. Entre em contato com o administrador."
+                  : "Nenhum material personalizado cadastrado."}
               </p>
             )}
           </>

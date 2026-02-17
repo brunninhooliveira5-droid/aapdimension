@@ -19,6 +19,8 @@ export interface PdfQuoteData {
   thickness: string;
   quantity: number;
   fileName: string;
+  useDimensionMaterials?: boolean;
+  useMasterPricing?: boolean;
 
   // Resumo técnico
   pathLengthM: number;
@@ -167,7 +169,16 @@ export async function generateQuotePDF(
   // Dados gerais
   body.push(["Arquivo", data.fileName]);
   body.push(["Máquina", data.machineName]);
-  if (s.show_material !== false) body.push(["Material", data.material]);
+  if (s.show_material !== false) {
+    const materialLabel = data.useDimensionMaterials ? `${data.material} (Material da Dimension)` : data.material;
+    body.push(["Material", materialLabel]);
+  }
+  if (data.useDimensionMaterials) {
+    body.push(["Fornecedor Material", "Dimension CNC"]);
+  }
+  if (data.useMasterPricing) {
+    body.push(["Configuração", "Dimension CNC (Oficial)"]);
+  }
   if (s.show_thickness !== false) body.push(["Espessura", data.thickness]);
   body.push(["Quantidade", String(data.quantity)]);
 

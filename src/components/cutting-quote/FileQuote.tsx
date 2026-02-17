@@ -845,6 +845,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
           thickness: result.thickness,
           quantity: result.quantity,
           fileName: result.fileName,
+          useDimensionMaterials,
+          useMasterPricing,
           pathLengthM: result.pathLengthM,
           baseSpeedMMmin: currentBaseSpeed,
           baseSpeedOrigin,
@@ -885,6 +887,10 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       filePath = storagePath;
     }
 
+    // Enforce: if use_master_pricing and not admin_master, always use recalculated price (ignore editablePrice)
+    const enforcedCutPrice = (useMasterPricing && !isAdminMaster) ? recalcCutCost : effectiveCutPrice;
+    const enforcedTotal = calculateTotalPrice(enforcedCutPrice, materialCost) + serviceAmount;
+
     const { error } = await supabase.from("cutting_quotes" as any).insert({
       user_id: session.user.id,
       client_name: customerName.trim(),
@@ -900,12 +906,12 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       estimated_time_min: Math.round(currentEstimatedTimeMin * 100) / 100,
       estimated_cost: recalcCutCost,
       min_recommended: result.minCutCost,
-      suggested_sale: effectiveCutPrice,
+      suggested_sale: enforcedCutPrice,
       cost_per_minute: pricing.costPerMinute,
       file_path: filePath,
       material_cost: materialCost,
       material_owner: materialOwner,
-      total_price: totalPrice,
+      total_price: enforcedTotal,
       service_value: serviceValue,
       service_value_included: serviceValueIncluded,
       passes_final: currentPasses,
@@ -992,16 +998,23 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             {/* Material */}
             <div>
               <Label className="text-xs">Material</Label>
-              <Select value={material} onValueChange={(v) => { setMaterial(v); setThickness(""); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o material" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allMaterials.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {allMaterials.length === 0 && useDimensionMaterials ? (
+                <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-xs text-muted-foreground mt-1">
+                  <p className="font-medium text-foreground mb-1">Nenhum material Dimension disponível</p>
+                  <p>O catálogo de materiais da Dimension ainda não foi configurado pelo administrador. Entre em contato com o administrador para solicitar a configuração.</p>
+                </div>
+              ) : (
+                <Select value={material} onValueChange={(v) => { setMaterial(v); setThickness(""); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o material" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allMaterials.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* Thickness */}
