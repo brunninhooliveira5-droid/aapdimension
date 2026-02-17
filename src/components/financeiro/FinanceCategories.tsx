@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<string, { label: string; icon: React.ReactNode; classN
 
 export function FinanceCategories() {
   const { user } = useAuth();
-  const canEdit = user?.role === "admin_master";
+  const canEdit = user?.role === "admin_master" || user?.role === "financeiro";
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading] = useState(true);

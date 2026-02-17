@@ -48,7 +48,7 @@ const defaultSettings: SimSettings = {
 
 export function DecisionAssistant() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin_master";
+  const isAdmin = user?.role === "admin_master" || user?.role === "financeiro";
 
   const [settings, setSettings] = useState<SimSettings>(defaultSettings);
   const [showSettings, setShowSettings] = useState(false);
