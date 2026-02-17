@@ -660,7 +660,10 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   };
 
   const calculate = async () => {
-    if (!file || !material || !thickness || !machineId) {
+    const requiredFields = useMasterPricing
+      ? (!file || !material || !thickness)
+      : (!file || !material || !thickness || !machineId);
+    if (requiredFields) {
       toast.error("Preencha todos os campos antes de calcular.");
       return;
     }
@@ -1056,26 +1059,30 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               </Select>
             </div>
 
-            {/* Machine */}
-            <div>
-              <Label className="text-xs">Máquina</Label>
-              <Select value={machineId} onValueChange={setMachineId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a máquina" />
-                </SelectTrigger>
-                <SelectContent>
-                  {machines.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Machine - hidden for inherited pricing users */}
+            {!useMasterPricing && (
+              <div>
+                <Label className="text-xs">Máquina</Label>
+                <Select value={machineId} onValueChange={setMachineId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a máquina" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {machines.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            {/* Quantity */}
-            <div>
-              <Label className="text-xs">Quantidade</Label>
-              <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} />
-            </div>
+            {/* Quantity - hidden for inherited pricing users */}
+            {!useMasterPricing && (
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} />
+              </div>
+            )}
 
             <Button onClick={calculate} disabled={loading} className="w-full">
               {loading ? "Calculando..." : "Calcular Orçamento"}
@@ -1162,7 +1169,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                 </div>
               )}
 
-              {/* Overrides: Passadas e Velocidade */}
+              {/* Overrides: Passadas e Velocidade - hidden for inherited pricing users */}
+              {!useMasterPricing && (
               <Card className="bg-secondary/50 border-border">
                 <CardContent className="p-3 space-y-3">
                   <p className="text-xs font-medium flex items-center gap-1">
@@ -1248,6 +1256,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               {/* Technical Summary */}
               <div className="grid grid-cols-3 gap-2">
