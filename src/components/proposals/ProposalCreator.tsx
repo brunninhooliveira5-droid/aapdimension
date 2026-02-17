@@ -136,7 +136,7 @@ export function ProposalCreator() {
           .eq("user_id", session.user.id)
           .maybeSingle();
 
-        generateProposalPdf({
+        await generateProposalPdf({
           ...payload,
           id: (data as any).id,
           pdfSettings: pdfSettings as any,

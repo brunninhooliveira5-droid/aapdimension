@@ -1550,8 +1550,10 @@ export type Database = {
           show_payment_conditions: boolean | null
           show_service_value: boolean | null
           show_thickness: boolean | null
+          show_watermark: boolean | null
           updated_at: string
           user_id: string
+          watermark_url: string | null
         }
         Insert: {
           accent_color?: string | null
@@ -1576,8 +1578,10 @@ export type Database = {
           show_payment_conditions?: boolean | null
           show_service_value?: boolean | null
           show_thickness?: boolean | null
+          show_watermark?: boolean | null
           updated_at?: string
           user_id: string
+          watermark_url?: string | null
         }
         Update: {
           accent_color?: string | null
@@ -1602,8 +1606,10 @@ export type Database = {
           show_payment_conditions?: boolean | null
           show_service_value?: boolean | null
           show_thickness?: boolean | null
+          show_watermark?: boolean | null
           updated_at?: string
           user_id?: string
+          watermark_url?: string | null
         }
         Relationships: []
       }
