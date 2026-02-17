@@ -149,6 +149,18 @@ export function calculateMaterialCost(
 // ─────────────────────────────────────────────────────
 // ETAPA 8 — TOTAL FINAL DO ORÇAMENTO
 // ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// VALOR MÍNIMO OPERACIONAL DE CORTE
+// ─────────────────────────────────────────────────────
+export const MINIMUM_CUT_PRICE = 80;
+
+export function applyMinimumCutPrice(cutCost: number): { finalCutCost: number; minimumApplied: boolean } {
+  if (cutCost < MINIMUM_CUT_PRICE) {
+    return { finalCutCost: MINIMUM_CUT_PRICE, minimumApplied: true };
+  }
+  return { finalCutCost: cutCost, minimumApplied: false };
+}
+
 export function calculateTotalPrice(cutCost: number, totalMaterial: number): number {
   return cutCost + totalMaterial;
 }
