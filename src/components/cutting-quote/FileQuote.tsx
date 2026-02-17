@@ -942,6 +942,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       speed_factor_used: currentSpeedFactor,
       effective_speed_mmmin: Math.round(currentEffectiveSpeedMMmin * 100) / 100,
       effective_cut_length_m: Math.round(currentEffectiveCutLengthM * 100) / 100,
+      use_master_pricing: useMasterPricing,
+      use_dimension_materials: useDimensionMaterials,
     } as any);
     if (error) {
       toast.error("Erro ao salvar orçamento.");

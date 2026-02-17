@@ -242,6 +242,7 @@ export type Database = {
           passes_origin: string
           path_length_m: number
           path_length_mm: number
+          pdf_url: string | null
           quantity: number
           service_value: number
           service_value_included: boolean
@@ -250,6 +251,8 @@ export type Database = {
           suggested_sale: number
           thickness: string
           total_price: number
+          use_dimension_materials: boolean
+          use_master_pricing: boolean
           user_id: string
         }
         Insert: {
@@ -277,6 +280,7 @@ export type Database = {
           passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
+          pdf_url?: string | null
           quantity?: number
           service_value?: number
           service_value_included?: boolean
@@ -285,6 +289,8 @@ export type Database = {
           suggested_sale?: number
           thickness: string
           total_price?: number
+          use_dimension_materials?: boolean
+          use_master_pricing?: boolean
           user_id: string
         }
         Update: {
@@ -312,6 +318,7 @@ export type Database = {
           passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
+          pdf_url?: string | null
           quantity?: number
           service_value?: number
           service_value_included?: boolean
@@ -320,6 +327,8 @@ export type Database = {
           suggested_sale?: number
           thickness?: string
           total_price?: number
+          use_dimension_materials?: boolean
+          use_master_pricing?: boolean
           user_id?: string
         }
         Relationships: [
@@ -1896,7 +1905,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin_master" | "admin" | "operador" | "financeiro"
+      app_role: "admin_master" | "admin" | "operador" | "financeiro" | "servico"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2024,7 +2033,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin_master", "admin", "operador", "financeiro"],
+      app_role: ["admin_master", "admin", "operador", "financeiro", "servico"],
     },
   },
 } as const

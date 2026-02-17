@@ -305,6 +305,8 @@ export function ProPlanManager() {
                           ? "bg-warning/15 text-warning border-warning/30"
                           : u.role === "operador"
                           ? "bg-info/15 text-info border-info/30"
+                          : u.role === "servico"
+                          ? "bg-primary/15 text-primary border-primary/30"
                           : "bg-success/15 text-success border-success/30"
                       }`}
                     >
