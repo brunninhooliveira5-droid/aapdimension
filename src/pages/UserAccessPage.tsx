@@ -110,6 +110,10 @@ const UserAccessPage = () => {
     ALL_SECTIONS.forEach((s) => {
       initial[s.key] = saved[s.key] ?? "visible";
     });
+    // Also initialize sub-feature keys (orcamento_pdf, orcamento_salvos, etc.)
+    ORCAMENTO_SUB_FEATURES.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? "hidden";
+    });
     setSections(initial);
     setLoading(false);
   };
