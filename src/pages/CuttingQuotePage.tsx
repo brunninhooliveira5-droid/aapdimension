@@ -14,7 +14,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function CuttingQuotePage() {
-  const { session, getSectionVisibility } = useAuth();
+  const { session, user, getSectionVisibility } = useAuth();
   const [pricing, setPricing] = useState<PricingData>({
     costPerHour: 0,
     costPerMinute: 0,
@@ -31,6 +31,7 @@ export default function CuttingQuotePage() {
   });
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
   const [useMasterPricing, setUseMasterPricing] = useState(false);
+  const [useDimensionMaterials, setUseDimensionMaterials] = useState(false);
 
   // Helper to compute pricing from raw settings
   const computePricing = (data: any): PricingData => {
@@ -73,6 +74,7 @@ export default function CuttingQuotePage() {
 
       const inheritMaster = (planData as any)?.use_master_pricing ?? false;
       setUseMasterPricing(inheritMaster);
+      setUseDimensionMaterials((planData as any)?.use_dimension_materials ?? false);
 
       if (inheritMaster) {
         // Find admin_master user and load their pricing
@@ -128,21 +130,38 @@ export default function CuttingQuotePage() {
           <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
           <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos SVG</p>
         </div>
-        {useMasterPricing && (
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
-                  <Shield className="w-3.5 h-3.5" />
-                  Configuração Dimension
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs text-xs">
-                Este orçamento utiliza as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <div className="flex items-center gap-2">
+          {useMasterPricing && (
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
+                    <Shield className="w-3.5 h-3.5" />
+                    Configuração Dimension
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  Este orçamento utiliza as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {useDimensionMaterials && (
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
+                    <Layers className="w-3.5 h-3.5" />
+                    Materiais Dimension
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  Os materiais e espessuras são do catálogo oficial da Dimension CNC, gerenciado pelo administrador master.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="quote" className="w-full">
@@ -197,7 +216,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="quote">
-          <FileQuote pricing={pricing} machines={machines} />
+          <FileQuote pricing={pricing} machines={machines} useMasterPricing={useMasterPricing} useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} />
         </TabsContent>
 
         {canAccessSalvos && (
@@ -211,7 +230,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="materials">
-          <MaterialsManagement />
+          <MaterialsManagement useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} />
         </TabsContent>
 
         <TabsContent value="pdf-config">

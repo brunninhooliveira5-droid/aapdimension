@@ -365,9 +365,12 @@ async function parseDXFPathLength(text: string): Promise<number> {
 interface FileQuoteProps {
   pricing: PricingData;
   machines: Tables<"machines">[];
+  useMasterPricing?: boolean;
+  useDimensionMaterials?: boolean;
+  isAdminMaster?: boolean;
 }
 
-export function FileQuote({ pricing, machines }: FileQuoteProps) {
+export function FileQuote({ pricing, machines, useMasterPricing = false, useDimensionMaterials = false, isAdminMaster = false }: FileQuoteProps) {
   const { user, session, getSectionVisibility } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -396,17 +399,29 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
-  // Load custom materials
+  // Load custom materials (or dimension materials)
   useEffect(() => {
     if (!session?.user) return;
-    supabase
-      .from("cutting_materials")
-      .select("id, name, price_adjustment")
-      .order("name")
-      .then(({ data }) => {
-        if (data) setCustomMaterials(data as any);
-      });
-  }, [session]);
+    if (useDimensionMaterials) {
+      // Load from dimension catalog
+      supabase
+        .from("dimension_cutting_materials" as any)
+        .select("id, name, price_adjustment")
+        .eq("is_active", true)
+        .order("name")
+        .then(({ data }) => {
+          if (data) setCustomMaterials(data as any);
+        });
+    } else {
+      supabase
+        .from("cutting_materials")
+        .select("id, name, price_adjustment")
+        .order("name")
+        .then(({ data }) => {
+          if (data) setCustomMaterials(data as any);
+        });
+    }
+  }, [session, useDimensionMaterials]);
 
   // Load PDF settings
   useEffect(() => {
@@ -448,15 +463,24 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
   useEffect(() => {
     if (!material) { setAvailableThicknesses([]); return; }
     const matId = material.replace("custom_", "");
+    const table = useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
     supabase
-      .from("cutting_material_thicknesses")
+      .from(table as any)
       .select("value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
       .eq("material_id", matId)
       .order("value")
       .then(({ data }) => {
-        if (data) setAvailableThicknesses(data as any);
+        if (data) {
+          // dimension thicknesses don't have preset fields, set defaults
+          const mapped = (data as any[]).map((d: any) => ({
+            ...d,
+            is_dimension_preset: d.is_dimension_preset ?? false,
+            dimension_default_factor: d.dimension_default_factor ?? null,
+          }));
+          setAvailableThicknesses(mapped);
+        }
       });
-  }, [material]);
+  }, [material, useDimensionMaterials]);
 
   const allMaterials = customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name }));
 
@@ -1282,7 +1306,7 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                     className="flex-1"
                     onClick={() => setMaterialOwner("usuario")}
                   >
-                    Meu Material
+                    {useDimensionMaterials ? "Material da Dimension" : "Meu Material"}
                   </Button>
                 </div>
               </div>
@@ -1341,7 +1365,9 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
 
               {/* Editable Cutting Price */}
               <div>
-                <Label className="text-xs">Valor do Corte (editável)</Label>
+                <Label className="text-xs">
+                  {(useMasterPricing && !isAdminMaster) ? "Valor do Corte (bloqueado)" : "Valor do Corte (editável)"}
+                </Label>
                 <div className="relative mt-1">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
                   <Input
@@ -1349,12 +1375,17 @@ export function FileQuote({ pricing, machines }: FileQuoteProps) {
                     min={MINIMUM_CUT_PRICE}
                     step={0.01}
                     value={editablePrice || ""}
-                    onChange={(e) => setEditablePrice(Number(e.target.value))}
-                    className="pl-10 text-lg font-bold"
+                    onChange={(e) => {
+                      if (useMasterPricing && !isAdminMaster) return;
+                      setEditablePrice(Number(e.target.value));
+                    }}
+                    disabled={useMasterPricing && !isAdminMaster}
+                    className={`pl-10 text-lg font-bold ${useMasterPricing && !isAdminMaster ? "opacity-70 cursor-not-allowed" : ""}`}
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Sugerido: {fmt(result.cutCost)} | Mínimo operacional: {fmt(MINIMUM_CUT_PRICE)}
+                  {useMasterPricing && !isAdminMaster && " | 🔒 Valor definido pela configuração Dimension"}
                 </p>
               </div>
 

@@ -34,7 +34,12 @@ interface Thickness {
   dimension_default_factor: number | null;
 }
 
-export function MaterialsManagement() {
+interface MaterialsManagementProps {
+  useDimensionMaterials?: boolean;
+  isAdminMaster?: boolean;
+}
+
+export function MaterialsManagement({ useDimensionMaterials = false, isAdminMaster = false }: MaterialsManagementProps) {
   const { session } = useAuth();
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
@@ -44,22 +49,30 @@ export function MaterialsManagement() {
   const [newThickness, setNewThickness] = useState("");
   const [seedingPresets, setSeedingPresets] = useState(false);
 
+  // Determine which table to use
+  const materialsTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_materials" : useDimensionMaterials ? "dimension_cutting_materials" : "cutting_materials";
+  const thicknessesTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_material_thicknesses" : useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
+  const isReadOnly = useDimensionMaterials && !isAdminMaster;
+
   useEffect(() => {
     if (!session?.user) return;
     supabase
-      .from("cutting_materials")
+      .from(materialsTable as any)
       .select("id, name, price_adjustment")
       .order("name")
       .then(({ data }) => {
         if (data) setCustomMaterials(data as any);
       });
-  }, [session]);
+  }, [session, materialsTable]);
 
   const addMaterial = async () => {
-    if (!newMaterial.trim() || !session?.user) return;
+    if (!newMaterial.trim() || !session?.user || isReadOnly) return;
+    const insertData = materialsTable === "dimension_cutting_materials"
+      ? { name: newMaterial.trim() }
+      : { user_id: session.user.id, name: newMaterial.trim() };
     const { data, error } = await supabase
-      .from("cutting_materials")
-      .insert({ user_id: session.user.id, name: newMaterial.trim() } as any)
+      .from(materialsTable as any)
+      .insert(insertData as any)
       .select("id, name, price_adjustment")
       .single();
     if (!error && data) {
@@ -70,7 +83,8 @@ export function MaterialsManagement() {
   };
 
   const deleteMaterial = async (id: string) => {
-    const { error } = await supabase.from("cutting_materials").delete().eq("id", id);
+    if (isReadOnly) return;
+    const { error } = await supabase.from(materialsTable as any).delete().eq("id", id);
     if (!error) {
       setCustomMaterials((prev) => prev.filter((m) => m.id !== id));
       toast.success("Material removido.");
@@ -81,30 +95,39 @@ export function MaterialsManagement() {
     setSelectedMaterial(mat);
     setMaterialAdjustment(mat.price_adjustment || 0);
     const { data } = await supabase
-      .from("cutting_material_thicknesses")
+      .from(thicknessesTable as any)
       .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
       .eq("material_id", mat.id)
       .order("value");
-    if (data) setMaterialThicknesses(data as any);
+    if (data) {
+      const mapped = (data as any[]).map((d: any) => ({
+        ...d,
+        is_dimension_preset: d.is_dimension_preset ?? false,
+        dimension_default_factor: d.dimension_default_factor ?? null,
+      }));
+      setMaterialThicknesses(mapped);
+    }
   };
 
   const addThickness = async () => {
-    if (!newThickness.trim() || !selectedMaterial) return;
+    if (!newThickness.trim() || !selectedMaterial || isReadOnly) return;
     const val = newThickness.trim();
     const { data, error } = await supabase
-      .from("cutting_material_thicknesses")
+      .from(thicknessesTable as any)
       .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm`, speed_factor: getDefaultSpeedFactor(parseFloat(val)) } as any)
       .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
       .single();
     if (!error && data) {
-      setMaterialThicknesses((prev) => [...prev, data as any].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
+      const mapped = { ...(data as any), is_dimension_preset: (data as any).is_dimension_preset ?? false, dimension_default_factor: (data as any).dimension_default_factor ?? null };
+      setMaterialThicknesses((prev) => [...prev, mapped].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
       setNewThickness("");
       toast.success("Espessura adicionada!");
     }
   };
 
   const deleteThickness = async (id: string) => {
-    const { error } = await supabase.from("cutting_material_thicknesses").delete().eq("id", id);
+    if (isReadOnly) return;
+    const { error } = await supabase.from(thicknessesTable as any).delete().eq("id", id);
     if (!error) {
       setMaterialThicknesses((prev) => prev.filter((t) => t.id !== id));
       toast.success("Espessura removida.");
@@ -112,18 +135,20 @@ export function MaterialsManagement() {
   };
 
   const updateThicknessField = (id: string, field: keyof Thickness, value: number | boolean) => {
+    if (isReadOnly) return;
     setMaterialThicknesses((prev) =>
       prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
     );
   };
 
   const saveThickness = async (t: Thickness) => {
+    if (isReadOnly) return;
     if (t.speed_factor < 0.05 || t.speed_factor > 1) {
       toast.error("Fator de velocidade deve estar entre 0.05 e 1.00.");
       return;
     }
     const { error } = await supabase
-      .from("cutting_material_thicknesses")
+      .from(thicknessesTable as any)
       .update({
         sheet_width: t.sheet_width,
         sheet_height: t.sheet_height,
@@ -139,10 +164,10 @@ export function MaterialsManagement() {
   };
 
   const restoreDimensionFactor = async (t: Thickness) => {
-    if (t.dimension_default_factor === null) return;
+    if (t.dimension_default_factor === null || isReadOnly) return;
     const newFactor = t.dimension_default_factor;
     const { error } = await supabase
-      .from("cutting_material_thicknesses")
+      .from(thicknessesTable as any)
       .update({ speed_factor: newFactor } as any)
       .eq("id", t.id);
     if (!error) {
@@ -154,9 +179,9 @@ export function MaterialsManagement() {
   };
 
   const saveMaterialAdjustment = async () => {
-    if (!selectedMaterial) return;
+    if (!selectedMaterial || isReadOnly) return;
     const { error } = await supabase
-      .from("cutting_materials")
+      .from(materialsTable as any)
       .update({ price_adjustment: materialAdjustment } as any)
       .eq("id", selectedMaterial.id);
     if (!error) {
@@ -253,40 +278,58 @@ export function MaterialsManagement() {
               </Button>
               <Layers className="w-4 h-4 text-primary" />
               {selectedMaterial.name}
+              {useDimensionMaterials && (
+                <Badge variant="outline" className="text-[9px] gap-0.5 h-5 border-primary/30 text-primary ml-2">
+                  Catálogo Dimension
+                </Badge>
+              )}
             </CardTitle>
-            <CardDescription>Gerencie espessuras, tamanho da chapa, valor unitário e fator de velocidade</CardDescription>
+            <CardDescription>
+              {isReadOnly ? "Visualize espessuras e valores do catálogo oficial" : "Gerencie espessuras, tamanho da chapa, valor unitário e fator de velocidade"}
+            </CardDescription>
           </>
         ) : (
           <>
             <CardTitle className="text-base flex items-center gap-2">
-              <Plus className="w-4 h-4 text-primary" />
-              Cadastrar Materiais
+              {useDimensionMaterials ? <Layers className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
+              {useDimensionMaterials ? "Materiais da Dimension" : "Cadastrar Materiais"}
             </CardTitle>
-            <CardDescription>Clique em um material para gerenciar espessuras e ajuste de preço</CardDescription>
+            <CardDescription>
+              {isReadOnly
+                ? "Catálogo oficial de materiais da Dimension CNC (somente leitura)"
+                : useDimensionMaterials && isAdminMaster
+                ? "Gerencie o catálogo oficial de materiais da Dimension"
+                : "Clique em um material para gerenciar espessuras e ajuste de preço"}
+            </CardDescription>
           </>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
         {selectedMaterial ? (
           <>
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <Label className="text-xs">Ajuste de Preço sobre Sugerido (%)</Label>
-                <Input
-                  type="number"
-                  value={materialAdjustment || ""}
-                  onChange={(e) => setMaterialAdjustment(Number(e.target.value))}
-                  placeholder="0"
-                  className="mt-1"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Ex: 20 = adiciona 20% ao preço sugerido para este material
-                </p>
+            {!isReadOnly && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Ajuste de Preço sobre Sugerido (%)</Label>
+                  <Input
+                    type="number"
+                    value={materialAdjustment || ""}
+                    onChange={(e) => setMaterialAdjustment(Number(e.target.value))}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Ex: 20 = adiciona 20% ao preço sugerido para este material
+                  </p>
+                </div>
+                <Button onClick={saveMaterialAdjustment} size="sm" className="shrink-0 gap-1 mb-5">
+                  <Save className="w-3.5 h-3.5" /> Salvar
+                </Button>
               </div>
-              <Button onClick={saveMaterialAdjustment} size="sm" className="shrink-0 gap-1 mb-5">
-                <Save className="w-3.5 h-3.5" /> Salvar
-              </Button>
-            </div>
+            )}
+            {isReadOnly && materialAdjustment > 0 && (
+              <p className="text-xs text-muted-foreground">Ajuste de preço: +{materialAdjustment}%</p>
+            )}
 
             <Separator />
 
@@ -439,40 +482,56 @@ export function MaterialsManagement() {
           </>
         ) : (
           <>
-            {/* Seed Dimension Presets Button */}
-            <div className="p-3 rounded-md bg-primary/5 border border-primary/20 space-y-2">
-              <div className="flex items-start gap-2">
-                <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
-                  <p className="font-medium text-foreground">Presets Dimension CNC</p>
-                  <p className="text-muted-foreground">
-                    Carregue materiais e fatores de velocidade recomendados pela Dimension (MDF, PVC, Acrílico) com espessuras pré-configuradas.
-                  </p>
+            {/* Seed Dimension Presets Button - only for non-readonly */}
+            {!isReadOnly && (
+              <div className="p-3 rounded-md bg-primary/5 border border-primary/20 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium text-foreground">Presets Dimension CNC</p>
+                    <p className="text-muted-foreground">
+                      Carregue materiais e fatores de velocidade recomendados pela Dimension (MDF, PVC, Acrílico) com espessuras pré-configuradas.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={seedDimensionPresets}
+                  disabled={seedingPresets}
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {seedingPresets ? "Aplicando presets..." : "Carregar Presets Dimension"}
+                </Button>
+              </div>
+            )}
+
+            {/* Read-only info banner */}
+            {isReadOnly && (
+              <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-xs flex items-start gap-2">
+                <Layers className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div className="text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">Catálogo Oficial Dimension CNC</p>
+                  <p>Estes são os materiais oficiais configurados pelo administrador. Você pode visualizar, mas não editar.</p>
                 </div>
               </div>
-              <Button
-                onClick={seedDimensionPresets}
-                disabled={seedingPresets}
-                size="sm"
-                variant="outline"
-                className="w-full gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                {seedingPresets ? "Aplicando presets..." : "Carregar Presets Dimension"}
-              </Button>
-            </div>
+            )}
 
-            <div className="flex gap-2">
-              <Input
-                placeholder="Nome do material"
-                value={newMaterial}
-                onChange={(e) => setNewMaterial(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addMaterial()}
-              />
-              <Button onClick={addMaterial} disabled={!newMaterial.trim()} size="sm" className="shrink-0 gap-1">
-                <Plus className="w-3.5 h-3.5" /> Adicionar
-              </Button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nome do material"
+                  value={newMaterial}
+                  onChange={(e) => setNewMaterial(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addMaterial()}
+                />
+                <Button onClick={addMaterial} disabled={!newMaterial.trim()} size="sm" className="shrink-0 gap-1">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </Button>
+              </div>
+            )}
+
             {customMaterials.length > 0 ? (
               <div className="space-y-1">
                 {customMaterials.map((m) => (
@@ -488,14 +547,18 @@ export function MaterialsManagement() {
                         <span className="text-[10px] text-primary">+{m.price_adjustment}%</span>
                       )}
                     </span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {!isReadOnly && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-2">Nenhum material personalizado cadastrado.</p>
+              <p className="text-xs text-muted-foreground text-center py-2">
+                {isReadOnly ? "Nenhum material configurado no catálogo Dimension." : "Nenhum material personalizado cadastrado."}
+              </p>
             )}
           </>
         )}

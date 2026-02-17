@@ -452,6 +452,80 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_cutting_material_thicknesses: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          material_id: string
+          sheet_height: number
+          sheet_width: number
+          speed_factor: number
+          unit_price: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          material_id: string
+          sheet_height?: number
+          sheet_width?: number
+          speed_factor?: number
+          unit_price?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          material_id?: string
+          sheet_height?: number
+          sheet_width?: number
+          speed_factor?: number
+          unit_price?: number
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dimension_cutting_material_thicknesses_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_cutting_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dimension_cutting_materials: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price_adjustment: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_adjustment?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_adjustment?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dimension_equipment: {
         Row: {
           category: string
@@ -1722,6 +1796,7 @@ export type Database = {
           pro_access: boolean
           pro_activated_at: string | null
           updated_at: string
+          use_dimension_materials: boolean
           use_master_pricing: boolean
           user_id: string
           valid_until: string | null
@@ -1737,6 +1812,7 @@ export type Database = {
           pro_access?: boolean
           pro_activated_at?: string | null
           updated_at?: string
+          use_dimension_materials?: boolean
           use_master_pricing?: boolean
           user_id: string
           valid_until?: string | null
@@ -1752,6 +1828,7 @@ export type Database = {
           pro_access?: boolean
           pro_activated_at?: string | null
           updated_at?: string
+          use_dimension_materials?: boolean
           use_master_pricing?: boolean
           user_id?: string
           valid_until?: string | null
