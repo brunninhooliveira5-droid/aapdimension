@@ -48,7 +48,7 @@ export function SavedQuotes() {
   const [notesText, setNotesText] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todos" | "orcamento" | "fechado">("todos");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [materialFilter, setMaterialFilter] = useState("todos");
 
   const uniqueMaterials = useMemo(() => {
@@ -100,7 +100,9 @@ export function SavedQuotes() {
   };
 
   const toggleStatus = async (q: SavedQuote) => {
-    const newStatus = q.status === "fechado" ? "orcamento" : "fechado";
+    const statusCycle = ["orcamento", "fechado", "aprovado_corte", "aguardando_retirada", "finalizado"];
+    const currentIdx = statusCycle.indexOf(q.status);
+    const newStatus = statusCycle[(currentIdx + 1) % statusCycle.length];
     const { error } = await supabase
       .from("cutting_quotes" as any)
       .update({ status: newStatus } as any)
@@ -108,7 +110,11 @@ export function SavedQuotes() {
     if (error) {
       toast.error("Erro ao atualizar status.");
     } else {
-      toast.success(newStatus === "fechado" ? "Orçamento fechado!" : "Status revertido para orçamento.");
+      const labels: Record<string, string> = {
+        orcamento: "Orçamento", fechado: "Fechado", aprovado_corte: "Aprovado p/ Corte",
+        aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
+      };
+      toast.success(`Status alterado para "${labels[newStatus] || newStatus}".`);
       setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
     }
   };
@@ -232,14 +238,17 @@ export function SavedQuotes() {
                 </Button>
               )}
             </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-              <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-sm">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="orcamento">Orçamento</SelectItem>
                 <SelectItem value="fechado">Fechado</SelectItem>
+                <SelectItem value="aprovado_corte">Aprovado p/ Corte</SelectItem>
+                <SelectItem value="aguardando_retirada">Aguardando Retirada</SelectItem>
+                <SelectItem value="finalizado">Finalizado</SelectItem>
               </SelectContent>
             </Select>
             <Select value={materialFilter} onValueChange={setMaterialFilter}>
@@ -291,13 +300,25 @@ export function SavedQuotes() {
                     <TableCell className="text-xs">{q.material}</TableCell>
                     <TableCell className="text-xs">{q.thickness}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={q.status === "fechado" ? "default" : "secondary"}
-                        className={`text-[10px] cursor-pointer ${q.status === "fechado" ? "bg-green-600 hover:bg-green-700" : ""}`}
-                        onClick={() => toggleStatus(q)}
-                      >
-                        {q.status === "fechado" ? <><CheckCircle className="w-3 h-3 mr-1" /> Fechado</> : <><FileText className="w-3 h-3 mr-1" /> Orçamento</>}
-                      </Badge>
+                      {(() => {
+                        const labels: Record<string, string> = {
+                          orcamento: "Orçamento", fechado: "Fechado", aprovado_corte: "Aprovado p/ Corte",
+                          aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
+                        };
+                        const colors: Record<string, string> = {
+                          fechado: "bg-blue-600 hover:bg-blue-700", aprovado_corte: "bg-emerald-600 hover:bg-emerald-700",
+                          aguardando_retirada: "bg-amber-600 hover:bg-amber-700", finalizado: "bg-primary hover:bg-primary/90",
+                        };
+                        return (
+                          <Badge
+                            variant={q.status === "orcamento" ? "secondary" : "default"}
+                            className={`text-[10px] cursor-pointer whitespace-nowrap ${colors[q.status] || ""}`}
+                            onClick={() => toggleStatus(q)}
+                          >
+                            {labels[q.status] || q.status}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
                     <TableCell className="text-xs text-right font-medium text-primary">
@@ -419,12 +440,24 @@ export function SavedQuotes() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Status</p>
-                  <Badge
-                    variant={selectedQuote.status === "fechado" ? "default" : "secondary"}
-                    className={`text-[10px] ${selectedQuote.status === "fechado" ? "bg-green-600" : ""}`}
-                  >
-                    {selectedQuote.status === "fechado" ? "Fechado" : "Orçamento"}
-                  </Badge>
+                  {(() => {
+                    const labels: Record<string, string> = {
+                      orcamento: "Orçamento", fechado: "Fechado", aprovado_corte: "Aprovado p/ Corte",
+                      aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
+                    };
+                    const colors: Record<string, string> = {
+                      fechado: "bg-blue-600", aprovado_corte: "bg-emerald-600",
+                      aguardando_retirada: "bg-amber-600", finalizado: "bg-primary",
+                    };
+                    return (
+                      <Badge
+                        variant={selectedQuote.status === "orcamento" ? "secondary" : "default"}
+                        className={`text-[10px] ${colors[selectedQuote.status] || ""}`}
+                      >
+                        {labels[selectedQuote.status] || selectedQuote.status}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </div>
 
