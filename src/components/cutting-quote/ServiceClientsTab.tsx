@@ -2,17 +2,32 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, X, Download, File, Users, Shield, Layers, Eye, Calendar } from "lucide-react";
+import { Search, X, Download, File, Users, Shield, Layers, Eye, Calendar, Trash2, CheckCircle, Clock, PackageCheck, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+const STATUS_OPTIONS = [
+  { value: "orcamento", label: "Orçamento", icon: FileText, color: "" },
+  { value: "fechado", label: "Fechado", icon: CheckCircle, color: "bg-blue-600 hover:bg-blue-700" },
+  { value: "aprovado_corte", label: "Aprovado p/ Corte", icon: CheckCircle, color: "bg-emerald-600 hover:bg-emerald-700" },
+  { value: "aguardando_retirada", label: "Aguardando Retirada", icon: Clock, color: "bg-amber-600 hover:bg-amber-700" },
+  { value: "finalizado", label: "Finalizado", icon: PackageCheck, color: "bg-primary hover:bg-primary/90" },
+] as const;
+
+function getStatusConfig(status: string) {
+  return STATUS_OPTIONS.find((s) => s.value === status) ?? STATUS_OPTIONS[0];
+}
 
 interface ServiceQuote {
   id: string;
@@ -53,6 +68,7 @@ export function ServiceClientsTab() {
   const [selectedQuote, setSelectedQuote] = useState<ServiceQuote | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -71,18 +87,18 @@ export function ServiceClientsTab() {
         q.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         q.client_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchMaterial = materialFilter === "todos" || q.material === materialFilter;
+      const matchStatus = statusFilter === "todos" || q.status === statusFilter;
       const qDate = new Date(q.created_at);
       const matchFrom = !dateFrom || qDate >= new Date(dateFrom);
       const matchTo = !dateTo || qDate <= new Date(dateTo + "T23:59:59");
-      return matchSearch && matchMaterial && matchFrom && matchTo;
+      return matchSearch && matchMaterial && matchStatus && matchFrom && matchTo;
     });
-  }, [quotes, searchTerm, materialFilter, dateFrom, dateTo]);
+  }, [quotes, searchTerm, materialFilter, statusFilter, dateFrom, dateTo]);
 
   const fetchServiceQuotes = async () => {
     if (!session?.user) return;
     setLoading(true);
 
-    // 1. Get all user_ids with role='servico'
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -96,7 +112,6 @@ export function ServiceClientsTab() {
 
     const serviceUserIds = roleRows.map((r) => r.user_id);
 
-    // 2. Get profiles for these users
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, name, email, company")
@@ -106,7 +121,6 @@ export function ServiceClientsTab() {
       (profiles ?? []).map((p: any) => [p.id, { name: p.name, email: p.email, company: p.company ?? "" }])
     );
 
-    // 3. Get all quotes for these users
     const { data: quotesData, error: quotesError } = await supabase
       .from("cutting_quotes" as any)
       .select("*")
@@ -121,12 +135,7 @@ export function ServiceClientsTab() {
 
     const mapped: ServiceQuote[] = (quotesData as any[] ?? []).map((q: any) => {
       const profile = profileMap.get(q.user_id) ?? { name: "—", email: "—", company: "" };
-      return {
-        ...q,
-        user_name: profile.name,
-        user_email: profile.email,
-        user_company: profile.company,
-      };
+      return { ...q, user_name: profile.name, user_email: profile.email, user_company: profile.company };
     });
 
     setQuotes(mapped);
@@ -138,6 +147,38 @@ export function ServiceClientsTab() {
   }, [session]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const updateStatus = async (quoteId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from("cutting_quotes" as any)
+      .update({ status: newStatus } as any)
+      .eq("id", quoteId);
+    if (error) {
+      toast.error("Erro ao atualizar status.");
+    } else {
+      const config = getStatusConfig(newStatus);
+      toast.success(`Status alterado para "${config.label}".`);
+      setQuotes((prev) => prev.map((q) => q.id === quoteId ? { ...q, status: newStatus } : q));
+      if (selectedQuote?.id === quoteId) {
+        setSelectedQuote((prev) => prev ? { ...prev, status: newStatus } : null);
+      }
+    }
+  };
+
+  const deleteQuote = async (id: string) => {
+    const quote = quotes.find((q) => q.id === id);
+    if (quote?.file_path) {
+      await supabase.storage.from("cutting-files").remove([quote.file_path]);
+    }
+    const { error } = await supabase.from("cutting_quotes" as any).delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir orçamento.");
+    } else {
+      toast.success("Orçamento excluído.");
+      setQuotes((prev) => prev.filter((q) => q.id !== id));
+      if (selectedQuote?.id === id) setSelectedQuote(null);
+    }
+  };
 
   const exportQuotePDF = (q: ServiceQuote) => {
     try {
@@ -164,6 +205,7 @@ export function ServiceClientsTab() {
           ["Custo do Material", fmt(Number(q.material_cost))],
           ...(q.service_value_included ? [["Valor de Serviço", fmt(Number(q.service_value))]] : []),
           ["Total Final", fmt(Number(q.total_price))],
+          ["Status", getStatusConfig(q.status).label],
         ],
         theme: "striped",
         styles: { fontSize: 10 },
@@ -193,7 +235,6 @@ export function ServiceClientsTab() {
     URL.revokeObjectURL(url);
   };
 
-  // Summary stats
   const totalQuotes = filteredQuotes.length;
   const totalRevenue = filteredQuotes.reduce((sum, q) => sum + Number(q.total_price), 0);
   const uniqueClients = new Set(filteredQuotes.map((q) => q.user_id)).size;
@@ -201,6 +242,31 @@ export function ServiceClientsTab() {
   if (loading) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Carregando orçamentos de clientes de serviço...</p>;
   }
+
+  const StatusBadgeComponent = ({ status, quoteId }: { status: string; quoteId: string }) => {
+    const config = getStatusConfig(status);
+    const Icon = config.icon;
+    return (
+      <Select value={status} onValueChange={(v) => updateStatus(quoteId, v)}>
+        <SelectTrigger className="h-auto border-0 p-0 shadow-none focus:ring-0 w-auto">
+          <Badge
+            variant={status === "orcamento" ? "secondary" : "default"}
+            className={`text-[10px] cursor-pointer whitespace-nowrap ${config.color}`}
+          >
+            <Icon className="w-3 h-3 mr-1" />
+            {config.label}
+          </Badge>
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  };
 
   return (
     <>
@@ -211,7 +277,7 @@ export function ServiceClientsTab() {
             Orçamentos de Clientes de Serviço
           </CardTitle>
           <CardDescription>
-            Histórico de todos os orçamentos gerados por usuários com perfil "Serviço"
+            {filteredQuotes.length} de {quotes.length} orçamento(s) de usuários com perfil "Serviço"
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -232,8 +298,8 @@ export function ServiceClientsTab() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por cliente, e-mail, empresa ou arquivo..."
@@ -247,6 +313,17 @@ export function ServiceClientsTab() {
                 </Button>
               )}
             </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os Status</SelectItem>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={materialFilter} onValueChange={setMaterialFilter}>
               <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
                 <SelectValue placeholder="Material" />
@@ -282,6 +359,7 @@ export function ServiceClientsTab() {
                     <TableHead>Cliente</TableHead>
                     <TableHead>Arquivo</TableHead>
                     <TableHead>Material / Espessura</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -289,7 +367,7 @@ export function ServiceClientsTab() {
                 <TableBody>
                   {filteredQuotes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                         Nenhum orçamento encontrado com os filtros aplicados.
                       </TableCell>
                     </TableRow>
@@ -315,6 +393,9 @@ export function ServiceClientsTab() {
                         <TableCell className="text-xs">
                           {q.material} / {q.thickness}
                         </TableCell>
+                        <TableCell>
+                          <StatusBadgeComponent status={q.status} quoteId={q.id} />
+                        </TableCell>
                         <TableCell className="text-xs text-right font-medium text-primary">
                           {fmt(Number(q.total_price))}
                         </TableCell>
@@ -331,6 +412,27 @@ export function ServiceClientsTab() {
                                 <File className="w-3.5 h-3.5" />
                               </Button>
                             )}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir orçamento?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Deseja excluir o orçamento "{q.file_name}" de {q.user_name}? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteQuote(q.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -345,7 +447,7 @@ export function ServiceClientsTab() {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && setSelectedQuote(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <File className="w-4 h-4 text-primary" />
@@ -367,9 +469,21 @@ export function ServiceClientsTab() {
                     <Layers className="w-3 h-3" /> Materiais Dimension
                   </span>
                 )}
-                <Badge variant={selectedQuote.status === "fechado" ? "default" : "secondary"} className={`text-[10px] ${selectedQuote.status === "fechado" ? "bg-green-600" : ""}`}>
-                  {selectedQuote.status === "fechado" ? "Fechado" : "Orçamento"}
-                </Badge>
+              </div>
+
+              {/* Status changer */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                <Select value={selectedQuote.status} onValueChange={(v) => updateStatus(selectedQuote.id, v)}>
+                  <SelectTrigger className="h-9 text-sm w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Client Info */}
@@ -463,8 +577,21 @@ export function ServiceClientsTab() {
                 </div>
               </div>
 
+              {/* Notes */}
+              {selectedQuote.notes && (
+                <>
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Observações do Cliente</Label>
+                    <div className="rounded-md border border-border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                      {selectedQuote.notes}
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportQuotePDF(selectedQuote)}>
                   <Download className="w-3.5 h-3.5" /> Baixar PDF
                 </Button>
@@ -473,6 +600,27 @@ export function ServiceClientsTab() {
                     <File className="w-3.5 h-3.5" /> Baixar Arquivo
                   </Button>
                 )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="destructive" className="gap-1.5">
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir orçamento?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Deseja excluir o orçamento "{selectedQuote.file_name}" de {selectedQuote.user_name}? Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteQuote(selectedQuote.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}
