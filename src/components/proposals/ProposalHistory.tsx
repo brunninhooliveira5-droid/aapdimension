@@ -99,7 +99,7 @@ export function ProposalHistory() {
       .eq("user_id", session?.user?.id ?? "")
       .maybeSingle();
 
-    generateProposalPdf({
+    await generateProposalPdf({
       ...proposal,
       pdfSettings: pdfSettings as any,
     });

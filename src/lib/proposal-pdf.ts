@@ -32,6 +32,8 @@ interface ProposalPdfData {
     accent_color?: string;
     footer_text?: string;
     show_payment_conditions?: boolean;
+    show_watermark?: boolean;
+    watermark_url?: string;
   } | null;
 }
 
@@ -42,7 +44,7 @@ function hexToRGB(hex: string): [number, number, number] {
   return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
 }
 
-export function generateProposalPdf(data: ProposalPdfData) {
+export async function generateProposalPdf(data: ProposalPdfData) {
   const doc = new jsPDF();
   const ps = data.pdfSettings;
   const primaryColor = ps?.primary_color ? hexToRGB(ps.primary_color) : [0, 102, 204] as [number, number, number];
@@ -248,10 +250,37 @@ export function generateProposalPdf(data: ProposalPdfData) {
   doc.setFontSize(7);
   doc.text(ps?.footer_text || "Proposta gerada automaticamente - Dimension CNC", pageWidth / 2, footerY, { align: "center" });
 
+  // Watermark on all pages
+  if (ps?.show_watermark && ps?.watermark_url) {
+    try {
+      const response = await fetch(ps.watermark_url);
+      const blob = await response.blob();
+      const imgData = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      const pageCount = doc.getNumberOfPages();
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const wmW = pageW * 0.6;
+      const wmH = pageH * 0.4;
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.saveGraphicsState();
+        (doc as any).setGState(new (doc as any).GState({ opacity: 0.08 }));
+        doc.addImage(imgData, "PNG", (pageW - wmW) / 2, (pageH - wmH) / 2, wmW, wmH);
+        doc.restoreGraphicsState();
+      }
+    } catch (err) {
+      console.error("Erro ao carregar marca d'água:", err);
+    }
+  }
+
   // Download
   const fileName = `Proposta_${data.model_name.replace(/\s+/g, "_")}_${data.client_name.replace(/\s+/g, "_")}.pdf`;
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
+  const pdfBlob = doc.output("blob");
+  const url = URL.createObjectURL(pdfBlob);
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;

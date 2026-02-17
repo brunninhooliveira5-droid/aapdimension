@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Settings2, Upload, Trash2, Save, Building2, Palette, Eye, FileText } from "lucide-react";
+import { Settings2, Upload, Trash2, Save, Building2, Palette, Eye, FileText, Droplets } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -31,6 +31,8 @@ interface PdfSettings {
   show_material_value: boolean;
   show_service_value: boolean;
   label_service_value: string;
+  show_watermark: boolean;
+  watermark_url: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
@@ -54,6 +56,8 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_material_value: true,
   show_service_value: true,
   label_service_value: "Valor de Serviço",
+  show_watermark: false,
+  watermark_url: "",
 };
 
 export function ProposalPdfConfiguration() {
@@ -63,6 +67,7 @@ export function ProposalPdfConfiguration() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const watermarkRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -99,6 +104,8 @@ export function ProposalPdfConfiguration() {
         show_material_value: d.show_material_value ?? true,
         show_service_value: d.show_service_value ?? true,
         label_service_value: d.label_service_value || "Valor de Serviço",
+        show_watermark: d.show_watermark ?? false,
+        watermark_url: d.watermark_url || "",
       });
     }
     setLoading(false);
@@ -166,6 +173,29 @@ export function ProposalPdfConfiguration() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  const handleWatermarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session?.user) return;
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem PNG."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Imagem deve ter no máximo 2MB."); return; }
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${session.user.id}/watermark.${ext}`;
+    const { error } = await supabase.storage.from("quote-logos").upload(path, file, { upsert: true });
+    if (error) {
+      toast.error("Erro ao enviar marca d'água.");
+      console.error(error);
+    } else {
+      const { data: urlData } = supabase.storage.from("quote-logos").getPublicUrl(path);
+      setSettings(s => ({ ...s, watermark_url: urlData.publicUrl, show_watermark: true }));
+      toast.success("Marca d'água enviada!");
+    }
+    setUploading(false);
+    if (watermarkRef.current) watermarkRef.current.value = "";
+  };
+
+  const removeWatermark = () => setSettings(s => ({ ...s, watermark_url: "", show_watermark: false }));
+
   const removeLogo = () => setSettings(s => ({ ...s, logo_url: "" }));
 
   const maskCnpj = (raw: string) => {
@@ -202,7 +232,13 @@ export function ProposalPdfConfiguration() {
           <CardDescription>Visualização em tempo real da proposta comercial exportada</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto" style={{ maxWidth: 520, aspectRatio: "210/297" }}>
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden mx-auto relative" style={{ maxWidth: 520, aspectRatio: "210/297" }}>
+            {/* Watermark overlay */}
+            {settings.show_watermark && settings.watermark_url && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <img src={settings.watermark_url} alt="Marca d'água" className="w-2/3 h-auto opacity-10 object-contain" />
+              </div>
+            )}
             {/* Header bar */}
             <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: settings.primary_color }}>
               <div className="flex items-center gap-3">
@@ -414,6 +450,46 @@ export function ProposalPdfConfiguration() {
               <Switch checked={settings[key]} onCheckedChange={v => update(key, v)} />
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Watermark */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Droplets className="w-4 h-4 text-primary" />
+            Marca d'Água
+          </CardTitle>
+          <CardDescription>Imagem PNG exibida de fundo em todas as páginas do PDF</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Ativar marca d'água</Label>
+            <Switch checked={settings.show_watermark} onCheckedChange={v => update("show_watermark", v)} disabled={!settings.watermark_url} />
+          </div>
+          <div className="flex items-center gap-4">
+            {settings.watermark_url ? (
+              <div className="relative">
+                <img src={settings.watermark_url} alt="Marca d'água" className="h-20 w-auto rounded border border-border object-contain bg-muted/30 p-2" />
+                <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={removeWatermark}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="h-20 w-40 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => watermarkRef.current?.click()}>
+                <div className="text-center">
+                  <Upload className="w-5 h-5 mx-auto text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Enviar PNG</p>
+                </div>
+              </div>
+            )}
+            <input ref={watermarkRef} type="file" accept="image/png" className="hidden" onChange={handleWatermarkUpload} />
+            {settings.watermark_url && (
+              <Button variant="outline" size="sm" onClick={() => watermarkRef.current?.click()} disabled={uploading}>
+                {uploading ? "Enviando..." : "Trocar"}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
