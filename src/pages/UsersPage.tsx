@@ -273,15 +273,15 @@ const UsersPage = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs defaultValue="approved" className="w-full">
         <TabsList>
-          <TabsTrigger value="pending" className="gap-2">
-            <Clock className="w-3.5 h-3.5" />
-            Pendentes ({pendingUsers.length})
-          </TabsTrigger>
           <TabsTrigger value="approved" className="gap-2">
             <CheckCircle className="w-3.5 h-3.5" />
             Aprovados ({approvedUsers.length})
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="gap-2">
+            <Clock className="w-3.5 h-3.5" />
+            Pendentes ({pendingUsers.length})
           </TabsTrigger>
           <TabsTrigger value="plans" className="gap-2">
             <Star className="w-3.5 h-3.5" />
