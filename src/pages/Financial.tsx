@@ -57,7 +57,7 @@ const Financial = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState<string | null>(null);
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
-  const [showUserInvoices, setShowUserInvoices] = useState(false);
+  const [showUserInvoices, setShowUserInvoices] = useState(true);
 
   useEffect(() => {
     fetchData();
