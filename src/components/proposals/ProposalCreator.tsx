@@ -78,7 +78,28 @@ export function ProposalCreator() {
   const [basePrice, setBasePrice] = useState("");
   const [deliveryDays, setDeliveryDays] = useState("");
   const [notes, setNotes] = useState("");
-  const [paymentConditions, setPaymentConditions] = useState("");
+  const [paymentConditions, setPaymentConditions] = useState(`A Dimension CNC disponibiliza as seguintes condições de pagamento para aquisição de seus equipamentos, sujeitas à análise e aprovação comercial:
+
+🔹 Pagamento à Vista
+100% do valor no pedido.
+
+🔹 Entrada + Saldo na Entrega
+50% de entrada no pedido
+50% restantes na retirada do equipamento.
+
+🔹 Entrada + Parcelamento em Boleto
+60% de entrada no pedido
+Saldo remanescente parcelado em até 10 (dez) parcelas mensais no boleto,
+sujeito à análise de crédito e acréscimo de juros.
+
+🔹 Financiamento Bancário
+Financiamento por instituição bancária de escolha do cliente,
+mediante aprovação de crédito pela instituição financeira.
+
+🔹 Permuta
+Permutas poderão ser analisadas, mediante avaliação prévia e aprovação pela Dimension CNC.
+
+As condições acima não são cumulativas e poderão ser ajustadas conforme negociação, análise de crédito e política comercial vigente.`);
   const [validityDays, setValidityDays] = useState("15");
 
   useEffect(() => {
@@ -288,7 +309,7 @@ export function ProposalCreator() {
         </div>
         <div>
           <Label>Condições de Pagamento</Label>
-          <Textarea value={paymentConditions} onChange={e => setPaymentConditions(e.target.value)} rows={2} placeholder="Ex: 50% na aprovação + 50% na entrega" />
+          <Textarea value={paymentConditions} onChange={e => setPaymentConditions(e.target.value)} rows={12} placeholder="Ex: 50% na aprovação + 50% na entrega" />
         </div>
         <div>
           <Label>Observações</Label>
