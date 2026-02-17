@@ -87,11 +87,16 @@ const Index = () => {
         setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
       }
 
-      // Fetch total machines (exclude accessories)
+      // Fetch total machines (exclude accessories) from both tables
       let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
       if (viewUserId) machineQuery = machineQuery.eq("owner_id", viewUserId);
-      const { count } = await machineQuery;
-      setTotalMachines(count ?? 0);
+      const { count: machineCount } = await machineQuery;
+
+      let regEquipQuery = (supabase as any).from("registered_equipment").select("*", { count: "exact", head: true }).eq("category", "maquina");
+      if (viewUserId) regEquipQuery = regEquipQuery.eq("owner_id", viewUserId);
+      const { count: regEquipCount } = await regEquipQuery;
+
+      setTotalMachines((machineCount ?? 0) + (regEquipCount ?? 0));
 
       // Fetch invoices
       let invoiceQuery = supabase.from("invoices").select("*");
