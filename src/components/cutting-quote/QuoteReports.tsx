@@ -235,6 +235,79 @@ export function QuoteReports() {
           </div>
         </CardContent>
       </Card>
+      {/* Service Bonus Section - only for servico users */}
+      {isServico && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Gift className="w-4 h-4 text-primary" /> Meus Bônus
+              {(() => {
+                const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
+                const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
+                const balance = totalCredits - totalDebits;
+                return (
+                  <Badge variant="outline" className="ml-auto text-xs font-bold">
+                    Saldo: {fmt(balance)}
+                  </Badge>
+                );
+              })()}
+            </CardTitle>
+            <CardDescription>Histórico de créditos e débitos de bônus</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
+              const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
+              const balance = totalCredits - totalDebits;
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="rounded-md bg-primary/5 border border-primary/10 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Créditos</p>
+                      <p className="text-lg font-bold text-primary">{fmt(totalCredits)}</p>
+                    </div>
+                    <div className="rounded-md bg-destructive/5 border border-destructive/10 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Débitos</p>
+                      <p className="text-lg font-bold text-destructive">{fmt(totalDebits)}</p>
+                    </div>
+                    <div className={`rounded-md border p-3 text-center ${balance >= 0 ? "bg-primary/5 border-primary/10" : "bg-destructive/5 border-destructive/10"}`}>
+                      <p className="text-xs text-muted-foreground">Saldo</p>
+                      <p className={`text-lg font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(balance)}</p>
+                    </div>
+                  </div>
+                  {bonuses.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                      {bonuses.map(b => (
+                        <div key={b.id} className="flex items-center gap-2 p-2.5 rounded-md bg-accent/50 text-sm">
+                          {b.type === "credito" ? (
+                            <TrendUp2 className="w-4 h-4 text-primary shrink-0" />
+                          ) : (
+                            <TrendDown2 className="w-4 h-4 text-destructive shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{b.description || "Bônus"}</p>
+                            {b.notes && <p className="text-xs text-muted-foreground truncate">{b.notes}</p>}
+                          </div>
+                          <span className={`font-bold shrink-0 ${b.type === "credito" ? "text-primary" : "text-destructive"}`}>
+                            {b.type === "credito" ? "+" : "−"}{fmt(Number(b.amount))}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {format(new Date(b.created_at), "dd/MM/yy")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum bônus registrado.</p>
+                  )}
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
@@ -378,79 +451,8 @@ export function QuoteReports() {
         </CardContent>
       </Card>
 
-      {/* Service Bonus Section - only for servico users */}
-      {isServico && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Gift className="w-4 h-4 text-primary" /> Meus Bônus
-              {(() => {
-                const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
-                const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
-                const balance = totalCredits - totalDebits;
-                return (
-                  <Badge variant="outline" className="ml-auto text-xs font-bold">
-                    Saldo: {fmt(balance)}
-                  </Badge>
-                );
-              })()}
-            </CardTitle>
-            <CardDescription>Histórico de créditos e débitos de bônus</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
-              const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
-              const balance = totalCredits - totalDebits;
-              return (
-                <>
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="rounded-md bg-primary/5 border border-primary/10 p-3 text-center">
-                      <p className="text-xs text-muted-foreground">Créditos</p>
-                      <p className="text-lg font-bold text-primary">{fmt(totalCredits)}</p>
-                    </div>
-                    <div className="rounded-md bg-destructive/5 border border-destructive/10 p-3 text-center">
-                      <p className="text-xs text-muted-foreground">Débitos</p>
-                      <p className="text-lg font-bold text-destructive">{fmt(totalDebits)}</p>
-                    </div>
-                    <div className={`rounded-md border p-3 text-center ${balance >= 0 ? "bg-primary/5 border-primary/10" : "bg-destructive/5 border-destructive/10"}`}>
-                      <p className="text-xs text-muted-foreground">Saldo</p>
-                      <p className={`text-lg font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(balance)}</p>
-                    </div>
-                  </div>
 
-                  {bonuses.length > 0 ? (
-                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                      {bonuses.map(b => (
-                        <div key={b.id} className="flex items-center gap-2 p-2.5 rounded-md bg-accent/50 text-sm">
-                          {b.type === "credito" ? (
-                            <TrendUp2 className="w-4 h-4 text-primary shrink-0" />
-                          ) : (
-                            <TrendDown2 className="w-4 h-4 text-destructive shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{b.description || "Bônus"}</p>
-                            {b.notes && <p className="text-xs text-muted-foreground truncate">{b.notes}</p>}
-                          </div>
-                          <span className={`font-bold shrink-0 ${b.type === "credito" ? "text-primary" : "text-destructive"}`}>
-                            {b.type === "credito" ? "+" : "−"}{fmt(Number(b.amount))}
-                          </span>
-                          <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-0.5">
-                            <Clock className="w-3 h-3" />
-                            {format(new Date(b.created_at), "dd/MM/yy")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum bônus registrado.</p>
-                  )}
-                </>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 }
