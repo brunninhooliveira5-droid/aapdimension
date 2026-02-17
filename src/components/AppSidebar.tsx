@@ -107,12 +107,12 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <div className="flex items-center gap-2 px-4 py-4 border-b border-sidebar-border">
         {!collapsed && (
-          <div className="flex items-center gap-2 animate-fade-in">
-            <img src={dimensionLogo} alt="Dimension CNC" className="h-8 w-auto" />
+          <div className="flex justify-center w-full animate-fade-in">
+            <img src={dimensionLogo} alt="Dimension CNC" className="h-14 w-auto" />
           </div>
         )}
         {collapsed && (
-          <img src={dimensionLogo} alt="Dimension CNC" className="h-7 w-auto mx-auto" />
+          <img src={dimensionLogo} alt="Dimension CNC" className="h-10 w-auto mx-auto" />
         )}
       </div>
 
