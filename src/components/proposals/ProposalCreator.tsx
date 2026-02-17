@@ -53,36 +53,15 @@ interface ModelOption {
   delivery_days: number | null;
 }
 
-interface IncItem { name: string; }
-interface OptItem { name: string; price: number | null; selected: boolean; }
-
-export function ProposalCreator() {
-  const { session } = useAuth();
-  const [models, setModels] = useState<ModelOption[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  // Client info
-  const [clientName, setClientName] = useState("");
-  const [clientCompany, setClientCompany] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
-  const [clientDocument, setClientDocument] = useState("");
-
-  // Proposal data (editable after model selection)
-  const [modelName, setModelName] = useState("");
-  const [description, setDescription] = useState(`A Dimension CNC desenvolve e fabrica equipamentos CNC robustos e confiáveis, projetados para oferecer alta precisão, estabilidade e produtividade em processos de usinagem.
+const DEFAULT_DESCRIPTION = `A Dimension CNC desenvolve e fabrica equipamentos CNC robustos e confiáveis, projetados para oferecer alta precisão, estabilidade e produtividade em processos de usinagem.
 
 Os equipamentos são construídos com componentes selecionados e soluções técnicas consolidadas, garantindo desempenho consistente, baixa manutenção e longa vida útil.
 
-Esta proposta apresenta as especificações, condições comerciais e prazos para fornecimento do equipamento, oferecendo ao cliente uma solução segura e adequada às suas necessidades produtivas.`);
-  const [techSpecs, setTechSpecs] = useState("");
-  const [includedItems, setIncludedItems] = useState<IncItem[]>([]);
-  const [optionalItems, setOptionalItems] = useState<OptItem[]>([]);
-  const [basePrice, setBasePrice] = useState("");
-  const [deliveryDays, setDeliveryDays] = useState("");
-  const [notes, setNotes] = useState("Esta proposta não constitui contrato. A efetivação da venda está condicionada à assinatura do contrato comercial e à confirmação das condições de pagamento.");
-  const [paymentConditions, setPaymentConditions] = useState(`A Dimension CNC disponibiliza as seguintes condições de pagamento para aquisição de seus equipamentos, sujeitas à análise e aprovação comercial:
+Esta proposta apresenta as especificações, condições comerciais e prazos para fornecimento do equipamento, oferecendo ao cliente uma solução segura e adequada às suas necessidades produtivas.`;
+
+const DEFAULT_NOTES = "Esta proposta não constitui contrato. A efetivação da venda está condicionada à assinatura do contrato comercial e à confirmação das condições de pagamento.";
+
+const DEFAULT_PAYMENT = `A Dimension CNC disponibiliza as seguintes condições de pagamento para aquisição de seus equipamentos, sujeitas à análise e aprovação comercial:
 
 🔹 Pagamento à Vista
 100% do valor no pedido.
@@ -103,7 +82,34 @@ mediante aprovação de crédito pela instituição financeira.
 🔹 Permuta
 Permutas poderão ser analisadas, mediante avaliação prévia e aprovação pela Dimension CNC.
 
-As condições acima não são cumulativas e poderão ser ajustadas conforme negociação, análise de crédito e política comercial vigente.`);
+As condições acima não são cumulativas e poderão ser ajustadas conforme negociação, análise de crédito e política comercial vigente.`;
+
+interface IncItem { name: string; }
+interface OptItem { name: string; price: number | null; selected: boolean; }
+
+export function ProposalCreator() {
+  const { session } = useAuth();
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Client info
+  const [clientName, setClientName] = useState("");
+  const [clientCompany, setClientCompany] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientDocument, setClientDocument] = useState("");
+
+  // Proposal data (editable after model selection)
+  const [modelName, setModelName] = useState("");
+  const [description, setDescription] = useState(DEFAULT_DESCRIPTION);
+  const [techSpecs, setTechSpecs] = useState("");
+  const [includedItems, setIncludedItems] = useState<IncItem[]>([]);
+  const [optionalItems, setOptionalItems] = useState<OptItem[]>([]);
+  const [basePrice, setBasePrice] = useState("");
+  const [deliveryDays, setDeliveryDays] = useState("");
+  const [notes, setNotes] = useState(DEFAULT_NOTES);
+  const [paymentConditions, setPaymentConditions] = useState(DEFAULT_PAYMENT);
   const [validityDays, setValidityDays] = useState("15");
 
   useEffect(() => {
@@ -122,7 +128,7 @@ As condições acima não são cumulativas e poderão ser ajustadas conforme neg
     if (!model) return;
 
     setModelName(model.name);
-    setDescription(model.description);
+    setDescription(model.description || DEFAULT_DESCRIPTION);
     setTechSpecs(model.tech_specs);
     setBasePrice(model.base_price?.toString() ?? "");
     setDeliveryDays(model.delivery_days?.toString() ?? "");
@@ -198,10 +204,10 @@ As condições acima não são cumulativas e poderão ser ajustadas conforme neg
       // Reset form
       setClientName(""); setClientCompany(""); setClientEmail("");
       setClientPhone(""); setClientDocument("");
-      setSelectedModelId(""); setModelName(""); setDescription("");
+      setSelectedModelId(""); setModelName(""); setDescription(DEFAULT_DESCRIPTION);
       setTechSpecs(""); setIncludedItems([]); setOptionalItems([]);
-      setBasePrice(""); setDeliveryDays(""); setNotes("");
-      setPaymentConditions(""); setValidityDays("15");
+      setBasePrice(""); setDeliveryDays(""); setNotes(DEFAULT_NOTES);
+      setPaymentConditions(DEFAULT_PAYMENT); setValidityDays("15");
     } catch (err: any) {
       toast.error("Erro: " + (err.message || "Falha ao salvar"));
     }
