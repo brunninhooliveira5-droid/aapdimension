@@ -201,16 +201,25 @@ const Financial = () => {
 
   // Download signed URL for private bucket
   const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage.from("invoice-files").createSignedUrl(filePath, 60);
+    const { data, error } = await supabase.storage.from("invoice-files").createSignedUrl(filePath, 60, { download: true });
     if (error || !data?.signedUrl) {
       toast.error("Erro ao gerar link de download.");
       return;
     }
-    const a = document.createElement("a");
-    a.href = data.signedUrl;
-    a.download = fileName;
-    a.target = "_blank";
-    a.click();
+    try {
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Erro ao baixar arquivo.");
+    }
   };
 
   return (
