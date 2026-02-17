@@ -39,7 +39,7 @@ const basicMenuItems = [
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
   { title: "Equipamentos Dimension", url: "/equipamentos", icon: Package, section: "equipamentos" },
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
-  { title: "Boletos", url: "/boletos", icon: Receipt, section: "financeiro" },
+  { title: "Faturas", url: "/boletos", icon: Receipt, section: "financeiro" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },

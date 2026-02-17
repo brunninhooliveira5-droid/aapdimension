@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, MessageSquare, Pencil, Trash2, User, Cpu, CalendarDays, Search, Filter } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, User, Cpu, CalendarDays, Search, Filter, Paperclip, X, FileImage, FileVideo, File as FileIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const problemTypes = ["Erro de Software", "Mecânico", "Elétrico", "Calibração", "Outro"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_TYPES = "image/*,video/*";
 
 interface TicketRow {
   id: string;
@@ -31,6 +33,15 @@ interface MachineOption {
   name: string;
 }
 
+interface TicketFile {
+  id: string;
+  ticket_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+}
+
 const Support = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
@@ -42,10 +53,13 @@ const Support = () => {
   const [newMachine, setNewMachine] = useState("");
   const [newType, setNewType] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   // Detail dialog state
   const [selectedTicket, setSelectedTicket] = useState<TicketRow | null>(null);
   const [profileDetails, setProfileDetails] = useState<Record<string, any>>({});
+  const [ticketFiles, setTicketFiles] = useState<TicketFile[]>([]);
 
   // Edit state
   const [editTicket, setEditTicket] = useState<TicketRow | null>(null);
@@ -84,6 +98,42 @@ const Support = () => {
     fetchData();
   }, []);
 
+  // Load files when detail dialog opens
+  useEffect(() => {
+    if (!selectedTicket) { setTicketFiles([]); return; }
+    const loadFiles = async () => {
+      const { data } = await supabase
+        .from("ticket_files")
+        .select("*")
+        .eq("ticket_id", selectedTicket.id)
+        .order("created_at", { ascending: true });
+      setTicketFiles((data as TicketFile[]) ?? []);
+    };
+    loadFiles();
+  }, [selectedTicket]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const valid: File[] = [];
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" excede 5MB.`);
+        continue;
+      }
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        toast.error(`"${file.name}" não é uma foto ou vídeo.`);
+        continue;
+      }
+      valid.push(file);
+    }
+    setAttachments(prev => [...prev, ...valid]);
+    e.target.value = "";
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMachine || !newType || !newDesc.trim()) {
@@ -93,27 +143,53 @@ const Support = () => {
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) return;
 
-    const { data, error } = await supabase
-      .from("tickets")
-      .insert({
-        machine_id: newMachine,
-        type: newType,
-        description: newDesc,
-        user_id: userId,
-      })
-      .select()
-      .single();
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from("tickets")
+        .insert({
+          machine_id: newMachine,
+          type: newType,
+          description: newDesc,
+          user_id: userId,
+        })
+        .select()
+        .single();
 
-    if (error) {
-      toast.error("Erro ao abrir chamado: " + error.message);
-      return;
+      if (error) throw error;
+
+      // Upload attachments
+      for (const file of attachments) {
+        const ext = file.name.split(".").pop();
+        const path = `${userId}/${data.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("ticket-attachments")
+          .upload(path, file);
+        if (uploadErr) {
+          console.error("Upload error:", uploadErr);
+          continue;
+        }
+        await supabase.from("ticket_files").insert({
+          ticket_id: data.id,
+          file_name: file.name,
+          file_path: path,
+          file_size: file.size,
+          mime_type: file.type,
+          uploaded_by: userId,
+        });
+      }
+
+      toast.success("Chamado aberto com sucesso!");
+      setTickets(prev => [data as TicketRow, ...prev]);
+      setOpen(false);
+      setNewMachine("");
+      setNewType("");
+      setNewDesc("");
+      setAttachments([]);
+    } catch (err: any) {
+      toast.error("Erro ao abrir chamado: " + err.message);
     }
-    toast.success("Chamado aberto com sucesso!");
-    setTickets(prev => [data as TicketRow, ...prev]);
-    setOpen(false);
-    setNewMachine("");
-    setNewType("");
-    setNewDesc("");
+    setSubmitting(false);
   };
 
   const handleChangeStatus = async (ticketId: string, newStatus: string) => {
@@ -165,6 +241,17 @@ const Support = () => {
     return m ? `${m.name || m.model} — ${m.serial_number}` : machineId;
   };
 
+  const getFileUrl = (filePath: string) => {
+    const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return <FileImage className="w-4 h-4 text-primary" />;
+    if (mimeType.startsWith("video/")) return <FileVideo className="w-4 h-4 text-primary" />;
+    return <FileIcon className="w-4 h-4 text-primary" />;
+  };
+
   const filteredTickets = tickets.filter(t => {
     if (filterStatus !== "todos" && t.status !== filterStatus) return false;
     if (searchQuery.trim()) {
@@ -183,7 +270,7 @@ const Support = () => {
           <h1 className="text-xl font-bold text-foreground">Suporte</h1>
           <p className="text-sm text-muted-foreground mt-1">{tickets.length} chamados</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAttachments([]); }}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
@@ -217,7 +304,31 @@ const Support = () => {
                 <Label className="text-foreground">Descrição</Label>
                 <Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descreva o problema detalhadamente..." className="bg-accent border-border min-h-[100px]" required />
               </div>
-              <Button type="submit" className="w-full">Enviar Chamado</Button>
+
+              {/* Attachments */}
+              <div className="space-y-2">
+                <Label className="text-foreground">Anexos (fotos/vídeos até 5MB)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 bg-accent rounded-md px-2 py-1 text-xs text-foreground border border-border">
+                      {file.type.startsWith("image/") ? <FileImage className="w-3 h-3 text-primary" /> : <FileVideo className="w-3 h-3 text-primary" />}
+                      <span className="max-w-[120px] truncate">{file.name}</span>
+                      <button type="button" onClick={() => removeAttachment(idx)} className="text-muted-foreground hover:text-destructive ml-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary hover:underline">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  Adicionar anexo
+                  <input type="file" accept={ACCEPTED_TYPES} multiple className="hidden" onChange={handleFileSelect} />
+                </label>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? "Enviando..." : "Enviar Chamado"}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -394,6 +505,42 @@ const Support = () => {
                   <p className="text-xs text-muted-foreground uppercase mb-1">Descrição</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
                 </div>
+
+                {/* Attached files */}
+                {ticketFiles.length > 0 && (
+                  <div className="p-3 rounded-lg border border-border bg-accent/30">
+                    <p className="text-xs text-muted-foreground uppercase mb-2 flex items-center gap-1">
+                      <Paperclip className="w-3 h-3" /> Anexos ({ticketFiles.length})
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ticketFiles.map(f => {
+                        const url = getFileUrl(f.file_path);
+                        const isImage = f.mime_type.startsWith("image/");
+                        const isVideo = f.mime_type.startsWith("video/");
+                        return (
+                          <a
+                            key={f.id}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-md border border-border overflow-hidden hover:ring-2 ring-primary transition-all"
+                          >
+                            {isImage && (
+                              <img src={url} alt={f.file_name} className="w-full h-24 object-cover" />
+                            )}
+                            {isVideo && (
+                              <video src={url} className="w-full h-24 object-cover" muted />
+                            )}
+                            <div className="flex items-center gap-1 px-2 py-1 bg-accent">
+                              {getFileIcon(f.mime_type)}
+                              <span className="text-[10px] text-muted-foreground truncate">{f.file_name}</span>
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
