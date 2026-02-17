@@ -77,7 +77,7 @@ export function ProposalCreator() {
   const [optionalItems, setOptionalItems] = useState<OptItem[]>([]);
   const [basePrice, setBasePrice] = useState("");
   const [deliveryDays, setDeliveryDays] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState("Esta proposta não constitui contrato. A efetivação da venda está condicionada à assinatura do contrato comercial e à confirmação das condições de pagamento.");
   const [paymentConditions, setPaymentConditions] = useState(`A Dimension CNC disponibiliza as seguintes condições de pagamento para aquisição de seus equipamentos, sujeitas à análise e aprovação comercial:
 
 🔹 Pagamento à Vista
