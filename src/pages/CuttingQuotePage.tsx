@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function CuttingQuotePage() {
   const { session, getSectionVisibility } = useAuth();
@@ -29,44 +30,85 @@ export default function CuttingQuotePage() {
     allowUserOverridePasses: true,
   });
   const [machines, setMachines] = useState<Tables<"machines">[]>([]);
+  const [useMasterPricing, setUseMasterPricing] = useState(false);
 
-  // Load pricing settings directly so it doesn't depend on Simulator tab rendering
+  // Helper to compute pricing from raw settings
+  const computePricing = (data: any): PricingData => {
+    const productiveHours = Number(data.productive_hours) || 160;
+    const profitMargin = Number(data.profit_margin) || 30;
+    const avgCutSpeed = Number(data.avg_cut_speed) || 2;
+
+    const totalFixed = (Number(data.rent) || 0) + (Number(data.electricity) || 0) + (Number(data.internet) || 0) + (Number(data.other_fixed) || 0);
+    const totalMachine = (Number(data.machine_cost) || 0) + (Number(data.gas_consumable) || 0) + (Number(data.maintenance_cost) || 0) + (Number(data.other_machine) || 0);
+    const totalMonthlyCost = totalFixed + totalMachine;
+
+    const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
+    const costPerMinute = costPerHour / 60;
+    const costPerMeter = avgCutSpeed > 0 ? costPerMinute / (avgCutSpeed / 1000) : 0;
+    const marginMultiplier = 1 + profitMargin / 100;
+    const minPrice = costPerMinute * 1.15;
+    const suggestedPrice = costPerMinute * marginMultiplier;
+
+    return {
+      costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
+      minSpeedOverrideMMmin: Number(data.min_speed_override_mmmin) || 500,
+      maxSpeedOverrideMMmin: Number(data.max_speed_override_mmmin) || 12000,
+      maxPassesOverride: Number(data.max_passes_override) || 10,
+      allowUserOverrideSpeed: data.allow_user_override_speed ?? true,
+      allowUserOverridePasses: data.allow_user_override_passes ?? true,
+    };
+  };
+
+  // Load pricing settings - check if user inherits from admin master
   useEffect(() => {
     if (!session?.user) return;
 
-    // Load pricing settings
-    supabase
-      .from("pricing_settings" as any)
-      .select("*")
-      .eq("user_id", session.user.id)
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (data) {
-          const productiveHours = Number(data.productive_hours) || 160;
-          const profitMargin = Number(data.profit_margin) || 30;
-          const avgCutSpeed = Number(data.avg_cut_speed) || 2;
+    const loadPricing = async () => {
+      // Check if user has use_master_pricing flag
+      const { data: planData } = await supabase
+        .from("user_plans")
+        .select("use_master_pricing")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
 
-          const totalFixed = (Number(data.rent) || 0) + (Number(data.electricity) || 0) + (Number(data.internet) || 0) + (Number(data.other_fixed) || 0);
-          const totalMachine = (Number(data.machine_cost) || 0) + (Number(data.gas_consumable) || 0) + (Number(data.maintenance_cost) || 0) + (Number(data.other_machine) || 0);
-          const totalMonthlyCost = totalFixed + totalMachine;
+      const inheritMaster = (planData as any)?.use_master_pricing ?? false;
+      setUseMasterPricing(inheritMaster);
 
-          const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
-          const costPerMinute = costPerHour / 60;
-          const costPerMeter = avgCutSpeed > 0 ? costPerMinute / (avgCutSpeed / 1000) : 0;
-          const marginMultiplier = 1 + profitMargin / 100;
-          const minPrice = costPerMinute * 1.15;
-          const suggestedPrice = costPerMinute * marginMultiplier;
+      if (inheritMaster) {
+        // Find admin_master user and load their pricing
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin_master")
+          .limit(1)
+          .single();
 
-          setPricing({
-            costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
-            minSpeedOverrideMMmin: Number(data.min_speed_override_mmmin) || 500,
-            maxSpeedOverrideMMmin: Number(data.max_speed_override_mmmin) || 12000,
-            maxPassesOverride: Number(data.max_passes_override) || 10,
-            allowUserOverrideSpeed: data.allow_user_override_speed ?? true,
-            allowUserOverridePasses: data.allow_user_override_passes ?? true,
-          });
+        if (adminRole) {
+          const { data: masterSettings } = await supabase
+            .from("pricing_settings" as any)
+            .select("*")
+            .eq("user_id", adminRole.user_id)
+            .maybeSingle();
+
+          if (masterSettings) {
+            setPricing(computePricing(masterSettings));
+          }
         }
-      });
+      } else {
+        // Load own pricing settings
+        const { data } = await supabase
+          .from("pricing_settings" as any)
+          .select("*")
+          .eq("user_id", session.user.id)
+          .maybeSingle() as any;
+
+        if (data) {
+          setPricing(computePricing(data));
+        }
+      }
+    };
+
+    loadPricing();
 
     // Load machines
     supabase
@@ -81,9 +123,26 @@ export default function CuttingQuotePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
-        <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos SVG</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Orçamento de Corte</h1>
+          <p className="text-sm text-muted-foreground">Calcule orçamentos de corte CNC a partir de arquivos SVG</p>
+        </div>
+        {useMasterPricing && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
+                  <Shield className="w-3.5 h-3.5" />
+                  Configuração Dimension
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs text-xs">
+                Este orçamento utiliza as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       <Tabs defaultValue="quote" className="w-full">
@@ -120,7 +179,21 @@ export default function CuttingQuotePage() {
         </TabsList>
 
         <TabsContent value="simulator">
-          <PricingSimulator onPricingChange={setPricing} />
+          {useMasterPricing ? (
+            <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
+              <Shield className="w-8 h-8 text-primary mx-auto" />
+              <h3 className="text-sm font-semibold text-foreground">Configuração Dimension CNC Ativa</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Este módulo está utilizando as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master. 
+                Não é possível editar os parâmetros enquanto esta configuração estiver ativa.
+              </p>
+              <p className="text-[10px] text-muted-foreground italic">
+                Para utilizar configurações próprias, entre em contato com o administrador.
+              </p>
+            </div>
+          ) : (
+            <PricingSimulator onPricingChange={setPricing} />
+          )}
         </TabsContent>
 
         <TabsContent value="quote">
