@@ -70,6 +70,26 @@ function getImageDimensions(dataUrl: string): Promise<{ w: number; h: number }> 
   });
 }
 
+const PAGE_BOTTOM = 270; // safe bottom margin before footer
+
+function checkPage(doc: jsPDF, y: number, needed: number): number {
+  if (y + needed > PAGE_BOTTOM) {
+    doc.addPage();
+    return 15;
+  }
+  return y;
+}
+
+/** Print multi-line text with automatic page breaks */
+function printLines(doc: jsPDF, lines: string[], x: number, y: number, lineHeight: number): number {
+  for (const line of lines) {
+    y = checkPage(doc, y, lineHeight);
+    doc.text(line, x, y);
+    y += lineHeight;
+  }
+  return y;
+}
+
 export async function generateProposalPdf(data: ProposalPdfData) {
   const doc = new jsPDF();
   const ps = data.pdfSettings;
@@ -82,25 +102,18 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   let watermarkDataUrl: string | null = null;
 
   const imagePromises: Promise<void>[] = [];
-
   if (ps?.logo_url) {
-    imagePromises.push(
-      loadImageAsDataUrl(ps.logo_url).then((d) => { logoDataUrl = d; })
-    );
+    imagePromises.push(loadImageAsDataUrl(ps.logo_url).then((d) => { logoDataUrl = d; }));
   }
   if (ps?.show_watermark && ps?.watermark_url) {
-    imagePromises.push(
-      loadImageAsDataUrl(ps.watermark_url).then((d) => { watermarkDataUrl = d; })
-    );
+    imagePromises.push(loadImageAsDataUrl(ps.watermark_url).then((d) => { watermarkDataUrl = d; }));
   }
-
   await Promise.all(imagePromises);
 
-  // Header
+  // ── Header ──
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 35, "F");
 
-  // Logo in header
   if (logoDataUrl) {
     try {
       const dims = await getImageDimensions(logoDataUrl);
@@ -130,7 +143,7 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     doc.text(addr, 14, 32);
   }
 
-  // Date info
+  // ── Date info ──
   y = 42;
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(8);
@@ -139,7 +152,7 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   doc.text(`Proposta Nº: ${data.id.slice(0, 8).toUpperCase()}`, pageWidth - 14, y + 5, { align: "right" });
   doc.text(`Validade: ${data.validity_days} dias`, pageWidth - 14, y + 10, { align: "right" });
 
-  // Client section
+  // ── Client section ──
   doc.setTextColor(...primaryColor);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
@@ -154,8 +167,9 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   if (data.client_email) { doc.text(`E-mail: ${data.client_email}`, 14, y); y += 5; }
   if (data.client_phone) { doc.text(`Telefone: ${data.client_phone}`, 14, y); y += 5; }
 
-  // Equipment
+  // ── Equipment ──
   y += 6;
+  y = checkPage(doc, y, 20);
   doc.setDrawColor(...primaryColor);
   doc.setLineWidth(0.5);
   doc.line(14, y, pageWidth - 14, y);
@@ -170,19 +184,20 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text(data.model_name, 14, y);
-  y += 5;
+  y += 6;
 
   if (data.description) {
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(data.description, pageWidth - 28);
-    doc.text(descLines, 14, y);
-    y += descLines.length * 4.5 + 3;
+    const descLines = doc.splitTextToSize(data.description, pageWidth - 28) as string[];
+    y = printLines(doc, descLines, 14, y, 4.5);
+    y += 3;
   }
 
-  // Tech specs
+  // ── Tech specs ──
   if (data.tech_specs) {
     y += 3;
+    y = checkPage(doc, y, 15);
     doc.setTextColor(...primaryColor);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -191,15 +206,15 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const specLines = doc.splitTextToSize(data.tech_specs, pageWidth - 28);
-    doc.text(specLines, 14, y);
-    y += specLines.length * 4.5 + 3;
+    const specLines = doc.splitTextToSize(data.tech_specs, pageWidth - 28) as string[];
+    y = printLines(doc, specLines, 14, y, 4.5);
+    y += 3;
   }
 
-  // Included items
+  // ── Included items ──
   if (data.included_items.length > 0) {
-    if (y > 240) { doc.addPage(); y = 15; }
     y += 3;
+    y = checkPage(doc, y, 15);
     doc.setTextColor(...primaryColor);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -208,17 +223,17 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    data.included_items.forEach(item => {
-      if (y > 275) { doc.addPage(); y = 15; }
+    for (const item of data.included_items) {
+      y = checkPage(doc, y, 5);
       doc.text(`•  ${item.name}`, 18, y);
       y += 5;
-    });
+    }
   }
 
-  // Optional items
+  // ── Optional items ──
   if (data.optional_items.length > 0) {
-    if (y > 240) { doc.addPage(); y = 15; }
     y += 5;
+    y = checkPage(doc, y, 20);
     doc.setTextColor(...primaryColor);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -241,12 +256,13 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     y = (doc as any).lastAutoTable.finalY + 5;
   }
 
-  // Pricing summary
+  // ── Pricing summary ──
   if (data.base_price > 0 || data.total_price > 0) {
-    if (y > 240) { doc.addPage(); y = 15; }
+    const boxH = data.optional_total > 0 ? 32 : 22;
+    y = checkPage(doc, y, boxH + 10);
     y += 3;
     doc.setFillColor(245, 245, 250);
-    doc.roundedRect(14, y, pageWidth - 28, data.optional_total > 0 ? 32 : 22, 3, 3, "F");
+    doc.roundedRect(14, y, pageWidth - 28, boxH, 3, 3, "F");
     y += 7;
 
     doc.setTextColor(80, 80, 80);
@@ -273,35 +289,56 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     y += 8;
   }
 
-  // Conditions
-  if (data.payment_conditions || data.delivery_days || data.notes) {
-    if (y > 240) { doc.addPage(); y = 15; }
+  // ── Payment conditions ──
+  if (data.payment_conditions && (ps?.show_payment_conditions !== false)) {
     y += 5;
+    y = checkPage(doc, y, 15);
     doc.setTextColor(...primaryColor);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("CONDIÇÕES", 14, y);
+    doc.text("CONDIÇÕES DE PAGAMENTO", 14, y);
     y += 6;
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-
-    if (data.payment_conditions && (ps?.show_payment_conditions !== false)) {
-      doc.text(`Pagamento: ${data.payment_conditions}`, 14, y);
-      y += 5;
-    }
-    if (data.delivery_days) {
-      doc.text(`Prazo de entrega: ${data.delivery_days} dias úteis`, 14, y);
-      y += 5;
-    }
-    if (data.notes) {
-      const noteLines = doc.splitTextToSize(`Observações: ${data.notes}`, pageWidth - 28);
-      doc.text(noteLines, 14, y);
-      y += noteLines.length * 4.5;
-    }
+    const payLines = doc.splitTextToSize(data.payment_conditions, pageWidth - 28) as string[];
+    y = printLines(doc, payLines, 14, y, 4.5);
+    y += 3;
   }
 
-  // Footer on all pages
+  // ── Delivery ──
+  if (data.delivery_days) {
+    y += 3;
+    y = checkPage(doc, y, 10);
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("PRAZO DE ENTREGA", 14, y);
+    y += 6;
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${data.delivery_days} dias úteis após confirmação do pedido.`, 14, y);
+    y += 5;
+  }
+
+  // ── Notes ──
+  if (data.notes) {
+    y += 5;
+    y = checkPage(doc, y, 15);
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("OBSERVAÇÕES", 14, y);
+    y += 6;
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 28) as string[];
+    y = printLines(doc, noteLines, 14, y, 4.5);
+  }
+
+  // ── Footer on all pages ──
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -311,10 +348,14 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
     doc.setTextColor(140, 140, 140);
     doc.setFontSize(7);
-    doc.text(ps?.footer_text || "Proposta gerada automaticamente - Dimension CNC", pageWidth / 2, footerY, { align: "center" });
+    doc.text(
+      ps?.footer_text || "Proposta gerada automaticamente - Dimension CNC",
+      pageWidth / 2, footerY, { align: "center" }
+    );
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth - 14, footerY, { align: "right" });
   }
 
-  // Watermark on all pages
+  // ── Watermark on all pages ──
   if (watermarkDataUrl) {
     try {
       const pageCount = doc.getNumberOfPages();
@@ -327,7 +368,6 @@ export async function generateProposalPdf(data: ProposalPdfData) {
       const wmW = dims.w * ratio;
       const wmH = dims.h * ratio;
 
-      // Create a canvas to apply transparency to the watermark
       const canvas = document.createElement("canvas");
       canvas.width = dims.w;
       canvas.height = dims.h;
@@ -350,7 +390,7 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     }
   }
 
-  // Download
+  // ── Download ──
   const fileName = `Proposta_${data.model_name.replace(/\s+/g, "_")}_${data.client_name.replace(/\s+/g, "_")}.pdf`;
   const pdfBlob = doc.output("blob");
   const url = URL.createObjectURL(pdfBlob);
