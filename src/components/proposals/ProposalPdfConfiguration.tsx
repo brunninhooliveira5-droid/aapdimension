@@ -24,6 +24,7 @@ interface PdfSettings {
   show_date: boolean;
   show_customer: boolean;
   show_delivery: boolean;
+  show_payment_conditions: boolean;
   show_material: boolean;
   show_thickness: boolean;
   show_cutting_value: boolean;
@@ -46,6 +47,7 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_date: true,
   show_customer: true,
   show_delivery: true,
+  show_payment_conditions: true,
   show_material: true,
   show_thickness: true,
   show_cutting_value: true,
@@ -90,6 +92,7 @@ export function ProposalPdfConfiguration() {
         show_date: d.show_date ?? true,
         show_customer: d.show_customer ?? true,
         show_delivery: d.show_delivery ?? true,
+        show_payment_conditions: d.show_payment_conditions ?? true,
         show_material: d.show_material ?? true,
         show_thickness: d.show_thickness ?? true,
         show_cutting_value: d.show_cutting_value ?? true,
@@ -279,6 +282,9 @@ export function ProposalPdfConfiguration() {
               {settings.show_delivery && (
                 <p className="text-gray-500 text-[8px]">Prazo de entrega: 30 dias úteis</p>
               )}
+              {settings.show_payment_conditions && (
+                <p className="text-gray-500 text-[8px]">Pagamento: 50% entrada + 50% na entrega</p>
+              )}
 
               {/* Footer */}
               {settings.footer_text && (
@@ -401,6 +407,7 @@ export function ProposalPdfConfiguration() {
             { key: "show_date" as const, label: "Data" },
             { key: "show_customer" as const, label: "Dados do Cliente" },
             { key: "show_delivery" as const, label: "Prazo de Entrega" },
+            { key: "show_payment_conditions" as const, label: "Forma de Pagamento" },
           ].map(({ key, label }) => (
             <div key={key} className="flex items-center justify-between">
               <Label className="text-sm">{label}</Label>

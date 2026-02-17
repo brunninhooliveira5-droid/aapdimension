@@ -1547,6 +1547,7 @@ export type Database = {
           show_delivery: boolean | null
           show_material: boolean | null
           show_material_value: boolean | null
+          show_payment_conditions: boolean | null
           show_service_value: boolean | null
           show_thickness: boolean | null
           updated_at: string
@@ -1572,6 +1573,7 @@ export type Database = {
           show_delivery?: boolean | null
           show_material?: boolean | null
           show_material_value?: boolean | null
+          show_payment_conditions?: boolean | null
           show_service_value?: boolean | null
           show_thickness?: boolean | null
           updated_at?: string
@@ -1597,6 +1599,7 @@ export type Database = {
           show_delivery?: boolean | null
           show_material?: boolean | null
           show_material_value?: boolean | null
+          show_payment_conditions?: boolean | null
           show_service_value?: boolean | null
           show_thickness?: boolean | null
           updated_at?: string
