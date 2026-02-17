@@ -1,1 +1,4 @@
 project_id = "zleaaxsfcovyqryzfged"
+
+[functions.finance-password]
+verify_jwt = false
