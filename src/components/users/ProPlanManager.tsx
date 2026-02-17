@@ -380,39 +380,53 @@ export function ProPlanManager() {
                     {isAdmin ? (
                       <span className="text-xs text-muted-foreground">Ilimitado</span>
                     ) : u.pro_access ? (
-                      <div className="space-y-1">
-                        <Popover>
-                          <PopoverTrigger asChild>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {[
+                            { days: 30, label: "30d" },
+                            { days: 60, label: "60d" },
+                            { days: 90, label: "90d" },
+                            { days: 365, label: "1 ano" },
+                          ].map((opt) => (
                             <Button
+                              key={opt.days}
                               variant="outline"
                               size="sm"
-                              className={cn(
-                                "h-7 text-xs gap-1 border",
-                                validityStatus?.bg ?? "border-border"
-                              )}
+                              className="h-6 px-2 text-[10px] border-border hover:border-primary hover:text-primary"
+                              disabled={saving === u.id}
+                              onClick={() => updateValidity(u, addDays(new Date(), opt.days))}
                             >
-                              <Calendar className="w-3 h-3" />
-                              {u.valid_until
-                                ? format(new Date(u.valid_until), "dd/MM/yyyy")
-                                : "Definir validade"}
+                              {opt.label}
                             </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={validityDates[u.id]}
-                              onSelect={(date) => {
-                                if (date) updateValidity(u, date);
-                              }}
-                              disabled={(date) => date < new Date()}
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        {validityStatus && (
-                          <p className={`text-[10px] font-medium ${validityStatus.color}`}>
-                            {validityStatus.label}
+                          ))}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[10px] border-border"
+                                disabled={saving === u.id}
+                              >
+                                <Calendar className="w-3 h-3" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={validityDates[u.id]}
+                                onSelect={(date) => {
+                                  if (date) updateValidity(u, date);
+                                }}
+                                disabled={(date) => date < new Date()}
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        {u.valid_until && (
+                          <p className={`text-[10px] font-medium ${validityStatus?.color ?? "text-muted-foreground"}`}>
+                            {format(new Date(u.valid_until), "dd/MM/yyyy")} — {validityStatus?.label}
                           </p>
                         )}
                       </div>
