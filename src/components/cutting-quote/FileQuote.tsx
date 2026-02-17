@@ -441,6 +441,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             company_phone: d.company_phone || "",
             company_email: d.company_email || "",
             company_address: d.company_address || "",
+            company_cep: d.company_cep || "",
             company_cnpj: d.company_cnpj || "",
             logo_url: d.logo_url || "",
             primary_color: d.primary_color || "#1a1a2e",
