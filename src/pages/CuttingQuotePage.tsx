@@ -140,7 +140,7 @@ export default function CuttingQuotePage() {
       });
   }, [session]);
 
-  const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible";
+  const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing;
   const canAccessClientes = user?.role === "admin_master";
 
   return (
