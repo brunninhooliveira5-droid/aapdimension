@@ -378,7 +378,7 @@ const UserAccessPage = () => {
         )}
 
         {/* Orçamento sub-features */}
-        {proAccess && sections["orcamento"] !== "hidden" && (
+        {(proAccess || userRole === "servico") && sections["orcamento"] !== "hidden" && (
           <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Sub-controles do Orçamento de Corte
