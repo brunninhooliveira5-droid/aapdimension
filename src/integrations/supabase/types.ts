@@ -1722,6 +1722,7 @@ export type Database = {
           pro_access: boolean
           pro_activated_at: string | null
           updated_at: string
+          use_master_pricing: boolean
           user_id: string
           valid_until: string | null
         }
@@ -1736,6 +1737,7 @@ export type Database = {
           pro_access?: boolean
           pro_activated_at?: string | null
           updated_at?: string
+          use_master_pricing?: boolean
           user_id: string
           valid_until?: string | null
         }
@@ -1750,6 +1752,7 @@ export type Database = {
           pro_access?: boolean
           pro_activated_at?: string | null
           updated_at?: string
+          use_master_pricing?: boolean
           user_id?: string
           valid_until?: string | null
         }

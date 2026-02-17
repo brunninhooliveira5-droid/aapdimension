@@ -61,6 +61,7 @@ const UserAccessPage = () => {
   const [hasAccessRow, setHasAccessRow] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [useMasterPricing, setUseMasterPricing] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -81,6 +82,7 @@ const UserAccessPage = () => {
     setUserCompany((profile as any)?.company ?? "");
     setUserRole((roleData?.role as UserRole) ?? "operador");
     setProAccess(planData?.pro_access ?? false);
+    setUseMasterPricing((planData as any)?.use_master_pricing ?? false);
     setHasPlanRow(!!planData);
     setHasAccessRow(!!accessData);
 
@@ -121,7 +123,7 @@ const UserAccessPage = () => {
         setHasAccessRow(true);
       }
 
-      // Save PRO access
+      // Save PRO access + master pricing flag
       const proFeatures = proAccess ? ["gestao_financeira", "orcamento"] : [];
       if (hasPlanRow) {
         await supabase
@@ -132,6 +134,7 @@ const UserAccessPage = () => {
             features_enabled: proFeatures,
             max_quotes_per_month: proAccess ? -1 : 5,
             max_financial_entries: proAccess ? -1 : 0,
+            use_master_pricing: useMasterPricing,
             ...(proAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
           } as any)
           .eq("user_id", userId);
@@ -143,6 +146,7 @@ const UserAccessPage = () => {
           features_enabled: proFeatures,
           max_quotes_per_month: proAccess ? -1 : 5,
           max_financial_entries: proAccess ? -1 : 0,
+          use_master_pricing: useMasterPricing,
           ...(proAccess ? { pro_activated_at: new Date().toISOString() } : {}),
         } as any);
         setHasPlanRow(true);
@@ -252,6 +256,37 @@ const UserAccessPage = () => {
           />
         </div>
       </div>
+
+      {/* Master Pricing inheritance */}
+      {proAccess && (
+        <div className="gradient-card rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Calculator className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Usar configurações de orçamento da Dimension</p>
+                <p className="text-xs text-muted-foreground">
+                  O usuário utilizará as configurações oficiais de precificação definidas pelo Admin Master
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={useMasterPricing}
+              onCheckedChange={setUseMasterPricing}
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
+          {useMasterPricing && (
+            <div className="mt-3 p-2.5 rounded-md bg-primary/5 border border-primary/20">
+              <p className="text-xs text-primary font-medium">
+                ⚡ Este usuário utiliza as configurações oficiais da Dimension CNC. As alterações feitas pelo Admin Master refletirão automaticamente nos orçamentos deste usuário.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Basic sections */}
       <div>
