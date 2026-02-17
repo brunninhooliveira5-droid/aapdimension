@@ -63,6 +63,9 @@ const UsersPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [roleFilter, setRoleFilter] = useState("todos");
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetTargetUser, setResetTargetUser] = useState<ManagedUser | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -463,17 +466,9 @@ const UsersPage = () => {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-warning"
                           title="Resetar senha financeira"
-                          onClick={async () => {
-                            try {
-                              const { data, error } = await supabase.functions.invoke("finance-password", {
-                                body: { action: "reset", target_user_id: u.id },
-                              });
-                              if (error) throw error;
-                              if (data.error) { toast.error(data.error); return; }
-                              toast.success(`Senha financeira de ${u.name} foi resetada. Ele precisará criar uma nova no próximo acesso.`);
-                            } catch {
-                              toast.error("Erro ao resetar senha financeira.");
-                            }
+                          onClick={() => {
+                            setResetTargetUser(u);
+                            setResetConfirmOpen(true);
                           }}
                         >
                           <KeyRound className="w-3.5 h-3.5" />
@@ -586,6 +581,46 @@ const UsersPage = () => {
               onClick={handleApplyTemplate}
             >
               {applyingTemplate ? "Aplicando..." : "Aplicar Template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Finance Password Confirm Dialog */}
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Resetar Senha Financeira</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja resetar a senha financeira de <span className="font-semibold text-foreground">{resetTargetUser?.name}</span>? O usuário precisará criar uma nova senha no próximo acesso ao módulo financeiro.
+          </p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={resettingPassword}
+              onClick={async () => {
+                if (!resetTargetUser) return;
+                setResettingPassword(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("finance-password", {
+                    body: { action: "reset", target_user_id: resetTargetUser.id },
+                  });
+                  if (error) throw error;
+                  if (data.error) { toast.error(data.error); setResettingPassword(false); return; }
+                  toast.success(`Senha financeira de ${resetTargetUser.name} foi resetada.`);
+                  setResetConfirmOpen(false);
+                  setResetTargetUser(null);
+                } catch {
+                  toast.error("Erro ao resetar senha financeira.");
+                }
+                setResettingPassword(false);
+              }}
+            >
+              {resettingPassword ? "Resetando..." : "Confirmar Reset"}
             </Button>
           </DialogFooter>
         </DialogContent>
