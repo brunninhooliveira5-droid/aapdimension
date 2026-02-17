@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileDown, Send, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FileDown, Send, Eye, X } from "lucide-react";
 import { generateProposalPdf } from "@/lib/proposal-pdf";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -92,6 +93,8 @@ export function ProposalCreator() {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfFileName, setPdfFileName] = useState("");
 
   // Client info
   const [clientName, setClientName] = useState("");
@@ -187,18 +190,22 @@ export function ProposalCreator() {
       toast.success("Proposta salva!");
 
       if (andDownload) {
-        // Load PDF settings
         const { data: pdfSettings } = await supabase
           .from("pdf_quote_settings")
           .select("*")
           .eq("user_id", session.user.id)
           .maybeSingle();
 
-        await generateProposalPdf({
+        const result = await generateProposalPdf({
           ...payload,
           id: (data as any).id,
           pdfSettings: pdfSettings as any,
         });
+
+        // Show preview
+        const previewUrl = URL.createObjectURL(result.blob);
+        setPdfPreviewUrl(previewUrl);
+        setPdfFileName(result.fileName);
       }
 
       // Reset form
@@ -344,9 +351,47 @@ export function ProposalCreator() {
           <Send className="w-4 h-4 mr-1" /> Salvar Proposta
         </Button>
         <Button onClick={() => handleSave(true)} disabled={saving}>
-          <FileDown className="w-4 h-4 mr-1" /> Salvar e Gerar PDF
+          <Eye className="w-4 h-4 mr-1" /> Salvar e Visualizar PDF
         </Button>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!pdfPreviewUrl} onOpenChange={(open) => {
+        if (!open) {
+          if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+          setPdfPreviewUrl(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Pré-visualização da Proposta</span>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (pdfPreviewUrl) {
+                    const a = document.createElement("a");
+                    a.href = pdfPreviewUrl;
+                    a.download = pdfFileName;
+                    a.click();
+                  }
+                }}
+              >
+                <FileDown className="w-4 h-4 mr-1" /> Baixar PDF
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {pdfPreviewUrl && (
+              <iframe
+                src={pdfPreviewUrl}
+                className="w-full h-full rounded border border-border"
+                title="Preview do PDF"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

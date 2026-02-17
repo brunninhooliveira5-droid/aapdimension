@@ -390,13 +390,8 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     }
   }
 
-  // ── Download ──
+  // ── Return blob and filename ──
   const fileName = `Proposta_${data.model_name.replace(/\s+/g, "_")}_${data.client_name.replace(/\s+/g, "_")}.pdf`;
   const pdfBlob = doc.output("blob");
-  const url = URL.createObjectURL(pdfBlob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
+  return { blob: pdfBlob, fileName };
 }
