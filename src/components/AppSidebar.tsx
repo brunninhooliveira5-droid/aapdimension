@@ -41,6 +41,7 @@ const basicMenuItems = [
   { title: "Equipamentos Dimension", url: "/equipamentos", icon: Package, section: "equipamentos" },
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
   { title: "Faturas", url: "/boletos", icon: Receipt, section: "financeiro" },
+  { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
@@ -49,7 +50,6 @@ const basicMenuItems = [
 
 const proMenuItems = [
   { title: "Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira", proFeature: "gestao_financeira" },
-  { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento", proFeature: "orcamento" },
 ];
 
 export function AppSidebar() {
