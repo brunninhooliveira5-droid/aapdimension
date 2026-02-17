@@ -13,6 +13,33 @@ import { generateProposalPdf } from "@/lib/proposal-pdf";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const maskCpfCnpj = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+};
+
+const maskPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+};
+
 interface ModelOption {
   id: string;
   name: string;
@@ -182,8 +209,8 @@ export function ProposalCreator() {
           <div><Label>Nome / Razão Social *</Label><Input value={clientName} onChange={e => setClientName(e.target.value)} /></div>
           <div><Label>Empresa</Label><Input value={clientCompany} onChange={e => setClientCompany(e.target.value)} /></div>
           <div><Label>E-mail</Label><Input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} /></div>
-          <div><Label>Telefone</Label><Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} /></div>
-          <div><Label>CPF / CNPJ</Label><Input value={clientDocument} onChange={e => setClientDocument(e.target.value)} /></div>
+          <div><Label>Telefone</Label><Input value={clientPhone} onChange={e => setClientPhone(maskPhone(e.target.value))} placeholder="(00) 00000-0000" /></div>
+          <div><Label>CPF / CNPJ</Label><Input value={clientDocument} onChange={e => setClientDocument(maskCpfCnpj(e.target.value))} placeholder="000.000.000-00" /></div>
         </div>
       </div>
 
