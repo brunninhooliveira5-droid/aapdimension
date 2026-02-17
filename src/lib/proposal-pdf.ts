@@ -44,6 +44,32 @@ function hexToRGB(hex: string): [number, number, number] {
   return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
 }
 
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: "cors" });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null as any);
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Erro ao carregar imagem:", err);
+    return null;
+  }
+}
+
+function getImageDimensions(dataUrl: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.width, h: img.height });
+    img.onerror = () => resolve({ w: 100, h: 100 });
+    img.src = dataUrl;
+  });
+}
+
 export async function generateProposalPdf(data: ProposalPdfData) {
   const doc = new jsPDF();
   const ps = data.pdfSettings;
@@ -51,9 +77,43 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
 
+  // Pre-load images
+  let logoDataUrl: string | null = null;
+  let watermarkDataUrl: string | null = null;
+
+  const imagePromises: Promise<void>[] = [];
+
+  if (ps?.logo_url) {
+    imagePromises.push(
+      loadImageAsDataUrl(ps.logo_url).then((d) => { logoDataUrl = d; })
+    );
+  }
+  if (ps?.show_watermark && ps?.watermark_url) {
+    imagePromises.push(
+      loadImageAsDataUrl(ps.watermark_url).then((d) => { watermarkDataUrl = d; })
+    );
+  }
+
+  await Promise.all(imagePromises);
+
   // Header
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 35, "F");
+
+  // Logo in header
+  if (logoDataUrl) {
+    try {
+      const dims = await getImageDimensions(logoDataUrl);
+      const logoH = 18;
+      const logoW = (dims.w / dims.h) * logoH;
+      const logoX = pageWidth - logoW - 10;
+      const logoY = (35 - logoH) / 2;
+      doc.addImage(logoDataUrl, "PNG", logoX, logoY, logoW, logoH);
+    } catch (err) {
+      console.error("Erro ao adicionar logo:", err);
+    }
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
@@ -241,39 +301,52 @@ export async function generateProposalPdf(data: ProposalPdfData) {
     }
   }
 
-  // Footer
-  const footerY = doc.internal.pageSize.getHeight() - 12;
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.3);
-  doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
-  doc.setTextColor(140, 140, 140);
-  doc.setFontSize(7);
-  doc.text(ps?.footer_text || "Proposta gerada automaticamente - Dimension CNC", pageWidth / 2, footerY, { align: "center" });
+  // Footer on all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    const footerY = doc.internal.pageSize.getHeight() - 12;
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.3);
+    doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
+    doc.setTextColor(140, 140, 140);
+    doc.setFontSize(7);
+    doc.text(ps?.footer_text || "Proposta gerada automaticamente - Dimension CNC", pageWidth / 2, footerY, { align: "center" });
+  }
 
   // Watermark on all pages
-  if (ps?.show_watermark && ps?.watermark_url) {
+  if (watermarkDataUrl) {
     try {
-      const response = await fetch(ps.watermark_url);
-      const blob = await response.blob();
-      const imgData = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
       const pageCount = doc.getNumberOfPages();
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
-      const wmW = pageW * 0.6;
-      const wmH = pageH * 0.4;
+      const dims = await getImageDimensions(watermarkDataUrl);
+      const wmMaxW = pageW * 0.55;
+      const wmMaxH = pageH * 0.35;
+      const ratio = Math.min(wmMaxW / dims.w, wmMaxH / dims.h);
+      const wmW = dims.w * ratio;
+      const wmH = dims.h * ratio;
+
+      // Create a canvas to apply transparency to the watermark
+      const canvas = document.createElement("canvas");
+      canvas.width = dims.w;
+      canvas.height = dims.h;
+      const ctx = canvas.getContext("2d")!;
+      const img = new Image();
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.src = watermarkDataUrl!;
+      });
+      ctx.globalAlpha = 0.08;
+      ctx.drawImage(img, 0, 0);
+      const transparentDataUrl = canvas.toDataURL("image/png");
+
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        doc.saveGraphicsState();
-        (doc as any).setGState(new (doc as any).GState({ opacity: 0.08 }));
-        doc.addImage(imgData, "PNG", (pageW - wmW) / 2, (pageH - wmH) / 2, wmW, wmH);
-        doc.restoreGraphicsState();
+        doc.addImage(transparentDataUrl, "PNG", (pageW - wmW) / 2, (pageH - wmH) / 2, wmW, wmH);
       }
     } catch (err) {
-      console.error("Erro ao carregar marca d'água:", err);
+      console.error("Erro ao aplicar marca d'água:", err);
     }
   }
 
