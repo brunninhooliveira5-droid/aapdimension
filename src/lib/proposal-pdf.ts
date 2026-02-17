@@ -15,6 +15,7 @@ interface ProposalPdfData {
   optional_items: { name: string; price: number | null }[];
   base_price: number;
   optional_total: number;
+  equipment_image_url?: string | null;
   total_price: number;
   delivery_days: number | null;
   notes: string;
@@ -100,6 +101,7 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   // Pre-load images
   let logoDataUrl: string | null = null;
   let watermarkDataUrl: string | null = null;
+  let equipImageDataUrl: string | null = null;
 
   const imagePromises: Promise<void>[] = [];
   if (ps?.logo_url) {
@@ -107,6 +109,9 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   }
   if (ps?.show_watermark && ps?.watermark_url) {
     imagePromises.push(loadImageAsDataUrl(ps.watermark_url).then((d) => { watermarkDataUrl = d; }));
+  }
+  if (data.equipment_image_url) {
+    imagePromises.push(loadImageAsDataUrl(data.equipment_image_url).then((d) => { equipImageDataUrl = d; }));
   }
   await Promise.all(imagePromises);
 
@@ -185,6 +190,24 @@ export async function generateProposalPdf(data: ProposalPdfData) {
   doc.setFont("helvetica", "bold");
   doc.text(data.model_name, 14, y);
   y += 6;
+
+  // Equipment image
+  if (equipImageDataUrl) {
+    try {
+      const dims = await getImageDimensions(equipImageDataUrl);
+      const imgMaxW = pageWidth - 28;
+      const imgMaxH = 80;
+      const ratio = Math.min(imgMaxW / dims.w, imgMaxH / dims.h);
+      const imgW = dims.w * ratio;
+      const imgH = dims.h * ratio;
+      y = checkPage(doc, y, imgH + 5);
+      const imgX = 14 + (imgMaxW - imgW) / 2;
+      doc.addImage(equipImageDataUrl, "PNG", imgX, y, imgW, imgH);
+      y += imgH + 5;
+    } catch (err) {
+      console.error("Erro ao adicionar imagem do equipamento:", err);
+    }
+  }
 
   if (data.description) {
     doc.setFontSize(9);

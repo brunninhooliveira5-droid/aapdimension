@@ -17,6 +17,7 @@ interface Proposal {
   client_name: string;
   client_company: string;
   model_name: string;
+  model_id: string | null;
   total_price: number;
   status: string;
   created_at: string;
@@ -93,14 +94,16 @@ export function ProposalHistory() {
   };
 
   const handleDownloadPdf = async (proposal: Proposal) => {
-    const { data: pdfSettings } = await supabase
-      .from("pdf_quote_settings")
-      .select("*")
-      .eq("user_id", session?.user?.id ?? "")
-      .maybeSingle();
+    const [{ data: pdfSettings }, { data: modelData }] = await Promise.all([
+      supabase.from("pdf_quote_settings").select("*").eq("user_id", session?.user?.id ?? "").maybeSingle(),
+      proposal.model_id
+        ? supabase.from("proposal_machine_models").select("image_url").eq("id", proposal.model_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
     const result = await generateProposalPdf({
       ...proposal,
+      equipment_image_url: (modelData as any)?.image_url || null,
       pdfSettings: pdfSettings as any,
     });
 
