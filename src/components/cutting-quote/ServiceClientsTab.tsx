@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, X, Download, File, Users, Shield, Layers, Eye, Calendar, Trash2, CheckCircle, Clock, PackageCheck, FileText } from "lucide-react";
+import { Search, X, Download, File, Users, Shield, Layers, Eye, Calendar, Trash2, CheckCircle, Clock, PackageCheck, FileText, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -71,6 +71,7 @@ export function ServiceClientsTab() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [userPlans, setUserPlans] = useState<Record<string, { pro_access: boolean; valid_until: string | null }>>({});
 
   const uniqueMaterials = useMemo(() => {
     const mats = new Set(quotes.map((q) => q.material));
@@ -112,14 +113,20 @@ export function ServiceClientsTab() {
 
     const serviceUserIds = roleRows.map((r) => r.user_id);
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, name, email, company")
-      .in("id", serviceUserIds);
+    const [{ data: profiles }, { data: plansData }] = await Promise.all([
+      supabase.from("profiles").select("id, name, email, company").in("id", serviceUserIds),
+      supabase.from("user_plans").select("user_id, pro_access, valid_until").in("user_id", serviceUserIds),
+    ]);
 
     const profileMap = new Map(
       (profiles ?? []).map((p: any) => [p.id, { name: p.name, email: p.email, company: p.company ?? "" }])
     );
+
+    const plansMap: Record<string, { pro_access: boolean; valid_until: string | null }> = {};
+    (plansData ?? []).forEach((p: any) => {
+      plansMap[p.user_id] = { pro_access: p.pro_access, valid_until: p.valid_until };
+    });
+    setUserPlans(plansMap);
 
     const { data: quotesData, error: quotesError } = await supabase
       .from("cutting_quotes" as any)
@@ -242,6 +249,18 @@ export function ServiceClientsTab() {
   if (loading) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Carregando orçamentos de clientes de serviço...</p>;
   }
+
+  const getProBadge = (userId: string) => {
+    const plan = userPlans[userId];
+    if (!plan?.pro_access) return <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">FREE</Badge>;
+    if (!plan.valid_until) return <Badge className="text-[9px] px-1 py-0 h-4 bg-primary"><Crown className="w-2.5 h-2.5 mr-0.5" />PRO</Badge>;
+    const now = new Date();
+    const expires = new Date(plan.valid_until);
+    const diffDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">PRO expirado</Badge>;
+    if (diffDays <= 7) return <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-600"><Crown className="w-2.5 h-2.5 mr-0.5" />{diffDays}d</Badge>;
+    return <Badge className="text-[9px] px-1 py-0 h-4 bg-primary"><Crown className="w-2.5 h-2.5 mr-0.5" />{diffDays}d</Badge>;
+  };
 
   const StatusBadgeComponent = ({ status, quoteId }: { status: string; quoteId: string }) => {
     const config = getStatusConfig(status);
@@ -377,7 +396,10 @@ export function ServiceClientsTab() {
                         <TableCell className="text-xs">{new Date(q.created_at).toLocaleDateString("pt-BR")}</TableCell>
                         <TableCell>
                           <div>
-                            <p className="text-xs font-medium">{q.user_name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-medium">{q.user_name}</p>
+                              {getProBadge(q.user_id)}
+                            </div>
                             <p className="text-[10px] text-muted-foreground">{q.user_email}</p>
                             {q.user_company && <p className="text-[10px] text-muted-foreground">{q.user_company}</p>}
                           </div>
