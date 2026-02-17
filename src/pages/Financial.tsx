@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { DollarSign, TrendingUp, Clock, AlertTriangle, Download, Plus, Upload, User, ChevronLeft, Trash2, CalendarDays } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertTriangle, Download, Plus, Upload, User, ChevronLeft, Trash2, CalendarDays, ChevronDown, ChevronRight } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ const Financial = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingInvoiceId, setUploadingInvoiceId] = useState<string | null>(null);
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
+  const [showUserInvoices, setShowUserInvoices] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -234,57 +235,67 @@ const Financial = () => {
       {/* For regular users: show all their invoices with same admin-style detail view */}
       {!isAdmin && (
         <div className="gradient-card rounded-lg border border-border overflow-hidden">
-          <div className="p-4 border-b border-border">
+          <div
+            className="p-4 border-b border-border flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
+            onClick={() => setShowUserInvoices(!showUserInvoices)}
+          >
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
               Minhas Faturas ({invoices.length})
             </h3>
-          </div>
-          <div className="divide-y divide-border/50">
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-4">Nenhuma fatura cadastrada.</p>
+            {showUserInvoices ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
             ) : (
-              invoices.map(inv => {
-                const files = invoiceFiles.filter(f => f.invoice_id === inv.id);
-                return (
-                  <div key={inv.id} className="p-4 space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-mono font-semibold text-foreground">
-                          {inv.installment}/{inv.total_installments}
-                        </span>
-                        <span className="text-sm font-medium text-foreground">
-                          R$ {Number(inv.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </span>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <CalendarDays className="w-3.5 h-3.5" />
-                          Venc. {new Date(inv.due_date).toLocaleDateString("pt-BR")}
-                        </div>
-                        {inv.payment_date && (
-                          <span className="text-xs text-muted-foreground">
-                            Pago em {new Date(inv.payment_date).toLocaleDateString("pt-BR")}
-                          </span>
-                        )}
-                      </div>
-                      <StatusBadge status={inv.status} />
-                    </div>
-                    {/* Files - download only */}
-                    {files.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {files.map(f => (
-                          <div key={f.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent/50 border border-border text-xs">
-                            <span className="text-foreground truncate max-w-[150px]">{f.file_name}</span>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:text-primary/80" onClick={() => handleDownload(f.file_path, f.file_name)}>
-                              <Download className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             )}
           </div>
+          {showUserInvoices && (
+            <div className="divide-y divide-border/50">
+              {invoices.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4">Nenhuma fatura cadastrada.</p>
+              ) : (
+                invoices.map(inv => {
+                  const files = invoiceFiles.filter(f => f.invoice_id === inv.id);
+                  return (
+                    <div key={inv.id} className="p-4 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-mono font-semibold text-foreground">
+                            {inv.installment}/{inv.total_installments}
+                          </span>
+                          <span className="text-sm font-medium text-foreground">
+                            R$ {Number(inv.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </span>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            Venc. {new Date(inv.due_date).toLocaleDateString("pt-BR")}
+                          </div>
+                          {inv.payment_date && (
+                            <span className="text-xs text-muted-foreground">
+                              Pago em {new Date(inv.payment_date).toLocaleDateString("pt-BR")}
+                            </span>
+                          )}
+                        </div>
+                        <StatusBadge status={inv.status} />
+                      </div>
+                      {/* Files - download only */}
+                      {files.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {files.map(f => (
+                            <div key={f.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-accent/50 border border-border text-xs">
+                              <span className="text-foreground truncate max-w-[150px]">{f.file_name}</span>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:text-primary/80" onClick={() => handleDownload(f.file_path, f.file_name)}>
+                                <Download className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       )}
 
