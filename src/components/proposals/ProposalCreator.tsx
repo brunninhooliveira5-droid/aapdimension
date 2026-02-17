@@ -71,7 +71,11 @@ export function ProposalCreator() {
 
   // Proposal data (editable after model selection)
   const [modelName, setModelName] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(`A Dimension CNC desenvolve e fabrica equipamentos CNC robustos e confiáveis, projetados para oferecer alta precisão, estabilidade e produtividade em processos de usinagem.
+
+Os equipamentos são construídos com componentes selecionados e soluções técnicas consolidadas, garantindo desempenho consistente, baixa manutenção e longa vida útil.
+
+Esta proposta apresenta as especificações, condições comerciais e prazos para fornecimento do equipamento, oferecendo ao cliente uma solução segura e adequada às suas necessidades produtivas.`);
   const [techSpecs, setTechSpecs] = useState("");
   const [includedItems, setIncludedItems] = useState<IncItem[]>([]);
   const [optionalItems, setOptionalItems] = useState<OptItem[]>([]);
