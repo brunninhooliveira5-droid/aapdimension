@@ -5,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, PieChart, 
 import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, FileCheck, FileText, CalendarIcon, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Gift, TrendingUp as TrendUp2, TrendingDown as TrendDown2, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -48,23 +50,45 @@ const chartConfig = {
   revenue: { label: "Receita", color: "hsl(38, 92%, 55%)" },
 };
 
+interface BonusRow {
+  id: string;
+  amount: number;
+  description: string;
+  type: string;
+  created_at: string;
+  notes: string | null;
+}
+
 export function QuoteReports() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
+  const [bonuses, setBonuses] = useState<BonusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
+  const isServico = user?.role === "servico";
+
   useEffect(() => {
     if (!session?.user) return;
-    supabase
+    const loadQuotes = supabase
       .from("cutting_quotes")
       .select("*")
       .order("created_at", { ascending: true })
       .then(({ data }) => {
         if (data) setQuotes(data as unknown as QuoteRow[]);
-        setLoading(false);
       });
+
+    const loadBonuses = supabase
+      .from("service_bonuses" as any)
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setBonuses(data as any[]);
+      });
+
+    Promise.all([loadQuotes, loadBonuses]).then(() => setLoading(false));
   }, [session]);
 
   const filteredQuotes = useMemo(() => {
@@ -353,6 +377,80 @@ export function QuoteReports() {
           )}
         </CardContent>
       </Card>
+
+      {/* Service Bonus Section - only for servico users */}
+      {isServico && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Gift className="w-4 h-4 text-primary" /> Meus Bônus
+              {(() => {
+                const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
+                const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
+                const balance = totalCredits - totalDebits;
+                return (
+                  <Badge variant="outline" className="ml-auto text-xs font-bold">
+                    Saldo: {fmt(balance)}
+                  </Badge>
+                );
+              })()}
+            </CardTitle>
+            <CardDescription>Histórico de créditos e débitos de bônus</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const totalCredits = bonuses.filter(b => b.type === "credito").reduce((s, b) => s + Number(b.amount), 0);
+              const totalDebits = bonuses.filter(b => b.type === "debito").reduce((s, b) => s + Number(b.amount), 0);
+              const balance = totalCredits - totalDebits;
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="rounded-md bg-primary/5 border border-primary/10 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Créditos</p>
+                      <p className="text-lg font-bold text-primary">{fmt(totalCredits)}</p>
+                    </div>
+                    <div className="rounded-md bg-destructive/5 border border-destructive/10 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Débitos</p>
+                      <p className="text-lg font-bold text-destructive">{fmt(totalDebits)}</p>
+                    </div>
+                    <div className={`rounded-md border p-3 text-center ${balance >= 0 ? "bg-primary/5 border-primary/10" : "bg-destructive/5 border-destructive/10"}`}>
+                      <p className="text-xs text-muted-foreground">Saldo</p>
+                      <p className={`text-lg font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(balance)}</p>
+                    </div>
+                  </div>
+
+                  {bonuses.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                      {bonuses.map(b => (
+                        <div key={b.id} className="flex items-center gap-2 p-2.5 rounded-md bg-accent/50 text-sm">
+                          {b.type === "credito" ? (
+                            <TrendUp2 className="w-4 h-4 text-primary shrink-0" />
+                          ) : (
+                            <TrendDown2 className="w-4 h-4 text-destructive shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{b.description || "Bônus"}</p>
+                            {b.notes && <p className="text-xs text-muted-foreground truncate">{b.notes}</p>}
+                          </div>
+                          <span className={`font-bold shrink-0 ${b.type === "credito" ? "text-primary" : "text-destructive"}`}>
+                            {b.type === "credito" ? "+" : "−"}{fmt(Number(b.amount))}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {format(new Date(b.created_at), "dd/MM/yy")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum bônus registrado.</p>
+                  )}
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
