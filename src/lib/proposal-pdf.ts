@@ -31,6 +31,7 @@ interface ProposalPdfData {
     primary_color?: string;
     accent_color?: string;
     footer_text?: string;
+    show_payment_conditions?: boolean;
   } | null;
 }
 
@@ -223,7 +224,7 @@ export function generateProposalPdf(data: ProposalPdfData) {
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
 
-    if (data.payment_conditions) {
+    if (data.payment_conditions && (ps?.show_payment_conditions !== false)) {
       doc.text(`Pagamento: ${data.payment_conditions}`, 14, y);
       y += 5;
     }
