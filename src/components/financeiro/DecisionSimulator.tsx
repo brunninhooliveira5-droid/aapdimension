@@ -94,8 +94,8 @@ function ScenarioSimulator() {
             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => fmt(v)} />
             <Legend />
-            <Area type="monotone" dataKey="balOtimista" name="Otimista" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
-            <Area type="monotone" dataKey="balRealista" name="Realista" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
+            <Area type="monotone" dataKey="balOtimista" name="Otimista" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
+            <Area type="monotone" dataKey="balRealista" name="Realista" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.1} />
             <Area type="monotone" dataKey="balPessimista" name="Pessimista" stroke="hsl(var(--destructive))" fill="hsl(var(--destructive))" fillOpacity={0.1} />
           </AreaChart>
         </ResponsiveContainer>
@@ -229,7 +229,7 @@ function CashFlowProjection() {
             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => fmt(v)} />
             <Legend />
-            <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="entradas" name="Entradas" fill="hsl(var(--chart-2))" radius={[2, 2, 0, 0]} />
             <Bar dataKey="saidas" name="Saídas" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

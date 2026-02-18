@@ -40,10 +40,10 @@ export function BreakEvenIndicator({ onNavigate }: Props) {
 
   const m = metrics;
   const statusConfig = {
-    positivo: { label: "Saudável", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", barColor: "bg-emerald-500" },
-    atencao: { label: "Atenção", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30", barColor: "bg-amber-500" },
-    critico: { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", barColor: "bg-red-500" },
-    sem_receita: { label: "Sem Receita", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30", barColor: "bg-blue-500/30" },
+    positivo: { label: "Saudável", color: "text-success", bg: "bg-success/10 border-success/30", barColor: "bg-success" },
+    atencao: { label: "Atenção", color: "text-warning", bg: "bg-warning/10 border-warning/30", barColor: "bg-warning" },
+    critico: { label: "Crítico", color: "text-destructive", bg: "bg-destructive/10 border-destructive/30", barColor: "bg-destructive" },
+    sem_receita: { label: "Sem Receita", color: "text-info", bg: "bg-info/10 border-info/30", barColor: "bg-info/30" },
   };
   const sc = statusConfig[m.status];
   const isSemReceita = m.status === "sem_receita";
@@ -65,7 +65,7 @@ export function BreakEvenIndicator({ onNavigate }: Props) {
 
       {/* Sem receita alert */}
       {isSemReceita && (
-        <p className="text-xs text-blue-400 bg-blue-500/5 rounded px-2 py-1.5">
+        <p className="text-xs text-info bg-info/5 rounded px-2 py-1.5">
           Não é possível atingir o ponto de equilíbrio sem faturamento.
         </p>
       )}

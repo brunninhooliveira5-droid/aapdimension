@@ -448,13 +448,13 @@ export function FinanceReports() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Resultado Líquido</p>
-                <p className={`text-2xl font-bold ${dre.resultado >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                <p className={`text-2xl font-bold ${dre.resultado >= 0 ? "text-success" : "text-destructive"}`}>
                   {fmt(dre.resultado)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Margem</p>
-                <p className={`text-lg font-semibold ${dre.margin >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                <p className={`text-lg font-semibold ${dre.margin >= 0 ? "text-success" : "text-destructive"}`}>
                   {dre.margin.toFixed(1)}%
                 </p>
               </div>
@@ -502,12 +502,12 @@ export function FinanceReports() {
                     return (
                       <tr key={m.key} className="hover:bg-accent/20 transition-colors">
                         <td className="p-3 font-medium text-foreground capitalize">{m.label}</td>
-                        <td className="p-3 text-right text-emerald-400 font-medium">{fmt(m.receitas)}</td>
-                        <td className="p-3 text-right text-red-400 font-medium">{fmt(m.despesas)}</td>
-                        <td className={`p-3 text-right font-semibold ${m.resultado >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <td className="p-3 text-right text-success font-medium">{fmt(m.receitas)}</td>
+                        <td className="p-3 text-right text-destructive font-medium">{fmt(m.despesas)}</td>
+                        <td className={`p-3 text-right font-semibold ${m.resultado >= 0 ? "text-success" : "text-destructive"}`}>
                           {fmt(m.resultado)}
                         </td>
-                        <td className={`p-3 text-right ${margin >= 0 ? "text-muted-foreground" : "text-red-400"}`}>
+                        <td className={`p-3 text-right ${margin >= 0 ? "text-muted-foreground" : "text-destructive"}`}>
                           {margin.toFixed(1)}%
                         </td>
                       </tr>
@@ -517,13 +517,13 @@ export function FinanceReports() {
                 <tfoot>
                   <tr className="border-t border-border bg-accent/20">
                     <td className="p-3 font-bold text-foreground">TOTAL</td>
-                    <td className="p-3 text-right font-bold text-emerald-400">
+                    <td className="p-3 text-right font-bold text-success">
                       {fmt(monthlyData.reduce((s, m) => s + m.receitas, 0))}
                     </td>
-                    <td className="p-3 text-right font-bold text-red-400">
+                    <td className="p-3 text-right font-bold text-destructive">
                       {fmt(monthlyData.reduce((s, m) => s + m.despesas, 0))}
                     </td>
-                    <td className={`p-3 text-right font-bold ${monthlyData.reduce((s, m) => s + m.resultado, 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    <td className={`p-3 text-right font-bold ${monthlyData.reduce((s, m) => s + m.resultado, 0) >= 0 ? "text-success" : "text-destructive"}`}>
                       {fmt(monthlyData.reduce((s, m) => s + m.resultado, 0))}
                     </td>
                     <td className="p-3 text-right text-muted-foreground">
