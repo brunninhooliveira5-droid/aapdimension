@@ -1161,8 +1161,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
               {/* Speed Factor Origin Alert */}
               {result.speedFactorOrigin === "Fallback padrão 1.0" && (
-                <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-xs">
-                  <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/30 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                   <span className="text-muted-foreground">
                     Fator não cadastrado para esta espessura. Usando 1.0 (sem redução). Configure o fator na aba Materiais.
                   </span>
@@ -1401,8 +1401,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
               {/* Minimum Cut Price Alert */}
               {(editableMinApplied || minCutPriceApplied) && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-orange-500/10 border border-orange-500/30 text-xs">
-                  <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 p-3 rounded-md bg-warning/10 border border-warning/30 text-xs">
+                  <ShieldAlert className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                   <span className="text-foreground">
                     Valor mínimo de corte aplicado: <strong>{fmt(MINIMUM_CUT_PRICE)}</strong>. O valor calculado era inferior ao mínimo operacional.
                   </span>
@@ -1462,7 +1462,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                     />
                   </div>
                   {serviceValueIncluded && serviceValue === 0 && (
-                    <p className="text-[10px] text-yellow-600">Valor de serviço igual a zero</p>
+                    <p className="text-[10px] text-warning">Valor de serviço igual a zero</p>
                   )}
                   <p className="text-[10px] text-muted-foreground">
                     {serviceValueIncluded ? "✅ Valor de Serviço incluído no total" : "Valor de Serviço não incluído"}

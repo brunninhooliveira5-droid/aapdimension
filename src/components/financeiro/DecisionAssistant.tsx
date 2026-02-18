@@ -483,15 +483,15 @@ export function DecisionAssistant() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Caixa Atual</p>
-            <p className={`text-sm font-bold ${currentBalance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSigned(currentBalance)}</p>
+            <p className={`text-sm font-bold ${currentBalance >= 0 ? "text-success" : "text-destructive"}`}>{fmtSigned(currentBalance)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">A Receber ({settings.projection_horizon_months}m)</p>
-            <p className="text-sm font-bold text-emerald-400">{fmt(totalReceivableHorizon)}</p>
+            <p className="text-sm font-bold text-success">{fmt(totalReceivableHorizon)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">A Pagar ({settings.projection_horizon_months}m)</p>
-            <p className="text-sm font-bold text-red-400">{fmt(totalPayableFull)}</p>
+            <p className="text-sm font-bold text-destructive">{fmt(totalPayableFull)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Receita Média/Mês</p>
@@ -551,13 +551,13 @@ export function DecisionAssistant() {
           {!analysis.avistaViable && analysis.bestInstallment && (
             <div className="bg-card border rounded-lg p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <ShieldX className="w-5 h-5 text-red-400" />
-                <p className="text-sm font-semibold text-red-400">À vista: Não recomendado</p>
+                <ShieldX className="w-5 h-5 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">À vista: Não recomendado</p>
               </div>
               <p className="text-xs text-muted-foreground ml-7">{analysis.avistaReasons[0]}</p>
               <div className="flex items-center gap-2 mt-2">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <p className="text-sm font-semibold text-emerald-400">
+                <CheckCircle className="w-5 h-5 text-success" />
+                <p className="text-sm font-semibold text-success">
                   Parcelamento recomendado: {analysis.bestInstallment.parcelas}x de {fmt(analysis.bestInstallment.valorParcela)}
                 </p>
                 <Button size="sm" variant="outline" className="ml-auto gap-1.5" disabled={applying} onClick={() => applyInstallment(analysis.bestInstallment!)}>
@@ -574,7 +574,7 @@ export function DecisionAssistant() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-card border rounded-lg p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="w-3 h-3" /> Saldo Atual</p>
-              <p className={`text-lg font-bold ${currentBalance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSigned(currentBalance)}</p>
+              <p className={`text-lg font-bold ${currentBalance >= 0 ? "text-success" : "text-destructive"}`}>{fmtSigned(currentBalance)}</p>
             </div>
             <div className="bg-card border rounded-lg p-3">
               <p className="text-xs text-muted-foreground">Impacto Mensal da Compra</p>
@@ -598,7 +598,7 @@ export function DecisionAssistant() {
             </div>
             <div className="bg-card border rounded-lg p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Margem Mensal</p>
-              <p className={`text-lg font-bold ${analysis.margin >= 0 ? "text-emerald-400" : "text-red-400"}`}>{analysis.margin.toFixed(1)}%</p>
+              <p className={`text-lg font-bold ${analysis.margin >= 0 ? "text-success" : "text-destructive"}`}>{analysis.margin.toFixed(1)}%</p>
             </div>
           </div>
 
@@ -616,7 +616,7 @@ export function DecisionAssistant() {
                 <Legend />
                 <ReferenceLine y={settings.minimum_cash_reserve} stroke="hsl(var(--warning))" strokeDasharray="4 4" label={{ value: "Reserva mín.", fontSize: 10, fill: "hsl(var(--warning))" }} />
                 <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
-                <Area type="monotone" dataKey="antes" name="Sem compra" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
+                <Area type="monotone" dataKey="antes" name="Sem compra" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
                 <Area type="monotone" dataKey="depois" name="Com compra" stroke="hsl(var(--destructive))" fill="hsl(var(--destructive))" fillOpacity={0.1} />
               </AreaChart>
             </ResponsiveContainer>

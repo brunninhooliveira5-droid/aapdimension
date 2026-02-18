@@ -258,7 +258,7 @@ export function ServiceClientsTab() {
     const expires = new Date(plan.valid_until);
     const diffDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays <= 0) return <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">PRO expirado</Badge>;
-    if (diffDays <= 7) return <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-600"><Crown className="w-2.5 h-2.5 mr-0.5" />{diffDays}d</Badge>;
+    if (diffDays <= 7) return <Badge className="text-[9px] px-1 py-0 h-4 bg-warning text-warning-foreground"><Crown className="w-2.5 h-2.5 mr-0.5" />{diffDays}d</Badge>;
     return <Badge className="text-[9px] px-1 py-0 h-4 bg-primary"><Crown className="w-2.5 h-2.5 mr-0.5" />{diffDays}d</Badge>;
   };
 
