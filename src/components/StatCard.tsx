@@ -12,7 +12,7 @@ interface StatCardProps {
 
 const variantClasses = {
   default: "gradient-card border-border",
-  highlight: "gradient-card border-primary/30 glow-amber",
+  highlight: "gradient-card border-primary/30 glow-primary",
   warning: "gradient-card border-warning/30",
   danger: "gradient-card border-destructive/30",
 };

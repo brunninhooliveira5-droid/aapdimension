@@ -64,24 +64,24 @@ function ScenarioSimulator() {
         <div className="bg-card border rounded-lg p-4">
           <h4 className="text-sm font-medium mb-3">Crescimento Receita (%/mês)</h4>
           <div className="grid grid-cols-3 gap-2">
-            <div><Label className="text-xs text-emerald-600">Otimista</Label><Input type="number" step="0.5" value={revenueGrowth.optimistic} onChange={e => setRevenueGrowth(p => ({ ...p, optimistic: Number(e.target.value) }))} /></div>
-            <div><Label className="text-xs text-blue-600">Realista</Label><Input type="number" step="0.5" value={revenueGrowth.realistic} onChange={e => setRevenueGrowth(p => ({ ...p, realistic: Number(e.target.value) }))} /></div>
+            <div><Label className="text-xs text-success">Otimista</Label><Input type="number" step="0.5" value={revenueGrowth.optimistic} onChange={e => setRevenueGrowth(p => ({ ...p, optimistic: Number(e.target.value) }))} /></div>
+            <div><Label className="text-xs text-info">Realista</Label><Input type="number" step="0.5" value={revenueGrowth.realistic} onChange={e => setRevenueGrowth(p => ({ ...p, realistic: Number(e.target.value) }))} /></div>
             <div><Label className="text-xs text-destructive">Pessimista</Label><Input type="number" step="0.5" value={revenueGrowth.pessimistic} onChange={e => setRevenueGrowth(p => ({ ...p, pessimistic: Number(e.target.value) }))} /></div>
           </div>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <h4 className="text-sm font-medium mb-3">Crescimento Despesa (%/mês)</h4>
           <div className="grid grid-cols-3 gap-2">
-            <div><Label className="text-xs text-emerald-600">Otimista</Label><Input type="number" step="0.5" value={expenseGrowth.optimistic} onChange={e => setExpenseGrowth(p => ({ ...p, optimistic: Number(e.target.value) }))} /></div>
-            <div><Label className="text-xs text-blue-600">Realista</Label><Input type="number" step="0.5" value={expenseGrowth.realistic} onChange={e => setExpenseGrowth(p => ({ ...p, realistic: Number(e.target.value) }))} /></div>
+            <div><Label className="text-xs text-success">Otimista</Label><Input type="number" step="0.5" value={expenseGrowth.optimistic} onChange={e => setExpenseGrowth(p => ({ ...p, optimistic: Number(e.target.value) }))} /></div>
+            <div><Label className="text-xs text-info">Realista</Label><Input type="number" step="0.5" value={expenseGrowth.realistic} onChange={e => setExpenseGrowth(p => ({ ...p, realistic: Number(e.target.value) }))} /></div>
             <div><Label className="text-xs text-destructive">Pessimista</Label><Input type="number" step="0.5" value={expenseGrowth.pessimistic} onChange={e => setExpenseGrowth(p => ({ ...p, pessimistic: Number(e.target.value) }))} /></div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center"><p className="text-xs text-muted-foreground">Otimista (Mês {months})</p><p className="text-lg font-bold text-emerald-600">{fmt(lastMonth?.balOtimista ?? 0)}</p></div>
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-center"><p className="text-xs text-muted-foreground">Realista (Mês {months})</p><p className="text-lg font-bold text-blue-600">{fmt(lastMonth?.balRealista ?? 0)}</p></div>
+        <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-center"><p className="text-xs text-muted-foreground">Otimista (Mês {months})</p><p className="text-lg font-bold text-success">{fmt(lastMonth?.balOtimista ?? 0)}</p></div>
+        <div className="bg-info/10 border border-info/30 rounded-lg p-3 text-center"><p className="text-xs text-muted-foreground">Realista (Mês {months})</p><p className="text-lg font-bold text-info">{fmt(lastMonth?.balRealista ?? 0)}</p></div>
         <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-center"><p className="text-xs text-muted-foreground">Pessimista (Mês {months})</p><p className="text-lg font-bold text-destructive">{fmt(lastMonth?.balPessimista ?? 0)}</p></div>
       </div>
 
@@ -157,9 +157,9 @@ function InvestmentAnalysis() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">Payback</p><p className="text-lg font-bold">{analysis.paybackMonths === Infinity ? "—" : `${analysis.paybackMonths} meses`}</p></div>
-        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">ROI</p><p className={`text-lg font-bold ${analysis.roi >= 0 ? "text-emerald-600" : "text-destructive"}`}>{analysis.roi}%</p></div>
-        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">VPL (NPV)</p><p className={`text-lg font-bold ${analysis.npv >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(analysis.npv)}</p></div>
-        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">Lucro Líquido/mês</p><p className={`text-lg font-bold ${analysis.netMonthly >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(analysis.netMonthly)}</p></div>
+        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">ROI</p><p className={`text-lg font-bold ${analysis.roi >= 0 ? "text-success" : "text-destructive"}`}>{analysis.roi}%</p></div>
+        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">VPL (NPV)</p><p className={`text-lg font-bold ${analysis.npv >= 0 ? "text-success" : "text-destructive"}`}>{fmt(analysis.npv)}</p></div>
+        <div className="bg-card border rounded-lg p-3"><p className="text-xs text-muted-foreground">Lucro Líquido/mês</p><p className={`text-lg font-bold ${analysis.netMonthly >= 0 ? "text-success" : "text-destructive"}`}>{fmt(analysis.netMonthly)}</p></div>
       </div>
 
       <div className="bg-card border rounded-lg p-4">

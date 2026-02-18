@@ -38,18 +38,18 @@ export function BreakEvenDetail({ onNavigate }: Props) {
 
   const m = metrics;
   const statusConfig = {
-    positivo: { label: "Saudável", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", barColor: "#10b981" },
-    atencao: { label: "Atenção", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30", barColor: "#f59e0b" },
-    critico: { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", barColor: "#ef4444" },
-    sem_receita: { label: "Sem Receita", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30", barColor: "#3b82f6" },
+    positivo: { label: "Saudável", color: "text-success", bg: "bg-success/10 border-success/30", barColor: "hsl(152 60% 42%)" },
+    atencao: { label: "Atenção", color: "text-warning", bg: "bg-warning/10 border-warning/30", barColor: "hsl(38 92% 55%)" },
+    critico: { label: "Crítico", color: "text-destructive", bg: "bg-destructive/10 border-destructive/30", barColor: "hsl(0 72% 51%)" },
+    sem_receita: { label: "Sem Receita", color: "text-info", bg: "bg-info/10 border-info/30", barColor: "hsl(207 90% 54%)" },
   };
   const sc = statusConfig[m.status];
 
   const chartData = [
-    { name: "Receita", valor: m.receitaMensal, fill: "#10b981" },
-    { name: "Desp. Fixas", valor: m.totalDespesasFixas, fill: "#f59e0b" },
-    { name: "Desp. Variável", valor: m.despesaVariavel, fill: "#f97316" },
-    { name: m.lucroOperacional >= 0 ? "Lucro" : "Prejuízo", valor: m.lucroOperacional, fill: m.lucroOperacional >= 0 ? "#10b981" : "#ef4444" },
+    { name: "Receita", valor: m.receitaMensal, fill: "hsl(213 94% 52%)" },
+    { name: "Desp. Fixas", valor: m.totalDespesasFixas, fill: "hsl(215 30% 45%)" },
+    { name: "Desp. Variável", valor: m.despesaVariavel, fill: "hsl(215 20% 55%)" },
+    { name: m.lucroOperacional >= 0 ? "Lucro" : "Prejuízo", valor: m.lucroOperacional, fill: m.lucroOperacional >= 0 ? "hsl(152 60% 42%)" : "hsl(0 72% 51%)" },
   ];
 
   const isSemReceita = m.status === "sem_receita";
@@ -67,7 +67,7 @@ export function BreakEvenDetail({ onNavigate }: Props) {
         </div>
 
         {isSemReceita && (
-          <p className="text-sm text-blue-400 bg-blue-500/5 rounded px-3 py-2">
+          <p className="text-sm text-info bg-info/5 rounded px-3 py-2">
             Não é possível atingir o ponto de equilíbrio sem faturamento. Cadastre receitas para avaliar a saúde operacional.
           </p>
         )}
@@ -102,9 +102,9 @@ export function BreakEvenDetail({ onNavigate }: Props) {
         <div className="space-y-1.5">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Saúde Operacional</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KpiCard label="Receita Mensal (3m)" value={fmt(m.receitaMensal)} icon={TrendingUp} color={m.receitaMensal > 0 ? "text-emerald-400" : "text-muted-foreground"} />
-            <KpiCard label="Despesas Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} color="text-amber-400" />
-            <KpiCard label="Despesa Variável" value={fmt(m.despesaVariavel)} icon={DollarSign} color="text-orange-400" />
+            <KpiCard label="Receita Mensal (3m)" value={fmt(m.receitaMensal)} icon={TrendingUp} color={m.receitaMensal > 0 ? "text-success" : "text-muted-foreground"} />
+            <KpiCard label="Despesas Fixas" value={fmt(m.totalDespesasFixas)} icon={TrendingDown} color="text-warning" />
+            <KpiCard label="Despesa Variável" value={fmt(m.despesaVariavel)} icon={DollarSign} color="text-muted-foreground" />
             <KpiCard label="Ponto de Equilíbrio" value={isSemReceita ? "N/A" : fmt(m.pontoEquilibrio)} icon={Target} color="text-primary" />
           </div>
         </div>
@@ -168,7 +168,7 @@ function MetricCard({ label, value, sub, positive }: { label: string; value: str
   return (
     <div className="gradient-card rounded-lg border border-border p-3 space-y-1">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`text-lg font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>{value}</p>
+      <p className={`text-lg font-bold ${positive ? "text-success" : "text-destructive"}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
     </div>
   );

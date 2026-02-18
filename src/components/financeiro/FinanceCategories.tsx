@@ -24,9 +24,9 @@ interface CategoryRow {
 }
 
 const TYPE_LABELS: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  receita: { label: "Receita", icon: <ArrowUpCircle className="w-3.5 h-3.5" />, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  despesa: { label: "Despesa", icon: <ArrowDownCircle className="w-3.5 h-3.5" />, className: "bg-red-500/15 text-red-400 border-red-500/30" },
-  ambos: { label: "Ambos", icon: <ArrowLeftRight className="w-3.5 h-3.5" />, className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  receita: { label: "Receita", icon: <ArrowUpCircle className="w-3.5 h-3.5" />, className: "bg-success/15 text-success border-success/30" },
+  despesa: { label: "Despesa", icon: <ArrowDownCircle className="w-3.5 h-3.5" />, className: "bg-destructive/15 text-destructive border-destructive/30" },
+  ambos: { label: "Ambos", icon: <ArrowLeftRight className="w-3.5 h-3.5" />, className: "bg-info/15 text-info border-info/30" },
 };
 
 export function FinanceCategories() {
@@ -161,7 +161,7 @@ export function FinanceCategories() {
         </div>
         <div className="gradient-card rounded-lg border border-border p-3 text-center">
           <p className="text-xs text-muted-foreground">Ativas</p>
-          <p className="text-lg font-bold text-emerald-400">{stats.active}</p>
+          <p className="text-lg font-bold text-success">{stats.active}</p>
         </div>
         <div className="gradient-card rounded-lg border border-border p-3 text-center">
           <p className="text-xs text-muted-foreground">Receitas</p>
@@ -247,7 +247,7 @@ export function FinanceCategories() {
                             onCheckedChange={() => handleToggleActive(cat)}
                           />
                         ) : (
-                          <span className={cat.is_active ? "text-emerald-400" : "text-muted-foreground"}>
+                          <span className={cat.is_active ? "text-success" : "text-muted-foreground"}>
                             {cat.is_active ? "Sim" : "Não"}
                           </span>
                         )}
@@ -311,17 +311,17 @@ export function FinanceCategories() {
                 <SelectContent>
                   <SelectItem value="receita">
                     <span className="flex items-center gap-1.5">
-                      <ArrowUpCircle className="w-3.5 h-3.5 text-emerald-400" /> Receita
+                      <ArrowUpCircle className="w-3.5 h-3.5 text-success" /> Receita
                     </span>
                   </SelectItem>
                   <SelectItem value="despesa">
                     <span className="flex items-center gap-1.5">
-                      <ArrowDownCircle className="w-3.5 h-3.5 text-red-400" /> Despesa
+                      <ArrowDownCircle className="w-3.5 h-3.5 text-destructive" /> Despesa
                     </span>
                   </SelectItem>
                   <SelectItem value="ambos">
                     <span className="flex items-center gap-1.5">
-                      <ArrowLeftRight className="w-3.5 h-3.5 text-blue-400" /> Ambos
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-info" /> Ambos
                     </span>
                   </SelectItem>
                 </SelectContent>

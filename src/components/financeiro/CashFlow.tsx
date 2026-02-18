@@ -202,7 +202,7 @@ export function CashFlow() {
 
             {!editingBalance ? (
               <div className="flex items-center gap-3">
-                <span className={`text-lg font-bold ${initialBalance >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+                <span className={`text-lg font-bold ${initialBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   {fmtSigned(initialBalance)}
                 </span>
                 <span className="text-xs text-muted-foreground">
@@ -233,7 +233,7 @@ export function CashFlow() {
                   </div>
                 )}
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400" onClick={() => setEditingBalance(false)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-success" onClick={() => setEditingBalance(false)}>
                     <Check className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingBalance(false); setUseManual(false); setManualBalance(""); }}>
@@ -280,18 +280,18 @@ export function CashFlow() {
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Saldo Final</span>
-                <span className={`text-lg font-bold ${data.endBalance >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+                <span className={`text-lg font-bold ${data.endBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   {fmtSigned(data.endBalance)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1 text-emerald-400">
+                <span className="flex items-center gap-1 text-success">
                   <ArrowUpCircle className="w-3 h-3" /> Entradas
                 </span>
                 <span>{fmt(data.totalIn)}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1 text-red-400">
+                <span className="flex items-center gap-1 text-destructive">
                   <ArrowDownCircle className="w-3 h-3" /> Saídas
                 </span>
                 <span>{fmt(data.totalOut)}</span>
@@ -408,8 +408,8 @@ export function CashFlow() {
               <thead className="sticky top-0 bg-card z-10">
                 <tr className="border-b border-border">
                   <th className="text-left p-2 font-medium text-muted-foreground">Data</th>
-                  <th className="text-right p-2 font-medium text-emerald-400">Entradas</th>
-                  <th className="text-right p-2 font-medium text-red-400">Saídas</th>
+                  <th className="text-right p-2 font-medium text-success">Entradas</th>
+                  <th className="text-right p-2 font-medium text-destructive">Saídas</th>
                   <th className="text-right p-2 font-medium text-muted-foreground">Líquido</th>
                   <th className="text-right p-2 font-medium text-muted-foreground">Saldo</th>
                 </tr>
@@ -420,13 +420,13 @@ export function CashFlow() {
                   .map((d) => (
                     <tr key={d.date} className="hover:bg-accent/20 transition-colors">
                       <td className="p-2 font-medium">{d.label}</td>
-                      <td className="p-2 text-right text-emerald-400">
+                      <td className="p-2 text-right text-success">
                         {d.receivable > 0 ? fmt(d.receivable) : "—"}
                       </td>
-                      <td className="p-2 text-right text-red-400">
+                      <td className="p-2 text-right text-destructive">
                         {d.payable > 0 ? fmt(d.payable) : "—"}
                       </td>
-                      <td className={`p-2 text-right font-medium ${d.net >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      <td className={`p-2 text-right font-medium ${d.net >= 0 ? "text-success" : "text-destructive"}`}>
                         {fmtSigned(d.net)}
                       </td>
                       <td className={`p-2 text-right font-semibold ${d.balance >= 0 ? "text-foreground" : "text-destructive"}`}>

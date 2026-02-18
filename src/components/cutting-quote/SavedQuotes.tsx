@@ -306,8 +306,8 @@ export function SavedQuotes() {
                           aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
                         };
                         const colors: Record<string, string> = {
-                          fechado: "bg-blue-600 hover:bg-blue-700", aprovado_corte: "bg-emerald-600 hover:bg-emerald-700",
-                          aguardando_retirada: "bg-amber-600 hover:bg-amber-700", finalizado: "bg-primary hover:bg-primary/90",
+                          fechado: "bg-info hover:bg-info/90", aprovado_corte: "bg-success hover:bg-success/90",
+                          aguardando_retirada: "bg-warning hover:bg-warning/90 text-warning-foreground", finalizado: "bg-primary hover:bg-primary/90",
                         };
                         return (
                           <Badge
@@ -446,8 +446,8 @@ export function SavedQuotes() {
                       aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
                     };
                     const colors: Record<string, string> = {
-                      fechado: "bg-blue-600", aprovado_corte: "bg-emerald-600",
-                      aguardando_retirada: "bg-amber-600", finalizado: "bg-primary",
+                      fechado: "bg-info", aprovado_corte: "bg-success",
+                      aguardando_retirada: "bg-warning text-warning-foreground", finalizado: "bg-primary",
                     };
                     return (
                       <Badge

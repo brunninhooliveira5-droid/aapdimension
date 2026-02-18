@@ -19,9 +19,9 @@ import autoTable from "jspdf-autotable";
 
 const STATUS_OPTIONS = [
   { value: "orcamento", label: "Orçamento", icon: FileText, color: "" },
-  { value: "fechado", label: "Fechado", icon: CheckCircle, color: "bg-blue-600 hover:bg-blue-700" },
-  { value: "aprovado_corte", label: "Aprovado p/ Corte", icon: CheckCircle, color: "bg-emerald-600 hover:bg-emerald-700" },
-  { value: "aguardando_retirada", label: "Aguardando Retirada", icon: Clock, color: "bg-amber-600 hover:bg-amber-700" },
+  { value: "fechado", label: "Fechado", icon: CheckCircle, color: "bg-info hover:bg-info/90" },
+  { value: "aprovado_corte", label: "Aprovado p/ Corte", icon: CheckCircle, color: "bg-success hover:bg-success/90" },
+  { value: "aguardando_retirada", label: "Aguardando Retirada", icon: Clock, color: "bg-warning hover:bg-warning/90 text-warning-foreground" },
   { value: "finalizado", label: "Finalizado", icon: PackageCheck, color: "bg-primary hover:bg-primary/90" },
 ] as const;
 
