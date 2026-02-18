@@ -23,6 +23,65 @@ function getDefaultPos() {
   return { x: window.innerWidth - W - 24, y: window.innerHeight - H - 24 };
 }
 
+// Safe math expression evaluator - recursive descent parser
+// Only allows numbers, +, -, *, / and parentheses
+function safeEvaluate(expr: string): number | null {
+  let pos = 0;
+  const str = expr.replace(/\s+/g, "");
+
+  function parseExpr(): number {
+    let result = parseTerm();
+    while (pos < str.length && (str[pos] === "+" || str[pos] === "-")) {
+      const op = str[pos++];
+      const term = parseTerm();
+      result = op === "+" ? result + term : result - term;
+    }
+    return result;
+  }
+
+  function parseTerm(): number {
+    let result = parseFactor();
+    while (pos < str.length && (str[pos] === "*" || str[pos] === "/")) {
+      const op = str[pos++];
+      const factor = parseFactor();
+      result = op === "*" ? result * factor : result / factor;
+    }
+    return result;
+  }
+
+  function parseFactor(): number {
+    if (str[pos] === "(") {
+      pos++; // skip '('
+      const result = parseExpr();
+      pos++; // skip ')'
+      return result;
+    }
+    // Handle unary minus
+    if (str[pos] === "-") {
+      pos++;
+      return -parseFactor();
+    }
+    // Parse number
+    const start = pos;
+    while (pos < str.length && (/[0-9.]/.test(str[pos]))) {
+      pos++;
+    }
+    if (start === pos) return NaN;
+    return parseFloat(str.substring(start, pos));
+  }
+
+  // Validate: only allow safe characters
+  if (!/^[0-9+\-*/().  ]+$/.test(expr)) return null;
+
+  try {
+    const result = parseExpr();
+    if (pos !== str.length) return null; // leftover chars = invalid
+    return result;
+  } catch {
+    return null;
+  }
+}
+
 function loadPos() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -88,8 +147,8 @@ export function CalculatorWidget() {
     try {
       const sanitized = expr.replace(/×/g, "*").replace(/÷/g, "/");
       if (!sanitized) return "0";
-      const res = Function(`"use strict"; return (${sanitized})`)();
-      if (typeof res === "number" && isFinite(res)) {
+      const res = safeEvaluate(sanitized);
+      if (res !== null && isFinite(res)) {
         return String(Math.round(res * 1e10) / 1e10);
       }
       return "Erro";
