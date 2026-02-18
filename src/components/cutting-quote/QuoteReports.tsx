@@ -330,7 +330,7 @@ export function QuoteReports() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <FileCheck className="w-3.5 h-3.5" /> Valor Orçamentos Fechados
             </div>
-            <p className="text-xl font-bold text-green-600">{fmt(summaryStats.closedRevenue)}</p>
+            <p className="text-xl font-bold text-success">{fmt(summaryStats.closedRevenue)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{summaryStats.closedCount} fechado(s)</p>
           </CardContent>
         </Card>

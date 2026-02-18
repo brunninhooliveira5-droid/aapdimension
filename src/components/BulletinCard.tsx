@@ -127,7 +127,7 @@ export function BulletinCard({ filterByRole }: BulletinCardProps = {}) {
           </div>
           {isRead && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Lido
+              <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Lido
             </span>
           )}
         </div>

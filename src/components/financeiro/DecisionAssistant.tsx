@@ -333,9 +333,9 @@ export function DecisionAssistant() {
   };
 
   const decisionConfig: Record<Decision, { icon: typeof ShieldCheck; color: string; bg: string; border: string }> = {
-    "RECOMENDADO": { icon: ShieldCheck, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
-    "CAUTELA": { icon: ShieldAlert, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-    "NÃO RECOMENDADO": { icon: ShieldX, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" },
+    "RECOMENDADO": { icon: ShieldCheck, color: "text-success", bg: "bg-success/10", border: "border-success/30" },
+    "CAUTELA": { icon: ShieldAlert, color: "text-warning", bg: "bg-warning/10", border: "border-warning/30" },
+    "NÃO RECOMENDADO": { icon: ShieldX, color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" },
   };
 
   const exportPdf = () => {
@@ -593,7 +593,7 @@ export function DecisionAssistant() {
             </div>
             <div className="bg-card border rounded-lg p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingDown className="w-3 h-3" /> Comprometimento</p>
-              <p className={`text-lg font-bold ${analysis.commitment <= settings.safe_commitment_limit ? "text-emerald-400" : analysis.commitment <= 80 ? "text-amber-400" : "text-red-400"}`}>{analysis.commitment.toFixed(1)}%</p>
+              <p className={`text-lg font-bold ${analysis.commitment <= settings.safe_commitment_limit ? "text-success" : analysis.commitment <= 80 ? "text-warning" : "text-destructive"}`}>{analysis.commitment.toFixed(1)}%</p>
               <p className="text-xs text-muted-foreground">da receita média mensal</p>
             </div>
             <div className="bg-card border rounded-lg p-3">

@@ -174,9 +174,9 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
   }, [payables, receivables, today, in7]);
 
   const severityConfig = {
-    overdue: { badge: "Atrasado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30", iconClass: "text-red-400", borderClass: "border-l-red-500" },
-    urgent: { badge: "Vence em breve", badgeClass: "bg-amber-500/15 text-amber-400 border-amber-500/30", iconClass: "text-amber-400", borderClass: "border-l-amber-500" },
-    soon: { badge: "Próximo", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30", iconClass: "text-blue-400", borderClass: "border-l-blue-500" },
+    overdue: { badge: "Atrasado", badgeClass: "bg-destructive/15 text-destructive border-destructive/30", iconClass: "text-destructive", borderClass: "border-l-destructive" },
+    urgent: { badge: "Vence em breve", badgeClass: "bg-warning/15 text-warning border-warning/30", iconClass: "text-warning", borderClass: "border-l-warning" },
+    soon: { badge: "Próximo", badgeClass: "bg-info/15 text-info border-info/30", iconClass: "text-info", borderClass: "border-l-info" },
   };
 
   const formatDate = (d: string) => {
@@ -294,26 +294,26 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-md bg-accent/40 p-3 text-center">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Recebido</p>
-            <p className="text-lg font-bold text-emerald-400 mt-1">{fmt(weeklySummary.totalReceivedWeek)}</p>
+            <p className="text-lg font-bold text-success mt-1">{fmt(weeklySummary.totalReceivedWeek)}</p>
           </div>
           <div className="rounded-md bg-accent/40 p-3 text-center">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pago</p>
-            <p className="text-lg font-bold text-red-400 mt-1">{fmt(weeklySummary.totalPaidWeek)}</p>
+            <p className="text-lg font-bold text-destructive mt-1">{fmt(weeklySummary.totalPaidWeek)}</p>
           </div>
           <div className="rounded-md bg-accent/40 p-3 text-center">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo Semana</p>
-            <p className={`text-lg font-bold mt-1 ${weeklySummary.balance >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(weeklySummary.balance)}</p>
+            <p className={`text-lg font-bold mt-1 ${weeklySummary.balance >= 0 ? "text-success" : "text-destructive"}`}>{fmt(weeklySummary.balance)}</p>
           </div>
           <div className="rounded-md bg-accent/40 p-3 text-center">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</p>
-            <p className="text-lg font-bold text-amber-400 mt-1">{fmt(weeklySummary.totalDuePay + weeklySummary.totalDueRec)}</p>
+            <p className="text-lg font-bold text-warning mt-1">{fmt(weeklySummary.totalDuePay + weeklySummary.totalDueRec)}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
-              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <Wallet className="w-3.5 h-3.5 text-success" />
               <span className="text-xs font-medium text-muted-foreground">Maiores Recebimentos</span>
             </div>
             {weeklySummary.topReceipts.length === 0 ? (
@@ -322,7 +322,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
               weeklySummary.topReceipts.map(r => (
                 <div key={r.id} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
                   <span className="text-foreground truncate mr-2">{r.client}</span>
-                  <span className="text-emerald-400 font-medium whitespace-nowrap">{fmt(Number(r.amount))}</span>
+                  <span className="text-success font-medium whitespace-nowrap">{fmt(Number(r.amount))}</span>
                 </div>
               ))
             )}
@@ -330,7 +330,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
 
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
-              <Receipt className="w-3.5 h-3.5 text-red-400" />
+              <Receipt className="w-3.5 h-3.5 text-destructive" />
               <span className="text-xs font-medium text-muted-foreground">Maiores Pagamentos</span>
             </div>
             {weeklySummary.topPayments.length === 0 ? (
@@ -339,7 +339,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
               weeklySummary.topPayments.map(p => (
                 <div key={p.id} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
                   <span className="text-foreground truncate mr-2">{p.supplier}</span>
-                  <span className="text-red-400 font-medium whitespace-nowrap">{fmt(Number(p.amount))}</span>
+                  <span className="text-destructive font-medium whitespace-nowrap">{fmt(Number(p.amount))}</span>
                 </div>
               ))
             )}
@@ -347,7 +347,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
 
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <Clock className="w-3.5 h-3.5 text-warning" />
               <span className="text-xs font-medium text-muted-foreground">Pendentes da Semana</span>
             </div>
             {weeklySummary.pendingItems.length === 0 ? (
@@ -356,7 +356,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
               weeklySummary.pendingItems.slice(0, 5).map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-xs bg-accent/20 rounded px-2 py-1.5">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${item.type === "pagar" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+                    <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${item.type === "pagar" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-success/10 text-success border-success/20"}`}>
                       {item.type === "pagar" ? "Pagar" : "Receber"}
                     </Badge>
                     <span className="text-foreground truncate">{item.label}</span>
@@ -373,7 +373,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
       {alerts.length > 0 && (
         <div className="gradient-card rounded-lg border border-border p-4 space-y-3">
           <div className="flex items-center gap-2 mb-1">
-            <Bell className="w-4 h-4 text-amber-400" />
+            <Bell className="w-4 h-4 text-warning" />
             <h3 className="text-sm font-semibold text-foreground">
               Alertas de Vencimento ({alerts.length})
             </h3>
@@ -394,7 +394,7 @@ export function FinanceDashboard({ onNavigate }: FinanceDashboardProps) {
                         <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.badgeClass}`}>
                           {config.badge}
                         </Badge>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${alert.type === "pagar" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${alert.type === "pagar" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-success/10 text-success border-success/20"}`}>
                           {alert.type === "pagar" ? "Pagar" : "Receber"}
                         </Badge>
                       </div>

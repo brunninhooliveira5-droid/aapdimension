@@ -411,7 +411,7 @@ export function FinanceReports() {
                   ))}
                   <div className="flex items-center justify-between px-4 py-3 bg-accent/10">
                     <span className="text-sm font-semibold text-foreground">Total Receitas</span>
-                    <span className="text-sm font-bold text-emerald-400">{fmt(dre.totalReceitas)}</span>
+                    <span className="text-sm font-bold text-success">{fmt(dre.totalReceitas)}</span>
                   </div>
                 </>
               )}
@@ -436,7 +436,7 @@ export function FinanceReports() {
                   ))}
                   <div className="flex items-center justify-between px-4 py-3 bg-accent/10">
                     <span className="text-sm font-semibold text-foreground">Total Despesas</span>
-                    <span className="text-sm font-bold text-red-400">{fmt(dre.totalDespesas)}</span>
+                    <span className="text-sm font-bold text-destructive">{fmt(dre.totalDespesas)}</span>
                   </div>
                 </>
               )}
@@ -444,7 +444,7 @@ export function FinanceReports() {
           </div>
 
           {/* Result */}
-          <div className={`gradient-card rounded-lg border p-5 ${dre.resultado >= 0 ? "border-emerald-500/30" : "border-red-500/30"}`}>
+          <div className={`gradient-card rounded-lg border p-5 ${dre.resultado >= 0 ? "border-success/30" : "border-destructive/30"}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Resultado Líquido</p>

@@ -318,7 +318,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           { label: "Preço Mínimo / min", value: fmt(minPrice), icon: DollarSign },
           { label: "Preço Sugerido / min", value: fmt(suggestedPrice), icon: TrendingUp },
         ].map((item) => (
-          <Card key={item.label} className="gradient-card glow-amber border-primary/20">
+          <Card key={item.label} className="gradient-card glow-primary border-primary/20">
             <CardContent className="p-4 text-center space-y-1">
               <item.icon className="w-5 h-5 text-primary mx-auto" />
               <p className="text-xs text-muted-foreground">{item.label}</p>

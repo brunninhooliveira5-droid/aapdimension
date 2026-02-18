@@ -330,7 +330,7 @@ const UsersPage = () => {
                           <Button
                             size="sm"
                             onClick={() => handleApprove(u.id)}
-                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="gap-1 bg-success hover:bg-success/90 text-success-foreground"
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Aprovar
                           </Button>
