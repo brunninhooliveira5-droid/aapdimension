@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText, CalculatorIcon } from "lucide-react";
+import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import dimensionLogo from "@/assets/dimension-logo.png";
@@ -58,6 +59,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, session, logout, hasAccess, getSectionVisibility, hasProAccess } = useAuth();
+  const { toggleCalculator } = useCalculator();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
@@ -162,6 +164,13 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+              {/* Calculator - no navigation */}
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Calculadora" onClick={toggleCalculator} className="hover:bg-sidebar-accent cursor-pointer">
+                  <CalculatorIcon className="h-4 w-4" />
+                  <span>Calculadora</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
