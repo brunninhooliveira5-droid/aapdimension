@@ -43,6 +43,7 @@ const ALL_SECTIONS: SectionConfig[] = [
 const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
   { key: "orcamento_pdf", label: "Exportar PDF do Orçamento", icon: Eye },
   { key: "orcamento_salvos", label: "Aba Salvos (Histórico)", icon: Eye },
+  { key: "assistente_preco", label: "Assistente de Preço", icon: Star },
 ];
 
 const visibilityOptions: { value: Visibility; label: string; icon: React.ElementType; description: string; color: string }[] = [

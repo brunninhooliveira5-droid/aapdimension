@@ -1430,7 +1430,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               )}
 
               {/* Price Assistant Button */}
-              {!(useMasterPricing && !isAdminMaster) && (
+              {!(useMasterPricing && !isAdminMaster) && (isAdminMaster || getSectionVisibility("assistente_preco") === "visible") && (
                 <Button
                   variant="outline"
                   size="sm"
