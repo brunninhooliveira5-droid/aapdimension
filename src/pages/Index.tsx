@@ -207,7 +207,7 @@ const Index = () => {
 
   // Realtime subscription to update machine count on changes
   useEffect(() => {
-    if (isServico) return;
+    if (!isAdminMaster) return;
     const channel = supabase
       .channel('dashboard-machines')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'machines' }, () => {
@@ -359,15 +359,17 @@ const Index = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/maquinas")}>
-          <StatCard
-            title="Máquinas Ativas"
-            value={totalMachines}
-            subtitle="Total cadastradas"
-            icon={Cpu}
-            variant="highlight"
-          />
-        </div>
+        {isAdminMaster && (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/maquinas")}>
+            <StatCard
+              title="Máquinas Ativas"
+              value={totalMachines}
+              subtitle="Total cadastradas"
+              icon={Cpu}
+              variant="highlight"
+            />
+          </div>
+        )}
         <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOpenDialog(true)}>
           <StatCard
             title="Faturas em Aberto"
