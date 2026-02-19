@@ -184,9 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
-    // Record login activity (don't block login on failure)
+    // Record login activity and event (don't block login on failure)
     if (data.user) {
       supabase.rpc("record_login_activity", { p_user_id: data.user.id }).then(() => {});
+      supabase.rpc("record_login_event", { p_user_id: data.user.id }).then(() => {});
     }
     return { error: null };
   };
