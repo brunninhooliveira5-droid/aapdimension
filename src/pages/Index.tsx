@@ -77,6 +77,19 @@ const Index = () => {
   const [maintSearch, setMaintSearch] = useState("");
   const [maintStatusFilter, setMaintStatusFilter] = useState("todos");
 
+  const fetchMachineCount = async () => {
+    const effectiveOwnerId = viewUserId || (!isAdminMaster ? session?.user?.id : null);
+    let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
+    if (effectiveOwnerId) machineQuery = machineQuery.eq("owner_id", effectiveOwnerId);
+    const { count: machineCount } = await machineQuery;
+
+    let regEquipQuery = (supabase as any).from("registered_equipment").select("*", { count: "exact", head: true }).eq("category", "maquina");
+    if (effectiveOwnerId) regEquipQuery = regEquipQuery.eq("owner_id", effectiveOwnerId);
+    const { count: regEquipCount } = await regEquipQuery;
+
+    setTotalMachines((machineCount ?? 0) + (regEquipCount ?? 0));
+  };
+
   useEffect(() => {
     // Redirect handled in render
     if (isServico) return;
@@ -90,19 +103,8 @@ const Index = () => {
         setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
       }
 
-      // Fetch total machines (exclude accessories) from both tables
-      // For non-admin users, always filter by their own user id
       const effectiveOwnerId = viewUserId || (!isAdminMaster ? session?.user?.id : null);
-
-      let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
-      if (effectiveOwnerId) machineQuery = machineQuery.eq("owner_id", effectiveOwnerId);
-      const { count: machineCount } = await machineQuery;
-
-      let regEquipQuery = (supabase as any).from("registered_equipment").select("*", { count: "exact", head: true }).eq("category", "maquina");
-      if (effectiveOwnerId) regEquipQuery = regEquipQuery.eq("owner_id", effectiveOwnerId);
-      const { count: regEquipCount } = await regEquipQuery;
-
-      setTotalMachines((machineCount ?? 0) + (regEquipCount ?? 0));
+      await fetchMachineCount();
 
       // Fetch invoices
       let invoiceQuery = supabase.from("invoices").select("*");
@@ -202,6 +204,24 @@ const Index = () => {
 
     fetchData();
   }, [viewUserId]);
+
+  // Realtime subscription to update machine count on changes
+  useEffect(() => {
+    if (isServico) return;
+    const channel = supabase
+      .channel('dashboard-machines')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'machines' }, () => {
+        fetchMachineCount();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registered_equipment' }, () => {
+        fetchMachineCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [viewUserId, isAdminMaster, session?.user?.id]);
 
   // Load custom banner
   useEffect(() => {
