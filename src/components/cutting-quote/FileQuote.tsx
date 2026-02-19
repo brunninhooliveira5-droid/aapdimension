@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench, RotateCcw, ShieldAlert } from "lucide-react";
+import { Upload, FileText, Clock, DollarSign, TrendingUp, Download, Save, Ruler, Eye, X, Package, CalendarClock, Gauge, Zap, HelpCircle, AlertTriangle, Wrench, RotateCcw, ShieldAlert, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,6 +17,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import type { PdfSettings } from "./PdfConfiguration";
 import { calculateQuote, calculateMaterialCost, calculateTotalPrice, applyMinimumCutPrice, MINIMUM_CUT_PRICE, type QuoteCalculationResult } from "@/lib/cutting-calculations";
 import { generateQuotePDF } from "@/lib/cutting-pdf";
+import { PriceAssistant } from "./PriceAssistant";
 
 // MATERIALS and THICKNESSES are no longer used as defaults
 // (custom materials from DB are used instead)
@@ -401,6 +402,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   const [sheetMargin, setSheetMargin] = useState(10);
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
+  const [priceAssistantOpen, setPriceAssistantOpen] = useState(false);
   // Load custom materials (or dimension materials)
   useEffect(() => {
     if (!session?.user) return;
@@ -1427,6 +1429,19 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                 </div>
               )}
 
+              {/* Price Assistant Button */}
+              {!(useMasterPricing && !isAdminMaster) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => setPriceAssistantOpen(true)}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Assistente de Preço
+                </Button>
+              )}
+
               {/* Editable Cutting Price */}
               <div>
                 <Label className="text-xs">
@@ -1510,6 +1525,21 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         )}
       </div>
 
+      {/* Price Assistant Dialog */}
+      {result && (
+        <PriceAssistant
+          open={priceAssistantOpen}
+          onOpenChange={setPriceAssistantOpen}
+          cutCost={recalcCutCost}
+          minCutCost={result.minCutCost}
+          suggestedCutCost={result.cutCost}
+          costPerMinute={pricing.costPerMinute}
+          estimatedTimeMin={currentEstimatedTimeMin}
+          material={result.material}
+          profitMarginPercent={pricing.profitMarginPercent}
+          onApplyPrice={(price) => setEditablePrice(price)}
+        />
+      )}
     </div>
   );
 }
