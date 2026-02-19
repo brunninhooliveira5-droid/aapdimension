@@ -37,8 +37,8 @@ export function FinancePasswordGate({ children }: FinancePasswordGateProps) {
   };
 
   const handleSetPassword = async () => {
-    if (!password || password.length < 4) {
-      toast.error("Senha deve ter pelo menos 4 caracteres.");
+    if (!password || password.length < 6) {
+      toast.error("Senha deve ter pelo menos 6 caracteres.");
       return;
     }
     if (password !== confirmPassword) {
