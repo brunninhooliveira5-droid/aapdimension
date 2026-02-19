@@ -26,6 +26,7 @@ import {
   Receipt,
   Menu,
   Target,
+  Construction,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -120,7 +121,7 @@ export default function GestaoFinanceiraPage() {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetContent side="left" className="w-56 p-0 pt-4">
               <SheetTitle className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Financeiro
+                Gerenciador Financeiro
               </SheetTitle>
               {navContent}
             </SheetContent>
@@ -138,7 +139,7 @@ export default function GestaoFinanceiraPage() {
             <div className="flex items-center justify-between px-3 py-3 border-b border-border">
               {!collapsed && (
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Financeiro
+                  Gerenciador Financeiro
                 </h2>
               )}
               <button
@@ -174,7 +175,14 @@ export default function GestaoFinanceiraPage() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">
+        <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto space-y-4">
+          {/* Development banner */}
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm">
+            <Construction className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="text-muted-foreground">
+              <span className="font-semibold text-amber-700">Em desenvolvimento</span> — Algumas funcionalidades podem estar incompletas ou sofrer alterações.
+            </p>
+          </div>
           {isMobile && (
             <div className="flex items-center gap-2 mb-3">
               <button
