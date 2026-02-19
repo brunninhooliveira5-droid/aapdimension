@@ -298,7 +298,7 @@ const EngagementDashboard = () => {
               </Select>
             </div>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-64 overflow-hidden">
             <ChartContainer config={{
               logins: { label: "Logins", color: "hsl(var(--primary))" },
               usuarios: { label: "Usuários Únicos", color: "hsl(var(--success))" },
