@@ -131,53 +131,97 @@ const UserAccessPage = () => {
     if (!userId) return;
     setSaving(true);
 
+    // Capture values at save time to avoid stale closures
+    const saveUseMasterPricing = useMasterPricing;
+    const saveUseDimensionMaterials = useDimensionMaterials;
+    const saveProAccess = proAccess;
+
     try {
       // Save section access
       if (hasAccessRow) {
-        await supabase
+        const { error: accessError } = await supabase
           .from("user_section_access" as any)
           .update({ sections } as any)
           .eq("user_id", userId);
+        if (accessError) {
+          console.error("Erro ao salvar acesso de seções:", accessError);
+          toast.error("Erro ao salvar configurações de seções.");
+          setSaving(false);
+          return;
+        }
       } else {
-        await supabase
+        const { error: accessError } = await supabase
           .from("user_section_access" as any)
           .insert({ user_id: userId, sections } as any);
+        if (accessError) {
+          console.error("Erro ao inserir acesso de seções:", accessError);
+          toast.error("Erro ao salvar configurações de seções.");
+          setSaving(false);
+          return;
+        }
         setHasAccessRow(true);
       }
 
       // Save PRO access + master pricing flag
-      const proFeatures = proAccess ? ["gestao_financeira", "orcamento"] : [];
+      const proFeatures = saveProAccess ? ["gestao_financeira", "orcamento"] : [];
+      const planPayload = {
+        pro_access: saveProAccess,
+        plan: saveProAccess ? "pro" : "free",
+        features_enabled: proFeatures,
+        max_quotes_per_month: saveProAccess ? -1 : 5,
+        max_financial_entries: saveProAccess ? -1 : 0,
+        use_master_pricing: saveUseMasterPricing,
+        use_dimension_materials: saveUseDimensionMaterials,
+        ...(saveProAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
+      };
+
       if (hasPlanRow) {
-        await supabase
+        const { error: planError } = await supabase
           .from("user_plans")
-          .update({
-            pro_access: proAccess,
-            plan: proAccess ? "pro" : "free",
-            features_enabled: proFeatures,
-            max_quotes_per_month: proAccess ? -1 : 5,
-            max_financial_entries: proAccess ? -1 : 0,
-            use_master_pricing: useMasterPricing,
-            use_dimension_materials: useDimensionMaterials,
-            ...(proAccess ? { pro_activated_at: new Date().toISOString() } : { pro_activated_at: null }),
-          } as any)
+          .update(planPayload as any)
           .eq("user_id", userId);
+        if (planError) {
+          console.error("Erro ao atualizar plano:", planError);
+          toast.error("Erro ao salvar configurações do plano.");
+          setSaving(false);
+          return;
+        }
       } else {
-        await supabase.from("user_plans").insert({
+        const { error: planError } = await supabase.from("user_plans").insert({
           user_id: userId,
-          pro_access: proAccess,
-          plan: proAccess ? "pro" : "free",
-          features_enabled: proFeatures,
-          max_quotes_per_month: proAccess ? -1 : 5,
-          max_financial_entries: proAccess ? -1 : 0,
-          use_master_pricing: useMasterPricing,
-          use_dimension_materials: useDimensionMaterials,
-          ...(proAccess ? { pro_activated_at: new Date().toISOString() } : {}),
+          ...planPayload,
         } as any);
+        if (planError) {
+          console.error("Erro ao inserir plano:", planError);
+          toast.error("Erro ao salvar configurações do plano.");
+          setSaving(false);
+          return;
+        }
         setHasPlanRow(true);
       }
 
+      // Verify the save was successful by re-reading
+      const { data: verifyPlan } = await supabase
+        .from("user_plans")
+        .select("use_master_pricing, use_dimension_materials")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (verifyPlan) {
+        const savedMasterPricing = (verifyPlan as any)?.use_master_pricing ?? false;
+        const savedDimensionMaterials = (verifyPlan as any)?.use_dimension_materials ?? false;
+        // Sync state with actual DB values
+        setUseMasterPricing(savedMasterPricing);
+        setUseDimensionMaterials(savedDimensionMaterials);
+
+        if (savedDimensionMaterials !== saveUseDimensionMaterials || savedMasterPricing !== saveUseMasterPricing) {
+          console.warn("Divergência detectada no save! Enviado:", { saveUseMasterPricing, saveUseDimensionMaterials }, "Salvo:", { savedMasterPricing, savedDimensionMaterials });
+          toast.warning("Atenção: os valores salvos diferem do esperado. A tela foi atualizada com os valores reais.");
+        }
+      }
+
       // Update pending PRO request if approving
-      if (proAccess) {
+      if (saveProAccess) {
         await supabase
           .from("pro_access_requests" as any)
           .update({ status: "approved", reviewed_at: new Date().toISOString() } as any)
@@ -186,7 +230,8 @@ const UserAccessPage = () => {
       }
 
       toast.success("Configurações de acesso salvas com sucesso!");
-    } catch {
+    } catch (err) {
+      console.error("Erro ao salvar configurações:", err);
       toast.error("Erro ao salvar configurações.");
     }
     setSaving(false);
