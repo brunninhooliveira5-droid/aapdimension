@@ -6,9 +6,11 @@ import { CalculatorProvider } from "@/contexts/CalculatorContext";
 import { CalculatorWidget } from "@/components/CalculatorWidget";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 export function AppLayout() {
   const { isImpersonating } = useImpersonation();
+  usePageTracking();
 
   return (
     <CalculatorProvider>

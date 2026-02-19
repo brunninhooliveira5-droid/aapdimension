@@ -1529,6 +1529,27 @@ export type Database = {
           },
         ]
       }
+      page_visits: {
+        Row: {
+          id: string
+          page_path: string
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          page_path: string
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          page_path?: string
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: []
+      }
       parts_stores: {
         Row: {
           created_at: string
@@ -2188,6 +2209,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_login_events: {
+        Row: {
+          id: string
+          logged_in_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_in_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_in_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_plans: {
         Row: {
           created_at: string
@@ -2305,6 +2344,11 @@ export type Database = {
         Returns: boolean
       }
       record_login_activity: { Args: { p_user_id: string }; Returns: undefined }
+      record_login_event: { Args: { p_user_id: string }; Returns: undefined }
+      record_page_visit: {
+        Args: { p_page_path: string; p_user_id: string }
+        Returns: undefined
+      }
       start_impersonation: { Args: { target_user_id: string }; Returns: string }
       stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
