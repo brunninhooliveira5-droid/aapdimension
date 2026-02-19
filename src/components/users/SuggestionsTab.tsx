@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, MessageSquare, Clock, CheckCircle, AlertCircle, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Filter, MessageSquare, Clock, CheckCircle, AlertCircle, Download, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -140,6 +141,17 @@ export function SuggestionsTab() {
       fetchSuggestions();
     }
     setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await (supabase as any).from("user_suggestions").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir sugestão");
+    } else {
+      toast.success("Sugestão excluída");
+      if (detailSuggestion?.id === id) setDetailSuggestion(null);
+      fetchSuggestions();
+    }
   };
 
   const handleExportCSV = () => {
@@ -299,6 +311,23 @@ export function SuggestionsTab() {
                         >
                           Detalhes
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir sugestão?</AlertDialogTitle>
+                              <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(s.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
