@@ -660,7 +660,9 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   };
 
   const calculate = async () => {
-    const requiredFields = useMasterPricing
+    const isServiceUser = user?.role === "servico";
+    const skipMachine = useMasterPricing || isServiceUser;
+    const requiredFields = skipMachine
       ? (!file || !material || !thickness)
       : (!file || !material || !thickness || !machineId);
     if (requiredFields) {
@@ -743,7 +745,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         pathLengthMM = pathLengthUnits;
       }
 
-      const machine = machines.find((m) => m.id === machineId);
+      const machine = isServiceUser ? null : machines.find((m) => m.id === machineId);
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
       const matId = material.replace("custom_", "");
       const currentMat = customMaterials.find((m) => m.id === matId);
@@ -1059,25 +1061,32 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               </Select>
             </div>
 
-            {/* Machine - hidden for inherited pricing users */}
-            {!useMasterPricing && (
+            {/* Machine - hidden for servico users and inherited pricing users */}
+            {!useMasterPricing && user?.role !== "servico" && (
               <div>
                 <Label className="text-xs">Máquina</Label>
-                <Select value={machineId} onValueChange={setMachineId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a máquina" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {machines.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {machines.length === 0 ? (
+                  <div className="p-3 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground mt-1">
+                    <p className="font-medium text-foreground mb-1">Nenhum equipamento vinculado à sua conta</p>
+                    <p>Entre em contato com o administrador para vincular equipamentos ao seu perfil.</p>
+                  </div>
+                ) : (
+                  <Select value={machineId} onValueChange={setMachineId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a máquina" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {machines.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             )}
 
-            {/* Quantity - hidden for inherited pricing users */}
-            {!useMasterPricing && (
+            {/* Quantity - hidden for servico users and inherited pricing users */}
+            {!useMasterPricing && user?.role !== "servico" && (
               <div>
                 <Label className="text-xs">Quantidade</Label>
                 <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} />
@@ -1169,8 +1178,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                 </div>
               )}
 
-              {/* Overrides: Passadas e Velocidade - hidden for inherited pricing users */}
-              {!useMasterPricing && (
+              {/* Overrides: Passadas e Velocidade - hidden for servico and inherited pricing users */}
+              {!useMasterPricing && user?.role !== "servico" && (
               <Card className="bg-secondary/50 border-border">
                 <CardContent className="p-3 space-y-3">
                   <p className="text-xs font-medium flex items-center gap-1">

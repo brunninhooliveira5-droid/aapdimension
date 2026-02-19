@@ -137,10 +137,12 @@ export default function CuttingQuotePage() {
 
     loadPricing();
 
-    // Load machines
+    // Load machines owned by the effective user (respects impersonation)
+    const effectiveUserId = session.user.id;
     supabase
       .from("machines")
       .select("*")
+      .eq("owner_id", effectiveUserId)
       .then(({ data }) => {
         if (data) setMachines(data);
       });
