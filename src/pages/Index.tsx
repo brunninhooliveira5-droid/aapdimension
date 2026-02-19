@@ -49,7 +49,7 @@ interface MaintenanceData {
 }
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
   const isAdminMaster = user?.role === "admin_master";
@@ -91,12 +91,15 @@ const Index = () => {
       }
 
       // Fetch total machines (exclude accessories) from both tables
+      // For non-admin users, always filter by their own user id
+      const effectiveOwnerId = viewUserId || (!isAdmin ? session?.user?.id : null);
+
       let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
-      if (viewUserId) machineQuery = machineQuery.eq("owner_id", viewUserId);
+      if (effectiveOwnerId) machineQuery = machineQuery.eq("owner_id", effectiveOwnerId);
       const { count: machineCount } = await machineQuery;
 
       let regEquipQuery = (supabase as any).from("registered_equipment").select("*", { count: "exact", head: true }).eq("category", "maquina");
-      if (viewUserId) regEquipQuery = regEquipQuery.eq("owner_id", viewUserId);
+      if (effectiveOwnerId) regEquipQuery = regEquipQuery.eq("owner_id", effectiveOwnerId);
       const { count: regEquipCount } = await regEquipQuery;
 
       setTotalMachines((machineCount ?? 0) + (regEquipCount ?? 0));
