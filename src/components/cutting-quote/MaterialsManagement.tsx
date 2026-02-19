@@ -41,7 +41,7 @@ interface MaterialsManagementProps {
 }
 
 export function MaterialsManagement({ useDimensionMaterials = false, isAdminMaster = false, useMasterPricing = false }: MaterialsManagementProps) {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<{ id: string; name: string; price_adjustment: number } | null>(null);
@@ -53,7 +53,8 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
   // Determine which table to use
   const materialsTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_materials" : useDimensionMaterials ? "dimension_cutting_materials" : "cutting_materials";
   const thicknessesTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_material_thicknesses" : useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
-  const isReadOnly = (useDimensionMaterials && !isAdminMaster) || (useMasterPricing && !isAdminMaster);
+  const isServiceUser = user?.role === "servico";
+  const isReadOnly = isServiceUser || (useDimensionMaterials && !isAdminMaster) || (useMasterPricing && !isAdminMaster);
 
   useEffect(() => {
     if (!session?.user) return;
