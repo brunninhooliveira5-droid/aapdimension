@@ -245,7 +245,15 @@ export default function CuttingQuotePage() {
         </TabsList>
 
         <TabsContent value="simulator">
-          {useMasterPricing ? (
+          {user?.role === "servico" ? (
+            <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
+              <Shield className="w-8 h-8 text-primary mx-auto" />
+              <h3 className="text-sm font-semibold text-foreground">Acesso Restrito</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                O simulador de precificação não está disponível para o seu perfil.
+              </p>
+            </div>
+          ) : useMasterPricing ? (
             <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
               <Shield className="w-8 h-8 text-primary mx-auto" />
               <h3 className="text-sm font-semibold text-foreground">Configuração Dimension CNC Ativa</h3>
