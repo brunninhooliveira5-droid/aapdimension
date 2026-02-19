@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -48,9 +49,10 @@ interface ProfileOption {
 
 const Machines = () => {
   const { user } = useAuth();
+  const { isImpersonating, targetUserId } = useImpersonation();
   const navigate = useNavigate();
-  const isAdminMaster = user?.role === "admin_master";
-  const isAdmin = isAdminMaster || user?.role === "admin";
+  const isAdminMaster = user?.role === "admin_master" && !isImpersonating;
+  const isAdmin = isAdminMaster || (user?.role === "admin" && !isImpersonating);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const catalogImageRef = useRef<HTMLInputElement>(null);
 
@@ -102,7 +104,18 @@ const Machines = () => {
 
   const fetchMachines = async () => {
     setLoading(true);
-    const { data: machinesData } = await supabase.from("machines").select("*");
+    let query = supabase.from("machines").select("*");
+    
+    // When impersonating, show target user's machines; non-admin sees only own machines
+    if (isImpersonating && targetUserId) {
+      query = query.eq("owner_id", targetUserId);
+    } else if (!isAdminMaster) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession?.user?.id) {
+        query = query.eq("owner_id", currentSession.user.id);
+      }
+    }
+    const { data: machinesData } = await query;
 
     if (machinesData) {
       const ownerIds = [...new Set(machinesData.map(m => m.owner_id))];
