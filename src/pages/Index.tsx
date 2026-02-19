@@ -334,7 +334,7 @@ const Index = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
-      <div className="relative rounded-lg overflow-hidden h-40">
+      <div className="relative rounded-lg overflow-hidden h-56">
         {heroMediaType === "video" && heroVideoUrl ? (
           <video
             src={heroVideoUrl}
