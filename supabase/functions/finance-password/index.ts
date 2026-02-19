@@ -6,12 +6,56 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function hashPassword(password: string): Promise<string> {
+// PBKDF2 with salt - secure password hashing using Web Crypto API
+const ITERATIONS = 100000; // OWASP recommended minimum
+const SALT_LENGTH = 16;
+const HASH_LENGTH = 256; // bits
+
+function toHex(buf: Uint8Array): string {
+  return Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function fromHex(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+async function hashPasswordPBKDF2(password: string, salt?: Uint8Array): Promise<{ hash: string; salt: string }> {
+  const useSalt = salt ?? crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const enc = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+
+  const keyMaterial = await crypto.subtle.importKey("raw", enc, "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: useSalt, iterations: ITERATIONS, hash: "SHA-256" },
+    keyMaterial,
+    HASH_LENGTH
+  );
+
+  return { hash: toHex(new Uint8Array(bits)), salt: toHex(useSalt) };
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  // Support legacy SHA-256 hashes (no colon separator) for migration
+  if (!storedHash.includes(":")) {
+    // Legacy SHA-256 verification
+    const enc = new TextEncoder().encode(password);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    const legacyHash = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    return legacyHash === storedHash;
+  }
+
+  // PBKDF2 verification
+  const [saltHex, hashHex] = storedHash.split(":");
+  const salt = fromHex(saltHex);
+  const result = await hashPasswordPBKDF2(password, salt);
+  return result.hash === hashHex;
+}
+
+async function needsRehash(storedHash: string): Promise<boolean> {
+  return !storedHash.includes(":");
 }
 
 Deno.serve(async (req) => {
@@ -65,14 +109,16 @@ Deno.serve(async (req) => {
 
   // SET password (first time or update)
   if (action === "set") {
-    if (!password || password.length < 4) {
+    if (!password || password.length < 6) {
       return new Response(
-        JSON.stringify({ error: "Senha deve ter pelo menos 4 caracteres" }),
+        JSON.stringify({ error: "Senha deve ter pelo menos 6 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const hash = await hashPassword(password);
+    const { hash, salt } = await hashPasswordPBKDF2(password);
+    const storedHash = `${salt}:${hash}`;
+
     const { data: existing } = await supabaseAdmin
       .from("finance_access_passwords")
       .select("id")
@@ -82,12 +128,12 @@ Deno.serve(async (req) => {
     if (existing) {
       await supabaseAdmin
         .from("finance_access_passwords")
-        .update({ password_hash: hash })
+        .update({ password_hash: storedHash })
         .eq("user_id", userId);
     } else {
       await supabaseAdmin
         .from("finance_access_passwords")
-        .insert({ user_id: userId, password_hash: hash });
+        .insert({ user_id: userId, password_hash: storedHash });
     }
 
     return new Response(JSON.stringify({ success: true }), {
@@ -104,17 +150,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    const hash = await hashPassword(password);
     const { data } = await supabaseAdmin
       .from("finance_access_passwords")
       .select("password_hash")
       .eq("user_id", userId)
       .single();
 
-    if (!data || data.password_hash !== hash) {
+    if (!data || !(await verifyPassword(password, data.password_hash))) {
       return new Response(JSON.stringify({ valid: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Migrate legacy hash to PBKDF2 on successful verification
+    if (await needsRehash(data.password_hash)) {
+      const { hash, salt } = await hashPasswordPBKDF2(password);
+      const newStoredHash = `${salt}:${hash}`;
+      await supabaseAdmin
+        .from("finance_access_passwords")
+        .update({ password_hash: newStoredHash })
+        .eq("user_id", userId);
     }
 
     return new Response(JSON.stringify({ valid: true }), {
@@ -124,7 +179,6 @@ Deno.serve(async (req) => {
 
   // RESET password (admin_master only, for a target user)
   if (action === "reset") {
-    // Check if caller is admin_master
     const { data: roleData } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -145,7 +199,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete the password so user must create a new one
     await supabaseAdmin
       .from("finance_access_passwords")
       .delete()

@@ -593,9 +593,18 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     // Generate preview
     const text = await f.text();
     if (ext === "svg") {
-      // Parse SVG, recalculate viewBox from actual content, apply visible colors
+      // Sanitize SVG to prevent XSS
+      const DOMPurify = (await import("dompurify")).default;
+      const sanitized = DOMPurify.sanitize(text, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'g', 'defs', 'clipPath', 'use', 'symbol', 'marker'],
+        FORBID_TAGS: ['script', 'iframe', 'embed', 'object', 'foreignObject'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur'],
+      });
+
+      // Parse sanitized SVG, recalculate viewBox from actual content, apply visible colors
       const parser = new DOMParser();
-      const svgDoc = parser.parseFromString(text, "image/svg+xml");
+      const svgDoc = parser.parseFromString(sanitized, "image/svg+xml");
       const svgEl = svgDoc.querySelector("svg");
       if (svgEl) {
         // Remove fixed dimensions so it scales
