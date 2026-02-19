@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,8 @@ interface ManagedUser {
   approved: boolean;
   rejected: boolean;
   hasCustomAccess: boolean;
+  login_count: number;
+  last_login_at: string | null;
 }
 
 const assignableRoles: { value: UserRole; label: string }[] = [
@@ -70,22 +72,29 @@ const UsersPage = () => {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetTargetUser, setResetTargetUser] = useState<ManagedUser | null>(null);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [sortField, setSortField] = useState<"name" | "last_login" | "login_count">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const fetchUsers = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: accessRows }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: accessRows }, { data: activityRows }] = await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("user_section_access" as any).select("user_id, sections"),
+      supabase.from("user_activity" as any).select("user_id, login_count, last_login_at"),
     ]);
 
     const roleMap = new Map(roles?.map(r => [r.user_id, r.role as UserRole]) ?? []);
     const accessMap = new Set<string>();
     (accessRows as any[] ?? []).forEach((row: any) => {
-      // Has custom access if any section is not default ("visible")
       const sections = row.sections ?? {};
       const hasCustom = Object.values(sections).some((v: any) => v !== "visible");
       if (hasCustom) accessMap.add(row.user_id);
+    });
+
+    const activityMap = new Map<string, { login_count: number; last_login_at: string | null }>();
+    (activityRows as any[] ?? []).forEach((row: any) => {
+      activityMap.set(row.user_id, { login_count: row.login_count ?? 0, last_login_at: row.last_login_at ?? null });
     });
 
     const mapped: ManagedUser[] = (profiles ?? []).map((p: any) => ({
@@ -102,6 +111,8 @@ const UsersPage = () => {
       approved: p.approved ?? false,
       rejected: p.rejected ?? false,
       hasCustomAccess: accessMap.has(p.id),
+      login_count: activityMap.get(p.id)?.login_count ?? 0,
+      last_login_at: activityMap.get(p.id)?.last_login_at ?? null,
     }));
 
     setUsers(mapped);
@@ -249,7 +260,35 @@ const UsersPage = () => {
 
   const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
   const approvedUsersAll = users.filter(u => u.approved || u.role === "admin_master");
-  const approvedUsers = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
+  const approvedFiltered = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
+  
+  const approvedUsers = [...approvedFiltered].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortField === "last_login") {
+      const aTime = a.last_login_at ? new Date(a.last_login_at).getTime() : 0;
+      const bTime = b.last_login_at ? new Date(b.last_login_at).getTime() : 0;
+      return (aTime - bTime) * dir;
+    }
+    if (sortField === "login_count") {
+      return (a.login_count - b.login_count) * dir;
+    }
+    return a.name.localeCompare(b.name) * dir;
+  });
+
+  const toggleSort = (field: "name" | "last_login" | "login_count") => {
+    if (sortField === field) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir(field === "name" ? "asc" : "desc");
+    }
+  };
+
+  const formatDateTime = (iso: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -419,6 +458,18 @@ const UsersPage = () => {
                   <TableHead className="text-muted-foreground text-xs uppercase">E-mail</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Empresa</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Perfil</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase cursor-pointer select-none" onClick={() => toggleSort("last_login")}>
+                    <span className="inline-flex items-center gap-1">
+                      Último Acesso
+                      <ArrowUpDown className="w-3 h-3" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase cursor-pointer select-none" onClick={() => toggleSort("login_count")}>
+                    <span className="inline-flex items-center gap-1">
+                      Logins
+                      <ArrowUpDown className="w-3 h-3" />
+                    </span>
+                  </TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -462,6 +513,12 @@ const UsersPage = () => {
                           </TooltipProvider>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {formatDateTime(u.last_login_at)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm text-center">
+                      {u.login_count}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

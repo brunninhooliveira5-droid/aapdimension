@@ -2167,6 +2167,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity: {
+        Row: {
+          id: string
+          last_login_at: string | null
+          login_count: number
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_login_at?: string | null
+          login_count?: number
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_login_at?: string | null
+          login_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_plans: {
         Row: {
           created_at: string
@@ -2283,6 +2304,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_login_activity: { Args: { p_user_id: string }; Returns: undefined }
       start_impersonation: { Args: { target_user_id: string }; Returns: string }
       stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
