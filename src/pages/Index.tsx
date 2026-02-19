@@ -106,7 +106,7 @@ const Index = () => {
 
       // Fetch invoices
       let invoiceQuery = supabase.from("invoices").select("*");
-      if (viewUserId) invoiceQuery = invoiceQuery.eq("user_id", viewUserId);
+      if (effectiveOwnerId) invoiceQuery = invoiceQuery.eq("user_id", effectiveOwnerId);
       const { data: invoices } = await invoiceQuery;
 
       if (invoices) {
@@ -143,7 +143,7 @@ const Index = () => {
         .from("tickets")
         .select("id, type, description, status, machine_id")
         .order("created_at", { ascending: false });
-      if (viewUserId) ticketQuery = ticketQuery.eq("user_id", viewUserId);
+      if (effectiveOwnerId) ticketQuery = ticketQuery.eq("user_id", effectiveOwnerId);
       const { data: ticketsData } = await ticketQuery;
 
       if (ticketsData && ticketsData.length > 0) {
@@ -166,7 +166,7 @@ const Index = () => {
         .select("id, type, scheduled_date, status, machine_id")
         .gte("scheduled_date", todayStr)
         .order("scheduled_date", { ascending: true });
-      if (viewUserId) maintQuery = maintQuery.eq("user_id", viewUserId);
+      if (effectiveOwnerId) maintQuery = maintQuery.eq("user_id", effectiveOwnerId);
       const { data: maintData } = await maintQuery;
 
       if (maintData && maintData.length > 0) {
