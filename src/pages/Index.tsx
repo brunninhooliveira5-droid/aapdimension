@@ -1,6 +1,6 @@
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors, Camera } from "lucide-react";
+import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2, Scissors, Camera, Video, Image } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,8 +69,11 @@ const Index = () => {
   const [upcomingMaintenances, setUpcomingMaintenances] = useState<MaintenanceData[]>([]);
   const [pendingServiceQuotes, setPendingServiceQuotes] = useState(0);
   const [customBannerUrl, setCustomBannerUrl] = useState<string | null>(null);
+  const [heroMediaType, setHeroMediaType] = useState<"image" | "video">("image");
+  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   // Filter states
   const [ticketSearch, setTicketSearch] = useState("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("todos");
@@ -223,15 +226,20 @@ const Index = () => {
     };
   }, [viewUserId, isAdminMaster, session?.user?.id]);
 
-  // Load custom banner
+  // Load custom banner and media type
   useEffect(() => {
     const loadBanner = async () => {
       const { data } = await supabase
         .from("site_settings" as any)
-        .select("value")
-        .eq("key", "hero_banner_url")
-        .maybeSingle();
-      if ((data as any)?.value) setCustomBannerUrl((data as any).value);
+        .select("key, value")
+        .in("key", ["hero_banner_url", "hero_media_type", "hero_video_url"]);
+      if (data) {
+        for (const row of data as any[]) {
+          if (row.key === "hero_banner_url" && row.value) setCustomBannerUrl(row.value);
+          if (row.key === "hero_media_type" && row.value) setHeroMediaType(row.value as "image" | "video");
+          if (row.key === "hero_video_url" && row.value) setHeroVideoUrl(row.value);
+        }
+      }
     };
     loadBanner();
   }, []);
@@ -248,13 +256,17 @@ const Index = () => {
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from("site-assets").getPublicUrl(path);
       const urlWithCache = `${publicUrl}?t=${Date.now()}`;
-      // Upsert setting
-      const { error: dbErr } = await (supabase as any).from("site_settings").upsert(
-        { key: "hero_banner_url", value: urlWithCache, updated_by: (await supabase.auth.getSession()).data.session?.user?.id },
+      const userId = (await supabase.auth.getSession()).data.session?.user?.id;
+      await (supabase as any).from("site_settings").upsert(
+        { key: "hero_banner_url", value: urlWithCache, updated_by: userId },
         { onConflict: "key" }
       );
-      if (dbErr) throw dbErr;
+      await (supabase as any).from("site_settings").upsert(
+        { key: "hero_media_type", value: "image", updated_by: userId },
+        { onConflict: "key" }
+      );
       setCustomBannerUrl(urlWithCache);
+      setHeroMediaType("image");
       toast.success("Imagem de apresentação atualizada!");
     } catch (err: any) {
       toast.error("Erro ao enviar imagem: " + err.message);
@@ -262,6 +274,54 @@ const Index = () => {
       setUploadingBanner(false);
       if (bannerInputRef.current) bannerInputRef.current.value = "";
     }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("video/")) { toast.error("Selecione um vídeo válido"); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error("O vídeo deve ter no máximo 50MB"); return; }
+    setUploadingBanner(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `hero-video.${ext}`;
+      const { error: upErr } = await supabase.storage.from("site-assets").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("site-assets").getPublicUrl(path);
+      const urlWithCache = `${publicUrl}?t=${Date.now()}`;
+      const userId = (await supabase.auth.getSession()).data.session?.user?.id;
+      await (supabase as any).from("site_settings").upsert(
+        { key: "hero_video_url", value: urlWithCache, updated_by: userId },
+        { onConflict: "key" }
+      );
+      await (supabase as any).from("site_settings").upsert(
+        { key: "hero_media_type", value: "video", updated_by: userId },
+        { onConflict: "key" }
+      );
+      setHeroVideoUrl(urlWithCache);
+      setHeroMediaType("video");
+      toast.success("Vídeo de apresentação atualizado!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar vídeo: " + err.message);
+    } finally {
+      setUploadingBanner(false);
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    }
+  };
+
+  const toggleMediaType = async () => {
+    const newType = heroMediaType === "image" ? "video" : "image";
+    if (newType === "video" && !heroVideoUrl) {
+      toast.error("Nenhum vídeo enviado ainda. Envie um vídeo primeiro.");
+      return;
+    }
+    const userId = (await supabase.auth.getSession()).data.session?.user?.id;
+    await (supabase as any).from("site_settings").upsert(
+      { key: "hero_media_type", value: newType, updated_by: userId },
+      { onConflict: "key" }
+    );
+    setHeroMediaType(newType);
+    toast.success(`Mídia alterada para ${newType === "image" ? "foto" : "vídeo"}`);
   };
 
   const nextDueInvoice = openInvoices.length > 0
@@ -275,7 +335,18 @@ const Index = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Hero Banner */}
       <div className="relative rounded-lg overflow-hidden h-40">
-        <img src={customBannerUrl || heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
+        {heroMediaType === "video" && heroVideoUrl ? (
+          <video
+            src={heroVideoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img src={customBannerUrl || heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center px-6">
           <div>
@@ -293,19 +364,40 @@ const Index = () => {
           </div>
         </div>
         {isAdminMaster && !isViewingUser && (
-          <>
+          <div className="absolute bottom-3 right-3 flex gap-1.5">
             <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+            <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
             <Button
               size="sm"
               variant="secondary"
-              className="absolute bottom-3 right-3 gap-1.5 text-xs opacity-80 hover:opacity-100"
+              className="gap-1.5 text-xs opacity-80 hover:opacity-100"
+              onClick={toggleMediaType}
+              disabled={uploadingBanner}
+            >
+              {heroMediaType === "image" ? <Video className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
+              {heroMediaType === "image" ? "Usar vídeo" : "Usar foto"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1.5 text-xs opacity-80 hover:opacity-100"
               onClick={() => bannerInputRef.current?.click()}
               disabled={uploadingBanner}
             >
               <Camera className="w-3.5 h-3.5" />
-              {uploadingBanner ? "Enviando..." : "Alterar foto"}
+              {uploadingBanner ? "Enviando..." : "Foto"}
             </Button>
-          </>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1.5 text-xs opacity-80 hover:opacity-100"
+              onClick={() => videoInputRef.current?.click()}
+              disabled={uploadingBanner}
+            >
+              <Video className="w-3.5 h-3.5" />
+              {uploadingBanner ? "Enviando..." : "Vídeo"}
+            </Button>
+          </div>
         )}
       </div>
 
