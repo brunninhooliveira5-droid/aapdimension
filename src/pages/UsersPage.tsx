@@ -74,6 +74,7 @@ const UsersPage = () => {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [sortField, setSortField] = useState<"name" | "last_login" | "login_count">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [activityFilter, setActivityFilter] = useState<"todos" | "nunca" | "30" | "60" | "90">("todos");
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -260,7 +261,18 @@ const UsersPage = () => {
 
   const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
   const approvedUsersAll = users.filter(u => u.approved || u.role === "admin_master");
-  const approvedFiltered = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
+  const approvedRoleFiltered = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
+
+  // Activity filter
+  const now = Date.now();
+  const approvedFiltered = approvedRoleFiltered.filter(u => {
+    if (activityFilter === "todos") return true;
+    if (activityFilter === "nunca") return !u.last_login_at || u.login_count === 0;
+    const days = parseInt(activityFilter);
+    if (!u.last_login_at) return true; // no login = inactive
+    const diff = now - new Date(u.last_login_at).getTime();
+    return diff > days * 24 * 60 * 60 * 1000;
+  });
   
   const approvedUsers = [...approvedFiltered].sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1;
@@ -285,10 +297,27 @@ const UsersPage = () => {
   };
 
   const formatDateTime = (iso: string | null) => {
-    if (!iso) return "—";
+    if (!iso) return "Nunca";
     const d = new Date(iso);
     return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   };
+
+  const getActivityStatus = (u: ManagedUser) => {
+    if (!u.last_login_at || u.login_count === 0) return { label: "Nunca acessou", color: "bg-muted text-muted-foreground border-border", tooltip: "Este usuário nunca fez login" };
+    const diffMs = now - new Date(u.last_login_at).getTime();
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    if (diffDays >= 90) return { label: "Inativo", color: "bg-warning/15 text-warning border-warning/30", tooltip: `Último acesso há ${diffDays} dias` };
+    if (diffDays >= 30) return { label: "Inativo", color: "bg-warning/15 text-warning border-warning/30", tooltip: `Último acesso há ${diffDays} dias` };
+    return { label: "Ativo", color: "bg-success/15 text-success border-success/30", tooltip: `Último acesso há ${diffDays} dia${diffDays !== 1 ? "s" : ""}` };
+  };
+
+  const activityChips: { value: typeof activityFilter; label: string }[] = [
+    { value: "todos", label: "Todos" },
+    { value: "nunca", label: "Nunca acessou" },
+    { value: "30", label: "Inativo 30d" },
+    { value: "60", label: "Inativo 60d" },
+    { value: "90", label: "Inativo 90d" },
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -406,8 +435,8 @@ const UsersPage = () => {
 
         {/* Approved Users */}
         <TabsContent value="approved">
-          {/* Role filter */}
-          <div className="flex items-center gap-2 mb-3">
+          {/* Filters row */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="w-[180px] h-9 text-sm">
                 <SelectValue placeholder="Filtrar por perfil" />
@@ -421,7 +450,27 @@ const UsersPage = () => {
                 <SelectItem value="servico">Serviço</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">{approvedUsers.length} de {approvedUsersAll.length} usuário(s)</span>
+
+            <div className="h-6 w-px bg-border mx-1" />
+
+            <div className="flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+              {activityChips.map(chip => (
+                <button
+                  key={chip.value}
+                  onClick={() => setActivityFilter(chip.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                    activityFilter === chip.value
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-accent/50 text-muted-foreground border-border hover:bg-accent"
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
+            <span className="text-xs text-muted-foreground ml-auto">{approvedUsers.length} de {approvedUsersAll.length} usuário(s)</span>
           </div>
           {/* Batch actions bar */}
           {selectedUserIds.size > 0 && (
@@ -514,8 +563,22 @@ const UsersPage = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                      {formatDateTime(u.last_login_at)}
+                    <TableCell className="text-sm whitespace-nowrap">
+                      <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${getActivityStatus(u).color}`}>
+                                {getActivityStatus(u).label}
+                              </span>
+                              <span className="text-muted-foreground">{formatDateTime(u.last_login_at)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            {getActivityStatus(u).tooltip}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm text-center">
                       {u.login_count}
