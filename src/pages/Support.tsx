@@ -402,6 +402,7 @@ const Support = () => {
                     }}>
                       <Pencil className="w-3 h-3" /> Editar
                     </Button>
+                    {user?.role === "admin_master" && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive">
@@ -419,6 +420,7 @@ const Support = () => {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    )}
                   </div>
                 </div>
               )}
