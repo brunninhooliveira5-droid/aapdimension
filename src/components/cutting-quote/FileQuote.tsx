@@ -672,7 +672,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
   const calculate = async () => {
     const isServiceUser = user?.role === "servico";
-    const skipMachine = useMasterPricing || isServiceUser;
+    const skipMachine = useMasterPricing || isServiceUser || isAdminMaster;
     const requiredFields = skipMachine
       ? (!file || !material || !thickness)
       : (!file || !material || !thickness || !machineId);
@@ -756,7 +756,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         pathLengthMM = pathLengthUnits;
       }
 
-      const machine = isServiceUser ? null : machines.find((m) => m.id === machineId);
+      const machine = (isServiceUser || isAdminMaster) ? null : machines.find((m) => m.id === machineId);
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
       const matId = material.replace("custom_", "");
       const currentMat = customMaterials.find((m) => m.id === matId);
@@ -1073,7 +1073,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             </div>
 
             {/* Machine - hidden for servico users and inherited pricing users */}
-            {!useMasterPricing && user?.role !== "servico" && (
+            {!useMasterPricing && user?.role !== "servico" && !isAdminMaster && (
               <div>
                 <Label className="text-xs">Máquina</Label>
                 {machines.length === 0 ? (
