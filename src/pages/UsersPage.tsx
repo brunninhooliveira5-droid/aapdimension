@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
 import { ProPlanManager } from "@/components/users/ProPlanManager";
+import { SuggestionsTab } from "@/components/users/SuggestionsTab";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -368,6 +369,10 @@ const UsersPage = () => {
             <Star className="w-3.5 h-3.5" />
             Planos PRO
           </TabsTrigger>
+          <TabsTrigger value="suggestions" className="gap-2">
+            <MessageSquare className="w-3.5 h-3.5" />
+            Sugestões
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Users */}
@@ -629,6 +634,11 @@ const UsersPage = () => {
         {/* PRO Plans */}
         <TabsContent value="plans">
           <ProPlanManager />
+        </TabsContent>
+
+        {/* Suggestions */}
+        <TabsContent value="suggestions">
+          <SuggestionsTab />
         </TabsContent>
       </Tabs>
 

@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BulletinCard } from "@/components/BulletinCard";
+import { SuggestionCard } from "@/components/SuggestionCard";
 
 interface InvoiceWithUser {
   id: string;
@@ -406,7 +407,8 @@ const Index = () => {
         )}
       </div>
 
-      {/* PRO Status Card */}
+      {/* Suggestion Card + PRO Status Card */}
+      <SuggestionCard />
       <ProStatusCard />
 
       {/* Financial Status Banner for regular users */}
