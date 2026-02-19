@@ -266,8 +266,9 @@ const Financial = () => {
               ) : (
                 invoices.map(inv => {
                   const files = invoiceFiles.filter(f => f.invoice_id === inv.id);
+                  const isOverdue = inv.status === "em_aberto" && inv.due_date < today;
                   return (
-                    <div key={inv.id} className="p-4 space-y-3">
+                    <div key={inv.id} className={`p-4 space-y-3 ${isOverdue ? "border-l-4 border-l-destructive bg-destructive/5" : ""}`}>
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-4">
                           <span className="text-sm font-mono font-semibold text-foreground">
@@ -286,7 +287,15 @@ const Financial = () => {
                             </span>
                           )}
                         </div>
-                        <StatusBadge status={inv.status} />
+                        <div className="flex items-center gap-2">
+                          {isOverdue && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-destructive/15 text-destructive border border-destructive/30">
+                              <AlertTriangle className="w-3 h-3" />
+                              ATRASADO
+                            </span>
+                          )}
+                          <StatusBadge status={inv.status} />
+                        </div>
                       </div>
 
                       {/* Files - download + upload comprovante */}
