@@ -92,7 +92,7 @@ const Index = () => {
 
       // Fetch total machines (exclude accessories) from both tables
       // For non-admin users, always filter by their own user id
-      const effectiveOwnerId = viewUserId || (!isAdmin ? session?.user?.id : null);
+      const effectiveOwnerId = viewUserId || (!isAdminMaster ? session?.user?.id : null);
 
       let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
       if (effectiveOwnerId) machineQuery = machineQuery.eq("owner_id", effectiveOwnerId);
