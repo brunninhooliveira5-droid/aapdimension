@@ -343,6 +343,11 @@ const Index = () => {
             muted
             playsInline
             className="w-full h-full object-cover"
+            onEnded={(e) => {
+              const video = e.currentTarget;
+              video.currentTime = 0;
+              video.play();
+            }}
           />
         ) : (
           <img src={customBannerUrl || heroWelcome} alt="CNC Machine" className="w-full h-full object-cover" />
