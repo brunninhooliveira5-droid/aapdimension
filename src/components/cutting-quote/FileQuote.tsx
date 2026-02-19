@@ -672,7 +672,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
   const calculate = async () => {
     const isServiceUser = user?.role === "servico";
-    const skipMachine = useMasterPricing || isServiceUser || isAdminMaster;
+    const skipMachine = true;
     const requiredFields = skipMachine
       ? (!file || !material || !thickness)
       : (!file || !material || !thickness || !machineId);
@@ -756,7 +756,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         pathLengthMM = pathLengthUnits;
       }
 
-      const machine = (isServiceUser || isAdminMaster) ? null : machines.find((m) => m.id === machineId);
+      const machine = null;
       const materialLabel = allMaterials.find((m) => m.value === material)?.label || material;
       const matId = material.replace("custom_", "");
       const currentMat = customMaterials.find((m) => m.id === matId);
@@ -1072,29 +1072,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               </Select>
             </div>
 
-            {/* Machine - hidden for servico users and inherited pricing users */}
-            {!useMasterPricing && user?.role !== "servico" && !isAdminMaster && (
-              <div>
-                <Label className="text-xs">Máquina</Label>
-                {machines.length === 0 ? (
-                  <div className="p-3 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground mt-1">
-                    <p className="font-medium text-foreground mb-1">Nenhum equipamento vinculado à sua conta</p>
-                    <p>Entre em contato com o administrador para vincular equipamentos ao seu perfil.</p>
-                  </div>
-                ) : (
-                  <Select value={machineId} onValueChange={setMachineId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a máquina" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {machines.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name ? `${m.name} — ` : ""}{m.model} ({m.serial_number})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            )}
+            {/* Machine selector removed - no longer required for any profile */}
 
             {/* Quantity - hidden for servico users and inherited pricing users */}
             {!useMasterPricing && user?.role !== "servico" && (
