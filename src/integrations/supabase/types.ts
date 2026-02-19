@@ -1028,6 +1028,33 @@ export type Database = {
         }
         Relationships: []
       }
+      impersonation_logs: {
+        Row: {
+          admin_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          target_user_id: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       invoice_files: {
         Row: {
           created_at: string
@@ -2256,6 +2283,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      start_impersonation: { Args: { target_user_id: string }; Returns: string }
+      stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin_master" | "admin" | "operador" | "financeiro" | "servico"

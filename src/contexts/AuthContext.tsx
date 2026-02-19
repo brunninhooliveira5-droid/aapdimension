@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
@@ -58,12 +58,16 @@ interface AuthContextType {
   isLoading: boolean;
   user: Profile | null;
   session: Session | null;
+  /** The real admin profile when impersonating, otherwise null */
+  realAdminUser: Profile | null;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
   signup: (email: string, password: string, name: string, role?: UserRole, extra?: SignupExtra) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   hasAccess: (section: string) => boolean;
   getSectionVisibility: (section: string) => SectionVisibility;
   hasProAccess: (feature?: string) => boolean;
+  loadImpersonatedProfile: (targetUserId: string) => Promise<void>;
+  clearImpersonatedProfile: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -71,6 +75,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<Profile | null>(null);
+  const [realAdminUser, setRealAdminUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string, email: string): Promise<Profile | null> => {
@@ -154,7 +159,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(null);
           setUser(null);
         } else {
-          setUser(p);
+          // Check if impersonation is active from localStorage
+          try {
+            const impState = JSON.parse(localStorage.getItem("impersonation_state") || "{}");
+            if (impState.active && impState.targetUserId && p?.role === "admin_master") {
+              // Store admin profile, then load target profile
+              setRealAdminUser(p);
+              const targetP = await fetchProfile(impState.targetUserId, "");
+              setUser(targetP);
+            } else {
+              setUser(p);
+            }
+          } catch {
+            setUser(p);
+          }
         }
       }
       setIsLoading(false);
@@ -195,26 +213,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setRealAdminUser(null);
     setSession(null);
   };
 
+  const loadImpersonatedProfile = useCallback(async (targetUserId: string) => {
+    // Save current user as admin before overwriting
+    setRealAdminUser(user);
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", targetUserId).single();
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", targetUserId).single();
+    const { data: planData } = await supabase.from("user_plans").select("*").eq("user_id", targetUserId).single();
+    const { data: accessData } = await supabase.from("user_section_access" as any).select("sections").eq("user_id", targetUserId).single();
+
+    const role = (roleData?.role as UserRole) ?? "operador";
+    const userPlan: UserPlan | null = planData
+      ? {
+          plan: planData.plan,
+          pro_access: planData.pro_access,
+          features_enabled: planData.features_enabled ?? [],
+          max_quotes_per_month: planData.max_quotes_per_month,
+          max_financial_entries: planData.max_financial_entries,
+          valid_until: planData.valid_until ?? null,
+          pro_activated_at: planData.pro_activated_at ?? null,
+        }
+      : null;
+
+    const sectionAccess: Record<string, SectionVisibility> = (accessData as any)?.sections ?? {};
+
+    setUser({
+      name: profile?.name ?? "",
+      email: profile?.email ?? "",
+      initials: profile?.initials ?? "",
+      company: profile?.company ?? "",
+      role,
+      approved: (profile as any)?.approved ?? false,
+      userPlan,
+      sectionAccess,
+    });
+  }, [user]);
+
+  const clearImpersonatedProfile = useCallback(() => {
+    if (realAdminUser) {
+      setUser(realAdminUser);
+      setRealAdminUser(null);
+    }
+  }, [realAdminUser]);
+
   const getSectionVisibility = (section: string): SectionVisibility => {
     if (!user) return "hidden";
-    // admin_master always has full access
     if (user.role === "admin_master") return "visible";
-    // Check per-user override first (set by admin_master, takes priority)
     const override = user.sectionAccess[section];
     if (override) return override;
-    // Fallback: check if role allows this section
     const roleAllows = rolePermissions[user.role]?.includes(section) ?? false;
     if (!roleAllows) return "hidden";
-    // Default: visible if role allows
     return "visible";
   };
 
   const hasAccess = (section: string): boolean => {
     const vis = getSectionVisibility(section);
-    // "visible" and "locked" both show in the menu; "hidden" does not
     return vis === "visible" || vis === "locked";
   };
 
@@ -223,7 +279,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user.role === "admin_master") return true;
     if (!user.userPlan) return false;
     if (!user.userPlan.pro_access) return false;
-    // Check expiration
     if (user.userPlan.valid_until) {
       const expiresAt = new Date(user.userPlan.valid_until);
       if (expiresAt <= new Date()) return false;
@@ -239,12 +294,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         user,
         session,
+        realAdminUser,
         login,
         signup,
         logout,
         hasAccess,
         getSectionVisibility,
         hasProAccess,
+        loadImpersonatedProfile,
+        clearImpersonatedProfile,
       }}
     >
       {children}
