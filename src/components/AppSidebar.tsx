@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText, CalculatorIcon } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText, CalculatorIcon, Construction } from "lucide-react";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -50,7 +50,7 @@ const basicMenuItems = [
 ];
 
 const proMenuItems = [
-  { title: "Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira", proFeature: "gestao_financeira" },
+  { title: "Gerenciador Financeiro", url: "/gestao-financeira", icon: Landmark, section: "gestao_financeira", proFeature: "gestao_financeira" },
 ];
 
 export function AppSidebar() {
@@ -230,6 +230,10 @@ export function AppSidebar() {
                           <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
                             <item.icon className="h-4 w-4" />
                             <span>{item.title}</span>
+                            <span className="ml-auto inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">
+                              <Construction className="w-2.5 h-2.5" />
+                              Beta
+                            </span>
                           </NavLink>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

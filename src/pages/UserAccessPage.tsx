@@ -37,7 +37,7 @@ const ALL_SECTIONS: SectionConfig[] = [
   { key: "boletins", label: "Boletins Técnicos", icon: Newspaper },
   { key: "arquivos", label: "Arquivos", icon: FolderOpen },
   { key: "orcamento", label: "Orçamento de Corte", icon: Calculator },
-  { key: "gestao_financeira", label: "Financeiro (PRO)", icon: Landmark, isPro: true },
+  { key: "gestao_financeira", label: "Gerenciador Financeiro (PRO)", icon: Landmark, isPro: true },
 ];
 
 const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
