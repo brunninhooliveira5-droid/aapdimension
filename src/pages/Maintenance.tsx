@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Calendar, Wrench, Search, Filter } from "lucide-react";
+import { Calendar, Wrench, Search, Filter, Info } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,6 +88,17 @@ const Maintenance = () => {
       <div>
         <h1 className="text-xl font-bold text-foreground">Manutenção</h1>
         <p className="text-sm text-muted-foreground mt-1">{maintenances.length} registros</p>
+      </div>
+
+      {/* Informativo */}
+      <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+        <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+        <div className="text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Área gerenciada pela Dimension CNC</p>
+          <p className="mt-1">
+            Esta seção é utilizada exclusivamente pela equipe Dimension para sinalizar manutenções preventivas, observações técnicas e recomendações a serem realizadas nos seus equipamentos.
+          </p>
+        </div>
       </div>
 
       {/* Filters */}
