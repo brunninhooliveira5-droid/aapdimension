@@ -50,9 +50,9 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
   const [newThickness, setNewThickness] = useState("");
   const [seedingPresets, setSeedingPresets] = useState(false);
 
-  // Determine which table to use
-  const materialsTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_materials" : useDimensionMaterials ? "dimension_cutting_materials" : "cutting_materials";
-  const thicknessesTable = (useDimensionMaterials && isAdminMaster) ? "dimension_cutting_material_thicknesses" : useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
+  // Determine which table to use — admin_master ALWAYS edits dimension tables so inherited users see changes
+  const materialsTable = isAdminMaster || useDimensionMaterials ? "dimension_cutting_materials" : "cutting_materials";
+  const thicknessesTable = isAdminMaster || useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
   const isServiceUser = user?.role === "servico";
   const isReadOnly = isServiceUser || (useDimensionMaterials && !isAdminMaster) || (useMasterPricing && !isAdminMaster);
 
