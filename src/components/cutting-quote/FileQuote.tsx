@@ -1510,6 +1510,10 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                   <Save className="w-4 h-4" /> Salvar Orçamento
                 </Button>
               </div>
+
+              <Button variant="outline" className="w-full gap-2 mt-2" onClick={removeFile}>
+                <RotateCcw className="w-4 h-4" /> Fazer um Novo Orçamento
+              </Button>
             </CardContent>
           </Card>
         )}
