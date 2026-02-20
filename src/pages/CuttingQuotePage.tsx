@@ -90,8 +90,10 @@ export default function CuttingQuotePage() {
         .maybeSingle();
 
       const inheritMaster = (planData as any)?.use_master_pricing ?? false;
+      const inheritDimensionMaterials = (planData as any)?.use_dimension_materials ?? false;
       setUseMasterPricing(inheritMaster);
-      setUseDimensionMaterials((planData as any)?.use_dimension_materials ?? false);
+      // Service users inheriting master pricing should also use dimension materials
+      setUseDimensionMaterials(inheritDimensionMaterials || inheritMaster);
 
       if (inheritMaster) {
         // Find admin_master user via secure RPC function (bypasses RLS)
@@ -151,6 +153,10 @@ export default function CuttingQuotePage() {
 
   const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing;
   const canAccessClientes = user?.role === "admin_master";
+  const isServico = user?.role === "servico";
+
+  // Calculate grid columns: base 6 tabs, minus simulator for servico, plus clients for admin
+  const tabCount = (isServico ? 5 : 6) + (canAccessClientes ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -208,13 +214,15 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className={`grid w-full max-w-4xl ${canAccessClientes ? "grid-cols-7" : "grid-cols-6"}`}>
+        <TabsList className={`grid w-full max-w-4xl grid-cols-${tabCount}`}>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
-          <TabsTrigger value="simulator" className="gap-2">
-            <Calculator className="w-4 h-4" /> Simulador
-          </TabsTrigger>
+          {!isServico && (
+            <TabsTrigger value="simulator" className="gap-2">
+              <Calculator className="w-4 h-4" /> Simulador
+            </TabsTrigger>
+          )}
           <TabsTrigger
             value="history"
             className="gap-2"
@@ -245,31 +253,25 @@ export default function CuttingQuotePage() {
           )}
         </TabsList>
 
-        <TabsContent value="simulator">
-          {user?.role === "servico" ? (
-            <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
-              <Shield className="w-8 h-8 text-primary mx-auto" />
-              <h3 className="text-sm font-semibold text-foreground">Acesso Restrito</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                O simulador de precificação não está disponível para o seu perfil.
-              </p>
-            </div>
-          ) : useMasterPricing ? (
-            <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
-              <Shield className="w-8 h-8 text-primary mx-auto" />
-              <h3 className="text-sm font-semibold text-foreground">Configuração Dimension CNC Ativa</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Este módulo está utilizando as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master. 
-                Não é possível editar os parâmetros enquanto esta configuração estiver ativa.
-              </p>
-              <p className="text-[10px] text-muted-foreground italic">
-                Para utilizar configurações próprias, entre em contato com o administrador.
-              </p>
-            </div>
-          ) : (
-            <PricingSimulator onPricingChange={setPricing} />
-          )}
-        </TabsContent>
+        {!isServico && (
+          <TabsContent value="simulator">
+            {useMasterPricing ? (
+              <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
+                <Shield className="w-8 h-8 text-primary mx-auto" />
+                <h3 className="text-sm font-semibold text-foreground">Configuração Dimension CNC Ativa</h3>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  Este módulo está utilizando as configurações oficiais de precificação da Dimension CNC, definidas pelo administrador master. 
+                  Não é possível editar os parâmetros enquanto esta configuração estiver ativa.
+                </p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Para utilizar configurações próprias, entre em contato com o administrador.
+                </p>
+              </div>
+            ) : (
+              <PricingSimulator onPricingChange={setPricing} />
+            )}
+          </TabsContent>
+        )}
 
         <TabsContent value="quote">
           <FileQuote pricing={pricing} machines={machines} useMasterPricing={useMasterPricing} useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} pricingLoaded={pricingLoaded} masterPricingError={masterPricingError} />
@@ -286,7 +288,7 @@ export default function CuttingQuotePage() {
         </TabsContent>
 
         <TabsContent value="materials">
-          <MaterialsManagement useDimensionMaterials={useDimensionMaterials} isAdminMaster={user?.role === "admin_master"} useMasterPricing={useMasterPricing} />
+          <MaterialsManagement useDimensionMaterials={useDimensionMaterials || isServico} isAdminMaster={user?.role === "admin_master"} useMasterPricing={useMasterPricing || isServico} />
         </TabsContent>
 
         <TabsContent value="pdf-config">
