@@ -15,11 +15,13 @@ import { BulletinCard } from "@/components/BulletinCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import type { Tables } from "@/integrations/supabase/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function CuttingQuotePage() {
   const { session, user, getSectionVisibility } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "quote";
   const [pricing, setPricing] = useState<PricingData>({
@@ -74,17 +76,17 @@ export default function CuttingQuotePage() {
 
   // Load pricing settings - check if user inherits from admin master
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user || !effectiveUserId) return;
 
     const loadPricing = async () => {
       setPricingLoaded(false);
       setMasterPricingError(false);
 
-      // Check if user has use_master_pricing flag
+      // Check if the effective user has use_master_pricing flag
       const { data: planData } = await supabase
         .from("user_plans")
         .select("use_master_pricing, use_dimension_materials")
-        .eq("user_id", session.user.id)
+        .eq("user_id", effectiveUserId)
         .maybeSingle();
 
       const inheritMaster = (planData as any)?.use_master_pricing ?? false;
@@ -118,18 +120,18 @@ export default function CuttingQuotePage() {
           setPricingOwnerId(null);
         }
       } else {
-        // Load own pricing settings
+        // Load the effective user's own pricing settings
         const { data } = await supabase
           .from("pricing_settings" as any)
           .select("*")
-          .eq("user_id", session.user.id)
+          .eq("user_id", effectiveUserId)
           .maybeSingle() as any;
 
         if (data) {
           setPricing(computePricing(data));
         }
         setPricingSource("user");
-        setPricingOwnerId(session.user.id);
+        setPricingOwnerId(effectiveUserId);
       }
 
       setPricingLoaded(true);
@@ -138,7 +140,6 @@ export default function CuttingQuotePage() {
     loadPricing();
 
     // Load machines owned by the effective user (respects impersonation)
-    const effectiveUserId = session.user.id;
     supabase
       .from("machines")
       .select("*")
@@ -146,7 +147,7 @@ export default function CuttingQuotePage() {
       .then(({ data }) => {
         if (data) setMachines(data);
       });
-  }, [session]);
+  }, [session, effectiveUserId, isImpersonating]);
 
   const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing;
   const canAccessClientes = user?.role === "admin_master";
