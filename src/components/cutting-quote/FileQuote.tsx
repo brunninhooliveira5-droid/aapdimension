@@ -403,10 +403,13 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   const [customMaterials, setCustomMaterials] = useState<{ id: string; name: string; price_adjustment: number }[]>([]);
   const [pdfSettings, setPdfSettings] = useState<PdfSettings | null>(null);
   const [priceAssistantOpen, setPriceAssistantOpen] = useState(false);
+  // Admin master always uses dimension materials (they manage those tables directly)
+  const effectiveDimensionMaterials = useDimensionMaterials || isAdminMaster;
+
   // Load custom materials (or dimension materials)
   useEffect(() => {
     if (!session?.user) return;
-    if (useDimensionMaterials) {
+    if (effectiveDimensionMaterials) {
       // Load from dimension catalog
       supabase
         .from("dimension_cutting_materials" as any)
@@ -425,7 +428,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
           if (data) setCustomMaterials(data as any);
         });
     }
-  }, [session, useDimensionMaterials]);
+  }, [session, effectiveDimensionMaterials]);
 
   // Load PDF settings
   useEffect(() => {
@@ -473,8 +476,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   useEffect(() => {
     if (!material) { setAvailableThicknesses([]); return; }
     const matId = material.replace("custom_", "");
-    const table = useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
-    const selectCols = useDimensionMaterials
+    const table = effectiveDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
+    const selectCols = effectiveDimensionMaterials
       ? "value, label, sheet_width, sheet_height, unit_price, speed_factor"
       : "value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor";
     supabase
@@ -494,7 +497,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
           setAvailableThicknesses(mapped);
         }
       });
-  }, [material, useDimensionMaterials]);
+  }, [material, effectiveDimensionMaterials]);
 
   const allMaterials = customMaterials.map((m) => ({ value: `custom_${m.id}`, label: m.name }));
 
