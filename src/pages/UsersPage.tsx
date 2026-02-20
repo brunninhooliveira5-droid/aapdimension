@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { type UserRole, roleLabels } from "@/contexts/AuthContext";
 import { ProPlanManager } from "@/components/users/ProPlanManager";
 import { SuggestionsTab } from "@/components/users/SuggestionsTab";
+import { TemplatesTab } from "@/components/users/TemplatesTab";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -373,6 +374,10 @@ const UsersPage = () => {
             <MessageSquare className="w-3.5 h-3.5" />
             Sugestões
           </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            Templates
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Users */}
@@ -639,6 +644,11 @@ const UsersPage = () => {
         {/* Suggestions */}
         <TabsContent value="suggestions">
           <SuggestionsTab />
+        </TabsContent>
+
+        {/* Templates */}
+        <TabsContent value="templates">
+          <TemplatesTab />
         </TabsContent>
       </Tabs>
 
