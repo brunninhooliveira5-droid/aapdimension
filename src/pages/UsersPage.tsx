@@ -42,6 +42,7 @@ interface ManagedUser {
   hasCustomAccess: boolean;
   login_count: number;
   last_login_at: string | null;
+  appliedTemplateName: string | null;
 }
 
 const assignableRoles: { value: UserRole; label: string }[] = [
@@ -80,19 +81,26 @@ const UsersPage = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: accessRows }, { data: activityRows }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: accessRows }, { data: activityRows }, { data: templatesList }] = await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("user_roles").select("user_id, role"),
-      supabase.from("user_section_access" as any).select("user_id, sections"),
+      supabase.from("user_section_access" as any).select("user_id, sections, applied_template_id"),
       supabase.from("user_activity" as any).select("user_id, login_count, last_login_at"),
+      supabase.from("access_templates" as any).select("id, name"),
     ]);
 
     const roleMap = new Map(roles?.map(r => [r.user_id, r.role as UserRole]) ?? []);
     const accessMap = new Set<string>();
+    const templateMap = new Map<string, string>(); // user_id -> template name
+    const tplNameMap = new Map<string, string>(); // template_id -> name
+    (templatesList as any[] ?? []).forEach((t: any) => tplNameMap.set(t.id, t.name));
     (accessRows as any[] ?? []).forEach((row: any) => {
       const sections = row.sections ?? {};
       const hasCustom = Object.values(sections).some((v: any) => v !== "visible");
       if (hasCustom) accessMap.add(row.user_id);
+      if (row.applied_template_id && tplNameMap.has(row.applied_template_id)) {
+        templateMap.set(row.user_id, tplNameMap.get(row.applied_template_id)!);
+      }
     });
 
     const activityMap = new Map<string, { login_count: number; last_login_at: string | null }>();
@@ -116,6 +124,7 @@ const UsersPage = () => {
       hasCustomAccess: accessMap.has(p.id),
       login_count: activityMap.get(p.id)?.login_count ?? 0,
       last_login_at: activityMap.get(p.id)?.last_login_at ?? null,
+      appliedTemplateName: templateMap.get(p.id) ?? null,
     }));
 
     setUsers(mapped);
@@ -174,12 +183,12 @@ const UsersPage = () => {
         if (existing) {
           await supabase
             .from("user_section_access" as any)
-            .update({ sections: tpl.sections } as any)
+            .update({ sections: tpl.sections, applied_template_id: tpl.id } as any)
             .eq("user_id", uid);
         } else {
           await supabase
             .from("user_section_access" as any)
-            .insert({ user_id: uid, sections: tpl.sections } as any);
+            .insert({ user_id: uid, sections: tpl.sections, applied_template_id: tpl.id } as any);
         }
 
         // Update PRO access
@@ -517,6 +526,7 @@ const UsersPage = () => {
                   <TableHead className="text-muted-foreground text-xs uppercase">E-mail</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Empresa</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Perfil</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase">Template</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase cursor-pointer select-none" onClick={() => toggleSort("last_login")}>
                     <span className="inline-flex items-center gap-1">
                       Último Acesso
@@ -572,6 +582,16 @@ const UsersPage = () => {
                           </TooltipProvider>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {u.appliedTemplateName ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-foreground border border-border">
+                          <BookmarkCheck className="w-2.5 h-2.5 text-primary" />
+                          {u.appliedTemplateName}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
                       <TooltipProvider delayDuration={0}>

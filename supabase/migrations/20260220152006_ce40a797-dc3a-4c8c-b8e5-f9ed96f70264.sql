@@ -1,0 +1,1 @@
+ALTER TABLE public.user_section_access ADD COLUMN applied_template_id uuid REFERENCES public.access_templates(id) ON DELETE SET NULL DEFAULT NULL;
