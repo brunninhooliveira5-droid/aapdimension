@@ -43,8 +43,9 @@ interface TicketFile {
 }
 
 const Support = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
+  const isAdminMaster = user?.role === "admin_master";
 
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [machines, setMachines] = useState<MachineOption[]>([]);
@@ -72,31 +73,51 @@ const Support = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: ticketsData } = await supabase
+      const currentUserId = session?.user?.id;
+      if (!currentUserId) return;
+
+      // Build ticket query — admin_master sees all, others see only own
+      let ticketQuery = supabase
         .from("tickets")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (!isAdminMaster) {
+        ticketQuery = ticketQuery.eq("user_id", currentUserId);
+      }
+
+      const { data: ticketsData } = await ticketQuery;
       setTickets(ticketsData ?? []);
 
-      const { data: machinesData } = await supabase
+      // Machines — admin_master sees all, others see only own
+      let machineQuery = supabase
         .from("machines")
         .select("id, model, serial_number, name");
+
+      if (!isAdminMaster) {
+        machineQuery = machineQuery.eq("owner_id", currentUserId);
+      }
+
+      const { data: machinesData } = await machineQuery;
       setMachines(machinesData ?? []);
 
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, name, email, company, phone");
-      const profileMap: Record<string, string> = {};
-      const profileFull: Record<string, any> = {};
-      (profilesData ?? []).forEach((p: any) => {
-        profileMap[p.id] = p.name;
-        profileFull[p.id] = p;
-      });
-      setProfiles(profileMap);
-      setProfileDetails(profileFull);
+      // Profiles (for admin display)
+      if (isAdminMaster) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, name, email, company, phone");
+        const profileMap: Record<string, string> = {};
+        const profileFull: Record<string, any> = {};
+        (profilesData ?? []).forEach((p: any) => {
+          profileMap[p.id] = p.name;
+          profileFull[p.id] = p;
+        });
+        setProfiles(profileMap);
+        setProfileDetails(profileFull);
+      }
     };
     fetchData();
-  }, []);
+  }, [session?.user?.id, isAdminMaster]);
 
   // Load files when detail dialog opens
   useEffect(() => {
