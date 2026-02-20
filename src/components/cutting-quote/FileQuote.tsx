@@ -1372,33 +1372,40 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-3 space-y-2">
                     <p className="text-xs font-medium text-primary">Custo do Material</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Valor/m² (editável)</Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={editableMaterialPriceM2 || ""}
-                            onChange={(e) => setEditableMaterialPriceM2(Number(e.target.value))}
-                            className="h-8 pl-8 text-sm"
-                          />
+                    {(() => {
+                      const materialReadOnly = useDimensionMaterials && !isAdminMaster;
+                      return (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">{materialReadOnly ? "Valor/m² (Dimension)" : "Valor/m² (editável)"}</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={editableMaterialPriceM2 || ""}
+                                onChange={(e) => { if (!materialReadOnly) setEditableMaterialPriceM2(Number(e.target.value)); }}
+                                readOnly={materialReadOnly}
+                                className={`h-8 pl-8 text-sm ${materialReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">{materialReadOnly ? "m² do arquivo" : "m² do arquivo (editável)"}</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.0001}
+                              value={editableMaterialM2 || ""}
+                              onChange={(e) => { if (!materialReadOnly) setEditableMaterialM2(Number(e.target.value)); }}
+                              readOnly={materialReadOnly}
+                              className={`h-8 text-sm mt-1 ${materialReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">m² do arquivo (editável)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.0001}
-                          value={editableMaterialM2 || ""}
-                          onChange={(e) => setEditableMaterialM2(Number(e.target.value))}
-                          className="h-8 text-sm mt-1"
-                        />
-                      </div>
-                    </div>
+                      );
+                    })()}
                     <div className="flex justify-between text-xs pt-1">
                       <span className="text-muted-foreground">
                         {fmt(editableMaterialPriceM2)}/m² × {editableMaterialM2.toFixed(4)} m² × {quantity}
