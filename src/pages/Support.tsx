@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 
 const problemTypes = ["Erro de Software", "Mecânico", "Elétrico", "Calibração", "Outro"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -43,9 +44,10 @@ interface TicketFile {
 }
 
 const Support = () => {
-  const { user, session } = useAuth();
+  const { user, session, realAdminUser } = useAuth();
+  const { isImpersonating, targetUserId: impersonatedUserId } = useImpersonation();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
-  const isAdminMaster = user?.role === "admin_master";
+  const isRealAdminMaster = realAdminUser?.role === "admin_master" || (!isImpersonating && user?.role === "admin_master");
 
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [machines, setMachines] = useState<MachineOption[]>([]);
@@ -76,33 +78,37 @@ const Support = () => {
       const currentUserId = session?.user?.id;
       if (!currentUserId) return;
 
-      // Build ticket query — admin_master sees all, others see only own
+      // Determine effective user: impersonated user or real session user
+      const effectiveUserId = isImpersonating && impersonatedUserId ? impersonatedUserId : currentUserId;
+      const showAll = isRealAdminMaster && !isImpersonating;
+
+      // Build ticket query — real admin_master (not impersonating) sees all, others see only own
       let ticketQuery = supabase
         .from("tickets")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (!isAdminMaster) {
-        ticketQuery = ticketQuery.eq("user_id", currentUserId);
+      if (!showAll) {
+        ticketQuery = ticketQuery.eq("user_id", effectiveUserId);
       }
 
       const { data: ticketsData } = await ticketQuery;
       setTickets(ticketsData ?? []);
 
-      // Machines — admin_master sees all, others see only own
+      // Machines — real admin_master sees all, others see only own
       let machineQuery = supabase
         .from("machines")
         .select("id, model, serial_number, name");
 
-      if (!isAdminMaster) {
-        machineQuery = machineQuery.eq("owner_id", currentUserId);
+      if (!showAll) {
+        machineQuery = machineQuery.eq("owner_id", effectiveUserId);
       }
 
       const { data: machinesData } = await machineQuery;
       setMachines(machinesData ?? []);
 
       // Profiles (for admin display)
-      if (isAdminMaster) {
+      if (showAll) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("id, name, email, company, phone");
@@ -117,7 +123,7 @@ const Support = () => {
       }
     };
     fetchData();
-  }, [session?.user?.id, isAdminMaster]);
+  }, [session?.user?.id, isRealAdminMaster, isImpersonating, impersonatedUserId]);
 
   // Load files when detail dialog opens
   useEffect(() => {
