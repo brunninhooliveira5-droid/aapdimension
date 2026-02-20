@@ -144,13 +144,40 @@ const Index = () => {
         );
       }
 
-      // Fetch recent tickets
-      let ticketQuery = supabase
-        .from("tickets")
-        .select("id, type, description, status, machine_id")
-        .order("created_at", { ascending: false });
-      if (effectiveOwnerId) ticketQuery = ticketQuery.eq("user_id", effectiveOwnerId);
-      const { data: ticketsData } = await ticketQuery;
+      // Fetch recent tickets — for regular users, fetch by machine ownership
+      let ticketsData: any[] | null = null;
+      if (effectiveOwnerId && !isAdminMaster) {
+        // Get user's machines first, then get tickets for those machines
+        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", effectiveOwnerId);
+        const machineIds = userMachines?.map(m => m.id) ?? [];
+        if (machineIds.length > 0) {
+          const { data } = await supabase
+            .from("tickets")
+            .select("id, type, description, status, machine_id")
+            .in("machine_id", machineIds)
+            .order("created_at", { ascending: false });
+          ticketsData = data;
+        }
+      } else if (viewUserId) {
+        // Admin viewing specific user — filter by that user's machines
+        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", viewUserId);
+        const machineIds = userMachines?.map(m => m.id) ?? [];
+        if (machineIds.length > 0) {
+          const { data } = await supabase
+            .from("tickets")
+            .select("id, type, description, status, machine_id")
+            .in("machine_id", machineIds)
+            .order("created_at", { ascending: false });
+          ticketsData = data;
+        }
+      } else {
+        // Admin seeing all
+        const { data } = await supabase
+          .from("tickets")
+          .select("id, type, description, status, machine_id")
+          .order("created_at", { ascending: false });
+        ticketsData = data;
+      }
 
       if (ticketsData && ticketsData.length > 0) {
         const tMachineIds = [...new Set(ticketsData.map(t => t.machine_id))];
@@ -165,15 +192,41 @@ const Index = () => {
         setRecentTickets([]);
       }
 
-      // Fetch upcoming maintenances
+      // Fetch upcoming maintenances — for regular users, fetch by machine ownership
       const todayStr = new Date().toISOString().split("T")[0];
-      let maintQuery = supabase
-        .from("maintenances")
-        .select("id, type, scheduled_date, status, machine_id")
-        .gte("scheduled_date", todayStr)
-        .order("scheduled_date", { ascending: true });
-      if (effectiveOwnerId) maintQuery = maintQuery.eq("user_id", effectiveOwnerId);
-      const { data: maintData } = await maintQuery;
+      let maintData: any[] | null = null;
+      if (effectiveOwnerId && !isAdminMaster) {
+        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", effectiveOwnerId);
+        const machineIds = userMachines?.map(m => m.id) ?? [];
+        if (machineIds.length > 0) {
+          const { data } = await supabase
+            .from("maintenances")
+            .select("id, type, scheduled_date, status, machine_id")
+            .in("machine_id", machineIds)
+            .gte("scheduled_date", todayStr)
+            .order("scheduled_date", { ascending: true });
+          maintData = data;
+        }
+      } else if (viewUserId) {
+        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", viewUserId);
+        const machineIds = userMachines?.map(m => m.id) ?? [];
+        if (machineIds.length > 0) {
+          const { data } = await supabase
+            .from("maintenances")
+            .select("id, type, scheduled_date, status, machine_id")
+            .in("machine_id", machineIds)
+            .gte("scheduled_date", todayStr)
+            .order("scheduled_date", { ascending: true });
+          maintData = data;
+        }
+      } else {
+        const { data } = await supabase
+          .from("maintenances")
+          .select("id, type, scheduled_date, status, machine_id")
+          .gte("scheduled_date", todayStr)
+          .order("scheduled_date", { ascending: true });
+        maintData = data;
+      }
 
       if (maintData && maintData.length > 0) {
         const mMachineIds = [...new Set(maintData.map(m => m.machine_id))];
