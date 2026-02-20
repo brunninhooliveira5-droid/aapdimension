@@ -155,8 +155,16 @@ export default function CuttingQuotePage() {
   const canAccessClientes = user?.role === "admin_master";
   const isServico = user?.role === "servico";
 
-  // Calculate grid columns: base 6 tabs, minus simulator for servico, plus clients for admin
-  const tabCount = (isServico ? 5 : 6) + (canAccessClientes ? 1 : 0);
+  // Build grid class with safe static values (dynamic classes like `grid-cols-${n}` are purged by Tailwind in production)
+  const gridColsClass = (() => {
+    const count = (isServico ? 5 : 6) + (canAccessClientes ? 1 : 0);
+    const map: Record<number, string> = {
+      5: "grid-cols-5",
+      6: "grid-cols-6",
+      7: "grid-cols-7",
+    };
+    return map[count] || "grid-cols-6";
+  })();
 
   return (
     <div className="space-y-6">
@@ -214,7 +222,7 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className={`grid w-full max-w-4xl grid-cols-${tabCount}`}>
+        <TabsList className={`grid w-full max-w-4xl ${gridColsClass}`}>
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
