@@ -1515,6 +1515,9 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
           estimatedTimeMin={currentEstimatedTimeMin}
           material={result.material}
           profitMarginPercent={pricing.profitMarginPercent}
+          materialCost={editableMaterialCost}
+          serviceValue={serviceValue}
+          serviceValueIncluded={serviceValueIncluded}
           onApplyPrice={(price) => setEditablePrice(price)}
         />
       )}

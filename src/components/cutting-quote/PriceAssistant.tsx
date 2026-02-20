@@ -23,6 +23,9 @@ interface PriceAssistantProps {
   estimatedTimeMin: number;
   material: string;
   profitMarginPercent: number;
+  materialCost: number;
+  serviceValue: number;
+  serviceValueIncluded: boolean;
   onApplyPrice: (price: number) => void;
 }
 
@@ -48,6 +51,9 @@ export function PriceAssistant({
   estimatedTimeMin,
   material,
   profitMarginPercent,
+  materialCost,
+  serviceValue,
+  serviceValueIncluded,
   onApplyPrice,
 }: PriceAssistantProps) {
   const [step, setStep] = useState(1);
@@ -72,12 +78,16 @@ export function PriceAssistant({
   const multiplier = OBJECTIVE_MULTIPLIER[objective](profitMarginPercent);
   const basePrice = baseCost * multiplier;
   const urgencyAdded = basePrice * URGENCY_FACTOR[urgency];
-  const rawRecommended = basePrice + urgencyAdded;
-  const recommended = Math.max(rawRecommended, MINIMUM_CUT_PRICE);
+  const priceWithUrgency = basePrice + urgencyAdded;
 
-  const minAbsolute = MINIMUM_CUT_PRICE;
-  const minSustainable = Math.max(baseCost * 1.15, MINIMUM_CUT_PRICE);
-  const healthyPrice = Math.max(baseCost * (1 + profitMarginPercent / 100), MINIMUM_CUT_PRICE);
+  // Add material cost and service value on top (never subtracted)
+  const extras = materialCost + (serviceValueIncluded ? serviceValue : 0);
+  const rawRecommended = priceWithUrgency + extras;
+  const recommended = Math.max(rawRecommended, MINIMUM_CUT_PRICE + extras);
+
+  const minAbsolute = MINIMUM_CUT_PRICE + extras;
+  const minSustainable = Math.max(baseCost * 1.15, MINIMUM_CUT_PRICE) + extras;
+  const healthyPrice = Math.max(baseCost * (1 + profitMarginPercent / 100), MINIMUM_CUT_PRICE) + extras;
 
   const marginPercent = baseCost > 0 ? ((recommended - baseCost) / baseCost) * 100 : 0;
 
@@ -287,7 +297,13 @@ export function PriceAssistant({
               {urgency !== "normal" && (
                 <p>• Urgência: +{URGENCY_FACTOR[urgency] * 100}% → +{fmt(urgencyAdded)}</p>
               )}
-              {recommended === MINIMUM_CUT_PRICE && rawRecommended < MINIMUM_CUT_PRICE && (
+              {materialCost > 0 && (
+                <p>• Material: +{fmt(materialCost)}</p>
+              )}
+              {serviceValueIncluded && serviceValue > 0 && (
+                <p>• Valor de serviço: +{fmt(serviceValue)}</p>
+              )}
+              {recommended === (MINIMUM_CUT_PRICE + extras) && rawRecommended < (MINIMUM_CUT_PRICE + extras) && (
                 <p className="text-destructive font-medium">• Valor mínimo operacional de {fmt(MINIMUM_CUT_PRICE)} foi aplicado.</p>
               )}
               <Separator className="my-1" />
