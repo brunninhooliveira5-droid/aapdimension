@@ -77,12 +77,12 @@ export function PriceAssistant({
   const baseCost = estimatedTimeMin * costPerMinute;
   const multiplier = OBJECTIVE_MULTIPLIER[objective](profitMarginPercent);
   const basePrice = baseCost * multiplier;
-  const urgencyAdded = basePrice * URGENCY_FACTOR[urgency];
-  const priceWithUrgency = basePrice + urgencyAdded;
 
-  // Add material cost and service value on top (never subtracted)
+  // Add material cost and service value first, then apply urgency on the total
   const extras = materialCost + (serviceValueIncluded ? serviceValue : 0);
-  const rawRecommended = priceWithUrgency + extras;
+  const subtotal = basePrice + extras;
+  const urgencyAdded = subtotal * URGENCY_FACTOR[urgency];
+  const rawRecommended = subtotal + urgencyAdded;
   const recommended = Math.max(rawRecommended, MINIMUM_CUT_PRICE + extras);
 
   const minAbsolute = MINIMUM_CUT_PRICE + extras;
