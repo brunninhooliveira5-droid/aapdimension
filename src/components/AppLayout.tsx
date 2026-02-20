@@ -7,6 +7,7 @@ import { CalculatorWidget } from "@/components/CalculatorWidget";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppLayout() {
   const { isImpersonating } = useImpersonation();
@@ -22,6 +23,9 @@ export function AppLayout() {
             <header className="h-14 flex items-center gap-3 border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
               <AppBreadcrumbs />
+              <div className="ml-auto">
+                <ThemeToggle />
+              </div>
             </header>
             <div className="flex-1 p-4 md:p-6 overflow-auto">
               <Outlet />
