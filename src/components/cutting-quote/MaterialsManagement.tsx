@@ -293,14 +293,14 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
         ) : (
           <>
             <CardTitle className="text-base flex items-center gap-2">
-              {useDimensionMaterials ? <Layers className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
-              {useDimensionMaterials ? "Materiais da Dimension" : "Cadastrar Materiais"}
+              {(useDimensionMaterials || isAdminMaster) ? <Layers className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
+              {isAdminMaster ? "Catálogo Dimension CNC" : useDimensionMaterials ? "Materiais da Dimension" : "Cadastrar Materiais"}
             </CardTitle>
             <CardDescription>
               {isReadOnly
                 ? "Catálogo oficial de materiais da Dimension CNC (somente leitura)"
-                : useDimensionMaterials && isAdminMaster
-                ? "Gerencie o catálogo oficial de materiais da Dimension"
+                : isAdminMaster
+                ? "Gerencie o catálogo oficial — alterações são propagadas automaticamente para usuários herdados"
                 : "Clique em um material para gerenciar espessuras e ajuste de preço"}
             </CardDescription>
           </>
@@ -484,8 +484,23 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
           </>
         ) : (
           <>
-            {/* Seed Dimension Presets Button - only for non-readonly */}
-            {!isReadOnly && (
+            {/* Admin Master: Salvar Preset Dimension */}
+            {isAdminMaster && (
+              <div className="p-3 rounded-md bg-primary/5 border border-primary/20 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium text-foreground">Preset Dimension CNC</p>
+                    <p className="text-muted-foreground">
+                      Os materiais listados abaixo são o catálogo oficial da Dimension. Todas as alterações (adicionar, editar, remover) são automaticamente propagadas para os usuários herdados.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Non-admin, non-readonly: Seed presets for personal use */}
+            {!isReadOnly && !isAdminMaster && (
               <div className="p-3 rounded-md bg-primary/5 border border-primary/20 space-y-2">
                 <div className="flex items-start gap-2">
                   <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
