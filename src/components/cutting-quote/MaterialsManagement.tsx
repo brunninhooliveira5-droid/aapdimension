@@ -93,12 +93,18 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
     }
   };
 
+  const isDimensionTable = thicknessesTable === "dimension_cutting_material_thicknesses";
+
+  const thicknessSelectColumns = isDimensionTable
+    ? "id, value, label, sheet_width, sheet_height, unit_price, speed_factor"
+    : "id, value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor";
+
   const openMaterialDashboard = async (mat: { id: string; name: string; price_adjustment: number }) => {
     setSelectedMaterial(mat);
     setMaterialAdjustment(mat.price_adjustment || 0);
     const { data } = await supabase
       .from(thicknessesTable as any)
-      .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
+      .select(thicknessSelectColumns)
       .eq("material_id", mat.id)
       .order("value");
     if (data) {
@@ -117,13 +123,16 @@ export function MaterialsManagement({ useDimensionMaterials = false, isAdminMast
     const { data, error } = await supabase
       .from(thicknessesTable as any)
       .insert({ material_id: selectedMaterial.id, value: val, label: `${val} mm`, speed_factor: getDefaultSpeedFactor(parseFloat(val)) } as any)
-      .select("id, value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
+      .select(thicknessSelectColumns)
       .single();
     if (!error && data) {
       const mapped = { ...(data as any), is_dimension_preset: (data as any).is_dimension_preset ?? false, dimension_default_factor: (data as any).dimension_default_factor ?? null };
       setMaterialThicknesses((prev) => [...prev, mapped].sort((a, b) => parseFloat(a.value) - parseFloat(b.value)));
       setNewThickness("");
       toast.success("Espessura adicionada!");
+    } else if (error) {
+      toast.error("Erro ao adicionar espessura.");
+      console.error("addThickness error:", error);
     }
   };
 
