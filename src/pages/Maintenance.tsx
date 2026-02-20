@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Calendar, Wrench, Search, Filter, Info } from "lucide-react";
+import { Calendar, Wrench, Search, Filter, Info, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface MaintenanceRow {
   id: string;
@@ -30,51 +43,61 @@ interface ProfileInfo {
 }
 
 const Maintenance = () => {
-  const { effectiveUserId, showAllData } = useEffectiveUser();
+  const { effectiveUserId, showAllData, isRealAdminMaster, isImpersonating } = useEffectiveUser();
+  const canDelete = isRealAdminMaster && !isImpersonating;
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [machines, setMachines] = useState<Record<string, MachineInfo>>({});
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("todos");
 
+  const fetchData = async () => {
+    if (!effectiveUserId) return;
+
+    let maintQuery = supabase
+      .from("maintenances")
+      .select("*")
+      .order("scheduled_date", { ascending: false });
+
+    if (!showAllData) {
+      maintQuery = maintQuery.eq("user_id", effectiveUserId);
+    }
+
+    const { data: maintData } = await maintQuery;
+    setMaintenances(maintData ?? []);
+
+    let machineQuery = supabase.from("machines").select("id, name, model, serial_number");
+    if (!showAllData) {
+      machineQuery = machineQuery.eq("owner_id", effectiveUserId);
+    }
+    const { data: machinesData } = await machineQuery;
+    const machineMap: Record<string, MachineInfo> = {};
+    (machinesData ?? []).forEach((m: any) => { machineMap[m.id] = m; });
+    setMachines(machineMap);
+
+    if (showAllData) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, name");
+      const profileMap: Record<string, string> = {};
+      (profilesData ?? []).forEach((p: ProfileInfo) => { profileMap[p.id] = p.name; });
+      setProfiles(profileMap);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      if (!effectiveUserId) return;
-
-      // Maintenances: admin sees all, others see only own
-      let maintQuery = supabase
-        .from("maintenances")
-        .select("*")
-        .order("scheduled_date", { ascending: false });
-
-      if (!showAllData) {
-        maintQuery = maintQuery.eq("user_id", effectiveUserId);
-      }
-
-      const { data: maintData } = await maintQuery;
-      setMaintenances(maintData ?? []);
-
-      // Machines
-      let machineQuery = supabase.from("machines").select("id, name, model, serial_number");
-      if (!showAllData) {
-        machineQuery = machineQuery.eq("owner_id", effectiveUserId);
-      }
-      const { data: machinesData } = await machineQuery;
-      const machineMap: Record<string, MachineInfo> = {};
-      (machinesData ?? []).forEach((m: any) => { machineMap[m.id] = m; });
-      setMachines(machineMap);
-
-      if (showAllData) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, name");
-        const profileMap: Record<string, string> = {};
-        (profilesData ?? []).forEach((p: ProfileInfo) => { profileMap[p.id] = p.name; });
-        setProfiles(profileMap);
-      }
-    };
     fetchData();
   }, [effectiveUserId, showAllData]);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("maintenances").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir manutenção");
+      return;
+    }
+    toast.success("Manutenção excluída");
+    setMaintenances(prev => prev.filter(m => m.id !== id));
+  };
 
   const getMachineName = (machineId: string) => {
     const m = machines[machineId];
@@ -96,7 +119,6 @@ const Maintenance = () => {
 
   const scheduled = applyFilters(maintenances.filter(m => m.status !== "realizada"));
   const completed = applyFilters(maintenances.filter(m => m.status === "realizada"));
-
   const maintenanceTypes = [...new Set(maintenances.map(m => m.type))];
 
   return (
@@ -106,7 +128,6 @@ const Maintenance = () => {
         <p className="text-sm text-muted-foreground mt-1">{maintenances.length} registros</p>
       </div>
 
-      {/* Informativo */}
       <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div className="text-sm text-muted-foreground">
@@ -117,7 +138,6 @@ const Maintenance = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -157,7 +177,7 @@ const Maintenance = () => {
             <p className="text-sm text-muted-foreground">Nenhuma manutenção encontrada.</p>
           ) : (
             scheduled.map(m => (
-              <MaintenanceCard key={m.id} maintenance={m} machineName={getMachineName(m.machine_id)} userName={profiles[m.user_id] || "—"} />
+              <MaintenanceCard key={m.id} maintenance={m} machineName={getMachineName(m.machine_id)} userName={profiles[m.user_id] || "—"} canDelete={canDelete} onDelete={handleDelete} />
             ))
           )}
         </TabsContent>
@@ -167,7 +187,7 @@ const Maintenance = () => {
             <p className="text-sm text-muted-foreground">Nenhuma manutenção encontrada.</p>
           ) : (
             completed.map(m => (
-              <MaintenanceCard key={m.id} maintenance={m} machineName={getMachineName(m.machine_id)} userName={profiles[m.user_id] || "—"} />
+              <MaintenanceCard key={m.id} maintenance={m} machineName={getMachineName(m.machine_id)} userName={profiles[m.user_id] || "—"} canDelete={canDelete} onDelete={handleDelete} />
             ))
           )}
         </TabsContent>
@@ -176,7 +196,7 @@ const Maintenance = () => {
   );
 };
 
-function MaintenanceCard({ maintenance, machineName, userName }: { maintenance: MaintenanceRow; machineName: string; userName: string }) {
+function MaintenanceCard({ maintenance, machineName, userName, canDelete, onDelete }: { maintenance: MaintenanceRow; machineName: string; userName: string; canDelete: boolean; onDelete: (id: string) => void }) {
   return (
     <div className="gradient-card rounded-lg border border-border p-4 flex items-center gap-4 hover:border-primary/20 transition-colors">
       <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
@@ -193,6 +213,29 @@ function MaintenanceCard({ maintenance, machineName, userName }: { maintenance: 
           {new Date(maintenance.scheduled_date).toLocaleDateString("pt-BR")}
         </div>
         <StatusBadge status={maintenance.status} />
+        {canDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir manutenção?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. A manutenção será removida permanentemente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(maintenance.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );

@@ -186,6 +186,7 @@ const Index = () => {
           .from("maintenances")
           .select("id, type, scheduled_date, status, machine_id")
           .eq("user_id", effectiveOwnerId)
+          .neq("status", "realizada")
           .gte("scheduled_date", todayStr)
           .order("scheduled_date", { ascending: true });
         maintData = data;
@@ -193,6 +194,7 @@ const Index = () => {
         const { data } = await supabase
           .from("maintenances")
           .select("id, type, scheduled_date, status, machine_id")
+          .neq("status", "realizada")
           .gte("scheduled_date", todayStr)
           .order("scheduled_date", { ascending: true });
         maintData = data;
