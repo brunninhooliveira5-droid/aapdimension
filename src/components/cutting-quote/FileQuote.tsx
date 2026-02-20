@@ -465,6 +465,11 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
   // Load thicknesses for selected material in the quote form
   const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string; sheet_width: number; sheet_height: number; unit_price: number; speed_factor: number; is_dimension_preset: boolean; dimension_default_factor: number | null }[]>([]);
+  // Reset thickness when material changes
+  useEffect(() => {
+    setThickness("");
+  }, [material]);
+
   useEffect(() => {
     if (!material) { setAvailableThicknesses([]); return; }
     const matId = material.replace("custom_", "");
@@ -476,7 +481,6 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       .from(table as any)
       .select(selectCols)
       .eq("material_id", matId)
-      .order("value")
       .then(({ data }) => {
         if (data) {
           // dimension thicknesses don't have preset fields, set defaults
@@ -485,6 +489,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             is_dimension_preset: d.is_dimension_preset ?? false,
             dimension_default_factor: d.dimension_default_factor ?? null,
           }));
+          // Sort numerically by value
+          mapped.sort((a, b) => parseFloat(a.value) - parseFloat(b.value));
           setAvailableThicknesses(mapped);
         }
       });
