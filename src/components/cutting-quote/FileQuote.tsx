@@ -469,9 +469,12 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     if (!material) { setAvailableThicknesses([]); return; }
     const matId = material.replace("custom_", "");
     const table = useDimensionMaterials ? "dimension_cutting_material_thicknesses" : "cutting_material_thicknesses";
+    const selectCols = useDimensionMaterials
+      ? "value, label, sheet_width, sheet_height, unit_price, speed_factor"
+      : "value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor";
     supabase
       .from(table as any)
-      .select("value, label, sheet_width, sheet_height, unit_price, speed_factor, is_dimension_preset, dimension_default_factor")
+      .select(selectCols)
       .eq("material_id", matId)
       .order("value")
       .then(({ data }) => {
