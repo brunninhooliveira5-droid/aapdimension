@@ -4,6 +4,7 @@ import { Cpu, DollarSign, Calendar, AlertTriangle, Search, Filter, Plus, Trash2,
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -51,9 +52,10 @@ interface MaintenanceData {
 
 const Index = () => {
   const { user, session } = useAuth();
+  const { effectiveUserId, showAllData, isImpersonating } = useEffectiveUser();
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin_master" || user?.role === "admin";
-  const isAdminMaster = user?.role === "admin_master";
+  const isAdminMaster = !isImpersonating && user?.role === "admin_master";
   const isServico = user?.role === "servico";
   const { userId: viewUserId } = useParams<{ userId?: string }>();
 
@@ -82,7 +84,7 @@ const Index = () => {
   const [maintStatusFilter, setMaintStatusFilter] = useState("todos");
 
   const fetchMachineCount = async () => {
-    const effectiveOwnerId = viewUserId || (!isAdminMaster ? session?.user?.id : null);
+    const effectiveOwnerId = viewUserId || (!showAllData ? effectiveUserId : null);
     let machineQuery = supabase.from("machines").select("*", { count: "exact", head: true }).eq("category", "maquina");
     if (effectiveOwnerId) machineQuery = machineQuery.eq("owner_id", effectiveOwnerId);
     const { count: machineCount } = await machineQuery;
@@ -107,7 +109,7 @@ const Index = () => {
         setViewUserName(profile?.name?.split(" ")[0] ?? "Usuário");
       }
 
-      const effectiveOwnerId = viewUserId || (!isAdminMaster ? session?.user?.id : null);
+      const effectiveOwnerId = viewUserId || (!showAllData ? effectiveUserId : null);
       await fetchMachineCount();
 
       // Fetch invoices
@@ -144,32 +146,16 @@ const Index = () => {
         );
       }
 
-      // Fetch recent tickets — for regular users, fetch by machine ownership
+      // Fetch recent tickets — filter by effective user or show all
       let ticketsData: any[] | null = null;
-      if (effectiveOwnerId && !isAdminMaster) {
-        // Get user's machines first, then get tickets for those machines
-        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", effectiveOwnerId);
-        const machineIds = userMachines?.map(m => m.id) ?? [];
-        if (machineIds.length > 0) {
-          const { data } = await supabase
-            .from("tickets")
-            .select("id, type, description, status, machine_id")
-            .in("machine_id", machineIds)
-            .order("created_at", { ascending: false });
-          ticketsData = data;
-        }
-      } else if (viewUserId) {
-        // Admin viewing specific user — filter by that user's machines
-        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", viewUserId);
-        const machineIds = userMachines?.map(m => m.id) ?? [];
-        if (machineIds.length > 0) {
-          const { data } = await supabase
-            .from("tickets")
-            .select("id, type, description, status, machine_id")
-            .in("machine_id", machineIds)
-            .order("created_at", { ascending: false });
-          ticketsData = data;
-        }
+      if (effectiveOwnerId) {
+        // Filter by user's own tickets
+        const { data } = await supabase
+          .from("tickets")
+          .select("id, type, description, status, machine_id")
+          .eq("user_id", effectiveOwnerId)
+          .order("created_at", { ascending: false });
+        ticketsData = data;
       } else {
         // Admin seeing all
         const { data } = await supabase
@@ -192,33 +178,17 @@ const Index = () => {
         setRecentTickets([]);
       }
 
-      // Fetch upcoming maintenances — for regular users, fetch by machine ownership
+      // Fetch upcoming maintenances
       const todayStr = new Date().toISOString().split("T")[0];
       let maintData: any[] | null = null;
-      if (effectiveOwnerId && !isAdminMaster) {
-        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", effectiveOwnerId);
-        const machineIds = userMachines?.map(m => m.id) ?? [];
-        if (machineIds.length > 0) {
-          const { data } = await supabase
-            .from("maintenances")
-            .select("id, type, scheduled_date, status, machine_id")
-            .in("machine_id", machineIds)
-            .gte("scheduled_date", todayStr)
-            .order("scheduled_date", { ascending: true });
-          maintData = data;
-        }
-      } else if (viewUserId) {
-        const { data: userMachines } = await supabase.from("machines").select("id").eq("owner_id", viewUserId);
-        const machineIds = userMachines?.map(m => m.id) ?? [];
-        if (machineIds.length > 0) {
-          const { data } = await supabase
-            .from("maintenances")
-            .select("id, type, scheduled_date, status, machine_id")
-            .in("machine_id", machineIds)
-            .gte("scheduled_date", todayStr)
-            .order("scheduled_date", { ascending: true });
-          maintData = data;
-        }
+      if (effectiveOwnerId) {
+        const { data } = await supabase
+          .from("maintenances")
+          .select("id, type, scheduled_date, status, machine_id")
+          .eq("user_id", effectiveOwnerId)
+          .gte("scheduled_date", todayStr)
+          .order("scheduled_date", { ascending: true });
+        maintData = data;
       } else {
         const { data } = await supabase
           .from("maintenances")
@@ -241,8 +211,8 @@ const Index = () => {
         setUpcomingMaintenances([]);
       }
 
-      // Fetch pending service quotes (admin_master only)
-      if (isAdminMaster && !viewUserId) {
+      // Fetch pending service quotes (admin_master only, not impersonating)
+      if (showAllData && !viewUserId) {
         const { data: roleRows } = await supabase
           .from("user_roles")
           .select("user_id")
@@ -260,7 +230,7 @@ const Index = () => {
     };
 
     fetchData();
-  }, [viewUserId]);
+  }, [viewUserId, effectiveUserId, showAllData]);
 
   // Realtime subscription to update machine count on changes
   useEffect(() => {

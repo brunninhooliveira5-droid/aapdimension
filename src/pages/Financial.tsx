@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { toast } from "sonner";
 
 interface ProfileOption {
@@ -39,7 +40,8 @@ interface InvoiceFile {
 
 const Financial = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin_master";
+  const { effectiveUserId, showAllData } = useEffectiveUser();
+  const isAdmin = showAllData;
 
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -65,9 +67,18 @@ const Financial = () => {
   }, []);
 
   const fetchData = async () => {
+    if (!effectiveUserId) return;
+
+    let invoiceQuery = supabase.from("invoices").select("*").order("due_date", { ascending: true });
+    if (!showAllData) {
+      invoiceQuery = invoiceQuery.eq("user_id", effectiveUserId);
+    }
+
     const [{ data: profilesData }, { data: invoicesData }, { data: filesData }] = await Promise.all([
-      supabase.from("profiles").select("id, name, email").eq("approved", true),
-      supabase.from("invoices").select("*").order("due_date", { ascending: true }),
+      showAllData
+        ? supabase.from("profiles").select("id, name, email").eq("approved", true)
+        : Promise.resolve({ data: [] }),
+      invoiceQuery,
       supabase.from("invoice_files").select("*"),
     ]);
     setProfiles(profilesData ?? []);

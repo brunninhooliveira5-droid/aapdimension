@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 
 interface MaintenanceRow {
   id: string;
@@ -29,6 +30,7 @@ interface ProfileInfo {
 }
 
 const Maintenance = () => {
+  const { effectiveUserId, showAllData } = useEffectiveUser();
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [machines, setMachines] = useState<Record<string, MachineInfo>>({});
   const [profiles, setProfiles] = useState<Record<string, string>>({});
@@ -37,28 +39,42 @@ const Maintenance = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: maintData } = await supabase
+      if (!effectiveUserId) return;
+
+      // Maintenances: admin sees all, others see only own
+      let maintQuery = supabase
         .from("maintenances")
         .select("*")
         .order("scheduled_date", { ascending: false });
+
+      if (!showAllData) {
+        maintQuery = maintQuery.eq("user_id", effectiveUserId);
+      }
+
+      const { data: maintData } = await maintQuery;
       setMaintenances(maintData ?? []);
 
-      const { data: machinesData } = await supabase
-        .from("machines")
-        .select("id, name, model, serial_number");
+      // Machines
+      let machineQuery = supabase.from("machines").select("id, name, model, serial_number");
+      if (!showAllData) {
+        machineQuery = machineQuery.eq("owner_id", effectiveUserId);
+      }
+      const { data: machinesData } = await machineQuery;
       const machineMap: Record<string, MachineInfo> = {};
       (machinesData ?? []).forEach((m: any) => { machineMap[m.id] = m; });
       setMachines(machineMap);
 
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, name");
-      const profileMap: Record<string, string> = {};
-      (profilesData ?? []).forEach((p: ProfileInfo) => { profileMap[p.id] = p.name; });
-      setProfiles(profileMap);
+      if (showAllData) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, name");
+        const profileMap: Record<string, string> = {};
+        (profilesData ?? []).forEach((p: ProfileInfo) => { profileMap[p.id] = p.name; });
+        setProfiles(profileMap);
+      }
     };
     fetchData();
-  }, []);
+  }, [effectiveUserId, showAllData]);
 
   const getMachineName = (machineId: string) => {
     const m = machines[machineId];
