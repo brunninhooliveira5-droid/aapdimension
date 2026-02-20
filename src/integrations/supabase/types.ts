@@ -2304,6 +2304,7 @@ export type Database = {
       }
       user_section_access: {
         Row: {
+          applied_template_id: string | null
           created_at: string
           id: string
           sections: Json
@@ -2311,6 +2312,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          applied_template_id?: string | null
           created_at?: string
           id?: string
           sections?: Json
@@ -2318,13 +2320,22 @@ export type Database = {
           user_id: string
         }
         Update: {
+          applied_template_id?: string | null
           created_at?: string
           id?: string
           sections?: Json
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_section_access_applied_template_id_fkey"
+            columns: ["applied_template_id"]
+            isOneToOne: false
+            referencedRelation: "access_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_suggestions: {
         Row: {
