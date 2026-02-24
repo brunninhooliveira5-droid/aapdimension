@@ -1968,6 +1968,53 @@ export type Database = {
         }
         Relationships: []
       }
+      registered_equipment_files: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          equipment_id: string
+          file_path: string | null
+          file_type: string
+          file_url: string | null
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          equipment_id: string
+          file_path?: string | null
+          file_type?: string
+          file_url?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          equipment_id?: string
+          file_path?: string | null
+          file_type?: string
+          file_url?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registered_equipment_files_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "registered_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_bonuses: {
         Row: {
           amount: number

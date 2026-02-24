@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { EquipmentFilesSection } from "@/components/equipment/EquipmentFilesSection";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -249,6 +250,9 @@ const EquipmentDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Documents & Media Section */}
+      <EquipmentFilesSection equipmentId={equipment.id} />
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); }}>
