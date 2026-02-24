@@ -537,8 +537,8 @@ const Machines = () => {
                   <Select value={formModel} onValueChange={setFormModel}>
                     <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
                     <SelectContent>
-                      {catalogItems.map(item => (
-                        <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>
+                      {registeredEquipments.map(e => (
+                        <SelectItem key={e.id} value={e.name || e.model}>{e.name || e.model}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
