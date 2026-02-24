@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import EquipmentRegistration from "@/pages/EquipmentRegistration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -299,194 +301,204 @@ const Machines = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Minhas Máquinas</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} itens registrados</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="bg-accent border-border h-9 text-xs w-[160px]">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas categorias</SelectItem>
-              <SelectItem value="maquina">Máquinas</SelectItem>
-              <SelectItem value="acessorio">Acessórios</SelectItem>
-            </SelectContent>
-          </Select>
-          {user?.role === "admin_master" && (
-            <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
-              <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
-                <Filter className="w-3.5 h-3.5 mr-1.5" />
-                <SelectValue placeholder="Filtrar por usuário" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os usuários</SelectItem>
-                {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {user?.role === "admin_master" && (
-            <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Máquina
-            </Button>
-          )}
-          {user?.role === "admin_master" && (
-            <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
-              <Plus className="w-4 h-4" /> Adicionar Acessório
-            </Button>
-          )}
-        </div>
-      </div>
+      <Tabs defaultValue="maquinas" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="maquinas">Minhas Máquinas</TabsTrigger>
+          <TabsTrigger value="cadastro">Cadastro de Equipamento</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredMachines.map(machine => (
-          <div
-            key={machine.id}
-            className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
-            onClick={() => navigate(`/maquinas/${machine.id}`)}
-          >
-            {/* Machine Image */}
-            <div className="h-40 bg-accent/50 flex items-center justify-center overflow-hidden">
-              {machine.image_url ? (
-                <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
-              ) : (
-                <Cpu className="w-12 h-12 text-muted-foreground/30" />
+        <TabsContent value="maquinas" className="space-y-6 mt-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Minhas Máquinas</h1>
+              <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} itens registrados</p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="bg-accent border-border h-9 text-xs w-[160px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas categorias</SelectItem>
+                  <SelectItem value="maquina">Máquinas</SelectItem>
+                  <SelectItem value="acessorio">Acessórios</SelectItem>
+                </SelectContent>
+              </Select>
+              {user?.role === "admin_master" && (
+                <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
+                  <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
+                    <Filter className="w-3.5 h-3.5 mr-1.5" />
+                    <SelectValue placeholder="Filtrar por usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os usuários</SelectItem>
+                    {profiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {user?.role === "admin_master" && (
+                <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
+                  <Plus className="w-4 h-4" /> Adicionar Máquina
+                </Button>
+              )}
+              {user?.role === "admin_master" && (
+                <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
+                  <Plus className="w-4 h-4" /> Adicionar Acessório
+                </Button>
               )}
             </div>
+          </div>
 
-            <div className="p-5 space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
-                    {machine.category === "acessorio" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredMachines.map(machine => (
+              <div
+                key={machine.id}
+                className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
+                onClick={() => navigate(`/maquinas/${machine.id}`)}
+              >
+                <div className="h-40 bg-accent/50 flex items-center justify-center overflow-hidden">
+                  {machine.image_url ? (
+                    <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+                  ) : (
+                    <Cpu className="w-12 h-12 text-muted-foreground/30" />
+                  )}
+                </div>
+
+                <div className="p-5 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
+                        {machine.category === "acessorio" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-mono text-muted-foreground">{machine.serial_number}</p>
+                    </div>
+                    <StatusBadge status={machine.status} />
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <User className="w-3.5 h-3.5" />
+                      <span>Proprietário: {machine.owner_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <CalendarDays className="w-3.5 h-3.5" />
+                      <span>Instalação: {new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                    {machine.accessories.length > 0 && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Wrench className="w-3.5 h-3.5" />
+                        <span>Acessórios: {machine.accessories.join(", ")}</span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs font-mono text-muted-foreground">{machine.serial_number}</p>
-                </div>
-                <StatusBadge status={machine.status} />
-              </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <User className="w-3.5 h-3.5" />
-                  <span>Proprietário: {machine.owner_name}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <CalendarDays className="w-3.5 h-3.5" />
-                  <span>Instalação: {new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
-                </div>
-                {machine.accessories.length > 0 && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Wrench className="w-3.5 h-3.5" />
-                    <span>Acessórios: {machine.accessories.join(", ")}</span>
+                  <div className="flex gap-4 pt-2 border-t border-border">
+                    <div className="text-center flex-1">
+                      <p className="text-lg font-bold text-foreground">{machine.ticket_count}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
+                    </div>
+                    <div className="text-center flex-1">
+                      <p className="text-lg font-bold text-foreground">{machine.maintenance_count}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                    </div>
                   </div>
-                )}
-              </div>
-
-              <div className="flex gap-4 pt-2 border-t border-border">
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-foreground">{machine.ticket_count}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-foreground">{machine.maintenance_count}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Add Machine Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* Image upload */}
-            <div className="space-y-2">
-              <Label className="text-foreground">Foto do Equipamento</Label>
-              <div
-                className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-                onClick={() => imageInputRef.current?.click()}
-              >
-                {formImagePreview ? (
-                  <img src={formImagePreview} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <ImagePlus className="w-6 h-6" />
-                    <span className="text-xs">Clique para selecionar</span>
+          {/* Add Machine Dialog */}
+          <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label className="text-foreground">Foto do Equipamento</Label>
+                  <div
+                    className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    {formImagePreview ? (
+                      <img src={formImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImagePlus className="w-6 h-6" />
+                        <span className="text-xs">Clique para selecionar</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Categoria *</Label>
+                  <Select value={formCategory} onValueChange={setFormCategory}>
+                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maquina">Máquina</SelectItem>
+                      <SelectItem value="acessorio">Acessório</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Nome</Label>
+                  <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Modelo *</Label>
+                  <Select value={formModel} onValueChange={setFormModel}>
+                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                    <SelectContent>
+                      {catalogItems.map(item => (
+                        <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Número de Série *</Label>
+                  <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Data de Instalação</Label>
+                  <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Proprietário *</Label>
+                  <Select value={formOwner} onValueChange={setFormOwner}>
+                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
+                    <SelectContent>
+                      {profiles.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Acessórios</Label>
+                  <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
+                </div>
               </div>
-              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Categoria *</Label>
-              <Select value={formCategory} onValueChange={setFormCategory}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="maquina">Máquina</SelectItem>
-                  <SelectItem value="acessorio">Acessório</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Nome</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Modelo *</Label>
-              <Select value={formModel} onValueChange={setFormModel}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
-                <SelectContent>
-                  {catalogItems.map(item => (
-                    <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Número de Série *</Label>
-              <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Data de Instalação</Label>
-              <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Proprietário *</Label>
-              <Select value={formOwner} onValueChange={setFormOwner}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
-                <SelectContent>
-                  {profiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Acessórios</Label>
-              <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" className="border-border">Cancelar</Button>
-            </DialogClose>
-            <Button onClick={handleAddMachine}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline" className="border-border">Cancelar</Button>
+                </DialogClose>
+                <Button onClick={handleAddMachine}>Salvar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
 
+        <TabsContent value="cadastro" className="mt-4">
+          <EquipmentRegistration />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
