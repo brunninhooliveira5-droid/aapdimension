@@ -74,6 +74,8 @@ const Machines = () => {
   const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
+  const [formRegisteredEquipId, setFormRegisteredEquipId] = useState<string>("");
+  const [registeredEquipments, setRegisteredEquipments] = useState<{ id: string; name: string; model: string; image_path: string | null; accessories: string[]; category: string }[]>([]);
 
   // Catalog state (admin master only)
   const [catalogItems, setCatalogItems] = useState<EquipCatalogItem[]>([]);
@@ -161,9 +163,17 @@ const Machines = () => {
     setCatalogItems(data ?? []);
   };
 
+  const fetchRegisteredEquipments = async () => {
+    const { data } = await (supabase as any)
+      .from("registered_equipment")
+      .select("id, name, model, image_path, accessories, category")
+      .order("name", { ascending: true });
+    setRegisteredEquipments(data ?? []);
+  };
+
   useEffect(() => {
     fetchMachines();
-    if (isAdmin) { fetchProfiles(); fetchCatalogItems(); }
+    if (isAdmin) { fetchProfiles(); fetchCatalogItems(); fetchRegisteredEquipments(); }
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,6 +192,12 @@ const Machines = () => {
 
     let imagePath: string | null = null;
 
+    // If a registered equipment is selected and no custom image, use its image
+    const selectedEquip = registeredEquipments.find(e => e.id === formRegisteredEquipId);
+    if (selectedEquip?.image_path && !formImageFile) {
+      imagePath = selectedEquip.image_path;
+    }
+
     if (formImageFile) {
       const path = `images/${Date.now()}_${formImageFile.name}`;
       const { error: uploadErr } = await supabase.storage.from("machine-files").upload(path, formImageFile);
@@ -194,7 +210,7 @@ const Machines = () => {
 
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
-    const { error } = await supabase.from("machines").insert({
+    const { data: insertedMachine, error } = await supabase.from("machines").insert({
       name: formName,
       model: formModel,
       serial_number: formSerial,
@@ -203,11 +219,51 @@ const Machines = () => {
       accessories,
       image_path: imagePath,
       category: formCategory,
-    } as any);
+    } as any).select().single();
 
     if (error) {
       toast.error("Erro ao adicionar máquina: " + error.message);
       return;
+    }
+
+    // Auto-copy specs and trainings from registered equipment
+    if (formRegisteredEquipId && insertedMachine) {
+      const machineId = (insertedMachine as any).id;
+
+      // Copy specs
+      const { data: specsData } = await (supabase as any)
+        .from("registered_equipment_specs")
+        .select("spec_data")
+        .eq("equipment_id", formRegisteredEquipId)
+        .maybeSingle();
+
+      if (specsData?.spec_data && Object.keys(specsData.spec_data).length > 0) {
+        await supabase.from("machine_specs").insert({
+          machine_id: machineId,
+          spec_data: specsData.spec_data,
+        } as any);
+      }
+
+      // Copy trainings
+      const { data: trainingsData } = await (supabase as any)
+        .from("registered_equipment_trainings")
+        .select("title, description, video_url, file_path, file_name")
+        .eq("equipment_id", formRegisteredEquipId);
+
+      if (trainingsData && trainingsData.length > 0) {
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        for (const t of trainingsData) {
+          await supabase.from("machine_trainings").insert({
+            machine_id: machineId,
+            title: t.title,
+            description: t.description,
+            video_url: t.video_url,
+            file_path: t.file_path,
+            file_name: t.file_name,
+            created_by: userId,
+          } as any);
+        }
+      }
     }
 
     toast.success("Máquina adicionada com sucesso!");
@@ -220,6 +276,7 @@ const Machines = () => {
     setFormName(""); setFormModel(""); setFormSerial(""); setFormOwner("");
     setFormAccessories(""); setFormInstallDate(new Date().toISOString().split("T")[0]);
     setFormImageFile(null); setFormImagePreview(null); setFormCategory("maquina");
+    setFormRegisteredEquipId("");
   };
 
   const handleCatalogImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,6 +476,31 @@ const Machines = () => {
                 <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label className="text-foreground">Equipamento Cadastrado (preenche automaticamente)</Label>
+                  <Select value={formRegisteredEquipId} onValueChange={(val) => {
+                    setFormRegisteredEquipId(val);
+                    const equip = registeredEquipments.find(e => e.id === val);
+                    if (equip) {
+                      setFormName(equip.name);
+                      setFormModel(equip.model);
+                      setFormCategory(equip.category);
+                      setFormAccessories(equip.accessories?.join(", ") ?? "");
+                      if (equip.image_path) {
+                        const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(equip.image_path);
+                        setFormImagePreview(pubData.publicUrl);
+                      }
+                    }
+                  }}>
+                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione um equipamento cadastrado (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      {registeredEquipments.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.name || e.model}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Ficha técnica, treinamentos e foto serão copiados automaticamente.</p>
+                </div>
                 <div className="space-y-2">
                   <Label className="text-foreground">Foto do Equipamento</Label>
                   <div

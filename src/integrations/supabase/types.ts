@@ -2015,6 +2015,85 @@ export type Database = {
           },
         ]
       }
+      registered_equipment_specs: {
+        Row: {
+          created_at: string
+          equipment_id: string
+          id: string
+          spec_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          equipment_id: string
+          id?: string
+          spec_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          equipment_id?: string
+          id?: string
+          spec_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registered_equipment_specs_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "registered_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registered_equipment_trainings: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          equipment_id: string
+          file_name: string | null
+          file_path: string | null
+          id: string
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          equipment_id: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          equipment_id?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registered_equipment_trainings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "registered_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_bonuses: {
         Row: {
           amount: number

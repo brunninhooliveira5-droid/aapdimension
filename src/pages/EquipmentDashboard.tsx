@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Cpu, Pencil, Trash2, ImagePlus, Wrench } from "lucide-react";
+import { EquipmentSpecsSection } from "@/components/equipment/EquipmentSpecsSection";
+import { EquipmentTrainingsSection } from "@/components/equipment/EquipmentTrainingsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -250,6 +252,12 @@ const EquipmentDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Ficha Técnica Card */}
+      <EquipmentSpecsSection equipmentId={equipment.id} />
+
+      {/* Treinamentos Card */}
+      <EquipmentTrainingsSection equipmentId={equipment.id} />
 
 
       {/* Edit Dialog */}
