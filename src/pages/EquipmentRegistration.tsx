@@ -277,12 +277,20 @@ const EquipmentRegistration = () => {
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
                       )}
                     </div>
-                    
+                    <p className="text-xs font-mono text-muted-foreground">{item.serial_number}</p>
                   </div>
                   <StatusBadge status={item.status} />
                 </div>
 
                 <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User className="w-3.5 h-3.5" />
+                    <span>Proprietário: {item.owner_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    <span>Instalação: {item.install_date ? new Date(item.install_date).toLocaleDateString("pt-BR") : "—"}</span>
+                  </div>
                   {item.accessories.length > 0 && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Wrench className="w-3.5 h-3.5" />
