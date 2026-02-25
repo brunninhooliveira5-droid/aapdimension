@@ -1,86 +1,30 @@
 
-
-# Acesso Total do Financeiro ao Modulo Financeiro
+# Mover Propostas para dentro do Portal Dimension
 
 ## Resumo
-Atualmente, o perfil "financeiro" tem acesso limitado em algumas areas do modulo de Gestao Financeira. O objetivo e igualar suas permissoes as do Admin Master dentro do modulo financeiro.
+Mover a aba "Propostas" do menu lateral principal para dentro do Portal Dimension como uma nova sub-aba, mantendo 100% da funcionalidade atual.
 
-## Areas que precisam de ajuste
+## Alteracoes
 
-### 1. Juridico (Contratos, Processos, Cobrancas)
-- Hoje: financeiro so pode visualizar
-- Depois: financeiro podera criar, editar e excluir registros
+### 1. `src/pages/DimensionPortal.tsx`
+- Importar o componente `ProposalsPage` (ou seus sub-componentes diretamente)
+- Adicionar nova entrada no array `tabs`: `{ value: "propostas", label: "Propostas", icon: FileText }`
+- Adicionar `<TabsContent value="propostas">` renderizando o conteudo de Propostas
+- Importar `useAuth` para verificar se o usuario e admin_master e mostrar a aba "Maquinas (Specs)" condicionalmente dentro das Propostas
 
-### 2. Categorias Financeiras
-- Hoje: financeiro so pode visualizar
-- Depois: financeiro podera criar, editar e desativar categorias
+### 2. `src/components/AppSidebar.tsx`
+- Remover a linha `{ title: "Propostas", url: "/propostas", icon: FileText, section: "propostas" }` do array `basicMenuItems`
 
-### 3. Assistente de Decisao (Configuracoes do Simulador)
-- Hoje: somente admin_master pode alterar configuracoes (reserva minima, limite de comprometimento, etc.)
-- Depois: financeiro tambem podera ajustar essas configuracoes
+### 3. `src/App.tsx`
+- Remover a rota `/propostas` (linha 76)
+- Remover o import de `ProposalsPage`
+- Adicionar redirect: `/propostas` -> `/dimension` para evitar links quebrados
 
-## Detalhes Tecnicos
+### 4. Sem alteracoes no banco de dados
+Nenhuma tabela ou politica precisa ser modificada. Toda a logica de propostas continua funcionando igual.
 
-### Alteracoes no Banco de Dados (RLS Policies)
-Atualizacao de 4 tabelas para dar permissao total ao perfil `financeiro`:
+## Detalhes tecnicos
 
-| Tabela | Permissao Atual | Nova Permissao |
-|--------|----------------|----------------|
-| `finance_categories` | Somente leitura | Leitura + Escrita + Exclusao |
-| `legal_cases` | Somente leitura | Leitura + Escrita + Exclusao |
-| `legal_collections` | Somente leitura | Leitura + Escrita + Exclusao |
-| `legal_contracts` | Somente leitura | Leitura + Escrita + Exclusao |
-
-Para cada tabela, a policy de SELECT existente sera substituida por uma policy ALL (acesso completo).
-
-### Alteracoes no Frontend (5 arquivos)
-
-1. **`src/components/financeiro/LegalModule.tsx`** (3 pontos)
-   - `ContractsTab`: `canEdit = user?.role === "admin_master"` -> incluir `financeiro`
-   - `CasesTab`: idem
-   - `CollectionsTab`: idem
-
-2. **`src/components/financeiro/FinanceCategories.tsx`** (1 ponto)
-   - `canEdit = user?.role === "admin_master"` -> incluir `financeiro`
-
-3. **`src/components/financeiro/DecisionAssistant.tsx`** (1 ponto)
-   - `isAdmin = user?.role === "admin_master"` -> incluir `financeiro`
-
-### Migracao SQL
-
-```text
--- Remover policies de somente leitura do financeiro
-DROP POLICY "Financeiro reads finance categories" ON finance_categories;
-DROP POLICY "Financeiro reads legal_cases" ON legal_cases;
-DROP POLICY "Financeiro reads legal_collections" ON legal_collections;
-DROP POLICY "Financeiro reads legal_contracts" ON legal_contracts;
-
--- Criar policies de acesso total para financeiro
-CREATE POLICY "Financeiro manages finance categories"
-  ON finance_categories FOR ALL
-  USING (has_role(auth.uid(), 'financeiro'))
-  WITH CHECK (has_role(auth.uid(), 'financeiro'));
-
-CREATE POLICY "Financeiro manages legal_cases"
-  ON legal_cases FOR ALL
-  USING (has_role(auth.uid(), 'financeiro'))
-  WITH CHECK (has_role(auth.uid(), 'financeiro'));
-
-CREATE POLICY "Financeiro manages legal_collections"
-  ON legal_collections FOR ALL
-  USING (has_role(auth.uid(), 'financeiro'))
-  WITH CHECK (has_role(auth.uid(), 'financeiro'));
-
-CREATE POLICY "Financeiro manages legal_contracts"
-  ON legal_contracts FOR ALL
-  USING (has_role(auth.uid(), 'financeiro'))
-  WITH CHECK (has_role(auth.uid(), 'financeiro'));
-```
-
-### Componentes ja com acesso correto (nao precisam de alteracao)
-- Contas a Pagar
-- Contas a Receber
-- Despesas Fixas
-- Dividas (Emprestimos e Inadimplencia)
-- Dashboard, Fluxo de Caixa, Relatorios (somente leitura por natureza)
-
+- Os componentes `ProposalCreator`, `ProposalHistory`, `ProposalPdfConfiguration` e `MachineSpecsCatalog` sao independentes da rota -- funcionam em qualquer lugar onde forem montados
+- A visibilidade sera automaticamente restrita a `admin_master` pois o Portal Dimension ja possui essa restricao via `RoleGate` e permissoes no `AuthContext`
+- O conteudo de Propostas sera renderizado com suas proprias sub-tabs internas (Nova Proposta, Historico, Config. PDF, Maquinas Specs) dentro da tab "Propostas" do portal
