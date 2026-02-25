@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText, CalculatorIcon, Construction, Activity } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, FileText, CalculatorIcon, Construction, Activity, Building2 } from "lucide-react";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -48,6 +48,7 @@ const basicMenuItems = [
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
   { title: "Arquivos", url: "/arquivos", icon: FolderOpen, section: "arquivos" },
+  { title: "Dimension", url: "/dimension", icon: Building2, section: "dimension" },
 ];
 
 const proMenuItems = [
