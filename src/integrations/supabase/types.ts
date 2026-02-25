@@ -666,6 +666,183 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_pendencies: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          priority: string
+          resolved_at: string | null
+          responsible: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          responsible?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          responsible?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dimension_production_items: {
+        Row: {
+          client_name: string
+          created_at: string
+          created_by: string
+          estimated_deadline: string | null
+          id: string
+          machine_name: string
+          notes: string
+          priority: string
+          project_name: string
+          responsible: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_name?: string
+          created_at?: string
+          created_by: string
+          estimated_deadline?: string | null
+          id?: string
+          machine_name?: string
+          notes?: string
+          priority?: string
+          project_name: string
+          responsible?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          created_by?: string
+          estimated_deadline?: string | null
+          id?: string
+          machine_name?: string
+          notes?: string
+          priority?: string
+          project_name?: string
+          responsible?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dimension_schedule_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          event_date: string
+          event_time: string | null
+          event_type: string
+          id: string
+          responsible: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          event_date: string
+          event_time?: string | null
+          event_type?: string
+          id?: string
+          responsible?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          event_date?: string
+          event_time?: string | null
+          event_type?: string
+          id?: string
+          responsible?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dimension_tasks: {
+        Row: {
+          category: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          priority: string
+          responsible: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: string
+          responsible?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: string
+          responsible?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       file_categories: {
         Row: {
           created_at: string
