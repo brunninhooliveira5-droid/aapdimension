@@ -498,23 +498,6 @@ const Machines = () => {
                   <p className="text-xs text-muted-foreground">Ficha técnica, treinamentos e foto serão copiados automaticamente.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-foreground">Foto do Equipamento</Label>
-                  <div
-                    className="relative h-32 rounded-lg border-2 border-dashed border-border bg-accent/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-                    onClick={() => imageInputRef.current?.click()}
-                  >
-                    {formImagePreview ? (
-                      <img src={formImagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                        <ImagePlus className="w-6 h-6" />
-                        <span className="text-xs">Clique para selecionar</span>
-                      </div>
-                    )}
-                  </div>
-                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-                </div>
-                <div className="space-y-2">
                   <Label className="text-foreground">Categoria *</Label>
                   <Select value={formCategory} onValueChange={setFormCategory}>
                     <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
