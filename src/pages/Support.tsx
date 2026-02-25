@@ -101,11 +101,13 @@ const Support = () => {
       const { data: machinesData } = await machineQuery;
       setMachines(machinesData ?? []);
 
-      // Profiles (for admin display)
-      if (showAllData) {
+      // Profiles – always load so ticket cards show user names
+      const profileIds = [...new Set((ticketsData ?? []).map((t: any) => t.user_id))];
+      if (profileIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, name, email, company, phone");
+          .select("id, name, email, company, phone")
+          .in("id", profileIds);
         const profileMap: Record<string, string> = {};
         const profileFull: Record<string, any> = {};
         (profilesData ?? []).forEach((p: any) => {
@@ -395,6 +397,12 @@ const Support = () => {
                     <StatusBadge status={ticket.status} />
                   </div>
                   <p className="text-sm font-medium text-foreground mt-1">{getMachineName(ticket.machine_id)} — {ticket.type}</p>
+                  {profiles[ticket.user_id] && (
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {profiles[ticket.user_id]}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground truncate mt-0.5">{ticket.description}</p>
                 </div>
                 <p className="text-xs text-muted-foreground shrink-0">{new Date(ticket.created_at).toLocaleDateString("pt-BR")}</p>
