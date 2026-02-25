@@ -35,7 +35,7 @@ import { toast } from "sonner";
 
 const basicMenuItems = [
   { title: "Home", url: "/", altUrl: "/orcamento", icon: Home, section: "home" },
-  
+  { title: "Dimension", url: "/dimension", icon: Building2, section: "dimension" },
   { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
   { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
@@ -48,7 +48,6 @@ const basicMenuItems = [
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
   { title: "Arquivos", url: "/arquivos", icon: FolderOpen, section: "arquivos" },
-  { title: "Dimension", url: "/dimension", icon: Building2, section: "dimension" },
 ];
 
 const proMenuItems = [
