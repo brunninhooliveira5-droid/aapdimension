@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import type { PricingData } from "./PricingSimulator";
 import type { Tables } from "@/integrations/supabase/types";
 import type { PdfSettings } from "./PdfConfiguration";
@@ -375,6 +376,7 @@ interface FileQuoteProps {
 
 export function FileQuote({ pricing, machines, useMasterPricing = false, useDimensionMaterials = false, isAdminMaster = false, pricingLoaded = true, masterPricingError = false }: FileQuoteProps) {
   const { user, session, getSectionVisibility } = useAuth();
+  const { effectiveUserId } = useEffectiveUser();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -946,7 +948,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     // Upload original file to storage
     let filePath: string | null = null;
     const fileExt = file.name.split(".").pop();
-    const storagePath = `${session.user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const storagePath = `${effectiveUserId}/${crypto.randomUUID()}.${fileExt}`;
     const { error: uploadError } = await supabase.storage
       .from("cutting-files")
       .upload(storagePath, file);
@@ -959,7 +961,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     const enforcedTotal = calculateTotalPrice(enforcedCutPrice, materialCost) + serviceAmount;
 
     const { error } = await supabase.from("cutting_quotes" as any).insert({
-      user_id: session.user.id,
+      user_id: effectiveUserId,
       client_name: customerName.trim(),
       client_phone: customerPhone.trim(),
       file_name: result.fileName,
