@@ -952,7 +952,10 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     const { error: uploadError } = await supabase.storage
       .from("cutting-files")
       .upload(storagePath, file);
-    if (!uploadError) {
+    if (uploadError) {
+      console.error("Erro ao fazer upload do arquivo:", uploadError.message, uploadError);
+      toast.error("Erro ao salvar arquivo original. O orçamento será salvo sem o arquivo.");
+    } else {
       filePath = storagePath;
     }
 

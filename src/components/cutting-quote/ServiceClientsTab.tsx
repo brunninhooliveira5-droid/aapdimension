@@ -429,11 +429,9 @@ export function ServiceClientsTab() {
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Baixar PDF">
                               <Download className="w-3.5 h-3.5" />
                             </Button>
-                            {q.file_path && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadOriginalFile(q)} title="Baixar arquivo original">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadOriginalFile(q)} disabled={!q.file_path} title={q.file_path ? "Baixar arquivo original" : "Arquivo não disponível"}>
                                 <File className="w-3.5 h-3.5" />
                               </Button>
-                            )}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
@@ -617,10 +615,11 @@ export function ServiceClientsTab() {
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportQuotePDF(selectedQuote)}>
                   <Download className="w-3.5 h-3.5" /> Baixar PDF
                 </Button>
-                {selectedQuote.file_path && (
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadOriginalFile(selectedQuote)}>
-                    <File className="w-3.5 h-3.5" /> Baixar Arquivo
-                  </Button>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadOriginalFile(selectedQuote)} disabled={!selectedQuote.file_path}>
+                  <File className="w-3.5 h-3.5" /> Baixar Arquivo
+                </Button>
+                {!selectedQuote.file_path && (
+                  <p className="text-[10px] text-muted-foreground w-full">Arquivo original não disponível (salvo antes desta funcionalidade ou erro no upload).</p>
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
