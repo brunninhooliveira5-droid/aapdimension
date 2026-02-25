@@ -32,6 +32,44 @@ export function DimensionTasks() {
   const [saving, setSaving] = useState(false);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData("taskId", taskId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, col: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCol(col);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCol(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const taskId = e.dataTransfer.getData("taskId");
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : t.completed_at } : t));
+
+    const payload: any = { status: newStatus };
+    if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
+
+    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
+    if (error) {
+      toast.error("Erro ao mover tarefa");
+      fetch();
+    } else {
+      toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`);
+    }
+  };
 
   const fetch = async () => {
     const { data } = await supabase.from("dimension_tasks").select("*").order("created_at", { ascending: false });
@@ -73,7 +111,11 @@ export function DimensionTasks() {
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "concluida"];
 
   const TaskCard = ({ task }: { task: any }) => (
-    <div className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow">
+    <div
+      draggable
+      onDragStart={(e) => handleDragStart(e, task.id)}
+      className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing"
+    >
       <div className="flex items-start justify-between gap-1">
         <p className="text-sm font-medium leading-tight">{task.title}</p>
         <div className="flex gap-0.5 shrink-0">
@@ -133,9 +175,15 @@ export function DimensionTasks() {
       {view === "kanban" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kanbanCols.map((col) => (
-            <div key={col} className="space-y-2">
+            <div
+              key={col}
+              className="space-y-2"
+              onDragOver={(e) => handleDragOver(e, col)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col)}
+            >
               <div className={`rounded-md px-3 py-1.5 text-xs font-semibold ${statusColors[col]}`}>{statusLabels[col]} ({filtered.filter((t) => t.status === col).length})</div>
-              <div className="space-y-2 min-h-[100px]">
+              <div className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
                 {filtered.filter((t) => t.status === col).map((task) => <TaskCard key={task.id} task={task} />)}
               </div>
             </div>
