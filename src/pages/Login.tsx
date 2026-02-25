@@ -88,7 +88,7 @@ const Login = () => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6 py-10">
         {/* Logo & Title */}
-        <img src={dimensionLogo} alt="Dimension CNC" className="h-20 w-auto mb-2 drop-shadow-2xl" />
+        <img src={dimensionLogo} alt="Dimension CNC" className="h-20 w-auto mb-2 drop-shadow-2xl brightness-0 invert sepia saturate-[10] hue-rotate-[200deg]" />
         <h2 className="text-sm font-medium tracking-[0.3em] text-black uppercase mb-8">
           Tecnologia CNC
         </h2>
