@@ -114,7 +114,8 @@ export function DimensionTasks() {
     <div
       draggable
       onDragStart={(e) => handleDragStart(e, task.id)}
-      className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing"
+      onClick={() => openEdit(task)}
+      className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-1">
         <p className="text-sm font-medium leading-tight">{task.title}</p>
