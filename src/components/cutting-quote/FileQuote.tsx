@@ -634,7 +634,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         if (vbAttr) {
           const vbParts = vbAttr.split(/[\s,]+/).map(Number);
           if (vbParts.length === 4 && vbParts[2] > 0 && vbParts[3] > 0) {
-            dynamicStrokeWidth = Math.max(vbParts[2], vbParts[3]) * 0.003;
+            dynamicStrokeWidth = Math.max(vbParts[2], vbParts[3]) * 0.001;
           }
         }
         const styleEl = svgDoc.createElementNS("http://www.w3.org/2000/svg", "style");
@@ -675,7 +675,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             const newVbH = maxY - minY + pad * 2;
             svgEl.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${newVbW} ${newVbH}`);
             // Update stroke-width based on recalculated viewBox
-            const recalcStroke = Math.max(newVbW, newVbH) * 0.003;
+            const recalcStroke = Math.max(newVbW, newVbH) * 0.001;
             const existingStyle = svgEl.querySelector("style");
             if (existingStyle) {
               existingStyle.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; stroke-width: ${recalcStroke} !important; } svg { overflow: visible; }`;
