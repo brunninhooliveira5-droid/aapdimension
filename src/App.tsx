@@ -23,7 +23,7 @@ import CuttingQuotePage from "./pages/CuttingQuotePage";
 import FilesPage from "./pages/FilesPage";
 import GestaoFinanceiraPage from "./pages/GestaoFinanceiraPage";
 import UserAccessPage from "./pages/UserAccessPage";
-import ProposalsPage from "./pages/ProposalsPage";
+
 import EngagementDashboard from "./pages/EngagementDashboard";
 import EquipmentRegistration from "./pages/EquipmentRegistration";
 import EquipmentDashboard from "./pages/EquipmentDashboard";
@@ -73,7 +73,7 @@ const AppRoutes = () => {
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
         <Route path="/orcamento" element={<RoleGate section="orcamento"><CuttingQuotePage /></RoleGate>} />
         <Route path="/arquivos" element={<RoleGate section="arquivos"><FilesPage /></RoleGate>} />
-        <Route path="/propostas" element={<RoleGate section="propostas"><ProposalsPage /></RoleGate>} />
+        <Route path="/propostas" element={<Navigate to="/dimension" replace />} />
         <Route path="/engajamento" element={<RoleGate section="usuarios"><EngagementDashboard /></RoleGate>} />
         <Route path="/cadastro-equipamentos" element={<RoleGate section="maquinas"><EquipmentRegistration /></RoleGate>} />
         <Route path="/cadastro-equipamentos/:equipmentId" element={<RoleGate section="maquinas"><EquipmentDashboard /></RoleGate>} />
