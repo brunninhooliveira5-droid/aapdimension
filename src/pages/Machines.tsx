@@ -72,6 +72,7 @@ const Machines = () => {
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [filterOwnerId, setFilterOwnerId] = useState<string>("todos");
+  const [filterOwnerSearch, setFilterOwnerSearch] = useState("");
   const [formCategory, setFormCategory] = useState<string>("maquina");
   const [filterCategory, setFilterCategory] = useState<string>("todos");
   const [formRegisteredEquipId, setFormRegisteredEquipId] = useState<string>("");
@@ -97,6 +98,7 @@ const Machines = () => {
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
+    if (filterOwnerSearch.trim() && !m.owner_name.toLowerCase().includes(filterOwnerSearch.trim().toLowerCase())) return false;
     return true;
   });
 
@@ -382,18 +384,12 @@ const Machines = () => {
                 </SelectContent>
               </Select>
               {user?.role === "admin_master" && (
-                <Select value={filterOwnerId} onValueChange={setFilterOwnerId}>
-                  <SelectTrigger className="bg-accent border-border h-9 text-xs w-[200px]">
-                    <Filter className="w-3.5 h-3.5 mr-1.5" />
-                    <SelectValue placeholder="Filtrar por usuário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os usuários</SelectItem>
-                    {profiles.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  placeholder="Buscar proprietário..."
+                  value={filterOwnerSearch}
+                  onChange={e => setFilterOwnerSearch(e.target.value)}
+                  className="bg-accent border-border h-9 text-xs w-[200px]"
+                />
               )}
               {user?.role === "admin_master" && (
                 <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
