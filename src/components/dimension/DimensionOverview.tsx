@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addDays, isToday, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ProductionCards } from "./ProductionCards";
 
 const priorityColors: Record<string, string> = {
   alta: "bg-destructive/10 text-destructive border-destructive/20",
@@ -89,6 +90,9 @@ export function DimensionOverview() {
 
   return (
     <div className="space-y-6 mt-4">
+      {/* Cards de Produção */}
+      <ProductionCards />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {kpis.map((kpi) => (
