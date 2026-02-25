@@ -415,53 +415,53 @@ const Machines = () => {
                 className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
                 onClick={() => navigate(`/maquinas/${machine.id}`)}
               >
-                <div className="h-40 bg-accent/50 flex items-center justify-center overflow-hidden">
+                <div className="h-28 bg-accent/50 flex items-center justify-center overflow-hidden">
                   {machine.image_url ? (
                     <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
                   ) : (
-                    <Cpu className="w-12 h-12 text-muted-foreground/30" />
+                    <Cpu className="w-10 h-10 text-muted-foreground/30" />
                   )}
                 </div>
 
-                <div className="p-5 space-y-4">
+                <div className="p-3 space-y-2">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-foreground">{machine.name || machine.model}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-semibold text-sm text-foreground truncate">{machine.name || machine.model}</h3>
                         {machine.category === "acessorio" && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
+                          <span className="text-[9px] px-1 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider shrink-0">Acessório</span>
                         )}
                       </div>
-                      <p className="text-xs font-mono text-muted-foreground">{machine.serial_number}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground truncate">{machine.serial_number}</p>
                     </div>
                     <StatusBadge status={machine.status} />
                   </div>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="w-3.5 h-3.5" />
-                      <span>Proprietário: {machine.owner_name}</span>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <User className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{machine.owner_name}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <CalendarDays className="w-3.5 h-3.5" />
-                      <span>Instalação: {new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <CalendarDays className="w-3 h-3 shrink-0" />
+                      <span>{new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
                     </div>
                     {machine.accessories.length > 0 && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Wrench className="w-3.5 h-3.5" />
-                        <span>Acessórios: {machine.accessories.join(", ")}</span>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Wrench className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{machine.accessories.join(", ")}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex gap-4 pt-2 border-t border-border">
+                  <div className="flex gap-3 pt-1.5 border-t border-border">
                     <div className="text-center flex-1">
-                      <p className="text-lg font-bold text-foreground">{machine.ticket_count}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chamados</p>
+                      <p className="text-sm font-bold text-foreground">{machine.ticket_count}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Chamados</p>
                     </div>
                     <div className="text-center flex-1">
-                      <p className="text-lg font-bold text-foreground">{machine.maintenance_count}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                      <p className="text-sm font-bold text-foreground">{machine.maintenance_count}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
                     </div>
                   </div>
                 </div>
