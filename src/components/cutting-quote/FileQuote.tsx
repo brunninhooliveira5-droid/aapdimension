@@ -628,8 +628,17 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         svgEl.removeAttribute("style");
 
         // Inject style to force visible strokes on dark backgrounds
+        // Calculate stroke-width relative to the viewBox size so strokes are always visible
+        const vbAttr = svgEl.getAttribute("viewBox");
+        let dynamicStrokeWidth = 2;
+        if (vbAttr) {
+          const vbParts = vbAttr.split(/[\s,]+/).map(Number);
+          if (vbParts.length === 4 && vbParts[2] > 0 && vbParts[3] > 0) {
+            dynamicStrokeWidth = Math.max(vbParts[2], vbParts[3]) * 0.003;
+          }
+        }
         const styleEl = svgDoc.createElementNS("http://www.w3.org/2000/svg", "style");
-        styleEl.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; stroke-width: 2 !important; } svg { overflow: visible; }`;
+        styleEl.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; stroke-width: ${dynamicStrokeWidth} !important; } svg { overflow: visible; }`;
         svgEl.insertBefore(styleEl, svgEl.firstChild);
 
         // Temporarily render in a hidden container to calculate actual bounding box
@@ -662,7 +671,15 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
           if (minX !== Infinity) {
             const pad = Math.max(maxX - minX, maxY - minY) * 0.05 || 10;
-            svgEl.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`);
+            const newVbW = maxX - minX + pad * 2;
+            const newVbH = maxY - minY + pad * 2;
+            svgEl.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${newVbW} ${newVbH}`);
+            // Update stroke-width based on recalculated viewBox
+            const recalcStroke = Math.max(newVbW, newVbH) * 0.003;
+            const existingStyle = svgEl.querySelector("style");
+            if (existingStyle) {
+              existingStyle.textContent = `* { stroke: hsl(38, 92%, 55%) !important; fill: none !important; stroke-width: ${recalcStroke} !important; } svg { overflow: visible; }`;
+            }
           }
         } catch { /* keep original viewBox */ }
 
