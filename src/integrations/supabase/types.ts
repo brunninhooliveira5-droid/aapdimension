@@ -711,6 +711,33 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_production_cards: {
+        Row: {
+          id: string
+          image_url: string | null
+          key: string
+          title: string
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          id?: string
+          image_url?: string | null
+          key: string
+          title: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          id?: string
+          image_url?: string | null
+          key?: string
+          title?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: []
+      }
       dimension_production_items: {
         Row: {
           client_name: string
