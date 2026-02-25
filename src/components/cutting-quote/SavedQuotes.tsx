@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -42,6 +43,7 @@ interface SavedQuote {
 
 export function SavedQuotes() {
   const { session } = useAuth();
+  const { effectiveUserId, isImpersonating, showAllData } = useEffectiveUser();
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
@@ -71,17 +73,22 @@ export function SavedQuotes() {
   const fetchQuotes = async () => {
     if (!session?.user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("cutting_quotes" as any)
       .select("*")
       .order("created_at", { ascending: false });
+    // When impersonating or non-admin, filter by effective user
+    if (!showAllData && effectiveUserId) {
+      query = query.eq("user_id", effectiveUserId);
+    }
+    const { data, error } = await query;
     if (!error && data) setQuotes(data as any);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchQuotes();
-  }, [session]);
+  }, [session, effectiveUserId, showAllData]);
 
   const deleteQuote = async (id: string) => {
     const quote = quotes.find((q) => q.id === id);
