@@ -948,7 +948,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       file_name: result.fileName,
       material: result.material,
       thickness: result.thickness,
-      machine_id: machineId,
+      machine_id: machineId || null,
       machine_name: result.machineName,
       path_length_mm: result.pathLengthMM,
       path_length_m: result.pathLengthM,
