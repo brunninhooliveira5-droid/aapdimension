@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, List, Columns3 } from "lucide-react";
+import { Plus, Pencil, Trash2, List, Columns3, Paperclip, Download, X, FileImage, FileText, File as FileIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -33,6 +33,68 @@ export function DimensionTasks() {
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [taskFiles, setTaskFiles] = useState<any[]>([]);
+  const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const loadTaskFiles = async (taskId: string) => {
+    const { data } = await supabase
+      .from("dimension_task_files")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: true });
+    setTaskFiles(data ?? []);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingTask || !session?.user?.id) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setUploadingFile(true);
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" excede 10MB.`);
+        continue;
+      }
+      const ext = file.name.split(".").pop();
+      const path = `${editingTask.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("dimension-task-files").upload(path, file);
+      if (uploadErr) { toast.error(`Erro ao enviar "${file.name}"`); continue; }
+      await supabase.from("dimension_task_files").insert({
+        task_id: editingTask.id,
+        file_name: file.name,
+        file_path: path,
+        file_size: file.size,
+        mime_type: file.type,
+        uploaded_by: session.user.id,
+      });
+    }
+    await loadTaskFiles(editingTask.id);
+    setUploadingFile(false);
+    toast.success("Arquivo(s) enviado(s)!");
+    e.target.value = "";
+  };
+
+  const handleDeleteFile = async (fileId: string, filePath: string) => {
+    await supabase.storage.from("dimension-task-files").remove([filePath]);
+    await supabase.from("dimension_task_files").delete().eq("id", fileId);
+    setTaskFiles((prev) => prev.filter((f) => f.id !== fileId));
+    toast.success("Arquivo removido!");
+  };
+
+  const getFileUrl = (filePath: string) => {
+    const { data } = supabase.storage.from("dimension-task-files").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getFileTypeIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return <FileImage className="w-3.5 h-3.5 text-primary" />;
+    if (mimeType === "application/pdf") return <FileText className="w-3.5 h-3.5 text-destructive" />;
+    return <FileIcon className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("taskId", taskId);
@@ -65,18 +127,24 @@ export function DimensionTasks() {
     const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
     if (error) {
       toast.error("Erro ao mover tarefa");
-      fetch();
+      fetchAll();
     } else {
       toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`);
     }
   };
 
-  const fetch = async () => {
-    const { data } = await supabase.from("dimension_tasks").select("*").order("created_at", { ascending: false });
-    setTasks(data ?? []);
+  const fetchAll = async () => {
+    const [{ data: tasksData }, { data: filesData }] = await Promise.all([
+      supabase.from("dimension_tasks").select("*").order("created_at", { ascending: false }),
+      supabase.from("dimension_task_files").select("task_id"),
+    ]);
+    setTasks(tasksData ?? []);
+    const counts: Record<string, number> = {};
+    (filesData ?? []).forEach((f: any) => { counts[f.task_id] = (counts[f.task_id] || 0) + 1; });
+    setTaskFileCounts(counts);
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchAll(); }, []);
 
   const filtered = tasks.filter((t) => {
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
@@ -85,7 +153,7 @@ export function DimensionTasks() {
   });
 
   const openCreate = () => { setEditingTask(null); setForm(emptyTask); setDialogOpen(true); };
-  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, category: t.category, responsible: t.responsible, due_date: t.due_date ?? "", status: t.status }); setDialogOpen(true); };
+  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, category: t.category, responsible: t.responsible, due_date: t.due_date ?? "", status: t.status }); loadTaskFiles(t.id); setDialogOpen(true); };
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
@@ -100,12 +168,12 @@ export function DimensionTasks() {
       await supabase.from("dimension_tasks").insert(payload);
       toast.success("Tarefa criada!");
     }
-    setDialogOpen(false); setSaving(false); fetch();
+    setDialogOpen(false); setSaving(false); fetchAll();
   };
 
   const handleDelete = async (id: string) => {
     await supabase.from("dimension_tasks").delete().eq("id", id);
-    toast.success("Tarefa excluída!"); fetch();
+    toast.success("Tarefa excluída!"); fetchAll();
   };
 
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "concluida"];
@@ -136,6 +204,7 @@ export function DimensionTasks() {
       </div>
       {task.responsible && <p className="text-[10px] text-muted-foreground">👤 {task.responsible}</p>}
       {task.due_date && <p className="text-[10px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+      {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
     </div>
   );
 
@@ -242,6 +311,37 @@ export function DimensionTasks() {
                   {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
+            )}
+
+            {/* File attachments */}
+            {editingTask && (
+              <div className="space-y-2 border-t pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Arquivos</span>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary hover:underline">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    {uploadingFile ? "Enviando..." : "Anexar arquivo"}
+                    <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" multiple className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
+                  </label>
+                </div>
+                {taskFiles.length > 0 && (
+                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+                    {taskFiles.map((f) => (
+                      <div key={f.id} className="flex items-center gap-2 bg-accent rounded-md px-2.5 py-1.5 text-xs">
+                        {getFileTypeIcon(f.mime_type)}
+                        <span className="flex-1 truncate">{f.file_name}</span>
+                        <a href={getFileUrl(f.file_path)} download={f.file_name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-5 w-5"><Download className="h-3 w-3" /></Button>
+                        </a>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleDeleteFile(f.id, f.file_path)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {taskFiles.length === 0 && <p className="text-[10px] text-muted-foreground">Nenhum arquivo anexado.</p>}
+              </div>
             )}
           </div>
           <DialogFooter>
