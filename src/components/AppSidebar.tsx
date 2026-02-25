@@ -108,15 +108,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <div className="flex items-center gap-2 px-4 py-4 border-b border-sidebar-border">
-        {!collapsed && (
-          <div className="flex justify-center w-full animate-fade-in cursor-pointer" onClick={() => navigate("/")}>
-            <img src={dimensionLogo} alt="Dimension CNC" className="h-14 w-auto brightness-0 invert" />
-          </div>
-        )}
-        {collapsed && (
-          <img src={dimensionLogo} alt="Dimension CNC" className="h-10 w-auto mx-auto brightness-0 invert cursor-pointer" onClick={() => navigate("/")} />
-        )}
+      <div
+        className="flex items-center justify-center px-4 py-4 border-b border-sidebar-border cursor-pointer"
+        onClick={() => navigate("/")}
+        role="button"
+        tabIndex={0}
+      >
+        <img
+          src={dimensionLogo}
+          alt="Dimension CNC"
+          className={`w-auto brightness-0 invert ${collapsed ? "h-10" : "h-14"}`}
+        />
       </div>
 
       <SidebarContent className="pt-2">
