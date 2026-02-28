@@ -270,17 +270,29 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                   </label>
                 </div>
                 {taskFiles.length > 0 && (
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {taskFiles.map((f) => (
-                      <div key={f.id} className="flex items-center gap-2 bg-accent rounded-md px-2.5 py-1.5 text-xs">
-                        {getFileTypeIcon(f.mime_type)}
-                        <span className="flex-1 truncate">{f.file_name}</span>
-                        <a href={getFileUrl(f.file_path)} download={f.file_name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-5 w-5"><Download className="h-3 w-3" /></Button>
-                        </a>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleDeleteFile(f.id, f.file_path)}>
-                          <X className="h-3 w-3" />
-                        </Button>
+                      <div key={f.id} className="rounded-lg border bg-accent/50 overflow-hidden">
+                        {/* Image preview */}
+                        {f.mime_type.startsWith("image/") && (
+                          <a href={getFileUrl(f.file_path)} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={getFileUrl(f.file_path)}
+                              alt={f.file_name}
+                              className="w-full max-h-48 object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        )}
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
+                          {getFileTypeIcon(f.mime_type)}
+                          <span className="flex-1 truncate">{f.file_name}</span>
+                          <a href={getFileUrl(f.file_path)} download={f.file_name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5"><Download className="h-3 w-3" /></Button>
+                          </a>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleDeleteFile(f.id, f.file_path)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
