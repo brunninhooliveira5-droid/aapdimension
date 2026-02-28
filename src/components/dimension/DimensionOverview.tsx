@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format, addDays, isToday, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ProductionCards } from "./ProductionCards";
+import { SectorKanban } from "./SectorKanban";
 
 const priorityColors: Record<string, string> = {
   alta: "bg-destructive/10 text-destructive border-destructive/20",
@@ -25,6 +26,7 @@ interface DimensionOverviewProps {
 
 export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps) {
   const { session } = useAuth();
+  const [activeSector, setActiveSector] = useState<{ key: string; title: string } | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [pendencies, setPendencies] = useState<any[]>([]);
   const [production, setProduction] = useState<any[]>([]);
@@ -92,10 +94,14 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     { label: "Próximos prazos (7d)", value: upcoming, icon: CalendarDays, color: "text-blue-500" },
   ];
 
+  if (activeSector) {
+    return <SectorKanban sectorKey={activeSector.key} sectorTitle={activeSector.title} onBack={() => setActiveSector(null)} />;
+  }
+
   return (
     <div className="space-y-6 mt-4">
       {/* Cards de Produção */}
-      <ProductionCards onCardClick={() => onNavigateToTasks?.()} />
+      <ProductionCards onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
