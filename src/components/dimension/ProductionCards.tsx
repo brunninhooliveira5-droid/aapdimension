@@ -3,8 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Camera } from "lucide-react";
+import { Camera, Plus, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface ProductionCard {
   id: string;
@@ -24,6 +28,9 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const isAdmin = user?.role === "admin_master";
 
@@ -63,7 +70,6 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
     const ext = file.name.split(".").pop();
     const path = `${editingKey}.${ext}`;
 
-    // Remove old file if exists
     await supabase.storage.from("dimension-production-images").remove([path]);
 
     const { error: uploadError } = await supabase.storage
@@ -94,6 +100,37 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
     fetchCards();
   };
 
+  const handleAddCard = async () => {
+    if (!newTitle.trim()) return;
+    setSaving(true);
+    const key = newTitle.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    const exists = cards.some((c) => c.key === key);
+    if (exists) {
+      toast.error("Já existe um setor com esse nome");
+      setSaving(false);
+      return;
+    }
+    const { error } = await supabase.from("dimension_production_cards").insert({
+      key,
+      title: newTitle.trim(),
+    } as any);
+    if (error) {
+      toast.error("Erro ao criar setor");
+    } else {
+      toast.success("Setor criado!");
+      setNewTitle("");
+      setAddOpen(false);
+      fetchCards();
+    }
+    setSaving(false);
+  };
+
+  const handleDeleteCard = async (card: ProductionCard) => {
+    const { error } = await supabase.from("dimension_production_cards").delete().eq("id", card.id);
+    if (error) toast.error("Erro ao excluir setor");
+    else { toast.success("Setor excluído!"); fetchCards(); }
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -114,7 +151,6 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
                 className="relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer"
                 onClick={() => onCardClick?.(card)}
               >
-                {/* Background image or fallback */}
                 {card.image_url ? (
                   <img
                     src={card.image_url}
@@ -125,29 +161,45 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
                   <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted-foreground/20" />
                 )}
 
-                {/* Dark overlay */}
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
 
-                {/* Title */}
                 <div className="absolute inset-0 flex items-end p-3">
                   <h3 className="text-white font-semibold text-sm drop-shadow-md">
                     {card.title}
                   </h3>
                 </div>
 
-                {/* Admin upload indicator */}
                 {isAdmin && (
-                  <div
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); handleImageClick(card.key); }}
-                  >
-                    <div className="bg-black/60 rounded-full p-1.5">
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div
+                      className="bg-black/60 rounded-full p-1.5 hover:bg-black/80 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleImageClick(card.key); }}
+                    >
                       <Camera className="h-3.5 w-3.5 text-white" />
                     </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <div
+                          className="bg-black/60 rounded-full p-1.5 hover:bg-destructive/80 transition-colors cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir setor "{card.title}"?</AlertDialogTitle>
+                          <AlertDialogDescription>As tarefas vinculadas a este setor não serão excluídas.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteCard(card)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 )}
 
-                {/* Uploading overlay */}
                 {uploading === card.key && (
                   <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                     <span className="text-white text-xs animate-pulse">Enviando...</span>
@@ -160,6 +212,19 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
             </TooltipContent>
           </Tooltip>
         ))}
+
+        {/* Add card button - admin only */}
+        {isAdmin && (
+          <div
+            className="relative h-28 rounded-xl overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            onClick={() => setAddOpen(true)}
+          >
+            <div className="flex flex-col items-center gap-1 text-muted-foreground">
+              <Plus className="h-6 w-6" />
+              <span className="text-xs font-medium">Novo Setor</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Hidden file input */}
@@ -170,6 +235,27 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {/* Add sector dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Novo Setor de Produção</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Nome do setor (ex: Soldagem)"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddCard()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddCard} disabled={saving || !newTitle.trim()}>
+              {saving ? "Criando..." : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
