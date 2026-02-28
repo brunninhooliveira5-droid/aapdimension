@@ -228,10 +228,10 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   const getKpiItems = (key: string) => {
     switch (key) {
-      case "today": return todayTasks.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.priority, type: "task" as const }));
-      case "overdue": return overdue.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.due_date ? format(new Date(t.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "overdue" as const }));
-      case "production": return inProgress.map(p => ({ id: p.id, title: p.project_name, sub: `${p.client_name || "—"} • ${p.machine_name || "—"}`, extra: p.responsible || "", type: "prod" as const }));
-      case "upcoming": return events.map(e => ({ id: e.id, title: e.title, sub: e.responsible || "", extra: e.event_date ? format(new Date(e.event_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "event" as const }));
+      case "today": return todayTasks.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.priority, type: "task" as const, sector: t.sector, raw: t }));
+      case "overdue": return overdue.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.due_date ? format(new Date(t.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "task" as const, sector: t.sector, raw: t }));
+      case "production": return inProgress.map(p => ({ id: p.id, title: p.project_name, sub: `${p.client_name || "—"} • ${p.machine_name || "—"}`, extra: p.responsible || "", type: "prod" as const, sector: null, raw: null }));
+      case "upcoming": return events.map(e => ({ id: e.id, title: e.title, sub: e.responsible || "", extra: e.event_date ? format(new Date(e.event_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "event" as const, sector: null, raw: null }));
       default: return [];
     }
   };
@@ -481,10 +481,25 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum item encontrado.</p>
             )}
             {kpiDialog && getKpiItems(kpiDialog).map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+              <div
+                key={item.id}
+                className={`flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors ${item.raw ? "cursor-pointer hover:bg-accent/50 hover:border-primary/40" : "hover:bg-accent/50"}`}
+                onClick={() => {
+                  if (item.raw) {
+                    setKpiDialog(null);
+                    openDetail(item.raw);
+                  }
+                }}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{item.title}</p>
                   <p className="text-xs text-muted-foreground truncate">{item.sub}</p>
+                  {item.sector && (
+                    <Badge variant="secondary" className="text-[8px] mt-1">📍 Setor: {item.sector}</Badge>
+                  )}
+                  {item.type === "task" && !item.sector && (
+                    <Badge variant="outline" className="text-[8px] mt-1 text-muted-foreground">Sem setor</Badge>
+                  )}
                 </div>
                 {item.extra && (
                   <Badge variant="outline" className="text-[9px] shrink-0">{item.extra}</Badge>
