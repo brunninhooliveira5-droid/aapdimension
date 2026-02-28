@@ -224,17 +224,37 @@ const Login = () => {
               <>Solicitar Cadastro <UserPlus className="w-4 h-4" /></>
             )}
           </Button>
+        {mode === "login" && (
+            <>
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 h-px bg-border/40" />
+                <span className="text-xs text-muted-foreground/60">ou</span>
+                <div className="flex-1 h-px bg-border/40" />
+              </div>
+
+              {/* Signup CTA */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 rounded-xl text-sm font-medium gap-2 border-border/60 bg-background/10 text-foreground/90 hover:bg-accent/30 hover:text-foreground backdrop-blur-sm"
+                onClick={() => setMode("signup")}
+              >
+                <UserPlus className="w-4 h-4" />
+                Solicitar acesso ao Portal
+              </Button>
+            </>
+          )}
         </form>
 
-        {/* Toggle mode */}
-        <button
-          onClick={() => setMode(mode === "login" ? "signup" : "login")}
-          className="mt-5 text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
-        >
-          {mode === "login"
-            ? "Não tem conta? Solicitar acesso"
-            : "Já tem conta? Fazer login"}
-        </button>
+        {mode === "signup" && (
+          <button
+            onClick={() => setMode("login")}
+            className="mt-5 text-sm text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Já tem conta? Fazer login
+          </button>
+        )}
 
         <p className="mt-4 text-[11px] text-muted-foreground/50 text-center">
           Acesso exclusivo para clientes Dimension CNC
