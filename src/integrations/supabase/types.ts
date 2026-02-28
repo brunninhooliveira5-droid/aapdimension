@@ -714,6 +714,101 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_goal_history: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          snapshot_date: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          snapshot_date?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          snapshot_date?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dimension_goal_history_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dimension_goals: {
+        Row: {
+          created_at: string
+          created_by: string
+          current_value: number
+          description: string
+          goal_type: string
+          id: string
+          linked_task_category: string | null
+          linked_task_sector: string | null
+          period_end: string
+          period_start: string
+          period_type: string
+          responsible: string
+          sector: string | null
+          status: string
+          target_value: number
+          title: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          current_value?: number
+          description?: string
+          goal_type?: string
+          id?: string
+          linked_task_category?: string | null
+          linked_task_sector?: string | null
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          responsible?: string
+          sector?: string | null
+          status?: string
+          target_value?: number
+          title: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          current_value?: number
+          description?: string
+          goal_type?: string
+          id?: string
+          linked_task_category?: string | null
+          linked_task_sector?: string | null
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          responsible?: string
+          sector?: string | null
+          status?: string
+          target_value?: number
+          title?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dimension_pendencies: {
         Row: {
           category: string

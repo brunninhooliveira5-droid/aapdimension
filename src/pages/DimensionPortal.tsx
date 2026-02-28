@@ -1,12 +1,13 @@
 import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText, Target } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
 import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
+import { DimensionGoals } from "@/components/dimension/DimensionGoals";
 
 const ProposalsPage = lazy(() => import("@/pages/ProposalsPage"));
 
@@ -18,6 +19,7 @@ const tabs = [
   { value: "production", label: "Produção", icon: Factory },
   { value: "routines", label: "Rotinas", icon: RotateCcw },
   { value: "propostas", label: "Propostas", icon: FileText },
+  { value: "metas", label: "Metas", icon: Target },
 ];
 
 export default function DimensionPortal() {
@@ -55,6 +57,7 @@ export default function DimensionPortal() {
             <ProposalsPage />
           </Suspense>
         </TabsContent>
+        <TabsContent value="metas"><DimensionGoals /></TabsContent>
       </Tabs>
     </div>
   );
