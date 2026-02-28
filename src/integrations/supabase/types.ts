@@ -19,6 +19,7 @@ export type Database = {
           company: string
           created_at: string
           email: string
+          email_sent: boolean
           id: string
           is_dimension_client: boolean
           name: string
@@ -33,6 +34,7 @@ export type Database = {
           company: string
           created_at?: string
           email: string
+          email_sent?: boolean
           id?: string
           is_dimension_client?: boolean
           name: string
@@ -47,6 +49,7 @@ export type Database = {
           company?: string
           created_at?: string
           email?: string
+          email_sent?: boolean
           id?: string
           is_dimension_client?: boolean
           name?: string
