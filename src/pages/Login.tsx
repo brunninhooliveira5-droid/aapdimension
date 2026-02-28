@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import dimensionLogo from "@/assets/dimension-logo.png";
 import loginBg from "@/assets/login-bg.png";
-import { Lock, UserPlus, Building2, Phone, User, EyeOff, Eye, MessageCircle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Lock, UserPlus, Building2, Phone, User, EyeOff, Eye, MessageCircle, CheckCircle2, ArrowLeft, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AccessRequestData {
@@ -33,6 +33,9 @@ const Login = () => {
   const [arCompany, setArCompany] = useState("");
   const [arEmail, setArEmail] = useState("");
   const [arWhatsapp, setArWhatsapp] = useState("");
+  const [arPassword, setArPassword] = useState("");
+  const [arPasswordConfirm, setArPasswordConfirm] = useState("");
+  const [showArPassword, setShowArPassword] = useState(false);
   const [arIsDimensionClient, setArIsDimensionClient] = useState(false);
   const [arObservation, setArObservation] = useState("");
   const [submittedData, setSubmittedData] = useState<AccessRequestData | null>(null);
@@ -41,24 +44,84 @@ const Login = () => {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
-    const { error } = await login(email, password);
+    
+    // Try to sign in
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    
     if (error) {
-      toast.error(error);
-    } else {
-      navigate("/");
+      toast.error("E-mail ou senha incorretos.");
+    } else if (data.user) {
+      // Check if user is approved
+      const { data: profile } = await supabase.from("profiles").select("approved").eq("id", data.user.id).single();
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).single();
+      
+      const isAdminMaster = roleData?.role === "admin_master";
+      const isApproved = (profile as any)?.approved ?? false;
+      
+      if (!isApproved && !isAdminMaster) {
+        // Sign out and show pending message
+        await supabase.auth.signOut();
+        toast.info(
+          "⏳ Seu cadastro está aguardando aprovação do administrador. Você será notificado quando o acesso for liberado.",
+          { duration: 6000 }
+        );
+      } else {
+        // Record login activity
+        supabase.rpc("record_login_activity", { p_user_id: data.user.id }).then(() => {});
+        supabase.rpc("record_login_event", { p_user_id: data.user.id }).then(() => {});
+        navigate("/");
+      }
     }
     setLoading(false);
   };
 
   const handleAccessRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!arName || !arCompany || !arEmail || !arWhatsapp) {
+    if (!arName || !arCompany || !arEmail || !arWhatsapp || !arPassword) {
       toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+    if (arPassword.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+    if (arPassword !== arPasswordConfirm) {
+      toast.error("As senhas não coincidem");
       return;
     }
     setLoading(true);
 
-    const { error } = await supabase.from("access_requests").insert({
+    // 1. Create auth user with password
+    const { error: signupError } = await supabase.auth.signUp({
+      email: arEmail.trim(),
+      password: arPassword,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          name: arName.trim(),
+          role: "operador",
+          company: arCompany.trim(),
+          phone: arWhatsapp.trim(),
+        },
+      },
+    });
+
+    if (signupError) {
+      if (signupError.message.includes("already registered")) {
+        toast.error("Este e-mail já está cadastrado. Tente fazer login.");
+      } else {
+        toast.error("Erro ao criar conta. Tente novamente.");
+        console.error(signupError);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Sign out immediately (user needs admin approval)
+    await supabase.auth.signOut();
+
+    // 2. Insert access request for admin review
+    const { error: arError } = await supabase.from("access_requests").insert({
       name: arName.trim(),
       company: arCompany.trim(),
       email: arEmail.trim(),
@@ -67,32 +130,32 @@ const Login = () => {
       observation: arObservation.trim(),
     });
 
-    if (error) {
-      toast.error("Erro ao enviar solicitação. Tente novamente.");
-      console.error(error);
-    } else {
-      setSubmittedData({
-        name: arName.trim(),
-        company: arCompany.trim(),
-        email: arEmail.trim(),
-        whatsapp: arWhatsapp.trim(),
-        is_dimension_client: arIsDimensionClient,
-        observation: arObservation.trim(),
-      });
-      setMode("success");
+    if (arError) {
+      console.error(arError);
+      // Even if access_request fails, user was created — still show success
     }
+
+    setSubmittedData({
+      name: arName.trim(),
+      company: arCompany.trim(),
+      email: arEmail.trim(),
+      whatsapp: arWhatsapp.trim(),
+      is_dimension_client: arIsDimensionClient,
+      observation: arObservation.trim(),
+    });
+    setMode("success");
     setLoading(false);
   };
 
   const buildWhatsAppUrl = () => {
     if (!submittedData) return "";
-    const clientType = submittedData.is_dimension_client ? "Cliente Dimension" : "Novo cliente";
+    const clientType = submittedData.is_dimension_client ? "Sim, tem equipamento Dimension" : "Não tem equipamento Dimension";
     let msg = `Olá, Dimension CNC! Solicitei acesso ao Portal.\n`;
     msg += `Nome: ${submittedData.name}\n`;
     msg += `Empresa: ${submittedData.company}\n`;
     msg += `E-mail: ${submittedData.email}\n`;
     msg += `WhatsApp: ${submittedData.whatsapp}\n`;
-    msg += `Perfil: ${clientType}`;
+    msg += `Equipamento Dimension: ${clientType}`;
     if (submittedData.observation) {
       msg += `\nObservação: ${submittedData.observation}`;
     }
@@ -105,6 +168,8 @@ const Login = () => {
     setArCompany("");
     setArEmail("");
     setArWhatsapp("");
+    setArPassword("");
+    setArPasswordConfirm("");
     setArIsDimensionClient(false);
     setArObservation("");
     setSubmittedData(null);
@@ -137,7 +202,16 @@ const Login = () => {
             <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto" />
             <h3 className="text-lg font-semibold text-foreground">Solicitação enviada!</h3>
             <p className="text-sm text-muted-foreground/80 leading-relaxed">
-              Sua solicitação foi registrada com sucesso. Para agilizar a aprovação, envie uma confirmação pelo WhatsApp da Dimension.
+              Sua conta foi criada e está aguardando aprovação do administrador. Você receberá uma notificação quando o acesso for liberado.
+            </p>
+
+            <div className="flex items-center gap-2 justify-center p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Clock className="w-5 h-5 text-amber-400 shrink-0" />
+              <span className="text-sm text-amber-300">Aguardando aprovação</span>
+            </div>
+
+            <p className="text-xs text-muted-foreground/60 leading-relaxed">
+              Para agilizar, envie uma confirmação pelo WhatsApp:
             </p>
 
             <a
@@ -219,9 +293,38 @@ const Login = () => {
                 <Input type="tel" placeholder="WhatsApp *" value={arWhatsapp} onChange={(e) => setArWhatsapp(e.target.value)} className={inputClass} required />
               </div>
 
-              {/* Cliente Dimension toggle */}
+              {/* Password fields */}
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type={showArPassword ? "text" : "password"}
+                  placeholder="Criar senha *"
+                  value={arPassword}
+                  onChange={(e) => setArPassword(e.target.value)}
+                  className="pl-10 pr-10 bg-background/20 border-border/40 rounded-xl h-11 text-foreground placeholder:text-muted-foreground/60"
+                  required
+                  minLength={6}
+                />
+                <button type="button" onClick={() => setShowArPassword(!showArPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
+                  {showArPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                <Input
+                  type={showArPassword ? "text" : "password"}
+                  placeholder="Confirmar senha *"
+                  value={arPasswordConfirm}
+                  onChange={(e) => setArPasswordConfirm(e.target.value)}
+                  className={inputClass}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              {/* Equipamento Dimension toggle */}
               <div className="flex items-center gap-3 p-3 rounded-xl bg-background/20 border border-border/40">
-                <span className="text-sm text-foreground/80 flex-1">Já é cliente Dimension?</span>
+                <span className="text-sm text-foreground/80 flex-1">Tem equipamento Dimension?</span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setArIsDimensionClient(true)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${arIsDimensionClient ? "bg-[hsl(220,80%,50%)] text-white" : "bg-background/30 text-muted-foreground/70 hover:bg-background/50"}`}>
                     Sim
