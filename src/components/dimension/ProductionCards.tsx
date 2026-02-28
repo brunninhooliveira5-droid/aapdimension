@@ -216,12 +216,11 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
         {/* Add card button - admin only */}
         {isAdmin && (
           <div
-            className="relative h-28 rounded-xl overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            className="relative h-28 rounded-xl overflow-hidden flex items-end justify-end p-2 cursor-pointer group"
             onClick={() => setAddOpen(true)}
           >
-            <div className="flex flex-col items-center gap-1 text-muted-foreground">
-              <Plus className="h-6 w-6" />
-              <span className="text-xs font-medium">Novo Setor</span>
+            <div className="bg-muted/60 hover:bg-primary/20 rounded-full p-1.5 transition-colors opacity-60 group-hover:opacity-100">
+              <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
             </div>
           </div>
         )}
