@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductionCard {
   id: string;
@@ -19,9 +20,11 @@ interface ProductionCard {
 
 interface ProductionCardsProps {
   onCardClick?: (card: ProductionCard) => void;
+  onTaskDroppedToSector?: (taskId: string, sectorKey: string, sectorTitle: string) => void;
+  sectorTaskCounts?: Record<string, number>;
 }
 
-export function ProductionCards({ onCardClick }: ProductionCardsProps) {
+export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTaskCounts }: ProductionCardsProps) {
   const { user } = useAuth();
   const [cards, setCards] = useState<ProductionCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,7 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [dragOverCard, setDragOverCard] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin_master";
 
@@ -131,6 +135,22 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
     else { toast.success("Setor excluído!"); fetchCards(); }
   };
 
+  const handleSectorDragOver = (e: React.DragEvent, cardKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCard(cardKey);
+  };
+
+  const handleSectorDrop = (e: React.DragEvent, card: ProductionCard) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverCard(null);
+    const taskId = e.dataTransfer.getData("taskId");
+    if (taskId && onTaskDroppedToSector) {
+      onTaskDroppedToSector(taskId, card.key, card.title);
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -144,76 +164,92 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
   return (
     <TooltipProvider>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {cards.map((card) => (
-          <Tooltip key={card.id}>
-            <TooltipTrigger asChild>
-              <div
-                className="relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer"
-                onClick={() => onCardClick?.(card)}
-              >
-                {card.image_url ? (
-                  <img
-                    src={card.image_url}
-                    alt={card.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted-foreground/20" />
-                )}
+        {cards.map((card) => {
+          const taskCount = sectorTaskCounts?.[card.key] || 0;
+          return (
+            <Tooltip key={card.id}>
+              <TooltipTrigger asChild>
+                <div
+                  className={`relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer ${dragOverCard === card.key ? "ring-2 ring-primary shadow-lg scale-[1.03]" : ""}`}
+                  onClick={() => onCardClick?.(card)}
+                  onDragOver={(e) => handleSectorDragOver(e, card.key)}
+                  onDragLeave={() => setDragOverCard(null)}
+                  onDrop={(e) => handleSectorDrop(e, card)}
+                >
+                  {card.image_url ? (
+                    <img
+                      src={card.image_url}
+                      alt={card.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted-foreground/20" />
+                  )}
 
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                  <div className={`absolute inset-0 transition-colors ${dragOverCard === card.key ? "bg-primary/30" : "bg-black/40 group-hover:bg-black/50"}`} />
 
-                <div className="absolute inset-0 flex items-end p-3">
-                  <h3 className="text-white font-semibold text-sm drop-shadow-md">
-                    {card.title}
-                  </h3>
-                </div>
+                  <div className="absolute inset-0 flex items-end p-3 justify-between">
+                    <h3 className="text-white font-semibold text-sm drop-shadow-md">
+                      {card.title}
+                    </h3>
+                    {taskCount > 0 && (
+                      <Badge className="bg-white/20 text-white text-[9px] backdrop-blur-sm">{taskCount}</Badge>
+                    )}
+                  </div>
 
-                {isAdmin && (
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div
-                      className="bg-black/60 rounded-full p-1.5 hover:bg-black/80 transition-colors"
-                      onClick={(e) => { e.stopPropagation(); handleImageClick(card.key); }}
-                    >
-                      <Camera className="h-3.5 w-3.5 text-white" />
+                  {dragOverCard === card.key && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-white text-xs font-semibold bg-primary/80 px-3 py-1 rounded-full animate-pulse">
+                        Soltar aqui
+                      </span>
                     </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <div
-                          className="bg-black/60 rounded-full p-1.5 hover:bg-destructive/80 transition-colors cursor-pointer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-white" />
-                        </div>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir setor "{card.title}"?</AlertDialogTitle>
-                          <AlertDialogDescription>As tarefas vinculadas a este setor não serão excluídas.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteCard(card)}>Excluir</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
+                  )}
 
-                {uploading === card.key && (
-                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                    <span className="text-white text-xs animate-pulse">Enviando...</span>
-                  </div>
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Área de produção: {card.title}</p>
-            </TooltipContent>
-          </Tooltip>
-        ))}
+                  {isAdmin && (
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div
+                        className="bg-black/60 rounded-full p-1.5 hover:bg-black/80 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); handleImageClick(card.key); }}
+                      >
+                        <Camera className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <div
+                            className="bg-black/60 rounded-full p-1.5 hover:bg-destructive/80 transition-colors cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir setor "{card.title}"?</AlertDialogTitle>
+                            <AlertDialogDescription>As tarefas vinculadas a este setor não serão excluídas.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteCard(card)}>Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
 
-        {/* Add card button - admin only */}
+                  {uploading === card.key && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                      <span className="text-white text-xs animate-pulse">Enviando...</span>
+                    </div>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Área de produção: {card.title}{taskCount > 0 ? ` (${taskCount} tarefas)` : ""}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+
         {isAdmin && (
           <div
             className="relative h-28 rounded-xl overflow-hidden flex items-end justify-end p-2 cursor-pointer group"
@@ -226,7 +262,6 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
         )}
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -235,7 +270,6 @@ export function ProductionCards({ onCardClick }: ProductionCardsProps) {
         onChange={handleFileChange}
       />
 
-      {/* Add sector dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
