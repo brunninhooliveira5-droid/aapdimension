@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          company: string
+          created_at: string
+          email: string
+          id: string
+          is_dimension_client: boolean
+          name: string
+          observation: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          email: string
+          id?: string
+          is_dimension_client?: boolean
+          name: string
+          observation?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_dimension_client?: boolean
+          name?: string
+          observation?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       access_templates: {
         Row: {
           created_at: string
