@@ -2532,6 +2532,7 @@ export type Database = {
       }
       tickets: {
         Row: {
+          admin_email_sent: boolean
           created_at: string
           description: string
           id: string
@@ -2539,9 +2540,11 @@ export type Database = {
           status: string
           type: string
           updated_at: string
+          user_email_sent: boolean
           user_id: string
         }
         Insert: {
+          admin_email_sent?: boolean
           created_at?: string
           description: string
           id?: string
@@ -2549,9 +2552,11 @@ export type Database = {
           status?: string
           type: string
           updated_at?: string
+          user_email_sent?: boolean
           user_id: string
         }
         Update: {
+          admin_email_sent?: boolean
           created_at?: string
           description?: string
           id?: string
@@ -2559,6 +2564,7 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+          user_email_sent?: boolean
           user_id?: string
         }
         Relationships: [
