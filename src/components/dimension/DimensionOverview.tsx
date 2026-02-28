@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus } from "lucide-react";
+import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addDays, isToday, isBefore } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { ProductionCards } from "./ProductionCards";
 import { SectorKanban } from "./SectorKanban";
+
+const statusLabels: Record<string, string> = { a_fazer: "A fazer", em_andamento: "Em andamento", aguardando: "Aguardando", atrasada: "Atrasada", concluida: "Concluída" };
+const statusColors: Record<string, string> = { a_fazer: "bg-muted text-muted-foreground", em_andamento: "bg-blue-500/10 text-blue-600", aguardando: "bg-amber-500/10 text-amber-600", atrasada: "bg-red-500/10 text-red-600", concluida: "bg-green-500/10 text-green-600" };
+const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-destructive", media: "bg-amber-500/10 text-amber-600", baixa: "bg-muted text-muted-foreground" };
+const categoryLabels: Record<string, string> = { producao: "Produção", financeiro: "Financeiro", comercial: "Comercial", tecnico: "Técnico", app_sistema: "App/Sistema" };
 
 interface DimensionOverviewProps {
   onNavigateToTasks?: () => void;
@@ -26,21 +33,26 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", priority: "media", responsible: "", due_date: "" });
+  const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
 
   const fetchAll = async () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const in7days = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
-    const [t, p, pr, ev] = await Promise.all([
+    const [t, p, pr, ev, fc] = await Promise.all([
       supabase.from("dimension_tasks").select("*").order("due_date", { ascending: true }),
       supabase.from("dimension_pendencies").select("*").neq("status", "resolvida").order("due_date", { ascending: true }),
       supabase.from("dimension_production_items").select("*").neq("status", "pronto").order("estimated_deadline", { ascending: true }),
       supabase.from("dimension_schedule_events").select("*").gte("event_date", today).lte("event_date", in7days).order("event_date", { ascending: true }),
+      supabase.from("dimension_task_files").select("task_id"),
     ]);
     setTasks(t.data ?? []);
     setPendencies(p.data ?? []);
     setProduction(pr.data ?? []);
     setEvents(ev.data ?? []);
+    const counts: Record<string, number> = {};
+    (fc.data ?? []).forEach((f: any) => { counts[f.task_id] = (counts[f.task_id] || 0) + 1; });
+    setTaskFileCounts(counts);
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -113,6 +125,41 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
           <Plus className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Tarefas ativas */}
+      {(() => {
+        const activeTasks = tasks.filter(t => t.status !== "concluida");
+        if (activeTasks.length === 0) return null;
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground">Tarefas ativas ({activeTasks.length})</h3>
+              {onNavigateToTasks && (
+                <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={onNavigateToTasks}>
+                  Ver todas →
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {activeTasks.map((task) => (
+                <div key={task.id} className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow">
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-sm font-medium leading-tight">{task.title}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className={`text-[9px] ${statusColors[task.status]}`}>{statusLabels[task.status] ?? task.status}</Badge>
+                    <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
+                    <Badge variant="outline" className="text-[9px]">{categoryLabels[task.category] ?? task.category}</Badge>
+                  </div>
+                  {task.responsible && <p className="text-[10px] text-muted-foreground">👤 {task.responsible}</p>}
+                  {task.due_date && <p className="text-[10px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                  {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Dialog nova tarefa */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
