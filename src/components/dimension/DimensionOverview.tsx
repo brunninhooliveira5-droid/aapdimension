@@ -58,7 +58,22 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
       supabase.from("dimension_schedule_events").select("*").gte("event_date", today).lte("event_date", in7days).order("event_date", { ascending: true }),
       supabase.from("dimension_task_files").select("task_id"),
     ]);
-    setTasks(t.data ?? []);
+    const allTasks = t.data ?? [];
+    // Auto-mark overdue tasks
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const overdueIds: string[] = [];
+    const updated = allTasks.map((task: any) => {
+      if (task.due_date && task.due_date < todayStr && task.status !== "concluida" && task.status !== "atrasada") {
+        overdueIds.push(task.id);
+        return { ...task, status: "atrasada" };
+      }
+      return task;
+    });
+    // Batch update overdue tasks in DB
+    if (overdueIds.length > 0) {
+      supabase.from("dimension_tasks").update({ status: "atrasada" }).in("id", overdueIds).then();
+    }
+    setTasks(updated);
     setPendencies(p.data ?? []);
     setProduction(pr.data ?? []);
     setEvents(ev.data ?? []);

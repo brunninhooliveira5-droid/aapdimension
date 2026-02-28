@@ -44,7 +44,20 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       supabase.from("dimension_tasks").select("*").eq("sector", sectorKey).order("created_at", { ascending: false }),
       supabase.from("dimension_task_files").select("task_id"),
     ]);
-    setTasks(tasksData ?? []);
+    const allTasks = tasksData ?? [];
+    const todayStr = new Date().toISOString().split("T")[0];
+    const overdueIds: string[] = [];
+    const updated = allTasks.map((task: any) => {
+      if (task.due_date && task.due_date < todayStr && task.status !== "concluida" && task.status !== "atrasada") {
+        overdueIds.push(task.id);
+        return { ...task, status: "atrasada" };
+      }
+      return task;
+    });
+    if (overdueIds.length > 0) {
+      supabase.from("dimension_tasks").update({ status: "atrasada" }).in("id", overdueIds).then();
+    }
+    setTasks(updated);
     const counts: Record<string, number> = {};
     (filesData ?? []).forEach((f: any) => { counts[f.task_id] = (counts[f.task_id] || 0) + 1; });
     setTaskFileCounts(counts);
