@@ -13,8 +13,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const statusLabels: Record<string, string> = { a_fazer: "A fazer", em_andamento: "Em andamento", aguardando: "Aguardando", concluida: "Concluída" };
-const statusColors: Record<string, string> = { a_fazer: "bg-muted text-muted-foreground", em_andamento: "bg-blue-500/10 text-blue-600", aguardando: "bg-amber-500/10 text-amber-600", concluida: "bg-green-500/10 text-green-600" };
+const statusLabels: Record<string, string> = { a_fazer: "A fazer", em_andamento: "Em andamento", aguardando: "Aguardando", atrasada: "Atrasada", concluida: "Concluída" };
+const statusColors: Record<string, string> = { a_fazer: "bg-muted text-muted-foreground", em_andamento: "bg-blue-500/10 text-blue-600", aguardando: "bg-amber-500/10 text-amber-600", atrasada: "bg-red-500/10 text-red-600", concluida: "bg-green-500/10 text-green-600" };
 const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-destructive", media: "bg-amber-500/10 text-amber-600", baixa: "bg-muted text-muted-foreground" };
 
 const emptyTask = { title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer" };
@@ -154,7 +154,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
     toast.success("Tarefa excluída!"); fetchTasks();
   };
 
-  const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "concluida"];
+  const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
 
   return (
     <div className="space-y-4 mt-4">
