@@ -217,12 +217,24 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const inProgress = production.filter((p) => p.status === "em_fabricacao");
   const upcoming = events.length;
 
+  const [kpiDialog, setKpiDialog] = useState<string | null>(null);
+
   const kpis = [
-    { label: "Tarefas do dia", value: todayTasks.length, icon: ListTodo, color: "text-primary" },
-    { label: "Pendências atrasadas", value: overdue.length, icon: AlertTriangle, color: "text-destructive" },
-    { label: "Produção em andamento", value: inProgress.length, icon: Factory, color: "text-amber-500" },
-    { label: "Próximos prazos (7d)", value: upcoming, icon: CalendarDays, color: "text-blue-500" },
+    { key: "today", label: "Tarefas do dia", value: todayTasks.length, icon: ListTodo, color: "text-primary" },
+    { key: "overdue", label: "Pendências atrasadas", value: overdue.length, icon: AlertTriangle, color: "text-destructive" },
+    { key: "production", label: "Produção em andamento", value: inProgress.length, icon: Factory, color: "text-amber-500" },
+    { key: "upcoming", label: "Próximos prazos (7d)", value: upcoming, icon: CalendarDays, color: "text-blue-500" },
   ];
+
+  const getKpiItems = (key: string) => {
+    switch (key) {
+      case "today": return todayTasks.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.priority, type: "task" as const }));
+      case "overdue": return overdue.map(t => ({ id: t.id, title: t.title, sub: t.responsible || "Sem responsável", extra: t.due_date ? format(new Date(t.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "overdue" as const }));
+      case "production": return inProgress.map(p => ({ id: p.id, title: p.project_name, sub: `${p.client_name || "—"} • ${p.machine_name || "—"}`, extra: p.responsible || "", type: "prod" as const }));
+      case "upcoming": return events.map(e => ({ id: e.id, title: e.title, sub: e.responsible || "", extra: e.event_date ? format(new Date(e.event_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "", type: "event" as const }));
+      default: return [];
+    }
+  };
 
   if (activeSector) {
     return <SectorKanban sectorKey={activeSector.key} sectorTitle={activeSector.title} onBack={() => { setActiveSector(null); fetchAll(); }} />;
@@ -240,7 +252,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
       <div className="flex items-center justify-between">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
           {kpis.map((kpi) => (
-            <Card key={kpi.label}>
+            <Card key={kpi.label} className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" onClick={() => setKpiDialog(kpi.key)}>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={`p-2 rounded-lg bg-muted ${kpi.color}`}>
                   <kpi.icon className="h-5 w-5" />
@@ -455,6 +467,31 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
               {editSaving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* KPI detail dialog */}
+      <Dialog open={!!kpiDialog} onOpenChange={(open) => { if (!open) setKpiDialog(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">{kpis.find(k => k.key === kpiDialog)?.label}</DialogTitle>
+            <DialogDescription className="sr-only">Detalhes do indicador</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {kpiDialog && getKpiItems(kpiDialog).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhum item encontrado.</p>
+            )}
+            {kpiDialog && getKpiItems(kpiDialog).map((item) => (
+              <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{item.sub}</p>
+                </div>
+                {item.extra && (
+                  <Badge variant="outline" className="text-[9px] shrink-0">{item.extra}</Badge>
+                )}
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
