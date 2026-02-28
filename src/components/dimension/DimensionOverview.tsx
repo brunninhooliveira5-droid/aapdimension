@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip } from "lucide-react";
+import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -40,6 +40,11 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const [editForm, setEditForm] = useState({ title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer", category: "producao" });
   const [editSaving, setEditSaving] = useState(false);
 
+  // File management state
+  const [taskFiles, setTaskFiles] = useState<any[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
 
   const fetchAll = async () => {
@@ -64,23 +69,83 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Sector task counts for badges on sector cards
+  const sectorTaskCounts: Record<string, number> = {};
+  tasks.forEach((t) => {
+    if (t.sector && t.status !== "concluida") {
+      sectorTaskCounts[t.sector] = (sectorTaskCounts[t.sector] || 0) + 1;
+    }
+  });
+
+  // Only show tasks without a sector in the overview kanban
+  const overviewTasks = tasks.filter((t) => !t.sector);
+
+  // File helpers
+  const loadTaskFiles = async (taskId: string) => {
+    const { data } = await supabase.from("dimension_task_files").select("*").eq("task_id", taskId).order("created_at", { ascending: true });
+    setTaskFiles(data ?? []);
+  };
+
+  const getFileUrl = (filePath: string) => {
+    const { data } = supabase.storage.from("dimension-task-files").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getFileTypeIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return <FileImage className="w-3.5 h-3.5 text-primary" />;
+    if (mimeType === "application/pdf") return <FileText className="w-3.5 h-3.5 text-destructive" />;
+    return <FileIcon className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!detailTask || !session?.user?.id) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingFile(true);
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) { toast.error(`"${file.name}" excede 10MB.`); continue; }
+      const ext = file.name.split(".").pop();
+      const path = `${detailTask.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("dimension-task-files").upload(path, file);
+      if (uploadErr) { toast.error(`Erro ao enviar "${file.name}"`); continue; }
+      await supabase.from("dimension_task_files").insert({ task_id: detailTask.id, file_name: file.name, file_path: path, file_size: file.size, mime_type: file.type, uploaded_by: session.user.id });
+    }
+    await loadTaskFiles(detailTask.id);
+    setUploadingFile(false);
+    toast.success("Arquivo(s) enviado(s)!");
+    e.target.value = "";
+    fetchAll();
+  };
+
+  const handleDeleteFile = async (fileId: string, filePath: string) => {
+    await supabase.storage.from("dimension-task-files").remove([filePath]);
+    await supabase.from("dimension_task_files").delete().eq("id", fileId);
+    setTaskFiles((prev) => prev.filter((f) => f.id !== fileId));
+    toast.success("Arquivo removido!");
+    fetchAll();
+  };
+
   const handleCreate = async () => {
     if (!newTask.title.trim() || !session?.user?.id) return;
     setSaving(true);
-    const { error } = await supabase.from("dimension_tasks").insert({
+    const { data: created, error } = await supabase.from("dimension_tasks").insert({
       title: newTask.title,
       priority: newTask.priority,
       responsible: newTask.responsible,
       due_date: newTask.due_date || null,
       created_by: session.user.id,
       status: "a_fazer",
-    });
+    }).select().single();
     setSaving(false);
-    if (error) { toast.error("Erro ao criar tarefa"); return; }
-    toast.success("Tarefa criada!");
+    if (error || !created) { toast.error("Erro ao criar tarefa"); return; }
+    toast.success("Tarefa criada! Você pode anexar arquivos.");
     setNewTask({ title: "", priority: "media", responsible: "", due_date: "" });
     setCreateOpen(false);
-    fetchAll();
+    await fetchAll();
+    // Open in edit mode for file uploads
+    setDetailTask(created);
+    setEditForm({ title: created.title, description: created.description || "", priority: created.priority, responsible: created.responsible, due_date: created.due_date ?? "", status: created.status, category: created.category || "producao" });
+    setTaskFiles([]);
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -102,9 +167,19 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     else { toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`); }
   };
 
+  const handleTaskDroppedToSector = async (taskId: string, sectorKey: string, sectorTitle: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, sector: sectorKey } : t));
+    const { error } = await supabase.from("dimension_tasks").update({ sector: sectorKey }).eq("id", taskId);
+    if (error) { toast.error("Erro ao mover tarefa para setor"); fetchAll(); }
+    else { toast.success(`Tarefa enviada para "${sectorTitle}"`); }
+  };
+
   const openDetail = (task: any) => {
     setDetailTask(task);
     setEditForm({ title: task.title, description: task.description || "", priority: task.priority, responsible: task.responsible, due_date: task.due_date ?? "", status: task.status, category: task.category || "producao" });
+    loadTaskFiles(task.id);
   };
 
   const handleEditSave = async () => {
@@ -134,12 +209,16 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   ];
 
   if (activeSector) {
-    return <SectorKanban sectorKey={activeSector.key} sectorTitle={activeSector.title} onBack={() => setActiveSector(null)} />;
+    return <SectorKanban sectorKey={activeSector.key} sectorTitle={activeSector.title} onBack={() => { setActiveSector(null); fetchAll(); }} />;
   }
 
   return (
     <div className="space-y-6 mt-4">
-      <ProductionCards onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })} />
+      <ProductionCards
+        onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })}
+        onTaskDroppedToSector={handleTaskDroppedToSector}
+        sectorTaskCounts={sectorTaskCounts}
+      />
 
       {/* KPIs + botão discreto */}
       <div className="flex items-center justify-between">
@@ -169,19 +248,20 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
         </Button>
       </div>
 
-      {/* Kanban de tarefas por status */}
+      {/* Kanban de tarefas sem setor */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground">Tarefas ({tasks.length})</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground">Tarefas não distribuídas ({overviewTasks.length})</h3>
           {onNavigateToTasks && (
             <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={onNavigateToTasks}>
               Ver todas →
             </Button>
           )}
         </div>
+        <p className="text-[10px] text-muted-foreground -mt-1">Arraste tarefas para os setores acima para distribuí-las</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {kanbanCols.map((col) => {
-            const colTasks = tasks.filter((t) => t.status === col);
+            const colTasks = overviewTasks.filter((t) => t.status === col);
             return (
               <div
                 key={col}
@@ -249,9 +329,9 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
         </DialogContent>
       </Dialog>
 
-      {/* Dialog editar tarefa */}
-      <Dialog open={!!detailTask} onOpenChange={(open) => { if (!open) setDetailTask(null); }}>
-        <DialogContent className="sm:max-w-md">
+      {/* Dialog editar tarefa com arquivos */}
+      <Dialog open={!!detailTask} onOpenChange={(open) => { if (!open) { setDetailTask(null); setTaskFiles([]); } }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base">Editar Tarefa</DialogTitle>
             <DialogDescription className="sr-only">Editar detalhes da tarefa</DialogDescription>
@@ -279,8 +359,53 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
               <Input placeholder="Responsável" value={editForm.responsible} onChange={(e) => setEditForm({ ...editForm, responsible: e.target.value })} />
               <Input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} />
             </div>
+
+            {/* File attachments */}
+            {detailTask && (
+              <div className="space-y-2 border-t pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Arquivos</span>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary hover:underline">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    {uploadingFile ? "Enviando..." : "Anexar arquivo"}
+                    <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" multiple className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
+                  </label>
+                </div>
+                {taskFiles.length > 0 && (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {taskFiles.map((f) => (
+                      <div key={f.id} className="rounded-lg border bg-accent/50 overflow-hidden">
+                        {f.mime_type.startsWith("image/") && (
+                          <a href={getFileUrl(f.file_path)} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={getFileUrl(f.file_path)}
+                              alt={f.file_name}
+                              className="w-full max-h-48 object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        )}
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
+                          {getFileTypeIcon(f.mime_type)}
+                          <span className="flex-1 truncate">{f.file_name}</span>
+                          <a href={getFileUrl(f.file_path)} download={f.file_name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5"><Download className="h-3 w-3" /></Button>
+                          </a>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleDeleteFile(f.id, f.file_path)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {taskFiles.length === 0 && !uploadingFile && (
+                  <p className="text-[10px] text-muted-foreground">Nenhum arquivo anexado</p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setDetailTask(null); setTaskFiles([]); }}>Cancelar</Button>
             <Button size="sm" onClick={handleEditSave} disabled={editSaving || !editForm.title.trim()}>
               {editSaving ? "Salvando..." : "Salvar"}
             </Button>
