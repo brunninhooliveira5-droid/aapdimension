@@ -130,12 +130,23 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
       await supabase.from("dimension_tasks").update(payload).eq("id", editingTask.id);
       toast.success("Tarefa atualizada!");
+      setDialogOpen(false); setSaving(false); fetchTasks();
     } else {
       payload.created_by = session?.user?.id;
-      await supabase.from("dimension_tasks").insert(payload);
-      toast.success("Tarefa criada!");
+      const { data: newTask, error } = await supabase.from("dimension_tasks").insert(payload).select().single();
+      if (error || !newTask) {
+        toast.error("Erro ao criar tarefa");
+        setSaving(false);
+        return;
+      }
+      toast.success("Tarefa criada! Agora você pode anexar arquivos.");
+      await fetchTasks();
+      // Reopen in edit mode to allow file uploads
+      setEditingTask(newTask);
+      setForm({ title: newTask.title, description: newTask.description, priority: newTask.priority, responsible: newTask.responsible, due_date: newTask.due_date ?? "", status: newTask.status });
+      setTaskFiles([]);
+      setSaving(false);
     }
-    setDialogOpen(false); setSaving(false); fetchTasks();
   };
 
   const handleDelete = async (id: string) => {
@@ -230,14 +241,20 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
               <Input placeholder="Responsável" value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Prazo</label>
+                <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+              </div>
               {editingTask && (
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">Status</label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
 
