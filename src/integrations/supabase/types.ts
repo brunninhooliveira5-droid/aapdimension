@@ -925,6 +925,7 @@ export type Database = {
           id: string
           priority: string
           responsible: string
+          sector: string | null
           status: string
           title: string
           updated_at: string
@@ -939,6 +940,7 @@ export type Database = {
           id?: string
           priority?: string
           responsible?: string
+          sector?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -953,6 +955,7 @@ export type Database = {
           id?: string
           priority?: string
           responsible?: string
+          sector?: string | null
           status?: string
           title?: string
           updated_at?: string
