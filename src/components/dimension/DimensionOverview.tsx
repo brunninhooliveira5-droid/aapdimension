@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -297,7 +298,36 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                       onClick={() => openDetail(task)}
                       className="p-2.5 rounded-lg border bg-card space-y-1.5 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
                     >
-                      <p className="text-xs font-medium leading-tight">{task.title}</p>
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="text-xs font-medium leading-tight flex-1">{task.title}</p>
+                        <div className="flex gap-0.5 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
+                            <Pencil className="h-2.5 w-2.5" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={(e) => e.stopPropagation()}>
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
+                                <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={async () => {
+                                  await supabase.from("dimension_task_files").delete().eq("task_id", task.id);
+                                  await supabase.from("dimension_tasks").delete().eq("id", task.id);
+                                  toast.success("Tarefa excluída!");
+                                  fetchAll();
+                                }}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
                       <div className="flex flex-wrap gap-1">
                         <Badge variant="outline" className={`text-[8px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
                         <Badge variant="outline" className="text-[8px]">{categoryLabels[task.category] ?? task.category}</Badge>
