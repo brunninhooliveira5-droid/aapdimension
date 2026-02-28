@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip } from "lucide-react";
@@ -34,6 +35,12 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const [saving, setSaving] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", priority: "media", responsible: "", due_date: "" });
   const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [detailTask, setDetailTask] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer", category: "producao" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
 
   const fetchAll = async () => {
     const today = format(new Date(), "yyyy-MM-dd");
@@ -76,6 +83,43 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     fetchAll();
   };
 
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData("taskId", taskId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const taskId = e.dataTransfer.getData("taskId");
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : t.completed_at } : t));
+    const payload: any = { status: newStatus };
+    if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
+    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
+    if (error) { toast.error("Erro ao mover tarefa"); fetchAll(); }
+    else { toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`); }
+  };
+
+  const openDetail = (task: any) => {
+    setDetailTask(task);
+    setEditForm({ title: task.title, description: task.description || "", priority: task.priority, responsible: task.responsible, due_date: task.due_date ?? "", status: task.status, category: task.category || "producao" });
+  };
+
+  const handleEditSave = async () => {
+    if (!detailTask || !editForm.title.trim()) return;
+    setEditSaving(true);
+    const payload: any = { ...editForm, due_date: editForm.due_date || null };
+    if (editForm.status === "concluida" && detailTask.status !== "concluida") payload.completed_at = new Date().toISOString();
+    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", detailTask.id);
+    setEditSaving(false);
+    if (error) { toast.error("Erro ao salvar"); return; }
+    toast.success("Tarefa atualizada!");
+    setDetailTask(null);
+    fetchAll();
+  };
+
   const todayTasks = tasks.filter((t) => t.due_date && isToday(new Date(t.due_date + "T00:00:00")) && t.status !== "concluida");
   const overdue = [...tasks.filter(t => t.due_date && isBefore(new Date(t.due_date + "T00:00:00"), new Date()) && t.status !== "concluida"),
     ...pendencies.filter(p => p.due_date && isBefore(new Date(p.due_date + "T00:00:00"), new Date()) && p.status !== "resolvida")];
@@ -95,7 +139,6 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   return (
     <div className="space-y-6 mt-4">
-      {/* Cards de Produção */}
       <ProductionCards onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })} />
 
       {/* KPIs + botão discreto */}
@@ -126,40 +169,55 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
         </Button>
       </div>
 
-      {/* Tarefas ativas */}
-      {(() => {
-        const activeTasks = tasks.filter(t => t.status !== "concluida");
-        if (activeTasks.length === 0) return null;
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-muted-foreground">Tarefas ativas ({activeTasks.length})</h3>
-              {onNavigateToTasks && (
-                <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={onNavigateToTasks}>
-                  Ver todas →
-                </Button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {activeTasks.map((task) => (
-                <div key={task.id} className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow">
-                  <div className="flex items-start justify-between gap-1">
-                    <p className="text-sm font-medium leading-tight">{task.title}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className={`text-[9px] ${statusColors[task.status]}`}>{statusLabels[task.status] ?? task.status}</Badge>
-                    <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
-                    <Badge variant="outline" className="text-[9px]">{categoryLabels[task.category] ?? task.category}</Badge>
-                  </div>
-                  {task.responsible && <p className="text-[10px] text-muted-foreground">👤 {task.responsible}</p>}
-                  {task.due_date && <p className="text-[10px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
-                  {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
+      {/* Kanban de tarefas por status */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-muted-foreground">Tarefas ({tasks.length})</h3>
+          {onNavigateToTasks && (
+            <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={onNavigateToTasks}>
+              Ver todas →
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {kanbanCols.map((col) => {
+            const colTasks = tasks.filter((t) => t.status === col);
+            return (
+              <div
+                key={col}
+                className="space-y-2"
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCol(col); }}
+                onDragLeave={() => setDragOverCol(null)}
+                onDrop={(e) => handleDrop(e, col)}
+              >
+                <div className={`rounded-md px-2.5 py-1 text-[10px] font-semibold ${statusColors[col]}`}>
+                  {statusLabels[col]} ({colTasks.length})
                 </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+                <div className={`space-y-2 min-h-[60px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
+                  {colTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task.id)}
+                      onClick={() => openDetail(task)}
+                      className="p-2.5 rounded-lg border bg-card space-y-1.5 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
+                    >
+                      <p className="text-xs font-medium leading-tight">{task.title}</p>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className={`text-[8px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
+                        <Badge variant="outline" className="text-[8px]">{categoryLabels[task.category] ?? task.category}</Badge>
+                      </div>
+                      {task.responsible && <p className="text-[9px] text-muted-foreground">👤 {task.responsible}</p>}
+                      {task.due_date && <p className="text-[9px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                      {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[9px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-2.5 h-2.5" />{taskFileCounts[task.id]}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Dialog nova tarefa */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -186,6 +244,45 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
           <DialogFooter>
             <Button size="sm" onClick={handleCreate} disabled={saving || !newTask.title.trim()}>
               {saving ? "Salvando..." : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog editar tarefa */}
+      <Dialog open={!!detailTask} onOpenChange={(open) => { if (!open) setDetailTask(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Editar Tarefa</DialogTitle>
+            <DialogDescription className="sr-only">Editar detalhes da tarefa</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Título" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+            <Textarea placeholder="Descrição (opcional)" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={2} />
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={editForm.priority} onValueChange={(v) => setEditForm({ ...editForm, priority: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alta">Alta</SelectItem>
+                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Responsável" value={editForm.responsible} onChange={(e) => setEditForm({ ...editForm, responsible: e.target.value })} />
+              <Input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" onClick={handleEditSave} disabled={editSaving || !editForm.title.trim()}>
+              {editSaving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
