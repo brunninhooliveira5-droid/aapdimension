@@ -44,7 +44,7 @@ export default function DimensionPortal() {
           ))}
         </TabsList>
 
-        <TabsContent value="overview"><DimensionOverview /></TabsContent>
+        <TabsContent value="overview"><DimensionOverview onNavigateToTasks={() => setActiveTab("tasks")} /></TabsContent>
         <TabsContent value="tasks"><DimensionTasks /></TabsContent>
         <TabsContent value="pendencies"><DimensionPendencies /></TabsContent>
         <TabsContent value="schedule"><DimensionSchedule /></TabsContent>

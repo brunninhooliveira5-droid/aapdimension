@@ -13,7 +13,11 @@ interface ProductionCard {
   image_url: string | null;
 }
 
-export function ProductionCards() {
+interface ProductionCardsProps {
+  onCardClick?: (card: ProductionCard) => void;
+}
+
+export function ProductionCards({ onCardClick }: ProductionCardsProps) {
   const { user } = useAuth();
   const [cards, setCards] = useState<ProductionCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,10 +111,8 @@ export function ProductionCards() {
           <Tooltip key={card.id}>
             <TooltipTrigger asChild>
               <div
-                className={`relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg ${
-                  isAdmin ? "cursor-pointer" : ""
-                }`}
-                onClick={() => handleImageClick(card.key)}
+                className="relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer"
+                onClick={() => onCardClick?.(card)}
               >
                 {/* Background image or fallback */}
                 {card.image_url ? (
@@ -135,7 +137,10 @@ export function ProductionCards() {
 
                 {/* Admin upload indicator */}
                 {isAdmin && (
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); handleImageClick(card.key); }}
+                  >
                     <div className="bg-black/60 rounded-full p-1.5">
                       <Camera className="h-3.5 w-3.5 text-white" />
                     </div>

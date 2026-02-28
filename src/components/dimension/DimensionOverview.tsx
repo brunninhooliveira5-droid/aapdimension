@@ -19,7 +19,11 @@ const priorityColors: Record<string, string> = {
   baixa: "bg-muted text-muted-foreground border-border",
 };
 
-export function DimensionOverview() {
+interface DimensionOverviewProps {
+  onNavigateToTasks?: () => void;
+}
+
+export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps) {
   const { session } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [pendencies, setPendencies] = useState<any[]>([]);
@@ -91,7 +95,7 @@ export function DimensionOverview() {
   return (
     <div className="space-y-6 mt-4">
       {/* Cards de Produção */}
-      <ProductionCards />
+      <ProductionCards onCardClick={() => onNavigateToTasks?.()} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
