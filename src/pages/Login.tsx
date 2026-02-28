@@ -219,25 +219,24 @@ const Login = () => {
             {loading ? (
               "Carregando..."
             ) : mode === "login" ? (
-              <>Entrar</>
+              <>Entrar no Portal</>
             ) : (
               <>Solicitar Cadastro <UserPlus className="w-4 h-4" /></>
             )}
           </Button>
-        {mode === "login" && (
+
+          {mode === "login" && (
             <>
-              {/* Divider */}
-              <div className="flex items-center gap-3 my-1">
+              <div className="flex items-center gap-3 my-2">
                 <div className="flex-1 h-px bg-border/40" />
                 <span className="text-xs text-muted-foreground/60">ou</span>
                 <div className="flex-1 h-px bg-border/40" />
               </div>
 
-              {/* Signup CTA */}
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-11 rounded-xl text-sm font-medium gap-2 border-border/60 bg-background/10 text-foreground/90 hover:bg-accent/30 hover:text-foreground backdrop-blur-sm"
+                className="w-full h-11 rounded-xl text-sm font-semibold gap-2 border-primary/50 text-primary hover:bg-primary/10 hover:border-primary backdrop-blur-sm transition-all"
                 onClick={() => setMode("signup")}
               >
                 <UserPlus className="w-4 h-4" />
@@ -256,9 +255,11 @@ const Login = () => {
           </button>
         )}
 
-        <p className="mt-4 text-[11px] text-muted-foreground/50 text-center">
-          Acesso exclusivo para clientes Dimension CNC
-        </p>
+        {mode === "login" && (
+          <p className="mt-5 text-xs text-muted-foreground/60 text-center max-w-[280px] leading-relaxed">
+            Clientes Dimension podem solicitar acesso para monitorar máquinas, manutenções, treinamentos e serviços.
+          </p>
+        )}
       </div>
     </div>
   );
