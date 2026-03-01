@@ -380,17 +380,17 @@ export function DimensionGoals() {
                 <p className="text-xs font-medium flex items-center gap-1"><RefreshCw className="h-3 w-3" /> Vínculo automático com tarefas</p>
                 <p className="text-[10px] text-muted-foreground">Vincule a uma categoria/setor de tarefas para calcular progresso automaticamente.</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <Select value={form.linked_task_category} onValueChange={v => setForm(f => ({ ...f, linked_task_category: v }))}>
+                  <Select value={form.linked_task_category || "__none__"} onValueChange={v => setForm(f => ({ ...f, linked_task_category: v === "__none__" ? "" : v }))}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma</SelectItem>
+                      <SelectItem value="__none__">Nenhuma</SelectItem>
                       {categoryOptions.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Select value={form.linked_task_sector} onValueChange={v => setForm(f => ({ ...f, linked_task_sector: v }))}>
+                  <Select value={form.linked_task_sector || "__none__"} onValueChange={v => setForm(f => ({ ...f, linked_task_sector: v === "__none__" ? "" : v }))}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {sectorOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
