@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { RoutineTemplateFiles } from "./RoutineTemplateFiles";
 
 interface TaskTemplate {
   title: string;
@@ -49,14 +50,13 @@ const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-d
 
 const emptyTemplate: TaskTemplate = { title: "", sector: "", priority: "media", responsible: "", days_offset: 0 };
 
-const sectorOptions = ["montagem", "eletrica", "pintura", "expedicao", "usinagem", "solda", "corte", "qualidade", "compras", "comercial", "administrativo"];
-
 export function DimensionRoutines() {
   const { session } = useAuth();
   const [tab, setTab] = useState("templates");
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [activations, setActivations] = useState<Activation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sectorOptions, setSectorOptions] = useState<string[]>([]);
 
   // Dialog states
   const [formOpen, setFormOpen] = useState(false);
@@ -93,6 +93,18 @@ export function DimensionRoutines() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  // Fetch dynamic sectors from dimension_production_cards
+  useEffect(() => {
+    const fetchSectors = async () => {
+      const { data } = await supabase
+        .from("dimension_production_cards")
+        .select("key")
+        .order("title");
+      setSectorOptions((data || []).map((d: any) => d.key));
+    };
+    fetchSectors();
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -175,11 +187,43 @@ export function DimensionRoutines() {
       };
     });
 
-    const { error: taskError } = await supabase.from("dimension_tasks").insert(tasksToCreate);
-    if (taskError) {
+    const { data: createdTasks, error: taskError } = await supabase
+      .from("dimension_tasks")
+      .insert(tasksToCreate)
+      .select("id");
+    if (taskError || !createdTasks) {
       toast.error("Erro ao criar tarefas");
       setActivating(false);
       return;
+    }
+
+    // Copy template files to created tasks
+    const { data: templateFiles } = await supabase
+      .from("dimension_routine_template_files")
+      .select("*")
+      .eq("routine_id", activatingRoutine.id);
+
+    if (templateFiles && templateFiles.length > 0) {
+      for (const tf of templateFiles) {
+        const taskId = createdTasks[tf.task_index]?.id;
+        if (!taskId) continue;
+
+        const newPath = `tasks/${taskId}/${crypto.randomUUID()}-${tf.file_name}`;
+        const { error: copyErr } = await supabase.storage
+          .from("dimension-task-files")
+          .copy(tf.file_path, newPath);
+
+        if (!copyErr) {
+          await supabase.from("dimension_task_files").insert({
+            task_id: taskId,
+            file_name: tf.file_name,
+            file_path: newPath,
+            file_size: tf.file_size,
+            mime_type: tf.mime_type,
+            uploaded_by: session.user.id,
+          });
+        }
+      }
     }
 
     await supabase.from("dimension_routine_activations").insert({
@@ -368,6 +412,11 @@ export function DimensionRoutines() {
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">dias após</span>
                       </div>
                     </div>
+                    <RoutineTemplateFiles
+                      routineId={editing?.id || null}
+                      taskIndex={i}
+                      userId={session?.user.id || ""}
+                    />
                   </div>
                 ))}
               </div>
