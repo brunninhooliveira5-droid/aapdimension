@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText, Target } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText, Target, ClipboardList } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
@@ -8,6 +8,7 @@ import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
+import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
 
 const ProposalsPage = lazy(() => import("@/pages/ProposalsPage"));
 
@@ -18,6 +19,7 @@ const tabs = [
   { value: "schedule", label: "Cronograma", icon: CalendarDays },
   { value: "production", label: "Produção", icon: Factory },
   { value: "routines", label: "Rotinas", icon: RotateCcw },
+  { value: "documentacao", label: "Documentação", icon: ClipboardList },
   { value: "propostas", label: "Propostas", icon: FileText },
   { value: "metas", label: "Metas", icon: Target },
 ];
@@ -52,6 +54,7 @@ export default function DimensionPortal() {
         <TabsContent value="schedule"><DimensionSchedule /></TabsContent>
         <TabsContent value="production"><DimensionProduction /></TabsContent>
         <TabsContent value="routines"><DimensionRoutines /></TabsContent>
+        <TabsContent value="documentacao"><DimensionDocumentation /></TabsContent>
         <TabsContent value="propostas">
           <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}>
             <ProposalsPage />
