@@ -961,6 +961,50 @@ export type Database = {
           },
         ]
       }
+      dimension_routine_template_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          routine_id: string
+          task_index: number
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          routine_id: string
+          task_index: number
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          routine_id?: string
+          task_index?: number
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dimension_routine_template_files_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dimension_routines: {
         Row: {
           created_at: string
