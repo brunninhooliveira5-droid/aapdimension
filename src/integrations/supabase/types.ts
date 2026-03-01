@@ -926,6 +926,74 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_routine_activations: {
+        Row: {
+          activated_at: string
+          activated_by: string
+          context_data: Json
+          id: string
+          routine_id: string
+          tasks_created: number
+        }
+        Insert: {
+          activated_at?: string
+          activated_by: string
+          context_data?: Json
+          id?: string
+          routine_id: string
+          tasks_created?: number
+        }
+        Update: {
+          activated_at?: string
+          activated_by?: string
+          context_data?: Json
+          id?: string
+          routine_id?: string
+          tasks_created?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dimension_routine_activations_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dimension_routines: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          is_active: boolean
+          tasks_template: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          tasks_template?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          tasks_template?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dimension_schedule_events: {
         Row: {
           created_at: string
