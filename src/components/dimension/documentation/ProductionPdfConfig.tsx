@@ -30,14 +30,15 @@ export function ProductionPdfConfig() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from(tables.productionPdfConfig as any).select("*").limit(1).single().then(({ data }) => {
+    if (!session?.user?.id) return;
+    supabase.from(tables.productionPdfConfig as any).select("*").eq("created_by", session.user.id).limit(1).single().then(({ data }) => {
       if (data) setConfig(data as any);
       setLoading(false);
     });
-  }, [tables]);
+  }, [tables, session?.user?.id]);
 
   const handleSave = async () => {
-    const payload = { ...config, updated_by: session?.user.id };
+    const payload = { ...config, updated_by: session?.user.id, created_by: session?.user.id };
     if (config.id) {
       const { error } = await supabase.from(tables.productionPdfConfig as any).update(payload as any).eq("id", config.id);
       if (error) { toast.error("Erro ao salvar"); return; }
