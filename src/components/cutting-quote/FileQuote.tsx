@@ -1321,13 +1321,18 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                   <CardContent className="p-3 text-center">
                     <DollarSign className="w-4 h-4 text-primary mx-auto mb-1" />
                     <p className="text-[10px] text-muted-foreground">Custo Total</p>
-                    <p className="text-sm font-bold">{fmt(pricing.costPerMinute * currentEstimatedTimeMin)}</p>
+                    <p className="text-sm font-bold">{fmt(pricing.costPerMinute * currentEstimatedTimeMin + (materialOwner === "usuario" ? materialCost : 0))}</p>
                     <p className="text-[9px] text-muted-foreground">
                       Fixo: {fmt(pricing.fixedCostPerMinute * currentEstimatedTimeMin)}
                     </p>
                     <p className="text-[9px] text-muted-foreground">
                       Máq: {fmt(pricing.machineCostPerMinute * currentEstimatedTimeMin)}
                     </p>
+                    {materialOwner === "usuario" && materialCost > 0 && (
+                      <p className="text-[9px] text-muted-foreground">
+                        Mat: {fmt(materialCost)}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
