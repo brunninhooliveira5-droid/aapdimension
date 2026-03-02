@@ -265,6 +265,27 @@
 .text-sp-normal { letter-spacing: 0; }
 .text-sp-wide { letter-spacing: 0.04em; }
 
+/* react-grid-layout overrides */
+.react-grid-item {
+  transition: all 200ms ease;
+}
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+.react-grid-item > .react-resizable-handle {
+  background: none;
+  border-right: 2px solid hsl(var(--primary) / 0.4);
+  border-bottom: 2px solid hsl(var(--primary) / 0.4);
+  border-radius: 0 0 4px 0;
+  width: 12px;
+  height: 12px;
+}
+.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.15) !important;
+  border: 2px dashed hsl(var(--primary) / 0.4) !important;
+  border-radius: 0.5rem;
+}
+
 a[href*="lovable.dev"],
 iframe[src*="lovable.dev"],
 div[style*="Edit with Lovable"],
