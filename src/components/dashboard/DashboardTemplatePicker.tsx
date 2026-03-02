@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { LayoutTemplate, Lock, Check, Loader2 } from "lucide-react";
+import { LayoutTemplate, Lock, Check, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardCardItem } from "@/hooks/useDashboardLayout";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardTemplate {
   id: string;
@@ -59,7 +60,22 @@ export function DashboardTemplatePicker({ currentTemplateId, onApply }: Props) {
     fetch();
   }, [user?.role]);
 
+  const { hasAccess } = useAuth();
+
+  /** Check if a template requires a specific module the user doesn't have access to */
+  const isTemplateLocked = (tpl: DashboardTemplate): boolean => {
+    // "Controle de Produção" requires controle_producao access
+    if (tpl.name === "Controle de Produção" && !hasAccess("controle_producao")) {
+      return true;
+    }
+    return false;
+  };
+
   const handleApply = async (tpl: DashboardTemplate) => {
+    if (isTemplateLocked(tpl)) {
+      toast.error("Você não tem permissão para usar este template.");
+      return;
+    }
     const confirmed = window.confirm("Isso substituirá seu dashboard atual. Deseja continuar?");
     if (!confirmed) return;
     setApplying(tpl.id);
@@ -89,6 +105,7 @@ export function DashboardTemplatePicker({ currentTemplateId, onApply }: Props) {
     <div className="space-y-2">
       {templates.map(tpl => {
         const isApplied = tpl.id === currentTemplateId;
+        const locked = isTemplateLocked(tpl);
         const widgetCount = tpl.layout.filter(c => c.visible && c.type === "widget").length;
         const shortcutCount = tpl.layout.filter(c => c.visible && c.type === "shortcut").length;
 
@@ -96,14 +113,25 @@ export function DashboardTemplatePicker({ currentTemplateId, onApply }: Props) {
           <div
             key={tpl.id}
             className={`p-3 rounded-lg border transition-colors ${
+              locked ? "bg-muted/30 border-border opacity-70" :
               isApplied ? "bg-primary/10 border-primary/30" : "bg-card border-border hover:border-primary/20"
             }`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground truncate">{tpl.name}</span>
-                  {tpl.is_locked && <span title="Layout bloqueado"><Lock className="w-3 h-3 text-warning shrink-0" /></span>}
+                  <span className={`text-sm font-medium truncate ${locked ? "text-muted-foreground" : "text-foreground"}`}>{tpl.name}</span>
+                  {locked && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ShieldAlert className="w-3.5 h-3.5 text-destructive shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Sem permissão para este módulo</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {tpl.is_locked && !locked && <span title="Layout bloqueado"><Lock className="w-3 h-3 text-warning shrink-0" /></span>}
                   {isApplied && <Badge className="text-[9px] bg-primary/20 text-primary border-primary/30">Aplicado</Badge>}
                 </div>
                 {tpl.description && (
@@ -116,21 +144,28 @@ export function DashboardTemplatePicker({ currentTemplateId, onApply }: Props) {
                   )}
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant={isApplied ? "secondary" : "default"}
-                className="h-7 text-[11px] gap-1 shrink-0"
-                disabled={applying === tpl.id}
-                onClick={() => handleApply(tpl)}
-              >
-                {applying === tpl.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : isApplied ? (
-                  <><Check className="w-3 h-3" /> Reaplicar</>
-                ) : (
-                  "Aplicar"
-                )}
-              </Button>
+              {locked ? (
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Bloqueado</span>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={isApplied ? "secondary" : "default"}
+                  className="h-7 text-[11px] gap-1 shrink-0"
+                  disabled={applying === tpl.id}
+                  onClick={() => handleApply(tpl)}
+                >
+                  {applying === tpl.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : isApplied ? (
+                    <><Check className="w-3 h-3" /> Reaplicar</>
+                  ) : (
+                    "Aplicar"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         );

@@ -8,10 +8,15 @@ import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useUserAppearance } from "@/hooks/useUserAppearance";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppLayout() {
   const { isImpersonating } = useImpersonation();
+  const { session } = useAuth();
   usePageTracking();
+  // Load & persist per-user appearance settings
+  useUserAppearance(session?.user?.id ?? null);
 
   return (
     <CalculatorProvider>
