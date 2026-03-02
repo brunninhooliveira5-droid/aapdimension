@@ -2679,10 +2679,12 @@ export type Database = {
           allow_user_override_speed: boolean
           avg_cut_speed: number
           electricity: number
+          energy_cost_per_kwh: number | null
           gas_consumable: number
           id: string
           internet: number
           machine_cost: number
+          machine_energy_consumption_kw: number | null
           maintenance_cost: number
           max_passes_override: number
           max_speed_override_mmmin: number
@@ -2701,10 +2703,12 @@ export type Database = {
           allow_user_override_speed?: boolean
           avg_cut_speed?: number
           electricity?: number
+          energy_cost_per_kwh?: number | null
           gas_consumable?: number
           id?: string
           internet?: number
           machine_cost?: number
+          machine_energy_consumption_kw?: number | null
           maintenance_cost?: number
           max_passes_override?: number
           max_speed_override_mmmin?: number
@@ -2723,10 +2727,12 @@ export type Database = {
           allow_user_override_speed?: boolean
           avg_cut_speed?: number
           electricity?: number
+          energy_cost_per_kwh?: number | null
           gas_consumable?: number
           id?: string
           internet?: number
           machine_cost?: number
+          machine_energy_consumption_kw?: number | null
           maintenance_cost?: number
           max_passes_override?: number
           max_speed_override_mmmin?: number
