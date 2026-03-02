@@ -36,7 +36,6 @@ import { toast } from "sonner";
 const basicMenuItems = [
   { title: "Home", url: "/", altUrl: "/orcamento", icon: Home, section: "home" },
   { title: "Dimension", url: "/dimension", icon: Building2, section: "dimension" },
-  { title: "Controle de Produção", url: "/controle-producao", icon: Factory, section: "controle_producao" },
   { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
   { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
@@ -44,6 +43,7 @@ const basicMenuItems = [
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
   { title: "Faturas", url: "/boletos", icon: Receipt, section: "financeiro" },
   { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento" },
+  { title: "Controle de Produção", url: "/controle-producao", icon: Factory, section: "controle_producao" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
