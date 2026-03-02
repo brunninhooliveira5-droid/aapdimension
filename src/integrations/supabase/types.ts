@@ -1558,6 +1558,515 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: string
+          is_read: boolean
+          item_id: string
+          message: string
+          resolved_at: string | null
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          item_id: string
+          message?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          item_id?: string
+          message?: string
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alerts_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          parent_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          avg_cost: number
+          category_id: string | null
+          compatible_with: string[]
+          created_at: string
+          created_by: string
+          current_quantity: number
+          id: string
+          ideal_quantity: number
+          image_url: string | null
+          internal_code: string
+          is_active: boolean
+          item_type: string
+          last_cost: number
+          location_id: string | null
+          min_quantity: number
+          name: string
+          reserved_quantity: number
+          subcategory: string
+          supplier_id: string | null
+          unit_cost: number
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          avg_cost?: number
+          category_id?: string | null
+          compatible_with?: string[]
+          created_at?: string
+          created_by: string
+          current_quantity?: number
+          id?: string
+          ideal_quantity?: number
+          image_url?: string | null
+          internal_code?: string
+          is_active?: boolean
+          item_type?: string
+          last_cost?: number
+          location_id?: string | null
+          min_quantity?: number
+          name: string
+          reserved_quantity?: number
+          subcategory?: string
+          supplier_id?: string | null
+          unit_cost?: number
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avg_cost?: number
+          category_id?: string | null
+          compatible_with?: string[]
+          created_at?: string
+          created_by?: string
+          current_quantity?: number
+          id?: string
+          ideal_quantity?: number
+          image_url?: string | null
+          internal_code?: string
+          is_active?: boolean
+          item_type?: string
+          last_cost?: number
+          location_id?: string | null
+          min_quantity?: number
+          name?: string
+          reserved_quantity?: number
+          subcategory?: string
+          supplier_id?: string | null
+          unit_cost?: number
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_locations: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination: string
+          id: string
+          invoice_name: string | null
+          invoice_url: string | null
+          item_id: string
+          linked_machine: string
+          linked_project: string
+          movement_type: string
+          notes: string
+          quantity: number
+          reason: string
+          supplier_id: string | null
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination?: string
+          id?: string
+          invoice_name?: string | null
+          invoice_url?: string | null
+          item_id: string
+          linked_machine?: string
+          linked_project?: string
+          movement_type?: string
+          notes?: string
+          quantity?: number
+          reason?: string
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination?: string
+          id?: string
+          invoice_name?: string | null
+          invoice_url?: string | null
+          item_id?: string
+          linked_machine?: string
+          linked_project?: string
+          movement_type?: string
+          notes?: string
+          quantity?: number
+          reason?: string
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_reservations: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          id: string
+          item_id: string
+          linked_machine: string
+          linked_order: string
+          linked_sheet_id: string | null
+          notes: string
+          quantity: number
+          reserved_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          linked_machine?: string
+          linked_order?: string
+          linked_sheet_id?: string | null
+          notes?: string
+          quantity?: number
+          reserved_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          linked_machine?: string
+          linked_order?: string
+          linked_sheet_id?: string | null
+          notes?: string
+          quantity?: number
+          reserved_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_reservations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_session_items: {
+        Row: {
+          actual_quantity: number | null
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string
+          difference: number | null
+          expected_quantity: number
+          id: string
+          item_id: string
+          notes: string
+          session_id: string
+        }
+        Insert: {
+          actual_quantity?: number | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+          difference?: number | null
+          expected_quantity?: number
+          id?: string
+          item_id: string
+          notes?: string
+          session_id: string
+        }
+        Update: {
+          actual_quantity?: number | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+          difference?: number | null
+          expected_quantity?: number
+          id?: string
+          item_id?: string
+          notes?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_session_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_session_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_sessions: {
+        Row: {
+          created_at: string
+          finished_at: string | null
+          id: string
+          notes: string
+          started_by: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string
+          started_by: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string
+          started_by?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_settings: {
+        Row: {
+          allow_negative_stock: boolean
+          consumption_period_days: number
+          global_min_alert: number
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allow_negative_stock?: boolean
+          consumption_period_days?: number
+          global_min_alert?: number
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allow_negative_stock?: boolean
+          consumption_period_days?: number
+          global_min_alert?: number
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      inventory_suppliers: {
+        Row: {
+          avg_delivery_days: number
+          contact_name: string
+          created_at: string
+          created_by: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          avg_delivery_days?: number
+          contact_name?: string
+          created_at?: string
+          created_by: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Update: {
+          avg_delivery_days?: number
+          contact_name?: string
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      inventory_units: {
+        Row: {
+          abbreviation: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          abbreviation: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          abbreviation?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       invoice_files: {
         Row: {
           created_at: string
