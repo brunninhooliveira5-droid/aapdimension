@@ -42,6 +42,8 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const [maintenanceCost, setMaintenanceCost] = useState(0);
   const [otherMachine, setOtherMachine] = useState(0);
   const [operatorSalary, setOperatorSalary] = useState(0);
+  const [energyCostPerKwh, setEnergyCostPerKwh] = useState(0);
+  const [machineEnergyConsumptionKw, setMachineEnergyConsumptionKw] = useState(0);
 
   const [productiveHours, setProductiveHours] = useState(160);
   const [profitMargin, setProfitMargin] = useState(30);
@@ -74,6 +76,8 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           setGasConsumable(Number(data.gas_consumable) || 0);
           setMaintenanceCost(Number(data.maintenance_cost) || 0);
           setOperatorSalary(Number(data.operator_salary) || 0);
+          setEnergyCostPerKwh(Number(data.energy_cost_per_kwh) || 0);
+          setMachineEnergyConsumptionKw(Number(data.machine_energy_consumption_kw) || 0);
           setOtherMachine(Number(data.other_machine) || 0);
           setProductiveHours(Number(data.productive_hours) || 160);
           setProfitMargin(Number(data.profit_margin) || 30);
@@ -88,8 +92,9 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       });
   }, [session]);
 
+  const monthlyEnergyCost = energyCostPerKwh * machineEnergyConsumptionKw * productiveHours;
   const totalFixed = rent + electricity + internet + otherFixed;
-  const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine + operatorSalary;
+  const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine + operatorSalary + monthlyEnergyCost;
   const totalMonthlyCost = totalFixed + totalMachine;
 
   const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
@@ -117,6 +122,8 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       machine_cost: machineCost, gas_consumable: gasConsumable,
       maintenance_cost: maintenanceCost, other_machine: otherMachine,
       operator_salary: operatorSalary,
+      energy_cost_per_kwh: energyCostPerKwh,
+      machine_energy_consumption_kw: machineEnergyConsumptionKw,
       productive_hours: productiveHours, profit_margin: profitMargin,
       avg_cut_speed: avgCutSpeed, updated_at: new Date().toISOString(),
       min_speed_override_mmmin: minSpeedOverride,
@@ -138,7 +145,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
-  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
+  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Debounce auto-save: save 1.5s after last change
   useEffect(() => {
@@ -146,7 +153,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(saveSettings, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
+  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -249,6 +256,37 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
                 onChange={(e) => setOtherMachine(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
                 placeholder="0,00" 
               />
+            </div>
+            <Separator />
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">Energia</p>
+              <div>
+                <Label className="text-xs">Valor do kWh (R$)</Label>
+                <Input 
+                  type="text" 
+                  inputMode="decimal"
+                  value={energyCostPerKwh > 0 ? energyCostPerKwh.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : ""} 
+                  onChange={(e) => setEnergyCostPerKwh(Number(e.target.value.replace(/[^\d]/g, "")) / 10000)} 
+                  placeholder="0,0000" 
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Consumo da Máquina (kW)</Label>
+                <Input 
+                  type="number" 
+                  min={0} 
+                  step={0.1}
+                  value={machineEnergyConsumptionKw || ""} 
+                  onChange={(e) => setMachineEnergyConsumptionKw(Number(e.target.value))} 
+                  placeholder="0" 
+                />
+              </div>
+              {monthlyEnergyCost > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Custo Energia/Mês</span>
+                  <span className="text-primary font-medium">{fmt(monthlyEnergyCost)}</span>
+                </div>
+              )}
             </div>
             <Separator />
             <div className="flex justify-between text-sm font-medium">
