@@ -234,6 +234,27 @@ export async function generateQuotePDF(
     doc.text(lines, 14, finalY + 12);
   }
 
+  // ── MARCA D'ÁGUA ──
+  if (s.show_watermark && s.watermark_text?.trim()) {
+    const pageH = doc.internal.pageSize.getHeight();
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.saveGraphicsState();
+      doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+      doc.setFontSize(48);
+      doc.setTextColor(150, 150, 150);
+      const text = s.watermark_text.trim().toUpperCase();
+      const centerX = pageW / 2;
+      const centerY = pageH / 2;
+      doc.text(text, centerX, centerY, {
+        align: "center",
+        angle: 45,
+      });
+      doc.restoreGraphicsState();
+    }
+  }
+
   // ── 5/6. GERAÇÃO E DOWNLOAD ──
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
