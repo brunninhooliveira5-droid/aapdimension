@@ -37,7 +37,10 @@ export function DashboardTemplatePicker({ currentTemplateId, onApply }: Props) {
         .order("name");
 
       const role = user?.role ?? "operador";
+      const isAdminMaster = role === "admin_master";
+      // Admin master can see ALL templates
       const filtered = (data as any[] ?? []).filter((t: any) => {
+        if (isAdminMaster) return true;
         const roles = t.allowed_roles as string[] | null;
         if (!roles || roles.length === 0) return true;
         return roles.includes(role);

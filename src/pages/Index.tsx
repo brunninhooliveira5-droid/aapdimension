@@ -1,6 +1,6 @@
 import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
-import { Camera, Video, Image } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Camera, Video, Image, Move, Save, LayoutTemplate } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,8 @@ import { BulletinCard } from "@/components/BulletinCard";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { ProStatusCard } from "@/components/ProStatusCard";
 import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
-import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { DraggableDashboardGrid } from "@/components/dashboard/DraggableDashboardGrid";
+import { useDashboardLayout, DashboardCardItem } from "@/hooks/useDashboardLayout";
 import { StatsGridWidget } from "@/components/dashboard/widgets/StatsGridWidget";
 import { FinancialStatusWidget } from "@/components/dashboard/widgets/FinancialStatusWidget";
 import { TicketsWidget } from "@/components/dashboard/widgets/TicketsWidget";
@@ -81,6 +82,8 @@ const Index = () => {
   const [heroMediaType, setHeroMediaType] = useState<"image" | "video">("image");
   const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -287,6 +290,40 @@ const Index = () => {
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
     : null;
 
+  const handleReorder = useCallback((newCards: DashboardCardItem[]) => {
+    const reordered = newCards.map((c, i) => ({ ...c, order: i }));
+    setCards(reordered);
+  }, [setCards]);
+
+  const handleSaveOrder = useCallback(async () => {
+    await saveCards(visibleCards);
+    setEditMode(false);
+  }, [saveCards, visibleCards]);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    const name = window.prompt("Nome do template:");
+    if (!name?.trim()) return;
+    setSavingAsTemplate(true);
+    try {
+      const userId = (await supabase.auth.getSession()).data.session?.user?.id;
+      const { error } = await supabase
+        .from("dashboard_templates" as any)
+        .insert({
+          name: name.trim(),
+          description: "Criado a partir do dashboard atual",
+          layout: cards.filter(c => c.visible).map((c, i) => ({ ...c, order: i })),
+          created_by: userId,
+          is_locked: false,
+          allowed_roles: [],
+        } as any);
+      if (error) throw error;
+      toast.success("Template salvo com sucesso!");
+    } catch {
+      toast.error("Erro ao salvar template");
+    }
+    setSavingAsTemplate(false);
+  }, [cards]);
+
   if (isServico) {
     return <Navigate to="/orcamento" replace />;
   }
@@ -350,7 +387,7 @@ const Index = () => {
     }
   };
 
-  const renderCard = (card: typeof visibleCards[number]) => {
+  const renderCard = (card: DashboardCardItem) => {
     if (card.type === "shortcut") {
       return (
         <ShortcutCard
@@ -410,9 +447,27 @@ const Index = () => {
         )}
       </div>
 
-      {/* Customize button */}
+      {/* Customize buttons */}
       {!isViewingUser && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          {!dashboardLocked && (
+            <>
+              {editMode ? (
+                <Button variant="default" size="sm" className="gap-1.5 text-xs" onClick={handleSaveOrder} disabled={isSaving}>
+                  <Save className="w-3.5 h-3.5" /> Salvar ordem
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setEditMode(true)}>
+                  <Move className="w-3.5 h-3.5" /> Reorganizar
+                </Button>
+              )}
+            </>
+          )}
+          {isAdminMaster && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleSaveAsTemplate} disabled={savingAsTemplate}>
+              <LayoutTemplate className="w-3.5 h-3.5" /> Salvar como template
+            </Button>
+          )}
           <DashboardCustomizer
             cards={cards}
             isCardAvailable={isCardAvailable}
@@ -428,9 +483,12 @@ const Index = () => {
 
       {/* Dynamic cards grid */}
       {!layoutLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {visibleCards.map(card => renderCard(card))}
-        </div>
+        <DraggableDashboardGrid
+          cards={visibleCards}
+          editMode={editMode && !dashboardLocked}
+          onReorder={handleReorder}
+          renderCard={renderCard}
+        />
       )}
 
       {/* Dialog: Faturas em Aberto */}
