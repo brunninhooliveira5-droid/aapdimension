@@ -27,19 +27,21 @@ export interface WidgetDefinition {
   requiredAccess?: string[];
   /** If true, always visible and cannot be hidden */
   fixed?: boolean;
+  /** Default column span (1-4). Defaults to 1. */
+  defaultColSpan?: number;
 }
 
 export const ALL_WIDGETS: WidgetDefinition[] = [
-  { key: "tips_card", label: "Sugestões / Feedback", fixed: true },
-  { key: "pro_countdown_card", label: "Status PRO" },
-  { key: "financial_status_card", label: "Status Financeiro" },
-  { key: "stats_grid", label: "Indicadores Rápidos" },
-  { key: "bulletins_card", label: "Boletins Técnicos", requiredAccess: ["boletins"] },
-  { key: "support_tickets_card", label: "Chamados Recentes", requiredAccess: ["suporte"] },
-  { key: "maintenance_card", label: "Manutenções Próximas", requiredAccess: ["manutencao"] },
-  { key: "cutting_quote_shortcut", label: "Atalho Orçamento de Corte", requiredAccess: ["orcamento"] },
-  { key: "store_shortcut_card", label: "Atalho Peças e Loja", requiredAccess: ["pecas"] },
-  { key: "recent_files_card", label: "Arquivos Recentes", requiredAccess: ["arquivos"] },
+  { key: "tips_card", label: "Sugestões / Feedback", fixed: true, defaultColSpan: 1 },
+  { key: "pro_countdown_card", label: "Status PRO", defaultColSpan: 1 },
+  { key: "financial_status_card", label: "Status Financeiro", defaultColSpan: 1 },
+  { key: "stats_grid", label: "Indicadores Rápidos", defaultColSpan: 4 },
+  { key: "bulletins_card", label: "Boletins Técnicos", requiredAccess: ["boletins"], defaultColSpan: 2 },
+  { key: "support_tickets_card", label: "Chamados Recentes", requiredAccess: ["suporte"], defaultColSpan: 2 },
+  { key: "maintenance_card", label: "Manutenções Próximas", requiredAccess: ["manutencao"], defaultColSpan: 2 },
+  { key: "cutting_quote_shortcut", label: "Atalho Orçamento de Corte", requiredAccess: ["orcamento"], defaultColSpan: 1 },
+  { key: "store_shortcut_card", label: "Atalho Peças e Loja", requiredAccess: ["pecas"], defaultColSpan: 1 },
+  { key: "recent_files_card", label: "Arquivos Recentes", requiredAccess: ["arquivos"], defaultColSpan: 2 },
 ];
 
 const rolePresets: Record<string, string[]> = {
@@ -75,6 +77,7 @@ function getDefaultCards(role: UserRole): DashboardCardItem[] {
     title: w.label,
     visible: preset.includes(w.key),
     order: i,
+    colSpan: w.defaultColSpan ?? 1,
   }));
 }
 
@@ -147,14 +150,16 @@ export function useDashboardLayout() {
               title: w.label,
               visible: false,
               order: merged.length + i,
+              colSpan: w.defaultColSpan ?? 1,
             });
           }
         });
-        // Force fixed widgets to always be visible
+        // Force fixed widgets to always be visible + apply default colSpan if missing
         for (const m of merged) {
           if (m.type === "widget") {
             const def = ALL_WIDGETS.find(w => w.key === m.key);
             if (def?.fixed) m.visible = true;
+            if (!m.colSpan) m.colSpan = def?.defaultColSpan ?? 1;
           }
         }
         setCards(merged.sort((a, b) => a.order - b.order));
