@@ -47,6 +47,8 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
 
   const fetchAll = async () => {
     const today = format(new Date(), "yyyy-MM-dd");
@@ -94,7 +96,12 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   });
 
   // Only show tasks without a sector in the overview kanban
-  const overviewTasks = tasks.filter((t) => !t.sector);
+  const overviewTasks = tasks.filter((t) => {
+    if (t.sector) return false;
+    if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+    if (filterCategory !== "all" && t.category !== filterCategory) return false;
+    return true;
+  });
 
   // File helpers
   const loadTaskFiles = async (taskId: string) => {
@@ -286,7 +293,31 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
             </Button>
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground -mt-1">Arraste tarefas para os setores acima para distribuí-las</p>
+        <div className="flex items-center gap-2 -mt-1">
+          <p className="text-[10px] text-muted-foreground">Arraste tarefas para os setores acima para distribuí-las</p>
+          <div className="flex gap-1.5 ml-auto">
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="w-[110px] h-7 text-[10px]"><SelectValue placeholder="Prioridade" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas prioridades</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="media">Média</SelectItem>
+                <SelectItem value="baixa">Baixa</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[110px] h-7 text-[10px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas categorias</SelectItem>
+                <SelectItem value="producao">Produção</SelectItem>
+                <SelectItem value="financeiro">Financeiro</SelectItem>
+                <SelectItem value="comercial">Comercial</SelectItem>
+                <SelectItem value="tecnico">Técnico</SelectItem>
+                <SelectItem value="app_sistema">App/Sistema</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {kanbanCols.map((col) => {
             const colTasks = overviewTasks.filter((t) => t.status === col);
