@@ -228,7 +228,7 @@ export default function CuttingQuotePage() {
       </div>
 
       <Tabs defaultValue={initialTab} className="w-full">
-        <TabsList className={`grid w-full max-w-4xl ${gridColsClass}`}>
+        <TabsList className="w-full justify-start">
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
