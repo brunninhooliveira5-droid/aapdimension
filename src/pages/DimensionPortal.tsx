@@ -9,6 +9,7 @@ import { DimensionProduction } from "@/components/dimension/DimensionProduction"
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
 import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
+import { ModuleProvider, dimensionConfig } from "@/contexts/ModuleContext";
 
 const ProposalsPage = lazy(() => import("@/pages/ProposalsPage"));
 
@@ -28,40 +29,42 @@ export default function DimensionPortal() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Portal Dimension</h1>
-        <p className="text-muted-foreground text-sm">Controle interno de produção, tarefas e atividades.</p>
+    <ModuleProvider config={dimensionConfig}>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Portal Dimension</h1>
+          <p className="text-muted-foreground text-sm">Controle interno de produção, tarefas e atividades.</p>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <tab.icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="overview"><DimensionOverview onNavigateToTasks={() => setActiveTab("tasks")} /></TabsContent>
+          <TabsContent value="tasks"><DimensionTasks /></TabsContent>
+          <TabsContent value="pendencies"><DimensionPendencies /></TabsContent>
+          <TabsContent value="schedule"><DimensionSchedule /></TabsContent>
+          <TabsContent value="production"><DimensionProduction /></TabsContent>
+          <TabsContent value="routines"><DimensionRoutines /></TabsContent>
+          <TabsContent value="documentacao"><DimensionDocumentation /></TabsContent>
+          <TabsContent value="propostas">
+            <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}>
+              <ProposalsPage />
+            </Suspense>
+          </TabsContent>
+          <TabsContent value="metas"><DimensionGoals /></TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
-          {tabs.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              <tab.icon className="h-3.5 w-3.5" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="overview"><DimensionOverview onNavigateToTasks={() => setActiveTab("tasks")} /></TabsContent>
-        <TabsContent value="tasks"><DimensionTasks /></TabsContent>
-        <TabsContent value="pendencies"><DimensionPendencies /></TabsContent>
-        <TabsContent value="schedule"><DimensionSchedule /></TabsContent>
-        <TabsContent value="production"><DimensionProduction /></TabsContent>
-        <TabsContent value="routines"><DimensionRoutines /></TabsContent>
-        <TabsContent value="documentacao"><DimensionDocumentation /></TabsContent>
-        <TabsContent value="propostas">
-          <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}>
-            <ProposalsPage />
-          </Suspense>
-        </TabsContent>
-        <TabsContent value="metas"><DimensionGoals /></TabsContent>
-      </Tabs>
-    </div>
+    </ModuleProvider>
   );
 }
