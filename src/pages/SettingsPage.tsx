@@ -82,6 +82,46 @@ const SettingsPage = () => {
     applyCustomBg();
   };
 
+  const textFxOptions = [
+    { label: "Nenhum", value: "" },
+    { label: "Sombra Sutil", value: "text-fx-shadow-subtle" },
+    { label: "Sombra Média", value: "text-fx-shadow-medium" },
+    { label: "Sombra Forte", value: "text-fx-shadow-strong" },
+    { label: "Neon", value: "text-fx-neon" },
+  ];
+  const textWeightOptions = [
+    { label: "Padrão", value: "" },
+    { label: "Leve", value: "text-wt-light" },
+    { label: "Normal", value: "text-wt-normal" },
+    { label: "Médio", value: "text-wt-medium" },
+    { label: "Negrito", value: "text-wt-bold" },
+    { label: "Extra Negrito", value: "text-wt-extrabold" },
+  ];
+  const textSizeOptions = [
+    { label: "Padrão", value: "" },
+    { label: "Menor", value: "text-sz-smaller" },
+    { label: "Maior", value: "text-sz-larger" },
+  ];
+  const textSpacingOptions = [
+    { label: "Padrão", value: "" },
+    { label: "Apertado", value: "text-sp-tight" },
+    { label: "Normal", value: "text-sp-normal" },
+    { label: "Largo", value: "text-sp-wide" },
+  ];
+
+  const [textFx, setTextFx] = useState(() => localStorage.getItem("text-fx") || "");
+  const [textWeight, setTextWeight] = useState(() => localStorage.getItem("text-wt") || "");
+  const [textSize, setTextSize] = useState(() => localStorage.getItem("text-sz") || "");
+  const [textSpacing, setTextSpacing] = useState(() => localStorage.getItem("text-sp") || "");
+
+  const applyTextOption = (options: { label: string; value: string }[], val: string, key: string, setter: (v: string) => void) => {
+    setter(val);
+    const root = document.documentElement;
+    options.forEach(o => { if (o.value) root.classList.remove(o.value); });
+    if (val) { root.classList.add(val); localStorage.setItem(key, val); }
+    else localStorage.removeItem(key);
+  };
+
   const cardFxOptions = [
     { label: "Nenhum", value: "" },
     { label: "Sutil", value: "card-fx-subtle" },
@@ -125,11 +165,17 @@ const SettingsPage = () => {
     applyCustomBg();
   };
 
-  // Apply saved card fx on mount
+  // Apply saved effects on mount
   useEffect(() => {
+    const root = document.documentElement;
     const saved = localStorage.getItem("card-fx");
-    if (saved) document.documentElement.classList.add(saved);
-    if (localStorage.getItem("card-3d") === "true") document.documentElement.classList.add("card-fx-3d");
+    if (saved) root.classList.add(saved);
+    if (localStorage.getItem("card-3d") === "true") root.classList.add("card-fx-3d");
+    // Text effects
+    ["text-fx", "text-wt", "text-sz", "text-sp"].forEach(key => {
+      const v = localStorage.getItem(key);
+      if (v) root.classList.add(v);
+    });
   }, []);
 
   const toggleTheme = () => {
@@ -446,9 +492,79 @@ const SettingsPage = () => {
             )}
           </div>
         </div>
+        <div className="border-t border-border pt-4 space-y-3">
+          <Label className="text-xs text-muted-foreground">Efeito das letras</Label>
+          <div className="flex flex-wrap gap-2">
+            {textFxOptions.map((o) => (
+              <button
+                key={o.label}
+                onClick={() => applyTextOption(textFxOptions, o.value, "text-fx", setTextFx)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                  textFx === o.value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Peso da fonte</Label>
+            <div className="flex flex-wrap gap-2">
+              {textWeightOptions.map((o) => (
+                <button
+                  key={o.label}
+                  onClick={() => applyTextOption(textWeightOptions, o.value, "text-wt", setTextWeight)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                    textWeight === o.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Tamanho base</Label>
+            <div className="flex flex-wrap gap-2">
+              {textSizeOptions.map((o) => (
+                <button
+                  key={o.label}
+                  onClick={() => applyTextOption(textSizeOptions, o.value, "text-sz", setTextSize)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                    textSize === o.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Espaçamento</Label>
+            <div className="flex flex-wrap gap-2">
+              {textSpacingOptions.map((o) => (
+                <button
+                  key={o.label}
+                  onClick={() => applyTextOption(textSpacingOptions, o.value, "text-sp", setTextSpacing)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                    textSpacing === o.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Profile */}
       <div className="gradient-card rounded-lg border border-border p-5 space-y-4">
         <div className="flex items-center gap-3">
           <User className="w-5 h-5 text-primary" />
