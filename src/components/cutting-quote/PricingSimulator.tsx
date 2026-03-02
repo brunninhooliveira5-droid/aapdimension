@@ -41,6 +41,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const [gasConsumable, setGasConsumable] = useState(0);
   const [maintenanceCost, setMaintenanceCost] = useState(0);
   const [otherMachine, setOtherMachine] = useState(0);
+  const [operatorSalary, setOperatorSalary] = useState(0);
 
   const [productiveHours, setProductiveHours] = useState(160);
   const [profitMargin, setProfitMargin] = useState(30);
@@ -72,6 +73,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           setMachineCost(Number(data.machine_cost) || 0);
           setGasConsumable(Number(data.gas_consumable) || 0);
           setMaintenanceCost(Number(data.maintenance_cost) || 0);
+          setOperatorSalary(Number(data.operator_salary) || 0);
           setOtherMachine(Number(data.other_machine) || 0);
           setProductiveHours(Number(data.productive_hours) || 160);
           setProfitMargin(Number(data.profit_margin) || 30);
@@ -87,7 +89,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   }, [session]);
 
   const totalFixed = rent + electricity + internet + otherFixed;
-  const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine;
+  const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine + operatorSalary;
   const totalMonthlyCost = totalFixed + totalMachine;
 
   const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
@@ -114,6 +116,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       rent, electricity, internet, other_fixed: otherFixed,
       machine_cost: machineCost, gas_consumable: gasConsumable,
       maintenance_cost: maintenanceCost, other_machine: otherMachine,
+      operator_salary: operatorSalary,
       productive_hours: productiveHours, profit_margin: profitMargin,
       avg_cut_speed: avgCutSpeed, updated_at: new Date().toISOString(),
       min_speed_override_mmmin: minSpeedOverride,
@@ -135,7 +138,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
-  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
+  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Debounce auto-save: save 1.5s after last change
   useEffect(() => {
@@ -143,7 +146,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(saveSettings, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
+  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -218,12 +221,22 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Manutenção Mensal (R$)</Label>
+              <Label className="text-xs">Retirada de Resíduos Mensal (R$)</Label>
               <Input 
                 type="text" 
                 inputMode="decimal"
                 value={maintenanceCost > 0 ? maintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
                 onChange={(e) => setMaintenanceCost(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
+                placeholder="0,00" 
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Salário do Operador (R$)</Label>
+              <Input 
+                type="text" 
+                inputMode="decimal"
+                value={operatorSalary > 0 ? operatorSalary.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
+                onChange={(e) => setOperatorSalary(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
                 placeholder="0,00" 
               />
             </div>

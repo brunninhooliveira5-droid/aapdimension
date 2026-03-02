@@ -2687,6 +2687,7 @@ export type Database = {
           max_passes_override: number
           max_speed_override_mmmin: number
           min_speed_override_mmmin: number
+          operator_salary: number | null
           other_fixed: number
           other_machine: number
           productive_hours: number
@@ -2708,6 +2709,7 @@ export type Database = {
           max_passes_override?: number
           max_speed_override_mmmin?: number
           min_speed_override_mmmin?: number
+          operator_salary?: number | null
           other_fixed?: number
           other_machine?: number
           productive_hours?: number
@@ -2729,6 +2731,7 @@ export type Database = {
           max_passes_override?: number
           max_speed_override_mmmin?: number
           min_speed_override_mmmin?: number
+          operator_salary?: number | null
           other_fixed?: number
           other_machine?: number
           productive_hours?: number
