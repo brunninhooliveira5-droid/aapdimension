@@ -46,6 +46,7 @@ function SortableItem({
 }) {
   const label = item.title;
   const isShortcut = item.type === "shortcut";
+  const isFixed = item.type === "widget" && ALL_WIDGETS.find(w => w.key === item.key)?.fixed;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: item.key,
     disabled: !dragEnabled,
@@ -88,20 +89,28 @@ function SortableItem({
           ) : isShortcut ? "Atalho" : "Widget"}
         </p>
       </div>
-      <Switch
-        checked={item.visible && available}
-        disabled={!available}
-        onCheckedChange={() => onToggle(item.key)}
-        className="scale-90"
-      />
-      {isShortcut && (
-        <button
-          onClick={() => onRemove(item.key)}
-          className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-          title="Remover"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+      {isFixed ? (
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+          <Lock className="w-3 h-3" /> Fixo
+        </span>
+      ) : (
+        <>
+          <Switch
+            checked={item.visible && available}
+            disabled={!available}
+            onCheckedChange={() => onToggle(item.key)}
+            className="scale-90"
+          />
+          {isShortcut && (
+            <button
+              onClick={() => onRemove(item.key)}
+              className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+              title="Remover"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -128,6 +137,9 @@ export function DashboardCustomizer({ cards, isCardAvailable, isSaving, onSave, 
   };
 
   const handleToggle = (key: string) => {
+    // Don't allow toggling fixed widgets
+    const isFixed = ALL_WIDGETS.find(w => w.key === key)?.fixed;
+    if (isFixed) return;
     setDraft(prev =>
       prev.map(item => (item.key === key ? { ...item, visible: !item.visible } : item))
     );
