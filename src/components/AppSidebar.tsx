@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2 } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory } from "lucide-react";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +36,7 @@ import { toast } from "sonner";
 const basicMenuItems = [
   { title: "Home", url: "/", altUrl: "/orcamento", icon: Home, section: "home" },
   { title: "Dimension", url: "/dimension", icon: Building2, section: "dimension" },
+  { title: "Controle de Produção", url: "/controle-producao", icon: Factory, section: "controle_producao" },
   { title: "Minhas Máquinas", url: "/maquinas", icon: Cpu, section: "maquinas" },
   { title: "Suporte", url: "/suporte", icon: Headphones, section: "suporte" },
   { title: "Manutenção", url: "/manutencao", icon: Calendar, section: "manutencao" },
