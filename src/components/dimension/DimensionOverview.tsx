@@ -430,7 +430,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
           {Object.entries(sectorTasksGrouped).map(([sector, sTasks]) => (
             <div key={sector} className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">📍 {sector} ({sTasks.length})</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <div className="flex flex-col gap-2">
                 {sTasks.map((task: any) => {
                   const statusGradients: Record<string, string> = {
                     a_fazer: "from-slate-500 to-slate-700",
