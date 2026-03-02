@@ -301,6 +301,10 @@ const Index = () => {
     setCards(merged);
   }, [cards, setCards]);
 
+  const handleResizeCard = useCallback((key: string, colSpan: number) => {
+    setCards(prev => prev.map(c => c.key === key ? { ...c, colSpan } : c));
+  }, [setCards]);
+
   const handleSaveOrder = useCallback(async () => {
     await saveCards(cards);
     setEditMode(false);
@@ -493,6 +497,7 @@ const Index = () => {
           cards={visibleCards}
           editMode={editMode && !dashboardLocked}
           onReorder={handleReorder}
+          onResizeCard={handleResizeCard}
           renderCard={renderCard}
         />
       )}
