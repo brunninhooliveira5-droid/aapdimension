@@ -27,6 +27,7 @@ import { CuttingQuoteShortcutWidget } from "@/components/dashboard/widgets/Cutti
 import { StoreShortcutWidget } from "@/components/dashboard/widgets/StoreShortcutWidget";
 import { RecentFilesWidget } from "@/components/dashboard/widgets/RecentFilesWidget";
 import { ShortcutCard } from "@/components/dashboard/ShortcutCard";
+import { ProductionControlDashboard } from "@/components/dashboard/ProductionControlDashboard";
 
 interface InvoiceWithUser {
   id: string;
@@ -91,8 +92,10 @@ const Index = () => {
   const {
     cards, setCards, visibleCards, isLoading: layoutLoading,
     isSaving, saveCards, resetToDefault, isCardAvailable,
-    appliedTemplateId, dashboardLocked, applyTemplate,
+    appliedTemplateId, appliedTemplateName, dashboardLocked, applyTemplate,
   } = useDashboardLayout();
+
+  const isEmbeddedProductionControl = appliedTemplateName === "Controle de Produção";
 
   const fetchMachineCount = async () => {
     const effectiveOwnerId = viewUserId || (!showAllData ? effectiveUserId : null);
@@ -507,14 +510,18 @@ const Index = () => {
         </div>
       )}
 
-      {/* Dynamic cards grid */}
+      {/* Dynamic cards grid OR embedded page */}
       {!layoutLoading && (
-        <DraggableDashboardGrid
-          cards={visibleCards}
-          editMode={editMode && !dashboardLocked}
-          onLayoutChange={handleLayoutChange}
-          renderCard={renderCard}
-        />
+        isEmbeddedProductionControl ? (
+          <ProductionControlDashboard />
+        ) : (
+          <DraggableDashboardGrid
+            cards={visibleCards}
+            editMode={editMode && !dashboardLocked}
+            onLayoutChange={handleLayoutChange}
+            renderCard={renderCard}
+          />
+        )
       )}
 
       {/* Dialog: Faturas em Aberto */}
