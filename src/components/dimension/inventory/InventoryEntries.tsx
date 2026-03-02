@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,22 +15,23 @@ import { toast } from "sonner";
 
 export function InventoryEntries() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", quantity: "", unit_cost: "", supplier_id: "", notes: "" });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["inventory-items"],
+    queryKey: [tables.inventoryItems],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_items").select("id, name, internal_code").eq("is_active", true).order("name");
+      const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code").eq("is_active", true).order("name");
       return data || [];
     },
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["inventory-suppliers"],
+    queryKey: [tables.inventorySuppliers],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_suppliers").select("id, name").eq("is_active", true);
+      const { data } = await supabase.from(tables.inventorySuppliers as any).select("id, name").eq("is_active", true);
       return data || [];
     },
   });
@@ -40,8 +42,7 @@ export function InventoryEntries() {
       const qty = Number(form.quantity);
       const cost = Number(form.unit_cost) || 0;
 
-      // Insert movement
-      const { error: moveErr } = await supabase.from("inventory_movements").insert({
+      const { error: moveErr } = await supabase.from(tables.inventoryMovements as any).insert({
         item_id: form.item_id,
         movement_type: "entrada",
         quantity: qty,
@@ -54,15 +55,14 @@ export function InventoryEntries() {
       });
       if (moveErr) throw moveErr;
 
-      // Update item stock & avg cost
-      const { data: item } = await supabase.from("inventory_items").select("current_quantity, avg_cost").eq("id", form.item_id).single();
+      const { data: item } = await supabase.from(tables.inventoryItems as any).select("current_quantity, avg_cost").eq("id", form.item_id).single();
       if (item) {
-        const oldQty = Number(item.current_quantity);
-        const oldAvg = Number(item.avg_cost);
+        const oldQty = Number((item as any).current_quantity);
+        const oldAvg = Number((item as any).avg_cost);
         const newQty = oldQty + qty;
         const newAvg = cost > 0 ? ((oldAvg * oldQty) + (cost * qty)) / newQty : oldAvg;
 
-        await supabase.from("inventory_items").update({
+        await supabase.from(tables.inventoryItems as any).update({
           current_quantity: newQty,
           last_cost: cost > 0 ? cost : undefined,
           avg_cost: newAvg,
@@ -71,9 +71,8 @@ export function InventoryEntries() {
     },
     onSuccess: () => {
       toast.success("Entrada registrada!");
-      qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory-items"] });
-      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryMovements] });
       setOpen(false);
       setForm({ item_id: "", quantity: "", unit_cost: "", supplier_id: "", notes: "" });
     },
@@ -96,7 +95,7 @@ export function InventoryEntries() {
                   <Label>Item *</Label>
                   <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar item" /></SelectTrigger>
-                    <SelectContent>{items.map((i: any) => <SelectItem key={i.id} value={i.id}>{i.name} {i.internal_code && `(${i.internal_code})`}</SelectItem>)}</SelectContent>
+                    <SelectContent>{(items as any[]).map((i) => <SelectItem key={i.id} value={i.id}>{i.name} {i.internal_code && `(${i.internal_code})`}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -107,7 +106,7 @@ export function InventoryEntries() {
                   <Label>Fornecedor</Label>
                   <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                    <SelectContent>{suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{(suppliers as any[]).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div><Label>Observação</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +16,18 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
 };
 
 export function InventoryMovements() {
+  const { tables } = useModule();
+
   const { data: movements = [], isLoading } = useQuery({
-    queryKey: ["inventory-movements"],
+    queryKey: [tables.inventoryMovements],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("inventory_movements")
-        .select("*, inventory_items(name, internal_code)")
+        .from(tables.inventoryMovements as any)
+        .select(`*, ${tables.inventoryItems}(name, internal_code)`)
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -36,7 +39,7 @@ export function InventoryMovements() {
       <CardContent>
         {isLoading ? (
           <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
-        ) : movements.length === 0 ? (
+        ) : (movements as any[]).length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhuma movimentação registrada.</p>
         ) : (
           <div className="overflow-auto">
@@ -52,12 +55,12 @@ export function InventoryMovements() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {movements.map((m) => {
+                {(movements as any[]).map((m) => {
                   const t = TYPE_MAP[m.movement_type] || { label: m.movement_type, color: "" };
                   return (
                     <TableRow key={m.id}>
                       <TableCell className="text-xs">{format(new Date(m.created_at), "dd/MM/yy HH:mm")}</TableCell>
-                      <TableCell className="font-medium">{(m as any).inventory_items?.name || "-"}</TableCell>
+                      <TableCell className="font-medium">{m[tables.inventoryItems]?.name || "-"}</TableCell>
                       <TableCell><Badge className={t.color}>{t.label}</Badge></TableCell>
                       <TableCell className="text-right">{Number(m.quantity)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{m.reason || "-"}</TableCell>

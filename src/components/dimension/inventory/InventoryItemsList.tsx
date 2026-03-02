@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ const COMPATIBLE = ["Orion", "Falcon", "Quantum", "Laser", "Geral"];
 
 export function InventoryItemsList() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -35,46 +37,46 @@ export function InventoryItemsList() {
   });
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["inventory-items"],
+    queryKey: [tables.inventoryItems],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*, inventory_categories(name), inventory_units(abbreviation), inventory_locations(name), inventory_suppliers(name)")
+        .from(tables.inventoryItems as any)
+        .select(`*, ${tables.inventoryCategories}(name), ${tables.inventoryUnits}(abbreviation), ${tables.inventoryLocations}(name), ${tables.inventorySuppliers}(name)`)
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["inventory-categories"],
+    queryKey: [tables.inventoryCategories],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_categories").select("*").eq("is_active", true).order("name");
+      const { data } = await supabase.from(tables.inventoryCategories as any).select("*").eq("is_active", true).order("name");
       return data || [];
     },
   });
 
   const { data: units = [] } = useQuery({
-    queryKey: ["inventory-units"],
+    queryKey: [tables.inventoryUnits],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_units").select("*").eq("is_active", true);
+      const { data } = await supabase.from(tables.inventoryUnits as any).select("*").eq("is_active", true);
       return data || [];
     },
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["inventory-locations"],
+    queryKey: [tables.inventoryLocations],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_locations").select("*").eq("is_active", true);
+      const { data } = await supabase.from(tables.inventoryLocations as any).select("*").eq("is_active", true);
       return data || [];
     },
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["inventory-suppliers"],
+    queryKey: [tables.inventorySuppliers],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_suppliers").select("*").eq("is_active", true);
+      const { data } = await supabase.from(tables.inventorySuppliers as any).select("*").eq("is_active", true);
       return data || [];
     },
   });
@@ -82,7 +84,7 @@ export function InventoryItemsList() {
   const createItem = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Nome obrigatório");
-      const { error } = await supabase.from("inventory_items").insert({
+      const { error } = await supabase.from(tables.inventoryItems as any).insert({
         name: form.name.trim(),
         internal_code: form.internal_code.trim(),
         subcategory: form.subcategory.trim(),
@@ -101,14 +103,14 @@ export function InventoryItemsList() {
     },
     onSuccess: () => {
       toast.success("Item criado!");
-      qc.invalidateQueries({ queryKey: ["inventory-items"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setOpen(false);
       setForm({ name: "", internal_code: "", subcategory: "", item_type: "materia_prima", compatible_with: [], min_quantity: "0", ideal_quantity: "0", unit_cost: "0", category_id: "", unit_id: "", location_id: "", supplier_id: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const filtered = items.filter((i) =>
+  const filtered = (items as any[]).filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase()) ||
     i.internal_code.toLowerCase().includes(search.toLowerCase())
   );
@@ -149,7 +151,7 @@ export function InventoryItemsList() {
                     <Label>Categoria</Label>
                     <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{(categories as any[]).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -159,14 +161,14 @@ export function InventoryItemsList() {
                     <Label>Unidade</Label>
                     <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{units.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name} ({u.abbreviation})</SelectItem>)}</SelectContent>
+                      <SelectContent>{(units as any[]).map((u) => <SelectItem key={u.id} value={u.id}>{u.name} ({u.abbreviation})</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label>Localização</Label>
                     <Select value={form.location_id} onValueChange={(v) => setForm({ ...form, location_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{(locations as any[]).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -199,7 +201,7 @@ export function InventoryItemsList() {
                   <Label>Fornecedor Principal</Label>
                   <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                    <SelectContent>{suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{(suppliers as any[]).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <Button onClick={() => createItem.mutate()} disabled={createItem.isPending} className="w-full">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +23,15 @@ const DESTINATIONS = [
 
 export function InventoryExits() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", quantity: "", destination: "producao", linked_project: "", linked_machine: "", notes: "" });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["inventory-items"],
+    queryKey: [tables.inventoryItems],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_items").select("id, name, internal_code, current_quantity").eq("is_active", true).order("name");
+      const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, current_quantity").eq("is_active", true).order("name");
       return data || [];
     },
   });
@@ -39,7 +41,7 @@ export function InventoryExits() {
       if (!form.item_id || !form.quantity) throw new Error("Item e quantidade obrigatórios");
       const qty = Number(form.quantity);
 
-      const { error: moveErr } = await supabase.from("inventory_movements").insert({
+      const { error: moveErr } = await supabase.from(tables.inventoryMovements as any).insert({
         item_id: form.item_id,
         movement_type: "saida",
         quantity: qty,
@@ -52,18 +54,17 @@ export function InventoryExits() {
       });
       if (moveErr) throw moveErr;
 
-      const { data: item } = await supabase.from("inventory_items").select("current_quantity").eq("id", form.item_id).single();
+      const { data: item } = await supabase.from(tables.inventoryItems as any).select("current_quantity").eq("id", form.item_id).single();
       if (item) {
-        await supabase.from("inventory_items").update({
-          current_quantity: Math.max(0, Number(item.current_quantity) - qty),
+        await supabase.from(tables.inventoryItems as any).update({
+          current_quantity: Math.max(0, Number((item as any).current_quantity) - qty),
         }).eq("id", form.item_id);
       }
     },
     onSuccess: () => {
       toast.success("Saída registrada!");
-      qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory-items"] });
-      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryMovements] });
       setOpen(false);
       setForm({ item_id: "", quantity: "", destination: "producao", linked_project: "", linked_machine: "", notes: "" });
     },
@@ -86,7 +87,7 @@ export function InventoryExits() {
                   <Label>Item *</Label>
                   <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar item" /></SelectTrigger>
-                    <SelectContent>{items.map((i: any) => <SelectItem key={i.id} value={i.id}>{i.name} (Estoque: {Number(i.current_quantity)})</SelectItem>)}</SelectContent>
+                    <SelectContent>{(items as any[]).map((i) => <SelectItem key={i.id} value={i.id}>{i.name} (Estoque: {Number(i.current_quantity)})</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
