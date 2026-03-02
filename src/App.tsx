@@ -28,6 +28,7 @@ import EngagementDashboard from "./pages/EngagementDashboard";
 import EquipmentRegistration from "./pages/EquipmentRegistration";
 import EquipmentDashboard from "./pages/EquipmentDashboard";
 import DimensionPortal from "./pages/DimensionPortal";
+import ProductionControlPage from "./pages/ProductionControlPage";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const AppRoutes = () => {
         <Route path="/cadastro-equipamentos" element={<RoleGate section="maquinas"><EquipmentRegistration /></RoleGate>} />
         <Route path="/cadastro-equipamentos/:equipmentId" element={<RoleGate section="maquinas"><EquipmentDashboard /></RoleGate>} />
         <Route path="/dimension" element={<RoleGate section="dimension"><DimensionPortal /></RoleGate>} />
+        <Route path="/controle-producao" element={<RoleGate section="controle_producao"><ProductionControlPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
