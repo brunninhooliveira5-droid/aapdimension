@@ -178,35 +178,50 @@ export function DimensionTasks() {
 
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "concluida"];
 
-  const TaskCard = ({ task }: { task: any }) => (
-    <div
-      draggable
-      onDragStart={(e) => handleDragStart(e, task.id)}
-      onClick={() => openEdit(task)}
-      className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
-    >
-      <div className="flex items-start justify-between gap-1">
-        <p className="text-sm font-medium leading-tight">{task.title}</p>
-        <div className="flex gap-0.5 shrink-0">
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(task)}><Pencil className="h-3 w-3" /></Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+  const statusGradients: Record<string, string> = {
+    a_fazer: "from-slate-500 to-slate-700",
+    em_andamento: "from-blue-500 to-blue-700",
+    aguardando: "from-amber-500 to-amber-700",
+    atrasada: "from-red-500 to-red-700",
+    concluida: "from-emerald-500 to-emerald-700",
+  };
+
+  const TaskCard = ({ task }: { task: any }) => {
+    const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
+    return (
+      <div
+        draggable
+        onDragStart={(e) => handleDragStart(e, task.id)}
+        onClick={() => openEdit(task)}
+        className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
+      >
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+        <div className="relative p-3 space-y-2">
+          <div className="flex items-start justify-between gap-1">
+            <p className="text-sm font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
+            <div className="flex gap-0.5 shrink-0">
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={() => openEdit(task)}><Pencil className="h-3 w-3" /></Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20"><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
+            <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{categoryLabels[task.category] ?? task.category}</Badge>
+          </div>
+          {task.responsible && <p className="text-[10px] text-white/80 drop-shadow-sm">👤 {task.responsible}</p>}
+          {task.due_date && <p className="text-[10px] text-white/80 drop-shadow-sm">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+          {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-white/80 flex items-center gap-1 drop-shadow-sm"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
         </div>
       </div>
-      <div className="flex flex-wrap gap-1">
-        <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
-        <Badge variant="outline" className="text-[9px]">{categoryLabels[task.category] ?? task.category}</Badge>
-      </div>
-      {task.responsible && <p className="text-[10px] text-muted-foreground">👤 {task.responsible}</p>}
-      {task.due_date && <p className="text-[10px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
-      {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-4 mt-4">
@@ -261,15 +276,20 @@ export function DimensionTasks() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa encontrada.</p> : filtered.map((task) => (
-            <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <Badge variant="outline" className={`text-[9px] shrink-0 ${statusColors[task.status]}`}>{statusLabels[task.status]}</Badge>
-              <span className="text-sm flex-1 truncate">{task.title}</span>
-              <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
-              {task.due_date && <span className="text-[10px] text-muted-foreground">{format(new Date(task.due_date + "T00:00:00"), "dd/MM", { locale: ptBR })}</span>}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}><Pencil className="h-3.5 w-3.5" /></Button>
-            </div>
-          ))}
+          {filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa encontrada.</p> : filtered.map((task) => {
+            const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
+            return (
+              <div key={task.id} className={`relative flex items-center gap-3 p-3 rounded-xl overflow-hidden cursor-pointer`} onClick={() => openEdit(task)}>
+                <div className={`absolute inset-0 bg-gradient-to-r ${gradient}`} />
+                <div className="absolute inset-0 bg-black/30" />
+                <Badge className="relative text-[9px] shrink-0 bg-white/20 text-white border-0 backdrop-blur-sm">{statusLabels[task.status]}</Badge>
+                <span className="relative text-sm flex-1 truncate text-white font-medium drop-shadow-sm">{task.title}</span>
+                <Badge className="relative text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
+                {task.due_date && <span className="relative text-[10px] text-white/80">{format(new Date(task.due_date + "T00:00:00"), "dd/MM", { locale: ptBR })}</span>}
+                <Button variant="ghost" size="icon" className="relative h-7 w-7 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3.5 w-3.5" /></Button>
+              </div>
+            );
+          })}
         </div>
       )}
 
