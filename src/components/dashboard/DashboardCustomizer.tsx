@@ -1,46 +1,55 @@
-import { useState } from "react";
-import { Settings2, GripVertical, Save, X, RotateCcw, Lock } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Settings2, GripVertical, Save, X, RotateCcw, Lock, Plus, Search,
+  Trash2, Eye, EyeOff, Move, LockOpen, ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ALL_WIDGETS, WidgetLayoutItem } from "@/hooks/useDashboardLayout";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { ALL_WIDGETS, DashboardCardItem } from "@/hooks/useDashboardLayout";
+import { MENU_REGISTRY, flattenRegistry, type MenuRegistryItem } from "@/data/menuRegistry";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 interface Props {
-  layout: WidgetLayoutItem[];
-  isWidgetAvailable: (key: string) => boolean;
+  cards: DashboardCardItem[];
+  isCardAvailable: (card: DashboardCardItem) => boolean;
   isSaving: boolean;
-  onSave: (layout: WidgetLayoutItem[]) => Promise<void>;
+  onSave: (cards: DashboardCardItem[]) => Promise<void>;
   onReset: () => Promise<void>;
 }
 
 function SortableItem({
   item,
   available,
+  dragEnabled,
   onToggle,
+  onRemove,
 }: {
-  item: WidgetLayoutItem;
+  item: DashboardCardItem;
   available: boolean;
+  dragEnabled: boolean;
   onToggle: (key: string) => void;
+  onRemove: (key: string) => void;
 }) {
-  const label = ALL_WIDGETS.find(w => w.key === item.key)?.label ?? item.key;
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.key });
+  const label = item.title;
+  const isShortcut = item.type === "shortcut";
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: item.key,
+    disabled: !dragEnabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -51,7 +60,7 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 rounded-md border transition-colors ${
+      className={`flex items-center gap-2 p-2.5 rounded-md border transition-colors text-sm ${
         !available
           ? "bg-muted/50 border-border/50 opacity-60"
           : item.visible
@@ -62,30 +71,49 @@ function SortableItem({
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+        className={`shrink-0 ${
+          dragEnabled
+            ? "cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+            : "cursor-default text-muted-foreground/30"
+        }`}
+        tabIndex={dragEnabled ? 0 : -1}
       >
-        <GripVertical className="w-4 h-4" />
+        <GripVertical className="w-3.5 h-3.5" />
       </button>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{label}</p>
-        {!available && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Lock className="w-3 h-3" /> Indisponível para seu perfil
-          </p>
-        )}
+        <p className="text-xs font-medium text-foreground truncate">{label}</p>
+        <p className="text-[10px] text-muted-foreground">
+          {!available ? (
+            <span className="flex items-center gap-1"><Lock className="w-2.5 h-2.5" /> Indisponível</span>
+          ) : isShortcut ? "Atalho" : "Widget"}
+        </p>
       </div>
       <Switch
         checked={item.visible && available}
         disabled={!available}
         onCheckedChange={() => onToggle(item.key)}
+        className="scale-90"
       />
+      {isShortcut && (
+        <button
+          onClick={() => onRemove(item.key)}
+          className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+          title="Remover"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }
 
-export function DashboardCustomizer({ layout, isWidgetAvailable, isSaving, onSave, onReset }: Props) {
+export function DashboardCustomizer({ cards, isCardAvailable, isSaving, onSave, onReset }: Props) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<WidgetLayoutItem[]>([]);
+  const [draft, setDraft] = useState<DashboardCardItem[]>([]);
+  const [dragEnabled, setDragEnabled] = useState(false);
+  const [search, setSearch] = useState("");
+  const [libTab, setLibTab] = useState("widgets");
+  const { hasAccess, hasProAccess } = useAuth();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -93,14 +121,20 @@ export function DashboardCustomizer({ layout, isWidgetAvailable, isSaving, onSav
   );
 
   const handleOpen = () => {
-    setDraft([...layout]);
+    setDraft([...cards]);
+    setSearch("");
+    setDragEnabled(false);
     setOpen(true);
   };
 
   const handleToggle = (key: string) => {
-    setDraft(prev => prev.map(item =>
-      item.key === key ? { ...item, visible: !item.visible } : item
-    ));
+    setDraft(prev =>
+      prev.map(item => (item.key === key ? { ...item, visible: !item.visible } : item))
+    );
+  };
+
+  const handleRemove = (key: string) => {
+    setDraft(prev => prev.filter(c => c.key !== key));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -124,6 +158,97 @@ export function DashboardCustomizer({ layout, isWidgetAvailable, isSaving, onSav
     setOpen(false);
   };
 
+  // ── Library: available widgets not yet added ──
+  const unusedWidgets = useMemo(() => {
+    const draftKeys = new Set(draft.map(d => d.key));
+    return ALL_WIDGETS.filter(w => !draftKeys.has(w.key)).filter(w => {
+      if (!w.requiredAccess || w.requiredAccess.length === 0) return true;
+      return w.requiredAccess.some(s => hasAccess(s));
+    });
+  }, [draft, hasAccess]);
+
+  const addWidget = (key: string) => {
+    const def = ALL_WIDGETS.find(w => w.key === key);
+    if (!def) return;
+    setDraft(prev => [
+      ...prev,
+      {
+        id: `w_${key}`,
+        type: "widget" as const,
+        key,
+        title: def.label,
+        visible: true,
+        order: prev.length,
+      },
+    ]);
+  };
+
+  // ── Library: available shortcuts from menu registry ──
+  const availableShortcuts = useMemo(() => {
+    const draftKeys = new Set(draft.map(d => d.key));
+    const checkItem = (item: MenuRegistryItem): boolean => {
+      if (!hasAccess(item.section)) return false;
+      if (item.proFeature && !hasProAccess(item.proFeature)) return false;
+      return true;
+    };
+    const result: { parent: MenuRegistryItem; children: MenuRegistryItem[] }[] = [];
+    for (const item of MENU_REGISTRY) {
+      if (item.id === "nav_home") continue; // skip Home
+      if (!checkItem(item)) continue;
+      const availableChildren = (item.children ?? []).filter(
+        c => checkItem(c) && !draftKeys.has(c.id)
+      );
+      // Include parent if not already added, or has available children
+      if (!draftKeys.has(item.id) || availableChildren.length > 0) {
+        result.push({
+          parent: item,
+          children: availableChildren,
+        });
+      }
+    }
+    return result;
+  }, [draft, hasAccess, hasProAccess]);
+
+  const addShortcutFromRegistry = (entry: MenuRegistryItem) => {
+    if (draft.some(c => c.key === entry.id)) return;
+    setDraft(prev => [
+      ...prev,
+      {
+        id: `s_${entry.id}`,
+        type: "shortcut" as const,
+        key: entry.id,
+        title: entry.label,
+        visible: true,
+        order: prev.length,
+        targetRoute: entry.route,
+      },
+    ]);
+  };
+
+  // Filter by search
+  const filteredDraft = search
+    ? draft.filter(c => c.title.toLowerCase().includes(search.toLowerCase()))
+    : draft;
+
+  const filteredWidgets = search
+    ? unusedWidgets.filter(w => w.label.toLowerCase().includes(search.toLowerCase()))
+    : unusedWidgets;
+
+  const filteredShortcuts = search
+    ? availableShortcuts
+        .map(g => ({
+          parent: g.parent,
+          children: g.children.filter(c =>
+            c.label.toLowerCase().includes(search.toLowerCase())
+          ),
+        }))
+        .filter(
+          g =>
+            g.parent.label.toLowerCase().includes(search.toLowerCase()) ||
+            g.children.length > 0
+        )
+    : availableShortcuts;
+
   return (
     <>
       <Button
@@ -137,56 +262,178 @@ export function DashboardCustomizer({ layout, isWidgetAvailable, isSaving, onSav
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings2 className="w-5 h-5 text-primary" />
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Settings2 className="w-4.5 h-4.5 text-primary" />
               Personalizar Dashboard
             </DialogTitle>
           </DialogHeader>
 
-          <p className="text-xs text-muted-foreground -mt-2">
-            Arraste para reordenar e use os toggles para mostrar/ocultar widgets.
-          </p>
-
-          <div className="flex-1 overflow-y-auto space-y-2 py-2">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={draft.map(d => d.key)} strategy={verticalListSortingStrategy}>
-                {draft.map(item => (
-                  <SortableItem
-                    key={item.key}
-                    item={item}
-                    available={isWidgetAvailable(item.key)}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs"
-              onClick={handleReset}
-              disabled={isSaving}
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Restaurar padrão
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isSaving}>
-                <X className="w-3.5 h-3.5 mr-1" /> Cancelar
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                <Save className="w-3.5 h-3.5 mr-1" /> Salvar
+          {/* Top controls */}
+          <div className="px-5 pb-3 space-y-2.5 border-b border-border">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <Switch
+                  checked={dragEnabled}
+                  onCheckedChange={setDragEnabled}
+                  className="scale-75"
+                />
+                {dragEnabled ? (
+                  <span className="flex items-center gap-1"><Move className="w-3 h-3" /> Modo arrastar ON</span>
+                ) : (
+                  <span className="flex items-center gap-1"><LockOpen className="w-3 h-3" /> Modo arrastar OFF</span>
+                )}
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-[11px] h-7"
+                onClick={handleReset}
+                disabled={isSaving}
+              >
+                <RotateCcw className="w-3 h-3" />
+                Restaurar
               </Button>
             </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar cards..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Body: Two sections */}
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
+            {/* Section 1: Cards on Home */}
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Cards na minha Home ({filteredDraft.length})
+              </h4>
+              <div className="space-y-1.5">
+                {filteredDraft.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Nenhum card encontrado.</p>
+                ) : (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={filteredDraft.map(d => d.key)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {filteredDraft.map(item => (
+                        <SortableItem
+                          key={item.key}
+                          item={item}
+                          available={isCardAvailable(item)}
+                          dragEnabled={dragEnabled}
+                          onToggle={handleToggle}
+                          onRemove={handleRemove}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
+            </div>
+
+            {/* Section 2: Library */}
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Adicionar Cards
+              </h4>
+              <Tabs value={libTab} onValueChange={setLibTab}>
+                <TabsList className="mb-2">
+                  <TabsTrigger value="widgets" className="text-xs h-7 px-3">
+                    Widgets
+                  </TabsTrigger>
+                  <TabsTrigger value="shortcuts" className="text-xs h-7 px-3">
+                    Atalhos (Menu)
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="widgets">
+                  {filteredWidgets.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">Todos os widgets já foram adicionados.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {filteredWidgets.map(w => (
+                        <button
+                          key={w.key}
+                          onClick={() => addWidget(w.key)}
+                          className="flex items-center gap-2 w-full p-2 rounded-md border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-colors text-left"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="text-xs text-foreground">{w.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="shortcuts">
+                  {filteredShortcuts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">Nenhum atalho disponível.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredShortcuts.map(group => {
+                        const parentAdded = draft.some(c => c.key === group.parent.id);
+                        const ParentIcon = group.parent.icon;
+                        return (
+                          <div key={group.parent.id}>
+                            {/* Parent */}
+                            {!parentAdded && (
+                              <button
+                                onClick={() => addShortcutFromRegistry(group.parent)}
+                                className="flex items-center gap-2 w-full p-2 rounded-md border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-colors text-left"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <ParentIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-xs font-medium text-foreground">{group.parent.label}</span>
+                              </button>
+                            )}
+                            {/* Children */}
+                            {group.children.length > 0 && (
+                              <div className="ml-5 mt-1 space-y-1">
+                                {group.children.map(child => {
+                                  const ChildIcon = child.icon;
+                                  return (
+                                    <button
+                                      key={child.id}
+                                      onClick={() => addShortcutFromRegistry(child)}
+                                      className="flex items-center gap-2 w-full p-1.5 rounded-md border border-dashed border-border/60 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+                                    >
+                                      <Plus className="w-3 h-3 text-primary shrink-0" />
+                                      <ChildIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                                      <span className="text-[11px] text-foreground">{child.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+
+          <DialogFooter className="px-5 py-3 border-t border-border gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isSaving}>
+              <X className="w-3.5 h-3.5 mr-1" /> Sair
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+              <Save className="w-3.5 h-3.5 mr-1" /> Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

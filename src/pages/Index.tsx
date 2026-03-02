@@ -25,6 +25,7 @@ import { MaintenanceWidget } from "@/components/dashboard/widgets/MaintenanceWid
 import { CuttingQuoteShortcutWidget } from "@/components/dashboard/widgets/CuttingQuoteShortcutWidget";
 import { StoreShortcutWidget } from "@/components/dashboard/widgets/StoreShortcutWidget";
 import { RecentFilesWidget } from "@/components/dashboard/widgets/RecentFilesWidget";
+import { ShortcutCard } from "@/components/dashboard/ShortcutCard";
 
 interface InvoiceWithUser {
   id: string;
@@ -85,8 +86,8 @@ const Index = () => {
 
   // Dashboard layout hook
   const {
-    layout, setLayout, visibleWidgets, isLoading: layoutLoading,
-    isSaving, saveLayout, resetToDefault, isWidgetAvailable,
+    cards, setCards, visibleCards, isLoading: layoutLoading,
+    isSaving, saveCards, resetToDefault, isCardAvailable,
   } = useDashboardLayout();
 
   const fetchMachineCount = async () => {
@@ -113,7 +114,6 @@ const Index = () => {
       const effectiveOwnerId = viewUserId || (!showAllData ? effectiveUserId : null);
       await fetchMachineCount();
 
-      // Fetch invoices
       let invoiceQuery = supabase.from("invoices").select("*");
       if (effectiveOwnerId) invoiceQuery = invoiceQuery.eq("user_id", effectiveOwnerId);
       const { data: invoices } = await invoiceQuery;
@@ -137,7 +137,6 @@ const Index = () => {
         setOverdueInvoices(invoices.filter(i => i.status === "em_aberto" && i.due_date < today).map(mapInvoice));
       }
 
-      // Fetch recent tickets
       let ticketsData: any[] | null = null;
       if (effectiveOwnerId) {
         const { data } = await supabase.from("tickets").select("id, type, description, status, machine_id").eq("user_id", effectiveOwnerId).order("created_at", { ascending: false });
@@ -159,7 +158,6 @@ const Index = () => {
         setRecentTickets([]);
       }
 
-      // Fetch upcoming maintenances
       const todayStr = new Date().toISOString().split("T")[0];
       let maintData: any[] | null = null;
       if (effectiveOwnerId) {
@@ -182,7 +180,6 @@ const Index = () => {
         setUpcomingMaintenances([]);
       }
 
-      // Fetch pending service quotes
       if (showAllData && !viewUserId) {
         const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "servico");
         if (roleRows && roleRows.length > 0) {
@@ -196,7 +193,6 @@ const Index = () => {
     fetchData();
   }, [viewUserId, effectiveUserId, showAllData]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!isAdminMaster) return;
     const channel = supabase
@@ -207,7 +203,6 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [viewUserId, isAdminMaster, session?.user?.id]);
 
-  // Load custom banner
   useEffect(() => {
     const loadBanner = async () => {
       const { data } = await supabase.from("site_settings" as any).select("key, value").in("key", ["hero_banner_url", "hero_media_type", "hero_video_url"]);
@@ -299,13 +294,12 @@ const Index = () => {
   const renderWidget = (key: string) => {
     switch (key) {
       case "tips_card":
-        return <SuggestionCard key={key} />;
+        return <SuggestionCard />;
       case "pro_countdown_card":
-        return <ProStatusCard key={key} />;
+        return <ProStatusCard />;
       case "financial_status_card":
         return (
           <FinancialStatusWidget
-            key={key}
             isAdmin={isAdmin}
             openInvoices={openInvoices}
             overdueInvoices={overdueInvoices}
@@ -314,7 +308,6 @@ const Index = () => {
       case "stats_grid":
         return (
           <StatsGridWidget
-            key={key}
             isAdminMaster={!!isAdminMaster}
             isViewingUser={isViewingUser}
             totalMachines={totalMachines}
@@ -329,11 +322,10 @@ const Index = () => {
           />
         );
       case "bulletins_card":
-        return <BulletinCard key={key} />;
+        return <BulletinCard />;
       case "support_tickets_card":
         return (
           <TicketsWidget
-            key={key}
             tickets={recentTickets}
             setTickets={setRecentTickets}
             isAdmin={isAdmin}
@@ -342,20 +334,33 @@ const Index = () => {
       case "maintenance_card":
         return (
           <MaintenanceWidget
-            key={key}
             maintenances={upcomingMaintenances}
             isAdminMaster={!!isAdminMaster}
           />
         );
       case "cutting_quote_shortcut":
-        return <CuttingQuoteShortcutWidget key={key} />;
+        return <CuttingQuoteShortcutWidget />;
       case "store_shortcut_card":
-        return <StoreShortcutWidget key={key} />;
+        return <StoreShortcutWidget />;
       case "recent_files_card":
-        return <RecentFilesWidget key={key} />;
+        return <RecentFilesWidget />;
       default:
         return null;
     }
+  };
+
+  const renderCard = (card: typeof visibleCards[number]) => {
+    if (card.type === "shortcut") {
+      return (
+        <ShortcutCard
+          key={card.key}
+          id={card.key}
+          title={card.title}
+          targetRoute={card.targetRoute ?? "/"}
+        />
+      );
+    }
+    return <div key={card.key}>{renderWidget(card.key)}</div>;
   };
 
   return (
@@ -408,17 +413,21 @@ const Index = () => {
       {!isViewingUser && (
         <div className="flex justify-end">
           <DashboardCustomizer
-            layout={layout}
-            isWidgetAvailable={isWidgetAvailable}
+            cards={cards}
+            isCardAvailable={isCardAvailable}
             isSaving={isSaving}
-            onSave={saveLayout}
+            onSave={saveCards}
             onReset={resetToDefault}
           />
         </div>
       )}
 
-      {/* Dynamic widgets */}
-      {!layoutLoading && visibleWidgets.map(item => renderWidget(item.key))}
+      {/* Dynamic cards grid */}
+      {!layoutLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {visibleCards.map(card => renderCard(card))}
+        </div>
+      )}
 
       {/* Dialog: Faturas em Aberto */}
       <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>

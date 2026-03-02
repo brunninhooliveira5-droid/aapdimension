@@ -1,18 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useEffectiveUser } from "@/hooks/useEffectiveUser";
+import { flattenRegistry } from "@/data/menuRegistry";
 import { toast } from "sonner";
 
-export interface WidgetLayoutItem {
+export type CardType = "widget" | "shortcut";
+
+export interface DashboardCardItem {
+  id: string;
+  type: CardType;
+  /** Widget key (e.g. "tips_card") or menu registry id (e.g. "nav_support") */
   key: string;
+  title: string;
   visible: boolean;
   order: number;
+  /** For shortcuts only */
+  targetRoute?: string;
 }
 
 export interface WidgetDefinition {
   key: string;
   label: string;
-  /** Which sections the user must have access to for this widget to appear */
   requiredAccess?: string[];
 }
 
@@ -53,101 +62,145 @@ const rolePresets: Record<string, string[]> = {
   ],
 };
 
-function getDefaultLayout(role: UserRole): WidgetLayoutItem[] {
+function getDefaultCards(role: UserRole): DashboardCardItem[] {
   const preset = rolePresets[role] ?? rolePresets.operador;
   return ALL_WIDGETS.map((w, i) => ({
+    id: `w_${w.key}`,
+    type: "widget" as CardType,
     key: w.key,
+    title: w.label,
     visible: preset.includes(w.key),
     order: i,
   }));
 }
 
 export function useDashboardLayout() {
-  const { user, session, hasAccess } = useAuth();
-  const [layout, setLayout] = useState<WidgetLayoutItem[]>([]);
+  const { user, hasAccess, hasProAccess } = useAuth();
+  const { effectiveUserId } = useEffectiveUser();
+  const [cards, setCards] = useState<DashboardCardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const userId = session?.user?.id;
   const role = user?.role ?? "operador";
 
-  // Filter widgets by access
-  const isWidgetAvailable = useCallback((key: string): boolean => {
-    const def = ALL_WIDGETS.find(w => w.key === key);
-    if (!def) return false;
-    if (!def.requiredAccess || def.requiredAccess.length === 0) return true;
-    return def.requiredAccess.some(s => hasAccess(s));
-  }, [hasAccess]);
+  /** Check if a card (widget or shortcut) is available for the current user */
+  const isCardAvailable = useCallback((card: DashboardCardItem): boolean => {
+    if (card.type === "widget") {
+      const def = ALL_WIDGETS.find(w => w.key === card.key);
+      if (!def) return false;
+      if (!def.requiredAccess || def.requiredAccess.length === 0) return true;
+      return def.requiredAccess.some(s => hasAccess(s));
+    }
+    // shortcut
+    const entry = flattenRegistry().find(m => m.id === card.key);
+    if (!entry) return false;
+    if (!hasAccess(entry.section)) return false;
+    if (entry.proFeature && !hasProAccess(entry.proFeature)) return false;
+    return true;
+  }, [hasAccess, hasProAccess]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!effectiveUserId) return;
     const load = async () => {
       setIsLoading(true);
       const { data } = await supabase
         .from("user_dashboard_layout" as any)
         .select("layout")
-        .eq("user_id", userId)
+        .eq("user_id", effectiveUserId)
         .single();
 
       if (data && (data as any).layout) {
-        const saved = (data as any).layout as WidgetLayoutItem[];
+        const saved = (data as any).layout as DashboardCardItem[];
         // Merge with any new widgets that may have been added since last save
         const savedKeys = new Set(saved.map(s => s.key));
         const merged = [...saved];
         ALL_WIDGETS.forEach((w, i) => {
           if (!savedKeys.has(w.key)) {
-            merged.push({ key: w.key, visible: false, order: merged.length + i });
+            merged.push({
+              id: `w_${w.key}`,
+              type: "widget",
+              key: w.key,
+              title: w.label,
+              visible: false,
+              order: merged.length + i,
+            });
           }
         });
-        setLayout(merged.sort((a, b) => a.order - b.order));
+        setCards(merged.sort((a, b) => a.order - b.order));
       } else {
-        // First time — create default layout from preset
-        const defaultLayout = getDefaultLayout(role as UserRole);
-        setLayout(defaultLayout);
-        // Save it
+        const defaultCards = getDefaultCards(role as UserRole);
+        setCards(defaultCards);
         await supabase.from("user_dashboard_layout" as any).upsert({
-          user_id: userId,
-          layout: defaultLayout,
+          user_id: effectiveUserId,
+          layout: defaultCards,
         } as any);
       }
       setIsLoading(false);
     };
     load();
-  }, [userId, role]);
+  }, [effectiveUserId, role]);
 
-  const saveLayout = useCallback(async (newLayout: WidgetLayoutItem[]) => {
-    if (!userId) return;
+  const saveCards = useCallback(async (newCards: DashboardCardItem[]) => {
+    if (!effectiveUserId) return;
     setIsSaving(true);
-    const ordered = newLayout.map((item, i) => ({ ...item, order: i }));
+    const ordered = newCards.map((item, i) => ({ ...item, order: i }));
     const { error } = await supabase
       .from("user_dashboard_layout" as any)
-      .upsert({ user_id: userId, layout: ordered } as any);
+      .upsert({ user_id: effectiveUserId, layout: ordered } as any);
     if (error) {
       toast.error("Erro ao salvar layout");
     } else {
-      setLayout(ordered);
+      setCards(ordered);
       toast.success("Layout salvo!");
     }
     setIsSaving(false);
-  }, [userId]);
+  }, [effectiveUserId]);
 
   const resetToDefault = useCallback(async () => {
-    const defaultLayout = getDefaultLayout(role as UserRole);
-    await saveLayout(defaultLayout);
-  }, [role, saveLayout]);
+    const defaultCards = getDefaultCards(role as UserRole);
+    await saveCards(defaultCards);
+  }, [role, saveCards]);
 
-  const visibleWidgets = layout
-    .filter(item => item.visible && isWidgetAvailable(item.key))
+  /** Add a shortcut card from menu registry */
+  const addShortcut = useCallback((menuId: string) => {
+    const entry = flattenRegistry().find(m => m.id === menuId);
+    if (!entry) return;
+    // Check duplicate
+    if (cards.some(c => c.key === menuId)) {
+      toast.info("Este atalho já está na sua Home");
+      return;
+    }
+    const newCard: DashboardCardItem = {
+      id: `s_${menuId}`,
+      type: "shortcut",
+      key: menuId,
+      title: entry.label,
+      visible: true,
+      order: cards.length,
+      targetRoute: entry.route,
+    };
+    setCards(prev => [...prev, newCard]);
+  }, [cards]);
+
+  /** Remove a card from the layout */
+  const removeCard = useCallback((key: string) => {
+    setCards(prev => prev.filter(c => c.key !== key));
+  }, []);
+
+  const visibleCards = cards
+    .filter(item => item.visible && isCardAvailable(item))
     .sort((a, b) => a.order - b.order);
 
   return {
-    layout,
-    setLayout,
-    visibleWidgets,
+    cards,
+    setCards,
+    visibleCards,
     isLoading,
     isSaving,
-    saveLayout,
+    saveCards,
     resetToDefault,
-    isWidgetAvailable,
+    isCardAvailable,
+    addShortcut,
+    removeCard,
   };
 }
