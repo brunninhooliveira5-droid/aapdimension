@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Camera, Plus, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ interface ProductionCardsProps {
 }
 
 export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTaskCounts }: ProductionCardsProps) {
+  const { tables, storage } = useModule();
   const { user } = useAuth();
   const [cards, setCards] = useState<ProductionCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,10 +42,10 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
 
   const fetchCards = async () => {
     const { data } = await supabase
-      .from("dimension_production_cards")
+      .from(tables.productionCards as any)
       .select("*")
       .order("key");
-    setCards((data as ProductionCard[]) ?? []);
+    setCards((data as unknown as ProductionCard[]) ?? []);
     setLoading(false);
   };
 
@@ -93,7 +95,7 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
     const imageUrl = urlData.publicUrl + "?t=" + Date.now();
 
     await supabase
-      .from("dimension_production_cards")
+      .from(tables.productionCards as any)
       .update({ image_url: imageUrl, updated_at: new Date().toISOString() } as any)
       .eq("key", editingKey);
 
@@ -114,7 +116,7 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
       setSaving(false);
       return;
     }
-    const { error } = await supabase.from("dimension_production_cards").insert({
+    const { error } = await supabase.from(tables.productionCards as any).insert({
       key,
       title: newTitle.trim(),
     } as any);
@@ -130,7 +132,7 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
   };
 
   const handleDeleteCard = async (card: ProductionCard) => {
-    const { error } = await supabase.from("dimension_production_cards").delete().eq("id", card.id);
+    const { error } = await supabase.from(tables.productionCards as any).delete().eq("id", card.id);
     if (error) toast.error("Erro ao excluir setor");
     else { toast.success("Setor excluído!"); fetchCards(); }
   };

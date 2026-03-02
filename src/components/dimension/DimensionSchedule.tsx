@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth, isSameDay, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +21,7 @@ const eventTypeColors: Record<string, string> = { entrega: "bg-green-500", manut
 const emptyForm = { title: "", description: "", event_type: "reuniao", event_date: "", event_time: "", responsible: "" };
 
 export function DimensionSchedule() {
+  const { tables } = useModule();
   const { session } = useAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -32,7 +34,7 @@ export function DimensionSchedule() {
   const fetchEvents = async () => {
     const start = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const end = format(endOfMonth(currentMonth), "yyyy-MM-dd");
-    const { data } = await supabase.from("dimension_schedule_events").select("*").gte("event_date", start).lte("event_date", end).order("event_date");
+    const { data } = await supabase.from(tables.scheduleEvents as any).select("*").gte("event_date", start).lte("event_date", end).order("event_date");
     setEvents(data ?? []);
   };
 
@@ -52,18 +54,18 @@ export function DimensionSchedule() {
     setSaving(true);
     const payload: any = { ...form, event_time: form.event_time || null };
     if (editing) {
-      await supabase.from("dimension_schedule_events").update(payload).eq("id", editing.id);
+      await supabase.from(tables.scheduleEvents as any).update(payload).eq("id", editing.id);
       toast.success("Evento atualizado!");
     } else {
       payload.created_by = session?.user?.id;
-      await supabase.from("dimension_schedule_events").insert(payload);
+      await supabase.from(tables.scheduleEvents as any).insert(payload);
       toast.success("Evento criado!");
     }
     setDialogOpen(false); setSaving(false); fetchEvents();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("dimension_schedule_events").delete().eq("id", id);
+    await supabase.from(tables.scheduleEvents as any).delete().eq("id", id);
     toast.success("Excluído!"); fetchEvents();
   };
 

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, List, Columns3, Paperclip, Download, X, FileImage, FileText, File as FileIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +24,7 @@ const categoryLabels: Record<string, string> = { producao: "Produção", finance
 const emptyTask = { title: "", description: "", priority: "media", category: "producao", responsible: "", due_date: "", status: "a_fazer" };
 
 export function DimensionTasks() {
+  const { tables, storage } = useModule();
   const { session } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "kanban">("kanban");
@@ -41,7 +43,7 @@ export function DimensionTasks() {
 
   const loadTaskFiles = async (taskId: string) => {
     const { data } = await supabase
-      .from("dimension_task_files")
+      .from(tables.taskFiles as any)
       .select("*")
       .eq("task_id", taskId)
       .order("created_at", { ascending: true });
@@ -61,9 +63,9 @@ export function DimensionTasks() {
       }
       const ext = file.name.split(".").pop();
       const path = `${editingTask.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("dimension-task-files").upload(path, file);
+      const { error: uploadErr } = await supabase.storage.from(storage.taskFiles).upload(path, file);
       if (uploadErr) { toast.error(`Erro ao enviar "${file.name}"`); continue; }
-      await supabase.from("dimension_task_files").insert({
+      await supabase.from(tables.taskFiles as any).insert({
         task_id: editingTask.id,
         file_name: file.name,
         file_path: path,
@@ -79,14 +81,14 @@ export function DimensionTasks() {
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string) => {
-    await supabase.storage.from("dimension-task-files").remove([filePath]);
-    await supabase.from("dimension_task_files").delete().eq("id", fileId);
+    await supabase.storage.from(storage.taskFiles).remove([filePath]);
+    await supabase.from(tables.taskFiles as any).delete().eq("id", fileId);
     setTaskFiles((prev) => prev.filter((f) => f.id !== fileId));
     toast.success("Arquivo removido!");
   };
 
   const getFileUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("dimension-task-files").getPublicUrl(filePath);
+    const { data } = supabase.storage.from(storage.taskFiles).getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -124,7 +126,7 @@ export function DimensionTasks() {
     const payload: any = { status: newStatus };
     if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
 
-    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
+    const { error } = await supabase.from(tables.tasks as any).update(payload).eq("id", taskId);
     if (error) {
       toast.error("Erro ao mover tarefa");
       fetchAll();
@@ -135,8 +137,8 @@ export function DimensionTasks() {
 
   const fetchAll = async () => {
     const [{ data: tasksData }, { data: filesData }] = await Promise.all([
-      supabase.from("dimension_tasks").select("*").order("created_at", { ascending: false }),
-      supabase.from("dimension_task_files").select("task_id"),
+      supabase.from(tables.tasks as any).select("*").order("created_at", { ascending: false }),
+      supabase.from(tables.taskFiles as any).select("task_id"),
     ]);
     setTasks(tasksData ?? []);
     const counts: Record<string, number> = {};
@@ -161,18 +163,18 @@ export function DimensionTasks() {
     const payload: any = { ...form, due_date: form.due_date || null };
     if (editingTask) {
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
-      await supabase.from("dimension_tasks").update(payload).eq("id", editingTask.id);
+      await supabase.from(tables.tasks as any).update(payload).eq("id", editingTask.id);
       toast.success("Tarefa atualizada!");
     } else {
       payload.created_by = session?.user?.id;
-      await supabase.from("dimension_tasks").insert(payload);
+      await supabase.from(tables.tasks as any).insert(payload);
       toast.success("Tarefa criada!");
     }
     setDialogOpen(false); setSaving(false); fetchAll();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("dimension_tasks").delete().eq("id", id);
+    await supabase.from(tables.tasks as any).delete().eq("id", id);
     toast.success("Tarefa excluída!"); fetchAll();
   };
 

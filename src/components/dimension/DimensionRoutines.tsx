@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Play, History, RotateCcw, X, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,6 +52,7 @@ const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-d
 const emptyTemplate: TaskTemplate = { title: "", sector: "", priority: "media", responsible: "", days_offset: 0 };
 
 export function DimensionRoutines() {
+  const { tables, storage } = useModule();
   const { session } = useAuth();
   const [tab, setTab] = useState("templates");
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -74,8 +76,8 @@ export function DimensionRoutines() {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: r }, { data: a }] = await Promise.all([
-      supabase.from("dimension_routines").select("*").order("created_at", { ascending: false }),
-      supabase.from("dimension_routine_activations").select("*").order("activated_at", { ascending: false }),
+      supabase.from(tables.routines as any).select("*").order("created_at", { ascending: false }),
+      supabase.from(tables.routineActivations as any).select("*").order("activated_at", { ascending: false }),
     ]);
     const routinesData = (r || []).map((item: any) => ({
       ...item,
@@ -98,7 +100,7 @@ export function DimensionRoutines() {
   useEffect(() => {
     const fetchSectors = async () => {
       const { data } = await supabase
-        .from("dimension_production_cards")
+        .from(tables.productionCards as any)
         .select("key")
         .order("title");
       setSectorOptions((data || []).map((d: any) => d.key));
@@ -141,11 +143,11 @@ export function DimensionRoutines() {
     };
 
     if (editing) {
-      const { error } = await supabase.from("dimension_routines").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from(tables.routines as any).update(payload).eq("id", editing.id);
       if (error) { toast.error("Erro ao atualizar rotina"); return; }
       toast.success("Rotina atualizada!");
     } else {
-      const { error } = await supabase.from("dimension_routines").insert(payload);
+      const { error } = await supabase.from(tables.routines as any).insert(payload);
       if (error) { toast.error("Erro ao criar rotina"); return; }
       toast.success("Rotina criada!");
     }
@@ -154,7 +156,7 @@ export function DimensionRoutines() {
   };
 
   const deleteRoutine = async (id: string) => {
-    const { error } = await supabase.from("dimension_routines").delete().eq("id", id);
+    const { error } = await supabase.from(tables.routines as any).delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir"); return; }
     toast.success("Rotina excluída");
     fetchAll();
@@ -188,7 +190,7 @@ export function DimensionRoutines() {
     });
 
     const { data: createdTasks, error: taskError } = await supabase
-      .from("dimension_tasks")
+      .from(tables.tasks as any)
       .insert(tasksToCreate)
       .select("id");
     if (taskError || !createdTasks) {
@@ -199,7 +201,7 @@ export function DimensionRoutines() {
 
     // Copy template files to created tasks
     const { data: templateFiles } = await supabase
-      .from("dimension_routine_template_files")
+      .from(tables.routineTemplateFiles as any)
       .select("*")
       .eq("routine_id", activatingRoutine.id);
 
@@ -210,11 +212,11 @@ export function DimensionRoutines() {
 
         const newPath = `tasks/${taskId}/${crypto.randomUUID()}-${tf.file_name}`;
         const { error: copyErr } = await supabase.storage
-          .from("dimension-task-files")
+          .from(storage.taskFiles)
           .copy(tf.file_path, newPath);
 
         if (!copyErr) {
-          await supabase.from("dimension_task_files").insert({
+          await supabase.from(tables.taskFiles as any).insert({
             task_id: taskId,
             file_name: tf.file_name,
             file_path: newPath,
@@ -226,7 +228,7 @@ export function DimensionRoutines() {
       }
     }
 
-    await supabase.from("dimension_routine_activations").insert({
+    await supabase.from(tables.routineActivations as any).insert({
       routine_id: activatingRoutine.id,
       context_data: { context: contextText.trim() },
       tasks_created: tasksToCreate.length,
