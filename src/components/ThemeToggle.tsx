@@ -24,10 +24,16 @@ export function hexToHsl(hex: string): string {
 
 export function applyCustomBg() {
   const saved = localStorage.getItem("custom-bg-color");
+  const savedSidebar = localStorage.getItem("custom-sidebar-color");
   if (saved) {
     document.documentElement.style.setProperty("--background", hexToHsl(saved));
   } else {
     document.documentElement.style.removeProperty("--background");
+  }
+  if (savedSidebar) {
+    document.documentElement.style.setProperty("--sidebar-background", hexToHsl(savedSidebar));
+  } else {
+    document.documentElement.style.removeProperty("--sidebar-background");
   }
 }
 

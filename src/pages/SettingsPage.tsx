@@ -33,6 +33,7 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
 
   const [customBg, setCustomBg] = useState(() => localStorage.getItem("custom-bg-color") || "");
+  const [customSidebar, setCustomSidebar] = useState(() => localStorage.getItem("custom-sidebar-color") || "");
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     (localStorage.getItem("theme") as "dark" | "light") || "dark"
   );
@@ -43,6 +44,16 @@ const SettingsPage = () => {
       localStorage.setItem("custom-bg-color", hex);
     } else {
       localStorage.removeItem("custom-bg-color");
+    }
+    applyCustomBg();
+  };
+
+  const applySidebarColor = (hex: string) => {
+    setCustomSidebar(hex);
+    if (hex) {
+      localStorage.setItem("custom-sidebar-color", hex);
+    } else {
+      localStorage.removeItem("custom-sidebar-color");
     }
     applyCustomBg();
   };
@@ -166,6 +177,52 @@ const SettingsPage = () => {
               <RotateCcw className="w-3 h-3" /> Padrão
             </Button>
           )}
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
+          <Label className="text-xs text-muted-foreground">Cor da barra lateral</Label>
+          <div className="flex flex-wrap gap-2">
+            {presetColors.map((c) => (
+              <button
+                key={c.name}
+                title={c.name}
+                onClick={() => applySidebarColor(c.value)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  customSidebar === c.value
+                    ? "border-primary ring-2 ring-primary/40 scale-110"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+                style={{
+                  background: c.value
+                    ? c.value
+                    : "linear-gradient(135deg, hsl(220 22% 8%), hsl(210 15% 97%))",
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground shrink-0">Cor personalizada</Label>
+            <input
+              type="color"
+              value={customSidebar || "#101420"}
+              onChange={(e) => applySidebarColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+            />
+            <Input
+              value={customSidebar}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) applySidebarColor(v);
+                setCustomSidebar(v);
+              }}
+              placeholder="#101420"
+              className="bg-accent border-border w-28 font-mono text-xs"
+            />
+            {customSidebar && (
+              <Button variant="ghost" size="sm" onClick={() => applySidebarColor("")} className="text-xs gap-1">
+                <RotateCcw className="w-3 h-3" /> Padrão
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
