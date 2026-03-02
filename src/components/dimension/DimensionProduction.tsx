@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +21,7 @@ const statusColors: Record<string, string> = { em_fabricacao: "bg-blue-500/10 te
 const emptyForm = { project_name: "", client_name: "", machine_name: "", status: "em_fabricacao", priority: "media", responsible: "", estimated_deadline: "", notes: "" };
 
 export function DimensionProduction() {
+  const { tables } = useModule();
   const { session } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -28,7 +30,7 @@ export function DimensionProduction() {
   const [saving, setSaving] = useState(false);
 
   const fetch = async () => {
-    const { data } = await supabase.from("dimension_production_items").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from(tables.productionItems as any).select("*").order("created_at", { ascending: false });
     setItems(data ?? []);
   };
 
@@ -42,18 +44,18 @@ export function DimensionProduction() {
     setSaving(true);
     const payload: any = { ...form, estimated_deadline: form.estimated_deadline || null };
     if (editing) {
-      await supabase.from("dimension_production_items").update(payload).eq("id", editing.id);
+      await supabase.from(tables.productionItems as any).update(payload).eq("id", editing.id);
       toast.success("Atualizado!");
     } else {
       payload.created_by = session?.user?.id;
-      await supabase.from("dimension_production_items").insert(payload);
+      await supabase.from(tables.productionItems as any).insert(payload);
       toast.success("Item criado!");
     }
     setDialogOpen(false); setSaving(false); fetch();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("dimension_production_items").delete().eq("id", id);
+    await supabase.from(tables.productionItems as any).delete().eq("id", id);
     toast.success("Excluído!"); fetch();
   };
 

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +22,7 @@ const statusColors: Record<string, string> = { pendente: "bg-destructive/10 text
 const emptyForm = { title: "", description: "", priority: "media", category: "producao", responsible: "", due_date: "", status: "pendente" };
 
 export function DimensionPendencies() {
+  const { tables } = useModule();
   const { session } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -30,7 +32,7 @@ export function DimensionPendencies() {
   const [filterCat, setFilterCat] = useState("all");
 
   const fetch = async () => {
-    const { data } = await supabase.from("dimension_pendencies").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from(tables.pendencies as any).select("*").order("created_at", { ascending: false });
     setItems(data ?? []);
   };
 
@@ -50,23 +52,23 @@ export function DimensionPendencies() {
     const payload: any = { ...form, due_date: form.due_date || null };
     if (form.status === "resolvida" && (!editing || editing.status !== "resolvida")) payload.resolved_at = new Date().toISOString();
     if (editing) {
-      await supabase.from("dimension_pendencies").update(payload).eq("id", editing.id);
+      await supabase.from(tables.pendencies as any).update(payload).eq("id", editing.id);
       toast.success("Pendência atualizada!");
     } else {
       payload.created_by = session?.user?.id;
-      await supabase.from("dimension_pendencies").insert(payload);
+      await supabase.from(tables.pendencies as any).insert(payload);
       toast.success("Pendência criada!");
     }
     setDialogOpen(false); setSaving(false); fetch();
   };
 
   const resolve = async (id: string) => {
-    await supabase.from("dimension_pendencies").update({ status: "resolvida", resolved_at: new Date().toISOString() } as any).eq("id", id);
+    await supabase.from(tables.pendencies as any).update({ status: "resolvida", resolved_at: new Date().toISOString() } as any).eq("id", id);
     toast.success("Resolvida!"); fetch();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("dimension_pendencies").delete().eq("id", id);
+    await supabase.from(tables.pendencies as any).delete().eq("id", id);
     toast.success("Excluída!"); fetch();
   };
 

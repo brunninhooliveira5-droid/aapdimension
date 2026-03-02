@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Target, TrendingUp, Calendar, Users, Pencil, Trash2, RefreshCw, BarChart3, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format, isAfter, isBefore, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,6 +28,7 @@ const defaultForm = {
 };
 
 export function DimensionGoals() {
+  const { tables } = useModule();
   const { session } = useAuth();
   const [goals, setGoals] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -43,9 +45,9 @@ export function DimensionGoals() {
   const fetchAll = async () => {
     setLoading(true);
     const [goalsRes, tasksRes, histRes] = await Promise.all([
-      supabase.from("dimension_goals").select("*").order("created_at", { ascending: false }),
-      supabase.from("dimension_tasks").select("*"),
-      supabase.from("dimension_goal_history").select("*").order("snapshot_date", { ascending: true }),
+      supabase.from(tables.goals as any).select("*").order("created_at", { ascending: false }),
+      supabase.from(tables.tasks as any).select("*"),
+      supabase.from(tables.goalHistory as any).select("*").order("snapshot_date", { ascending: true }),
     ]);
     if (goalsRes.data) setGoals(goalsRes.data);
     if (tasksRes.data) setTasks(tasksRes.data);
@@ -86,13 +88,13 @@ export function DimensionGoals() {
   const syncGoalProgress = async (goal: any) => {
     const auto = getAutoProgress(goal);
     if (!auto) return;
-    const { error } = await supabase.from("dimension_goals").update({
+    const { error } = await supabase.from(tables.goals as any).update({
       current_value: auto.completed,
       target_value: auto.total > 0 ? auto.total : goal.target_value,
       status: auto.percent >= 100 ? "concluida" : goal.status,
     }).eq("id", goal.id);
     if (!error) {
-      await supabase.from("dimension_goal_history").insert({ goal_id: goal.id, value: auto.completed });
+      await supabase.from(tables.goalHistory as any).insert({ goal_id: goal.id, value: auto.completed });
       toast.success("Progresso sincronizado!");
       fetchAll();
     }
@@ -138,9 +140,9 @@ export function DimensionGoals() {
     };
     let error;
     if (editingGoal) {
-      ({ error } = await supabase.from("dimension_goals").update(payload).eq("id", editingGoal.id));
+      ({ error } = await supabase.from(tables.goals as any).update(payload).eq("id", editingGoal.id));
     } else {
-      ({ error } = await supabase.from("dimension_goals").insert({ ...payload, created_by: session.user.id }));
+      ({ error } = await supabase.from(tables.goals as any).insert({ ...payload, created_by: session.user.id }));
     }
     setSaving(false);
     if (error) { toast.error("Erro ao salvar meta"); return; }
@@ -150,7 +152,7 @@ export function DimensionGoals() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("dimension_goals").delete().eq("id", id);
+    const { error } = await supabase.from(tables.goals as any).delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir"); return; }
     toast.success("Meta excluída");
     fetchAll();

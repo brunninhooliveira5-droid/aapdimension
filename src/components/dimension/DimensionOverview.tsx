@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format, addDays, isToday, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,6 +27,7 @@ interface DimensionOverviewProps {
 }
 
 export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps) {
+  const { tables, storage } = useModule();
   const { session } = useAuth();
   const [activeSector, setActiveSector] = useState<{ key: string; title: string } | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -56,11 +58,11 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     const in7days = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
     const [t, p, pr, ev, fc] = await Promise.all([
-      supabase.from("dimension_tasks").select("*").order("due_date", { ascending: true }),
-      supabase.from("dimension_pendencies").select("*").neq("status", "resolvida").order("due_date", { ascending: true }),
-      supabase.from("dimension_production_items").select("*").neq("status", "pronto").order("estimated_deadline", { ascending: true }),
-      supabase.from("dimension_schedule_events").select("*").gte("event_date", today).lte("event_date", in7days).order("event_date", { ascending: true }),
-      supabase.from("dimension_task_files").select("task_id"),
+      supabase.from(tables.tasks as any).select("*").order("due_date", { ascending: true }),
+      supabase.from(tables.pendencies as any).select("*").neq("status", "resolvida").order("due_date", { ascending: true }),
+      supabase.from(tables.productionItems as any).select("*").neq("status", "pronto").order("estimated_deadline", { ascending: true }),
+      supabase.from(tables.scheduleEvents as any).select("*").gte("event_date", today).lte("event_date", in7days).order("event_date", { ascending: true }),
+      supabase.from(tables.taskFiles as any).select("task_id"),
     ]);
     const allTasks = t.data ?? [];
     // Auto-mark overdue tasks
@@ -75,7 +77,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     });
     // Batch update overdue tasks in DB
     if (overdueIds.length > 0) {
-      supabase.from("dimension_tasks").update({ status: "atrasada" }).in("id", overdueIds).then();
+      supabase.from(tables.tasks as any).update({ status: "atrasada" }).in("id", overdueIds).then();
     }
     setTasks(updated);
     setPendencies(p.data ?? []);
@@ -121,12 +123,12 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   // File helpers
   const loadTaskFiles = async (taskId: string) => {
-    const { data } = await supabase.from("dimension_task_files").select("*").eq("task_id", taskId).order("created_at", { ascending: true });
+    const { data } = await supabase.from(tables.taskFiles as any).select("*").eq("task_id", taskId).order("created_at", { ascending: true });
     setTaskFiles(data ?? []);
   };
 
   const getFileUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("dimension-task-files").getPublicUrl(filePath);
+    const { data } = supabase.storage.from(storage.taskFiles).getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -145,9 +147,9 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
       if (file.size > MAX_FILE_SIZE) { toast.error(`"${file.name}" excede 10MB.`); continue; }
       const ext = file.name.split(".").pop();
       const path = `${detailTask.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("dimension-task-files").upload(path, file);
+      const { error: uploadErr } = await supabase.storage.from(storage.taskFiles).upload(path, file);
       if (uploadErr) { toast.error(`Erro ao enviar "${file.name}"`); continue; }
-      await supabase.from("dimension_task_files").insert({ task_id: detailTask.id, file_name: file.name, file_path: path, file_size: file.size, mime_type: file.type, uploaded_by: session.user.id });
+      await supabase.from(tables.taskFiles as any).insert({ task_id: detailTask.id, file_name: file.name, file_path: path, file_size: file.size, mime_type: file.type, uploaded_by: session.user.id });
     }
     await loadTaskFiles(detailTask.id);
     setUploadingFile(false);
@@ -157,8 +159,8 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string) => {
-    await supabase.storage.from("dimension-task-files").remove([filePath]);
-    await supabase.from("dimension_task_files").delete().eq("id", fileId);
+    await supabase.storage.from(storage.taskFiles).remove([filePath]);
+    await supabase.from(tables.taskFiles as any).delete().eq("id", fileId);
     setTaskFiles((prev) => prev.filter((f) => f.id !== fileId));
     toast.success("Arquivo removido!");
     fetchAll();
@@ -167,7 +169,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const handleCreate = async () => {
     if (!newTask.title.trim() || !session?.user?.id) return;
     setSaving(true);
-    const { data: created, error } = await supabase.from("dimension_tasks").insert({
+    const { data: created, error } = await supabase.from(tables.tasks as any).insert({
       title: newTask.title,
       priority: newTask.priority,
       responsible: newTask.responsible,
@@ -182,8 +184,9 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     setCreateOpen(false);
     await fetchAll();
     // Open in edit mode for file uploads
-    setDetailTask(created);
-    setEditForm({ title: created.title, description: created.description || "", priority: created.priority, responsible: created.responsible, due_date: created.due_date ?? "", status: created.status, category: created.category || "producao" });
+    setDetailTask(created as any);
+    const c = created as any;
+    setEditForm({ title: c.title, description: c.description || "", priority: c.priority, responsible: c.responsible, due_date: c.due_date ?? "", status: c.status, category: c.category || "producao" });
     setTaskFiles([]);
   };
 
@@ -201,7 +204,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : t.completed_at } : t));
     const payload: any = { status: newStatus };
     if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
-    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
+    const { error } = await supabase.from(tables.tasks as any).update(payload).eq("id", taskId);
     if (error) { toast.error("Erro ao mover tarefa"); fetchAll(); }
     else { toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`); }
   };
@@ -210,7 +213,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, sector: sectorKey } : t));
-    const { error } = await supabase.from("dimension_tasks").update({ sector: sectorKey }).eq("id", taskId);
+    const { error } = await supabase.from(tables.tasks as any).update({ sector: sectorKey }).eq("id", taskId);
     if (error) { toast.error("Erro ao mover tarefa para setor"); fetchAll(); }
     else { toast.success(`Tarefa enviada para "${sectorTitle}"`); }
   };
@@ -226,7 +229,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     setEditSaving(true);
     const payload: any = { ...editForm, due_date: editForm.due_date || null };
     if (editForm.status === "concluida" && detailTask.status !== "concluida") payload.completed_at = new Date().toISOString();
-    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", detailTask.id);
+    const { error } = await supabase.from(tables.tasks as any).update(payload).eq("id", detailTask.id);
     setEditSaving(false);
     if (error) { toast.error("Erro ao salvar"); return; }
     toast.success("Tarefa atualizada!");
@@ -395,8 +398,8 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                     <AlertDialogAction onClick={async () => {
-                                      await supabase.from("dimension_task_files").delete().eq("task_id", task.id);
-                                      await supabase.from("dimension_tasks").delete().eq("id", task.id);
+                                      await supabase.from(tables.taskFiles as any).delete().eq("task_id", task.id);
+                                      await supabase.from(tables.tasks as any).delete().eq("id", task.id);
                                       toast.success("Tarefa excluída!");
                                       fetchAll();
                                     }}>Excluir</AlertDialogAction>

@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Pencil, Trash2, ArrowLeft, Paperclip, Download, FileImage, FileText, File as FileIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,6 +27,7 @@ interface SectorKanbanProps {
 }
 
 export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanProps) {
+  const { tables, storage } = useModule();
   const { session } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -41,8 +43,8 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
 
   const fetchTasks = async () => {
     const [{ data: tasksData }, { data: filesData }] = await Promise.all([
-      supabase.from("dimension_tasks").select("*").eq("sector", sectorKey).order("created_at", { ascending: false }),
-      supabase.from("dimension_task_files").select("task_id"),
+      supabase.from(tables.tasks as any).select("*").eq("sector", sectorKey).order("created_at", { ascending: false }),
+      supabase.from(tables.taskFiles as any).select("task_id"),
     ]);
     const allTasks = tasksData ?? [];
     const todayStr = new Date().toISOString().split("T")[0];
@@ -55,7 +57,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       return task;
     });
     if (overdueIds.length > 0) {
-      supabase.from("dimension_tasks").update({ status: "atrasada" }).in("id", overdueIds).then();
+      supabase.from(tables.tasks as any).update({ status: "atrasada" }).in("id", overdueIds).then();
     }
     setTasks(updated);
     const counts: Record<string, number> = {};
@@ -66,7 +68,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
   useEffect(() => { fetchTasks(); }, [sectorKey]);
 
   const loadTaskFiles = async (taskId: string) => {
-    const { data } = await supabase.from("dimension_task_files").select("*").eq("task_id", taskId).order("created_at", { ascending: true });
+    const { data } = await supabase.from(tables.taskFiles as any).select("*").eq("task_id", taskId).order("created_at", { ascending: true });
     setTaskFiles(data ?? []);
   };
 
@@ -79,9 +81,9 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       if (file.size > MAX_FILE_SIZE) { toast.error(`"${file.name}" excede 10MB.`); continue; }
       const ext = file.name.split(".").pop();
       const path = `${editingTask.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("dimension-task-files").upload(path, file);
+      const { error: uploadErr } = await supabase.storage.from(storage.taskFiles).upload(path, file);
       if (uploadErr) { toast.error(`Erro ao enviar "${file.name}"`); continue; }
-      await supabase.from("dimension_task_files").insert({ task_id: editingTask.id, file_name: file.name, file_path: path, file_size: file.size, mime_type: file.type, uploaded_by: session.user.id });
+      await supabase.from(tables.taskFiles as any).insert({ task_id: editingTask.id, file_name: file.name, file_path: path, file_size: file.size, mime_type: file.type, uploaded_by: session.user.id });
     }
     await loadTaskFiles(editingTask.id);
     setUploadingFile(false);
@@ -90,14 +92,14 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
   };
 
   const handleDeleteFile = async (fileId: string, filePath: string) => {
-    await supabase.storage.from("dimension-task-files").remove([filePath]);
-    await supabase.from("dimension_task_files").delete().eq("id", fileId);
+    await supabase.storage.from(storage.taskFiles).remove([filePath]);
+    await supabase.from(tables.taskFiles as any).delete().eq("id", fileId);
     setTaskFiles((prev) => prev.filter((f) => f.id !== fileId));
     toast.success("Arquivo removido!");
   };
 
   const getFileUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("dimension-task-files").getPublicUrl(filePath);
+    const { data } = supabase.storage.from(storage.taskFiles).getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -127,7 +129,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : t.completed_at } : t));
     const payload: any = { status: newStatus };
     if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
-    const { error } = await supabase.from("dimension_tasks").update(payload).eq("id", taskId);
+    const { error } = await supabase.from(tables.tasks as any).update(payload).eq("id", taskId);
     if (error) { toast.error("Erro ao mover tarefa"); fetchTasks(); }
     else toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`);
   };
@@ -141,12 +143,12 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
     const payload: any = { ...form, due_date: form.due_date || null, sector: sectorKey, category: "producao" };
     if (editingTask) {
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
-      await supabase.from("dimension_tasks").update(payload).eq("id", editingTask.id);
+      await supabase.from(tables.tasks as any).update(payload).eq("id", editingTask.id);
       toast.success("Tarefa atualizada!");
       setDialogOpen(false); setSaving(false); fetchTasks();
     } else {
       payload.created_by = session?.user?.id;
-      const { data: newTask, error } = await supabase.from("dimension_tasks").insert(payload).select().single();
+      const { data: newTask, error } = await supabase.from(tables.tasks as any).insert(payload).select().single();
       if (error || !newTask) {
         toast.error("Erro ao criar tarefa");
         setSaving(false);
@@ -155,15 +157,15 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       toast.success("Tarefa criada! Agora você pode anexar arquivos.");
       await fetchTasks();
       // Reopen in edit mode to allow file uploads
-      setEditingTask(newTask);
-      setForm({ title: newTask.title, description: newTask.description, priority: newTask.priority, responsible: newTask.responsible, due_date: newTask.due_date ?? "", status: newTask.status });
+      setEditingTask(newTask as any);
+      setForm({ title: (newTask as any).title, description: (newTask as any).description, priority: (newTask as any).priority, responsible: (newTask as any).responsible, due_date: (newTask as any).due_date ?? "", status: (newTask as any).status });
       setTaskFiles([]);
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("dimension_tasks").delete().eq("id", id);
+    await supabase.from(tables.tasks as any).delete().eq("id", id);
     toast.success("Tarefa excluída!"); fetchTasks();
   };
 

@@ -2586,6 +2586,461 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_goal_history: {
+        Row: {
+          created_at: string | null
+          goal_id: string
+          id: string
+          snapshot_date: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          goal_id: string
+          id?: string
+          snapshot_date?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          goal_id?: string
+          id?: string
+          snapshot_date?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_goal_history_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "pc_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_goals: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          current_value: number | null
+          description: string | null
+          goal_type: string | null
+          id: string
+          linked_task_category: string | null
+          linked_task_sector: string | null
+          period_end: string | null
+          period_start: string | null
+          period_type: string | null
+          responsible: string | null
+          sector: string | null
+          status: string | null
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          current_value?: number | null
+          description?: string | null
+          goal_type?: string | null
+          id?: string
+          linked_task_category?: string | null
+          linked_task_sector?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          period_type?: string | null
+          responsible?: string | null
+          sector?: string | null
+          status?: string | null
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type?: string | null
+          id?: string
+          linked_task_category?: string | null
+          linked_task_sector?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          period_type?: string | null
+          responsible?: string | null
+          sector?: string | null
+          status?: string | null
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_pendencies: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          resolved_at: string | null
+          responsible: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          responsible?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          responsible?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_production_cards: {
+        Row: {
+          id: string
+          image_url: string | null
+          key: string
+          title: string
+          updated_at: string | null
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          id?: string
+          image_url?: string | null
+          key: string
+          title: string
+          updated_at?: string | null
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          id?: string
+          image_url?: string | null
+          key?: string
+          title?: string
+          updated_at?: string | null
+          updated_by_user_id?: string | null
+        }
+        Relationships: []
+      }
+      pc_production_items: {
+        Row: {
+          client_name: string | null
+          created_at: string | null
+          created_by: string
+          estimated_deadline: string | null
+          id: string
+          machine_name: string | null
+          notes: string | null
+          priority: string | null
+          project_name: string
+          responsible: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string | null
+          created_by: string
+          estimated_deadline?: string | null
+          id?: string
+          machine_name?: string | null
+          notes?: string | null
+          priority?: string | null
+          project_name: string
+          responsible?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string | null
+          created_by?: string
+          estimated_deadline?: string | null
+          id?: string
+          machine_name?: string | null
+          notes?: string | null
+          priority?: string | null
+          project_name?: string
+          responsible?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_routine_activations: {
+        Row: {
+          activated_at: string | null
+          activated_by: string
+          context_data: Json | null
+          id: string
+          routine_id: string
+          tasks_created: number | null
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by: string
+          context_data?: Json | null
+          id?: string
+          routine_id: string
+          tasks_created?: number | null
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string
+          context_data?: Json | null
+          id?: string
+          routine_id?: string
+          tasks_created?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_routine_activations_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "pc_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_routine_template_files: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          routine_id: string
+          task_index: number
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          routine_id: string
+          task_index: number
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          routine_id?: string
+          task_index?: number
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_routine_template_files_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "pc_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_routines: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          tasks_template: Json | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          tasks_template?: Json | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          tasks_template?: Json | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_schedule_events: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          event_date: string
+          event_time: string | null
+          event_type: string | null
+          id: string
+          responsible: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          event_date: string
+          event_time?: string | null
+          event_type?: string | null
+          id?: string
+          responsible?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          event_date?: string
+          event_time?: string | null
+          event_type?: string | null
+          id?: string
+          responsible?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_task_files: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          task_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          task_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          task_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_task_files_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "pc_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_tasks: {
+        Row: {
+          category: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          responsible: string | null
+          sector: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          responsible?: string | null
+          sector?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          responsible?: string | null
+          sector?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pdf_quote_settings: {
         Row: {
           accent_color: string | null

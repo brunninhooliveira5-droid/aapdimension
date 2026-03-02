@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Download, Trash2, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 
 interface TemplateFile {
@@ -21,18 +22,19 @@ interface Props {
 }
 
 export function RoutineTemplateFiles({ routineId, taskIndex, userId, disabled }: Props) {
+  const { tables, storage } = useModule();
   const [files, setFiles] = useState<TemplateFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const fetchFiles = async () => {
     if (!routineId) return;
     const { data } = await supabase
-      .from("dimension_routine_template_files")
+      .from(tables.routineTemplateFiles as any)
       .select("id, file_name, file_path, file_size, mime_type")
       .eq("routine_id", routineId)
       .eq("task_index", taskIndex)
       .order("created_at");
-    setFiles((data as TemplateFile[]) || []);
+    setFiles((data as unknown as TemplateFile[]) || []);
   };
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function RoutineTemplateFiles({ routineId, taskIndex, userId, disabled }:
     const path = `routine-templates/${routineId}/${taskIndex}/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("dimension-task-files")
+      .from(storage.taskFiles)
       .upload(path, file);
 
     if (uploadError) {
@@ -58,7 +60,7 @@ export function RoutineTemplateFiles({ routineId, taskIndex, userId, disabled }:
     }
 
     const { error: dbError } = await supabase
-      .from("dimension_routine_template_files")
+      .from(tables.routineTemplateFiles as any)
       .insert({
         routine_id: routineId,
         task_index: taskIndex,
@@ -81,7 +83,7 @@ export function RoutineTemplateFiles({ routineId, taskIndex, userId, disabled }:
 
   const handleDownload = async (f: TemplateFile) => {
     const { data } = await supabase.storage
-      .from("dimension-task-files")
+      .from(storage.taskFiles)
       .createSignedUrl(f.file_path, 60);
     if (data?.signedUrl) {
       window.open(data.signedUrl, "_blank");
@@ -91,9 +93,9 @@ export function RoutineTemplateFiles({ routineId, taskIndex, userId, disabled }:
   };
 
   const handleDelete = async (f: TemplateFile) => {
-    await supabase.storage.from("dimension-task-files").remove([f.file_path]);
+    await supabase.storage.from(storage.taskFiles).remove([f.file_path]);
     const { error } = await supabase
-      .from("dimension_routine_template_files")
+      .from(tables.routineTemplateFiles as any)
       .delete()
       .eq("id", f.id);
     if (error) {
