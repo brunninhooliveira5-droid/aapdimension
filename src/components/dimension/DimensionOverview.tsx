@@ -387,7 +387,8 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                       draggable
                         onDragStart={(e) => handleDragStart(e, task.id)}
                         onClick={() => !readOnly && openDetail(task)}
-                        className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
+                        data-status={task.status}
+                        className="app-card relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing border border-transparent"
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />

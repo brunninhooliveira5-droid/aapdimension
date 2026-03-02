@@ -147,24 +147,34 @@
   }
 }
 
-/* Card effects intensity — uses --card-fx-color (defaults to --primary) */
-.card-fx-subtle .gradient-card {
+/* Card effects — targets .gradient-card and .app-card globally */
+/* --card-fx-color defaults to --primary; [data-status="atrasada"] forces red */
+[data-status="atrasada"] { --card-fx-color: 0 72% 51% !important; }
+
+.card-fx-subtle .gradient-card,
+.card-fx-subtle .app-card {
   border-color: hsl(var(--card-fx-color, var(--primary)) / 0.15);
   box-shadow: 0 1px 4px hsl(var(--card-fx-color, var(--primary)) / 0.06);
 }
-.card-fx-medium .gradient-card {
+.card-fx-medium .gradient-card,
+.card-fx-medium .app-card {
   border-color: hsl(var(--card-fx-color, var(--primary)) / 0.3);
   box-shadow: 0 2px 12px -2px hsl(var(--card-fx-color, var(--primary)) / 0.15);
 }
-.card-fx-strong .gradient-card {
+.card-fx-strong .gradient-card,
+.card-fx-strong .app-card {
   border-color: hsl(var(--card-fx-color, var(--primary)) / 0.5);
   box-shadow: 0 4px 24px -4px hsl(var(--card-fx-color, var(--primary)) / 0.3), 0 0 0 1px hsl(var(--card-fx-color, var(--primary)) / 0.1);
 }
-.card-fx-glow .gradient-card {
+.card-fx-glow .gradient-card,
+.card-fx-glow .app-card {
   border-color: hsl(var(--card-fx-color, var(--primary)) / 0.6);
   box-shadow: 0 0 20px -4px hsl(var(--card-fx-color, var(--primary)) / 0.4), 0 4px 30px -6px hsl(var(--card-fx-color, var(--primary)) / 0.25), inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.1);
 }
-.card-fx-3d .gradient-card {
+
+/* 3D — independent, stacks with intensity effects */
+.card-fx-3d .gradient-card,
+.card-fx-3d .app-card {
   transform: translateY(-1px);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   border-bottom-width: 2px;
@@ -176,7 +186,8 @@
     inset 0 1px 0 hsl(0 0% 100% / 0.06),
     inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
-.card-fx-3d .gradient-card:hover {
+.card-fx-3d .gradient-card:hover,
+.card-fx-3d .app-card:hover {
   transform: translateY(-4px) scale(1.005);
   box-shadow:
     0 8px 16px -2px hsl(0 0% 0% / 0.3),
@@ -185,7 +196,9 @@
     inset 0 1px 0 hsl(0 0% 100% / 0.08),
     inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
-.card-fx-3d.card-fx-glow .gradient-card {
+/* 3D + Glow combined */
+.card-fx-3d.card-fx-glow .gradient-card,
+.card-fx-3d.card-fx-glow .app-card {
   box-shadow:
     0 0 20px -4px hsl(var(--card-fx-color, var(--primary)) / 0.4),
     0 10px 24px -6px hsl(0 0% 0% / 0.3),
@@ -193,13 +206,32 @@
     inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.1),
     inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
-.card-fx-3d.card-fx-glow .gradient-card:hover {
+.card-fx-3d.card-fx-glow .gradient-card:hover,
+.card-fx-3d.card-fx-glow .app-card:hover {
   transform: translateY(-4px) scale(1.005);
   box-shadow:
     0 0 28px -4px hsl(var(--card-fx-color, var(--primary)) / 0.5),
     0 16px 32px -4px hsl(0 0% 0% / 0.35),
     0 28px 56px -16px hsl(var(--card-fx-color, var(--primary)) / 0.25),
     inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.12),
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
+}
+
+/* Overdue red shadow override for 3D */
+.card-fx-3d [data-status="atrasada"].app-card {
+  box-shadow:
+    0 4px 6px -1px hsl(0 0% 0% / 0.25),
+    0 10px 24px -6px hsl(0 72% 51% / 0.25),
+    0 16px 40px -10px hsl(0 72% 51% / 0.2),
+    inset 0 1px 0 hsl(0 0% 100% / 0.06),
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
+}
+.card-fx-3d [data-status="atrasada"].app-card:hover {
+  box-shadow:
+    0 8px 16px -2px hsl(0 0% 0% / 0.3),
+    0 20px 48px -12px hsl(0 72% 51% / 0.3),
+    0 24px 56px -16px hsl(0 72% 51% / 0.25),
+    inset 0 1px 0 hsl(0 0% 100% / 0.08),
     inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
 

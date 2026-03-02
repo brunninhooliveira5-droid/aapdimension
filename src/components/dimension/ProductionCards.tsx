@@ -172,7 +172,7 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
             <Tooltip key={card.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={`relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer ${dragOverCard === card.key ? "ring-2 ring-primary shadow-lg scale-[1.03]" : ""}`}
+                  className={`app-card relative h-28 rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer border border-transparent ${dragOverCard === card.key ? "ring-2 ring-primary shadow-lg scale-[1.03]" : ""}`}
                   onClick={() => onCardClick?.(card)}
                   onDragOver={(e) => handleSectorDragOver(e, card.key)}
                   onDragLeave={() => setDragOverCard(null)}
