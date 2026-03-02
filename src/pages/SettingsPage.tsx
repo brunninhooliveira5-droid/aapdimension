@@ -58,6 +58,18 @@ const SettingsPage = () => {
     applyCustomBg();
   };
 
+  const [customCard, setCustomCard] = useState(() => localStorage.getItem("custom-card-color") || "");
+
+  const applyCardColor = (hex: string) => {
+    setCustomCard(hex);
+    if (hex) {
+      localStorage.setItem("custom-card-color", hex);
+    } else {
+      localStorage.removeItem("custom-card-color");
+    }
+    applyCustomBg();
+  };
+
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -219,6 +231,52 @@ const SettingsPage = () => {
             />
             {customSidebar && (
               <Button variant="ghost" size="sm" onClick={() => applySidebarColor("")} className="text-xs gap-1">
+                <RotateCcw className="w-3 h-3" /> Padrão
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
+          <Label className="text-xs text-muted-foreground">Cor dos cards</Label>
+          <div className="flex flex-wrap gap-2">
+            {presetColors.map((c) => (
+              <button
+                key={c.name}
+                title={c.name}
+                onClick={() => applyCardColor(c.value)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  customCard === c.value
+                    ? "border-primary ring-2 ring-primary/40 scale-110"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+                style={{
+                  background: c.value
+                    ? c.value
+                    : "linear-gradient(135deg, hsl(220 18% 13%), hsl(0 0% 100%))",
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground shrink-0">Cor personalizada</Label>
+            <input
+              type="color"
+              value={customCard || "#1e2235"}
+              onChange={(e) => applyCardColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+            />
+            <Input
+              value={customCard}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) applyCardColor(v);
+                setCustomCard(v);
+              }}
+              placeholder="#1e2235"
+              className="bg-accent border-border w-28 font-mono text-xs"
+            />
+            {customCard && (
+              <Button variant="ghost" size="sm" onClick={() => applyCardColor("")} className="text-xs gap-1">
                 <RotateCcw className="w-3 h-3" /> Padrão
               </Button>
             )}
