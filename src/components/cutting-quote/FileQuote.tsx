@@ -1337,6 +1337,34 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                 </Card>
               </div>
 
+              {/* Profit Card */}
+              {(() => {
+                const totalCosts = pricing.costPerMinute * currentEstimatedTimeMin + (materialOwner === "usuario" ? materialCost : 0);
+                const profit = totalPrice - totalCosts;
+                const profitPercent = totalPrice > 0 ? (profit / totalPrice) * 100 : 0;
+                return (
+                  <Card className={`border ${profit >= 0 ? "bg-green-500/10 border-green-500/30" : "bg-destructive/10 border-destructive/30"}`}>
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className={`w-4 h-4 ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`} />
+                        <div>
+                          <p className="text-xs font-medium">Lucro Estimado</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Total {fmt(totalPrice)} − Custos {fmt(totalCosts)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                          {fmt(profit)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{profitPercent.toFixed(1)}%</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
               {/* Minimum Sheet Info */}
               {result.bboxWidthMM > 0 && result.bboxHeightMM > 0 && (
                 <Card className="bg-secondary/50 border-border">
