@@ -396,6 +396,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   const [deliveryDeadline, setDeliveryDeadline] = useState("");
   const [serviceValue, setServiceValue] = useState(0);
   const [serviceValueIncluded, setServiceValueIncluded] = useState(false);
+  const [serviceDescription, setServiceDescription] = useState("");
   // Override states
   const [overridePasses, setOverridePasses] = useState(1);
   const [passesOverridden, setPassesOverridden] = useState(false);
@@ -1291,7 +1292,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               )}
 
               {/* Technical Summary */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <Card className="bg-secondary/50 border-border">
                   <CardContent className="p-3 text-center">
                     <Ruler className="w-4 h-4 text-primary mx-auto mb-1" />
@@ -1314,6 +1315,14 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                     <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
                     <p className="text-[10px] text-muted-foreground">Tempo Estimado</p>
                     <p className="text-sm font-bold">{currentEstimatedTimeMin.toFixed(1)} min</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-secondary/50 border-border">
+                  <CardContent className="p-3 text-center">
+                    <DollarSign className="w-4 h-4 text-primary mx-auto mb-1" />
+                    <p className="text-[10px] text-muted-foreground">Custo Máq/Hora</p>
+                    <p className="text-sm font-bold">{fmt(pricing.costPerMinute * 60)}</p>
+                    <p className="text-[9px] text-muted-foreground">Uso interno</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1511,6 +1520,15 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                       onChange={(e) => setServiceValue(Number(e.target.value.replace(/[^\d]/g, "")) / 100)}
                       className="pl-10 text-sm"
                       placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Descrição do serviço</Label>
+                    <textarea
+                      value={serviceDescription}
+                      onChange={(e) => setServiceDescription(e.target.value)}
+                      placeholder="Descreva o serviço realizado..."
+                      className="mt-1 flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-y"
                     />
                   </div>
                   {serviceValueIncluded && serviceValue === 0 && (
