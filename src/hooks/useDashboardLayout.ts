@@ -169,6 +169,7 @@ export function useDashboardLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
+  const [appliedTemplateName, setAppliedTemplateName] = useState<string | null>(null);
   const [dashboardLocked, setDashboardLocked] = useState(false);
 
   const role = user?.role ?? "operador";
@@ -200,8 +201,20 @@ export function useDashboardLayout() {
         .single();
 
       if (data) {
-        setAppliedTemplateId((data as any).applied_template_id ?? null);
+        const tplId = (data as any).applied_template_id ?? null;
+        setAppliedTemplateId(tplId);
         setDashboardLocked((data as any).dashboard_locked ?? false);
+        // Fetch template name
+        if (tplId) {
+          const { data: tplData } = await supabase
+            .from("dashboard_templates" as any)
+            .select("name")
+            .eq("id", tplId)
+            .single();
+          setAppliedTemplateName((tplData as any)?.name ?? null);
+        } else {
+          setAppliedTemplateName(null);
+        }
       }
 
       if (data && (data as any).layout) {
@@ -281,6 +294,7 @@ export function useDashboardLayout() {
   const resetToDefault = useCallback(async () => {
     const defaultCards = getDefaultCards(role as UserRole);
     setAppliedTemplateId(null);
+    setAppliedTemplateName(null);
     setDashboardLocked(false);
     if (!effectiveUserId) return;
     const ordered = defaultCards.map((item, i) => ({ ...item, order: i }));
@@ -323,6 +337,13 @@ export function useDashboardLayout() {
       setCards(finalLayout);
       setAppliedTemplateId(templateId);
       setDashboardLocked(locked);
+      // Fetch template name
+      const { data: tplData } = await supabase
+        .from("dashboard_templates" as any)
+        .select("name")
+        .eq("id", templateId)
+        .single();
+      setAppliedTemplateName((tplData as any)?.name ?? null);
     }
     setIsSaving(false);
   }, [effectiveUserId]);
@@ -368,6 +389,7 @@ export function useDashboardLayout() {
     addShortcut,
     removeCard,
     appliedTemplateId,
+    appliedTemplateName,
     dashboardLocked,
     applyTemplate,
   };
