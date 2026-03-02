@@ -53,7 +53,8 @@ const emptyTemplate: TaskTemplate = { title: "", sector: "", priority: "media", 
 
 export function DimensionRoutines() {
   const { tables, storage } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [tab, setTab] = useState("templates");
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [activations, setActivations] = useState<Activation[]>([]);
@@ -249,7 +250,7 @@ export function DimensionRoutines() {
             <TabsTrigger value="templates" className="gap-1.5"><ListChecks className="h-3.5 w-3.5" />Modelos</TabsTrigger>
             <TabsTrigger value="history" className="gap-1.5"><History className="h-3.5 w-3.5" />Histórico</TabsTrigger>
           </TabsList>
-          {tab === "templates" && (
+          {tab === "templates" && !readOnly && (
             <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" />Nova Rotina</Button>
           )}
         </div>
@@ -266,7 +267,7 @@ export function DimensionRoutines() {
                 <p className="text-sm text-muted-foreground mt-1 max-w-md">
                   Crie modelos de rotinas recorrentes para automatizar a geração de tarefas por setor.
                 </p>
-                <Button className="mt-4" size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" />Criar primeira rotina</Button>
+                <Button className="mt-4" size="sm" onClick={openCreate} disabled={readOnly}><Plus className="h-4 w-4 mr-1" />Criar primeira rotina</Button>
               </CardContent>
             </Card>
           ) : (
@@ -292,29 +293,33 @@ export function DimensionRoutines() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 pt-2">
-                      <Button size="sm" variant="default" className="flex-1 gap-1" onClick={() => openActivation(r)}>
-                        <Play className="h-3.5 w-3.5" />Ativar
-                      </Button>
-                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => openEdit(r)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
+                      {!readOnly && (
+                        <>
+                          <Button size="sm" variant="default" className="flex-1 gap-1" onClick={() => openActivation(r)}>
+                            <Play className="h-3.5 w-3.5" />Ativar
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir rotina?</AlertDialogTitle>
-                            <AlertDialogDescription>Essa ação não pode ser desfeita. O histórico de ativações também será removido.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteRoutine(r.id)}>Excluir</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => openEdit(r)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:text-destructive">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir rotina?</AlertDialogTitle>
+                                <AlertDialogDescription>Essa ação não pode ser desfeita. O histórico de ativações também será removido.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteRoutine(r.id)}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

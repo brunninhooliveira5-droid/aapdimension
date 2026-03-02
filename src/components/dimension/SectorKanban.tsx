@@ -28,7 +28,8 @@ interface SectorKanbanProps {
 
 export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanProps) {
   const { tables, storage } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [tasks, setTasks] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
@@ -184,9 +185,11 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
             <p className="text-xs text-muted-foreground">Tarefas do setor</p>
           </div>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={openCreate}>
-          <Plus className="h-3.5 w-3.5" /> Nova Tarefa
-        </Button>
+        {!readOnly && (
+          <Button size="sm" className="gap-1.5" onClick={openCreate}>
+            <Plus className="h-3.5 w-3.5" /> Nova Tarefa
+          </Button>
+        )}
       </div>
 
       {/* Kanban */}
@@ -215,26 +218,28 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                 return (
                   <div
                     key={task.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task.id)}
-                    onClick={() => openEdit(task)}
-                    className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
+                    draggable={!readOnly}
+                    onDragStart={(e) => !readOnly && handleDragStart(e, task.id)}
+                    onClick={() => !readOnly && openEdit(task)}
+                    className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg ${readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                     <div className="relative p-3 space-y-2">
                       <div className="flex items-start justify-between gap-1">
                         <p className="text-sm font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
-                        <div className="flex gap-0.5 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        {!readOnly && (
+                          <div className="flex gap-0.5 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-1">
                         <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>

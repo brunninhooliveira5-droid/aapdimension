@@ -29,7 +29,8 @@ const defaultForm = {
 
 export function DimensionGoals() {
   const { tables } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [goals, setGoals] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
@@ -240,7 +241,7 @@ export function DimensionGoals() {
           </SelectContent>
         </Select>
         <div className="flex-1" />
-        <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+        {!readOnly && <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>}
       </div>
 
       {/* Goals Grid */}
@@ -258,13 +259,13 @@ export function DimensionGoals() {
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-sm font-semibold leading-tight">{goal.title}</CardTitle>
                     <div className="flex gap-1 shrink-0">
-                      {auto && (
+                      {!readOnly && auto && (
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Sincronizar" onClick={() => syncGoalProgress(goal)}>
                           <RefreshCw className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(goal)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(goal.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      {!readOnly && <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(goal)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                      {!readOnly && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(goal.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">

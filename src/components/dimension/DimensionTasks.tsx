@@ -25,7 +25,8 @@ const emptyTask = { title: "", description: "", priority: "media", category: "pr
 
 export function DimensionTasks() {
   const { tables, storage } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [tasks, setTasks] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "kanban">("kanban");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -192,26 +193,28 @@ export function DimensionTasks() {
     const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
     return (
       <div
-        draggable
-        onDragStart={(e) => handleDragStart(e, task.id)}
-        onClick={() => openEdit(task)}
-        className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
+        draggable={!readOnly}
+        onDragStart={(e) => !readOnly && handleDragStart(e, task.id)}
+        onClick={() => !readOnly && openEdit(task)}
+        className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg ${readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
       >
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
         <div className="relative p-3 space-y-2">
           <div className="flex items-start justify-between gap-1">
             <p className="text-sm font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
-            <div className="flex gap-0.5 shrink-0">
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={() => openEdit(task)}><Pencil className="h-3 w-3" /></Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
-                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                  <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}>Excluir</AlertDialogAction></AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            {!readOnly && (
+              <div className="flex gap-0.5 shrink-0">
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={() => openEdit(task)}><Pencil className="h-3 w-3" /></Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}>Excluir</AlertDialogAction></AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-1">
             <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
@@ -255,7 +258,7 @@ export function DimensionTasks() {
             <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" className="rounded-none h-8 gap-1" onClick={() => setView("kanban")}><Columns3 className="h-3.5 w-3.5" />Kanban</Button>
             <Button variant={view === "list" ? "default" : "ghost"} size="sm" className="rounded-none h-8 gap-1" onClick={() => setView("list")}><List className="h-3.5 w-3.5" />Lista</Button>
           </div>
-          <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Nova Tarefa</Button>
+          {!readOnly && <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Nova Tarefa</Button>}
         </div>
       </div>
 

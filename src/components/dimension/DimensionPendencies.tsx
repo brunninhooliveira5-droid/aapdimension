@@ -23,7 +23,8 @@ const emptyForm = { title: "", description: "", priority: "media", category: "pr
 
 export function DimensionPendencies() {
   const { tables } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [items, setItems] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -82,7 +83,7 @@ export function DimensionPendencies() {
             {Object.entries(categoryLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Nova Pendência</Button>
+        {!readOnly && <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Nova Pendência</Button>}
       </div>
 
       {grouped.length === 0 ? (
@@ -96,12 +97,14 @@ export function DimensionPendencies() {
               <span className="text-sm flex-1 truncate">{item.title}</span>
               {item.responsible && <span className="text-[10px] text-muted-foreground shrink-0">👤 {item.responsible}</span>}
               {item.due_date && <span className="text-[10px] text-muted-foreground shrink-0">{format(new Date(item.due_date + "T00:00:00"), "dd/MM", { locale: ptBR })}</span>}
-              {item.status !== "resolvida" && <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => resolve(item.id)}><CheckCircle2 className="h-3.5 w-3.5" /></Button>}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-              </AlertDialog>
+              {!readOnly && item.status !== "resolvida" && <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => resolve(item.id)}><CheckCircle2 className="h-3.5 w-3.5" /></Button>}
+              {!readOnly && <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>}
+              {!readOnly && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           ))}
         </div>
