@@ -88,6 +88,7 @@ const Index = () => {
   const {
     cards, setCards, visibleCards, isLoading: layoutLoading,
     isSaving, saveCards, resetToDefault, isCardAvailable,
+    appliedTemplateId, dashboardLocked, applyTemplate,
   } = useDashboardLayout();
 
   const fetchMachineCount = async () => {
@@ -416,8 +417,11 @@ const Index = () => {
             cards={cards}
             isCardAvailable={isCardAvailable}
             isSaving={isSaving}
+            dashboardLocked={dashboardLocked}
+            appliedTemplateId={appliedTemplateId}
             onSave={saveCards}
             onReset={resetToDefault}
+            onApplyTemplate={applyTemplate}
           />
         </div>
       )}

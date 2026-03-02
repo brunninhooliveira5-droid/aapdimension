@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { type UserRole, roleLabels } from "@/contexts/AuthContext";
 import { ProPlanManager } from "@/components/users/ProPlanManager";
 import { SuggestionsTab } from "@/components/users/SuggestionsTab";
 import { TemplatesTab } from "@/components/users/TemplatesTab";
+import { DashboardTemplatesManager } from "@/components/dashboard/DashboardTemplatesManager";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -386,7 +387,11 @@ const UsersPage = () => {
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <BookmarkCheck className="w-3.5 h-3.5" />
-            Templates
+            Templates Acesso
+          </TabsTrigger>
+          <TabsTrigger value="dashboard_templates" className="gap-2">
+            <LayoutTemplate className="w-3.5 h-3.5" />
+            Templates Dashboard
           </TabsTrigger>
         </TabsList>
 
@@ -667,9 +672,14 @@ const UsersPage = () => {
           <SuggestionsTab />
         </TabsContent>
 
-        {/* Templates */}
+        {/* Access Templates */}
         <TabsContent value="templates">
           <TemplatesTab />
+        </TabsContent>
+
+        {/* Dashboard Templates */}
+        <TabsContent value="dashboard_templates">
+          <DashboardTemplatesManager />
         </TabsContent>
       </Tabs>
 
