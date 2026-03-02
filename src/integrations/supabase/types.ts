@@ -2692,6 +2692,7 @@ export type Database = {
           operator_salary: number | null
           other_fixed: number
           other_machine: number
+          pricing_mode: string
           productive_hours: number
           profit_margin: number
           rent: number
@@ -2716,6 +2717,7 @@ export type Database = {
           operator_salary?: number | null
           other_fixed?: number
           other_machine?: number
+          pricing_mode?: string
           productive_hours?: number
           profit_margin?: number
           rent?: number
@@ -2740,6 +2742,7 @@ export type Database = {
           operator_salary?: number | null
           other_fixed?: number
           other_machine?: number
+          pricing_mode?: string
           productive_hours?: number
           profit_margin?: number
           rent?: number

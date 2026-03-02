@@ -32,6 +32,7 @@ export default function CuttingQuotePage() {
     suggestedPrice: 0,
     avgCutSpeed: 0,
     profitMarginPercent: 30,
+    pricingMode: 'time',
     minSpeedOverrideMMmin: 500,
     maxSpeedOverrideMMmin: 12000,
     maxPassesOverride: 10,
@@ -66,6 +67,7 @@ export default function CuttingQuotePage() {
 
     return {
       costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
+      pricingMode: (data as any).pricing_mode || 'time',
       minSpeedOverrideMMmin: Number(data.min_speed_override_mmmin) || 500,
       maxSpeedOverrideMMmin: Number(data.max_speed_override_mmmin) || 12000,
       maxPassesOverride: Number(data.max_passes_override) || 10,

@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export type PricingMode = 'time' | 'meter';
+
 export interface PricingData {
   costPerHour: number;
   costPerMinute: number;
@@ -18,6 +20,7 @@ export interface PricingData {
   suggestedPrice: number;
   avgCutSpeed: number;       // mm/min — velocidade base do simulador
   profitMarginPercent: number; // margem de lucro configurada
+  pricingMode: PricingMode;
   // Admin override limits
   minSpeedOverrideMMmin: number;
   maxSpeedOverrideMMmin: number;
@@ -48,6 +51,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const [productiveHours, setProductiveHours] = useState(160);
   const [profitMargin, setProfitMargin] = useState(30);
   const [avgCutSpeed, setAvgCutSpeed] = useState(2);
+  const [pricingMode, setPricingMode] = useState<PricingMode>('time');
   const [minSpeedOverride, setMinSpeedOverride] = useState(500);
   const [maxSpeedOverride, setMaxSpeedOverride] = useState(12000);
   const [maxPassesOverride, setMaxPassesOverride] = useState(10);
@@ -87,6 +91,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           setMaxPassesOverride(Number(data.max_passes_override) || 10);
           setAllowOverrideSpeed(data.allow_user_override_speed ?? true);
           setAllowOverridePasses(data.allow_user_override_passes ?? true);
+          setPricingMode((data as any).pricing_mode || 'time');
         }
         setLoaded(true);
       });
@@ -109,10 +114,11 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   useEffect(() => {
     onPricingChange({
       costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
+      pricingMode,
       minSpeedOverrideMMmin: minSpeedOverride, maxSpeedOverrideMMmin: maxSpeedOverride, maxPassesOverride,
       allowUserOverrideSpeed: allowOverrideSpeed, allowUserOverridePasses: allowOverridePasses,
     });
-  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
+  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin, pricingMode, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Auto-save with debounce
   const saveSettings = useCallback(async () => {
@@ -133,6 +139,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       max_passes_override: maxPassesOverride,
       allow_user_override_speed: allowOverrideSpeed,
       allow_user_override_passes: allowOverridePasses,
+      pricing_mode: pricingMode,
     };
 
     // Upsert: insert or update on conflict
@@ -147,7 +154,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
-  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
+  }, [session, loaded, rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, pricingMode, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Debounce auto-save: save 1.5s after last change
   useEffect(() => {
@@ -155,7 +162,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(saveSettings, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
+  }, [rent, electricity, internet, otherFixed, machineCost, gasConsumable, maintenanceCost, otherMachine, operatorSalary, energyCostPerKwh, machineEnergyConsumptionKw, productiveHours, profitMargin, avgCutSpeed, pricingMode, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses, loaded]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -313,6 +320,18 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
             <div>
               <Label className="text-xs">Velocidade (mm/min)</Label>
               <Input type="number" min={0.01} step={1} value={avgCutSpeed || ""} onChange={(e) => setAvgCutSpeed(Number(e.target.value))} placeholder="2000" />
+            </div>
+            <Separator />
+            <div>
+              <Label className="text-xs">Base de Precificação</Label>
+              <div className="flex gap-2 mt-1">
+                <Button variant={pricingMode === 'time' ? 'default' : 'outline'} size="sm" className="flex-1" onClick={() => setPricingMode('time')}>
+                  <Clock className="w-3 h-3 mr-1" /> Por Tempo
+                </Button>
+                <Button variant={pricingMode === 'meter' ? 'default' : 'outline'} size="sm" className="flex-1" onClick={() => setPricingMode('meter')}>
+                  <Ruler className="w-3 h-3 mr-1" /> Por Metro
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

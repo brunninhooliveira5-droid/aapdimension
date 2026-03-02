@@ -1,0 +1,1 @@
+ALTER TABLE public.pricing_settings ADD COLUMN IF NOT EXISTS pricing_mode text NOT NULL DEFAULT 'time';
