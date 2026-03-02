@@ -34,7 +34,7 @@ export function MaintenanceWidget({ maintenances, isAdminMaster }: Props) {
   });
 
   return (
-    <div className="gradient-card rounded-lg border border-border p-5">
+    <div className="gradient-card rounded-lg border border-border p-5 h-full flex flex-col">
       <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wider">Manutenções Próximas</h3>
       {isAdminMaster && (
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -53,7 +53,7 @@ export function MaintenanceWidget({ maintenances, isAdminMaster }: Props) {
           </Select>
         </div>
       )}
-      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+      <div className="space-y-3 flex-1 min-h-0 overflow-y-auto max-h-[350px]">
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma manutenção encontrada.</p>
         ) : filtered.map(m => (
