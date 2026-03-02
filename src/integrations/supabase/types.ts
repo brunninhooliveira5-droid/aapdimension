@@ -3353,6 +3353,7 @@ export type Database = {
       }
       pc_production_cards: {
         Row: {
+          created_by: string | null
           id: string
           image_url: string | null
           key: string
@@ -3361,6 +3362,7 @@ export type Database = {
           updated_by_user_id: string | null
         }
         Insert: {
+          created_by?: string | null
           id?: string
           image_url?: string | null
           key: string
@@ -3369,6 +3371,7 @@ export type Database = {
           updated_by_user_id?: string | null
         }
         Update: {
+          created_by?: string | null
           id?: string
           image_url?: string | null
           key?: string
