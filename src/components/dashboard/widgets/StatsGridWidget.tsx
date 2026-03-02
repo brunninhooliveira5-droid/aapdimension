@@ -25,7 +25,7 @@ export function StatsGridWidget({
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {isAdminMaster && (
         <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/maquinas")}>
           <StatCard title="Máquinas Ativas" value={totalMachines} subtitle="Total cadastradas" icon={Cpu} variant="highlight" />
