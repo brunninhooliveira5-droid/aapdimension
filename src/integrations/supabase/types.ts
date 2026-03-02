@@ -478,6 +478,45 @@ export type Database = {
           },
         ]
       }
+      dashboard_templates: {
+        Row: {
+          allowed_roles: string[] | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_locked: boolean
+          layout: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_roles?: string[] | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_locked?: boolean
+          layout?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_roles?: string[] | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_locked?: boolean
+          layout?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       debts_client_delinquency: {
         Row: {
           client: string
@@ -4843,21 +4882,35 @@ export type Database = {
       }
       user_dashboard_layout: {
         Row: {
+          applied_template_id: string | null
+          dashboard_locked: boolean
           layout: Json
           updated_at: string
           user_id: string
         }
         Insert: {
+          applied_template_id?: string | null
+          dashboard_locked?: boolean
           layout?: Json
           updated_at?: string
           user_id: string
         }
         Update: {
+          applied_template_id?: string | null
+          dashboard_locked?: boolean
           layout?: Json
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_dashboard_layout_applied_template_id_fkey"
+            columns: ["applied_template_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_login_events: {
         Row: {

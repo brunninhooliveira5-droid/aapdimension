@@ -82,6 +82,8 @@ export function useDashboardLayout() {
   const [cards, setCards] = useState<DashboardCardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
+  const [dashboardLocked, setDashboardLocked] = useState(false);
 
   const role = user?.role ?? "operador";
 
@@ -107,16 +109,20 @@ export function useDashboardLayout() {
       setIsLoading(true);
       const { data } = await supabase
         .from("user_dashboard_layout" as any)
-        .select("layout")
+        .select("layout, applied_template_id, dashboard_locked")
         .eq("user_id", effectiveUserId)
         .single();
+
+      if (data) {
+        setAppliedTemplateId((data as any).applied_template_id ?? null);
+        setDashboardLocked((data as any).dashboard_locked ?? false);
+      }
 
       if (data && (data as any).layout) {
         const raw = (data as any).layout as any[];
         // Migrate legacy items (no type/id) to new format
         const saved: DashboardCardItem[] = raw.map(item => {
           if (!item.type) {
-            // Legacy widget item
             const def = ALL_WIDGETS.find(w => w.key === item.key);
             return {
               ...item,
@@ -169,7 +175,12 @@ export function useDashboardLayout() {
     const ordered = newCards.map((item, i) => ({ ...item, order: i }));
     const { error } = await supabase
       .from("user_dashboard_layout" as any)
-      .upsert({ user_id: effectiveUserId, layout: ordered } as any);
+      .upsert({
+        user_id: effectiveUserId,
+        layout: ordered,
+        applied_template_id: appliedTemplateId,
+        dashboard_locked: dashboardLocked,
+      } as any);
     if (error) {
       toast.error("Erro ao salvar layout");
     } else {
@@ -177,18 +188,61 @@ export function useDashboardLayout() {
       toast.success("Layout salvo!");
     }
     setIsSaving(false);
-  }, [effectiveUserId]);
+  }, [effectiveUserId, appliedTemplateId, dashboardLocked]);
 
   const resetToDefault = useCallback(async () => {
     const defaultCards = getDefaultCards(role as UserRole);
-    await saveCards(defaultCards);
-  }, [role, saveCards]);
+    setAppliedTemplateId(null);
+    setDashboardLocked(false);
+    if (!effectiveUserId) return;
+    const ordered = defaultCards.map((item, i) => ({ ...item, order: i }));
+    const { error } = await supabase
+      .from("user_dashboard_layout" as any)
+      .upsert({
+        user_id: effectiveUserId,
+        layout: ordered,
+        applied_template_id: null,
+        dashboard_locked: false,
+      } as any);
+    if (error) {
+      toast.error("Erro ao restaurar layout");
+    } else {
+      setCards(ordered);
+      toast.success("Layout restaurado!");
+    }
+  }, [role, effectiveUserId]);
+
+  /** Apply a template */
+  const applyTemplate = useCallback(async (layout: DashboardCardItem[], templateId: string, locked: boolean) => {
+    if (!effectiveUserId) return;
+    setIsSaving(true);
+    // Force fixed widgets visible
+    const finalLayout = layout.map((c, i) => {
+      const fixed = c.type === "widget" && ALL_WIDGETS.find(w => w.key === c.key)?.fixed;
+      return { ...c, order: i, visible: fixed ? true : c.visible };
+    });
+    const { error } = await supabase
+      .from("user_dashboard_layout" as any)
+      .upsert({
+        user_id: effectiveUserId,
+        layout: finalLayout,
+        applied_template_id: templateId,
+        dashboard_locked: locked,
+      } as any);
+    if (error) {
+      toast.error("Erro ao aplicar template");
+    } else {
+      setCards(finalLayout);
+      setAppliedTemplateId(templateId);
+      setDashboardLocked(locked);
+    }
+    setIsSaving(false);
+  }, [effectiveUserId]);
 
   /** Add a shortcut card from menu registry */
   const addShortcut = useCallback((menuId: string) => {
     const entry = flattenRegistry().find(m => m.id === menuId);
     if (!entry) return;
-    // Check duplicate
     if (cards.some(c => c.key === menuId)) {
       toast.info("Este atalho já está na sua Home");
       return;
@@ -225,5 +279,8 @@ export function useDashboardLayout() {
     isCardAvailable,
     addShortcut,
     removeCard,
+    appliedTemplateId,
+    dashboardLocked,
+    applyTemplate,
   };
 }
