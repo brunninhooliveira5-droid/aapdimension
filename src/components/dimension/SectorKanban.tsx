@@ -218,10 +218,10 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                 return (
                   <div
                     key={task.id}
-                    draggable={!readOnly}
-                    onDragStart={(e) => !readOnly && handleDragStart(e, task.id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
                     onClick={() => !readOnly && openEdit(task)}
-                    className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg ${readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+                    className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
