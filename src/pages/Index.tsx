@@ -290,15 +290,21 @@ const Index = () => {
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
     : null;
 
-  const handleReorder = useCallback((newCards: DashboardCardItem[]) => {
-    const reordered = newCards.map((c, i) => ({ ...c, order: i }));
-    setCards(reordered);
-  }, [setCards]);
+  const handleReorder = useCallback((newVisibleCards: DashboardCardItem[]) => {
+    // Merge reordered visible cards with hidden cards
+    const visibleKeys = new Set(newVisibleCards.map(c => c.key));
+    const hiddenCards = cards.filter(c => !visibleKeys.has(c.key));
+    const merged = [
+      ...newVisibleCards.map((c, i) => ({ ...c, order: i })),
+      ...hiddenCards.map((c, i) => ({ ...c, order: newVisibleCards.length + i })),
+    ];
+    setCards(merged);
+  }, [cards, setCards]);
 
   const handleSaveOrder = useCallback(async () => {
-    await saveCards(visibleCards);
+    await saveCards(cards);
     setEditMode(false);
-  }, [saveCards, visibleCards]);
+  }, [saveCards, cards]);
 
   const handleSaveAsTemplate = useCallback(async () => {
     const name = window.prompt("Nome do template:");
