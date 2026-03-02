@@ -1,0 +1,1 @@
+ALTER TABLE public.pricing_settings ADD COLUMN IF NOT EXISTS operator_salary numeric DEFAULT 0;
