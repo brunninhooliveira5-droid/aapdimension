@@ -33,6 +33,7 @@ export function applyCustomBg() {
     ["--accent-foreground", "custom-fg-color"],
     ["--sidebar-accent-foreground", "custom-fg-color"],
     ["--card-fx-color", "custom-card-fx-color"],
+    ["--text-fx-shadow-color", "custom-text-shadow-color"],
   ];
   pairs.forEach(([prop, key]) => {
     const val = localStorage.getItem(key);

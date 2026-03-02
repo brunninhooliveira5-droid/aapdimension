@@ -113,6 +113,18 @@ const SettingsPage = () => {
   const [textWeight, setTextWeight] = useState(() => localStorage.getItem("text-wt") || "");
   const [textSize, setTextSize] = useState(() => localStorage.getItem("text-sz") || "");
   const [textSpacing, setTextSpacing] = useState(() => localStorage.getItem("text-sp") || "");
+  const [textShadowColor, setTextShadowColor] = useState(() => localStorage.getItem("custom-text-shadow-color") || "");
+
+  const applyTextShadowColor = (hex: string) => {
+    setTextShadowColor(hex);
+    if (hex && /^#[0-9a-fA-F]{6}$/.test(hex)) {
+      document.documentElement.style.setProperty("--text-fx-shadow-color", hexToHsl(hex));
+      localStorage.setItem("custom-text-shadow-color", hex);
+    } else if (!hex) {
+      document.documentElement.style.removeProperty("--text-fx-shadow-color");
+      localStorage.removeItem("custom-text-shadow-color");
+    }
+  };
 
   const applyTextOption = (options: { label: string; value: string }[], val: string, key: string, setter: (v: string) => void) => {
     setter(val);
@@ -508,6 +520,30 @@ const SettingsPage = () => {
                 {o.label}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <Label className="text-xs text-muted-foreground shrink-0">Cor da sombra</Label>
+            <input
+              type="color"
+              value={textShadowColor || "#000000"}
+              onChange={(e) => applyTextShadowColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+            />
+            <Input
+              value={textShadowColor}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) applyTextShadowColor(v);
+                setTextShadowColor(v);
+              }}
+              placeholder="#000000"
+              className="bg-accent border-border w-28 font-mono text-xs"
+            />
+            {textShadowColor && (
+              <Button variant="ghost" size="sm" onClick={() => applyTextShadowColor("")} className="text-xs gap-1">
+                <RotateCcw className="w-3 h-3" /> Padrão
+              </Button>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Peso da fonte</Label>
