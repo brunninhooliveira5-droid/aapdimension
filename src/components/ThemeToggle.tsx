@@ -25,6 +25,7 @@ export function hexToHsl(hex: string): string {
 export function applyCustomBg() {
   const saved = localStorage.getItem("custom-bg-color");
   const savedSidebar = localStorage.getItem("custom-sidebar-color");
+  const savedCard = localStorage.getItem("custom-card-color");
   if (saved) {
     document.documentElement.style.setProperty("--background", hexToHsl(saved));
   } else {
@@ -34,6 +35,11 @@ export function applyCustomBg() {
     document.documentElement.style.setProperty("--sidebar-background", hexToHsl(savedSidebar));
   } else {
     document.documentElement.style.removeProperty("--sidebar-background");
+  }
+  if (savedCard) {
+    document.documentElement.style.setProperty("--card", hexToHsl(savedCard));
+  } else {
+    document.documentElement.style.removeProperty("--card");
   }
 }
 
