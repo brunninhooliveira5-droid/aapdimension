@@ -96,12 +96,27 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
     }
   });
 
-  // Only show tasks without a sector in the overview kanban
+  // Kanban always shows only unassigned tasks
   const overviewTasks = tasks.filter((t) => {
-    if (!showAllTasks && t.sector) return false;
+    if (t.sector) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     if (filterCategory !== "all" && t.category !== filterCategory) return false;
     return true;
+  });
+
+  // Sector tasks shown when showAllTasks is on
+  const sectorTasks = showAllTasks ? tasks.filter((t) => {
+    if (!t.sector) return false;
+    if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+    if (filterCategory !== "all" && t.category !== filterCategory) return false;
+    return true;
+  }) : [];
+
+  // Group sector tasks by sector
+  const sectorTasksGrouped: Record<string, any[]> = {};
+  sectorTasks.forEach((t) => {
+    if (!sectorTasksGrouped[t.sector]) sectorTasksGrouped[t.sector] = [];
+    sectorTasksGrouped[t.sector].push(t);
   });
 
   // File helpers
@@ -396,7 +411,6 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                           </div>
                           {task.responsible && <p className="text-[9px] text-white/80 drop-shadow-sm">👤 {task.responsible}</p>}
                           {task.due_date && <p className="text-[9px] text-white/80 drop-shadow-sm">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
-                          {showAllTasks && task.sector && <p className="text-[9px] text-white/80 drop-shadow-sm">📍 {task.sector}</p>}
                           {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[9px] text-white/80 flex items-center gap-1 drop-shadow-sm"><Paperclip className="w-2.5 h-2.5" />{taskFileCounts[task.id]}</p>}
                         </div>
                       </div>
@@ -408,6 +422,49 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
           })}
         </div>
       </div>
+
+      {/* Tarefas dos setores quando showAllTasks está ativo */}
+      {showAllTasks && Object.keys(sectorTasksGrouped).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Tarefas nos setores ({sectorTasks.length})</h3>
+          {Object.entries(sectorTasksGrouped).map(([sector, sTasks]) => (
+            <div key={sector} className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">📍 {sector} ({sTasks.length})</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {sTasks.map((task: any) => {
+                  const statusGradients: Record<string, string> = {
+                    a_fazer: "from-slate-500 to-slate-700",
+                    em_andamento: "from-blue-500 to-blue-700",
+                    aguardando: "from-amber-500 to-amber-700",
+                    atrasada: "from-red-500 to-red-700",
+                    concluida: "from-emerald-500 to-emerald-700",
+                  };
+                  const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => openDetail(task)}
+                      className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-pointer"
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+                      <div className="relative p-2.5 space-y-1">
+                        <p className="text-xs font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge className="text-[8px] bg-white/20 text-white border-0 backdrop-blur-sm">{statusLabels[task.status]}</Badge>
+                          <Badge className="text-[8px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
+                        </div>
+                        {task.responsible && <p className="text-[9px] text-white/80">👤 {task.responsible}</p>}
+                        {task.due_date && <p className="text-[9px] text-white/80">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Dialog nova tarefa */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
