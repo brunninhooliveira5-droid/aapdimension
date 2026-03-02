@@ -242,10 +242,10 @@
     inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
 /* Text effects — applied globally via root class */
-.text-fx-shadow-subtle { text-shadow: 0 1px 2px hsl(0 0% 0% / 0.3); }
-.text-fx-shadow-medium { text-shadow: 0 1px 4px hsl(0 0% 0% / 0.5), 0 2px 8px hsl(0 0% 0% / 0.2); }
-.text-fx-shadow-strong { text-shadow: 0 2px 6px hsl(0 0% 0% / 0.6), 0 4px 16px hsl(0 0% 0% / 0.3); }
-.text-fx-neon { text-shadow: 0 0 6px hsl(var(--primary) / 0.6), 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--primary) / 0.15); }
+.text-fx-shadow-subtle { text-shadow: 0 1px 2px hsl(var(--text-fx-shadow-color, 0 0% 0%) / 0.3); }
+.text-fx-shadow-medium { text-shadow: 0 1px 4px hsl(var(--text-fx-shadow-color, 0 0% 0%) / 0.5), 0 2px 8px hsl(var(--text-fx-shadow-color, 0 0% 0%) / 0.2); }
+.text-fx-shadow-strong { text-shadow: 0 2px 6px hsl(var(--text-fx-shadow-color, 0 0% 0%) / 0.6), 0 4px 16px hsl(var(--text-fx-shadow-color, 0 0% 0%) / 0.3); }
+.text-fx-neon { text-shadow: 0 0 6px hsl(var(--text-fx-shadow-color, var(--primary)) / 0.6), 0 0 20px hsl(var(--text-fx-shadow-color, var(--primary)) / 0.3), 0 0 40px hsl(var(--text-fx-shadow-color, var(--primary)) / 0.15); }
 
 .text-wt-light { font-weight: 300 !important; }
 .text-wt-light * { font-weight: inherit; }
