@@ -35,7 +35,11 @@ export const ALL_WIDGETS: WidgetDefinition[] = [
   { key: "tips_card", label: "Sugestões / Feedback", fixed: true, defaultColSpan: 1 },
   { key: "pro_countdown_card", label: "Status PRO", defaultColSpan: 1 },
   { key: "financial_status_card", label: "Status Financeiro", defaultColSpan: 1 },
-  { key: "stats_grid", label: "Indicadores Rápidos", defaultColSpan: 4 },
+  { key: "stat_active_machines", label: "Máquinas Ativas", defaultColSpan: 1 },
+  { key: "stat_open_invoices", label: "Faturas em Aberto", defaultColSpan: 1 },
+  { key: "stat_overdue_invoices", label: "Faturas em Atraso", defaultColSpan: 1 },
+  { key: "stat_next_maintenance", label: "Próxima Manutenção", defaultColSpan: 1 },
+  { key: "stat_cutting_services", label: "Serviços de Corte", defaultColSpan: 1 },
   { key: "bulletins_card", label: "Boletins Técnicos", requiredAccess: ["boletins"], defaultColSpan: 2 },
   { key: "support_tickets_card", label: "Chamados Recentes", requiredAccess: ["suporte"], defaultColSpan: 2 },
   { key: "maintenance_card", label: "Manutenções Próximas", requiredAccess: ["manutencao"], defaultColSpan: 2 },
@@ -46,19 +50,23 @@ export const ALL_WIDGETS: WidgetDefinition[] = [
 
 const rolePresets: Record<string, string[]> = {
   admin_master: [
-    "tips_card", "stats_grid", "bulletins_card", "support_tickets_card",
-    "maintenance_card", "cutting_quote_shortcut",
+    "tips_card", "stat_active_machines", "stat_open_invoices", "stat_overdue_invoices",
+    "stat_next_maintenance", "stat_cutting_services",
+    "bulletins_card", "support_tickets_card", "maintenance_card", "cutting_quote_shortcut",
   ],
   admin: [
-    "tips_card", "pro_countdown_card", "financial_status_card", "stats_grid",
+    "tips_card", "pro_countdown_card", "financial_status_card",
+    "stat_open_invoices", "stat_overdue_invoices", "stat_next_maintenance",
     "support_tickets_card", "maintenance_card",
   ],
   operador: [
-    "tips_card", "pro_countdown_card", "financial_status_card", "stats_grid",
+    "tips_card", "pro_countdown_card", "financial_status_card",
+    "stat_open_invoices", "stat_overdue_invoices", "stat_next_maintenance",
     "support_tickets_card", "maintenance_card",
   ],
   financeiro: [
-    "tips_card", "pro_countdown_card", "financial_status_card", "stats_grid",
+    "tips_card", "pro_countdown_card", "financial_status_card",
+    "stat_open_invoices", "stat_overdue_invoices",
   ],
   servico: [
     "tips_card", "cutting_quote_shortcut",
