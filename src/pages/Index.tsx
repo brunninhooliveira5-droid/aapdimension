@@ -290,20 +290,13 @@ const Index = () => {
     ? openInvoices.reduce((a, b) => a.due_date < b.due_date ? a : b)
     : null;
 
-  const handleReorder = useCallback((newVisibleCards: DashboardCardItem[]) => {
-    // Merge reordered visible cards with hidden cards
-    const visibleKeys = new Set(newVisibleCards.map(c => c.key));
-    const hiddenCards = cards.filter(c => !visibleKeys.has(c.key));
-    const merged = [
-      ...newVisibleCards.map((c, i) => ({ ...c, order: i })),
-      ...hiddenCards.map((c, i) => ({ ...c, order: newVisibleCards.length + i })),
-    ];
+  const handleLayoutChange = useCallback((updatedCards: DashboardCardItem[]) => {
+    // Merge updated visible cards with hidden cards
+    const updatedKeys = new Set(updatedCards.map(c => c.key));
+    const hiddenCards = cards.filter(c => !updatedKeys.has(c.key));
+    const merged = [...updatedCards, ...hiddenCards];
     setCards(merged);
   }, [cards, setCards]);
-
-  const handleResizeCard = useCallback((key: string, colSpan: number) => {
-    setCards(prev => prev.map(c => c.key === key ? { ...c, colSpan } : c));
-  }, [setCards]);
 
   const handleSaveOrder = useCallback(async () => {
     await saveCards(cards);
@@ -519,8 +512,7 @@ const Index = () => {
         <DraggableDashboardGrid
           cards={visibleCards}
           editMode={editMode && !dashboardLocked}
-          onReorder={handleReorder}
-          onResizeCard={handleResizeCard}
+          onLayoutChange={handleLayoutChange}
           renderCard={renderCard}
         />
       )}

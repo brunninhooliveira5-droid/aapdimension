@@ -17,6 +17,11 @@ export interface DashboardCardItem {
   order: number;
   /** Column span: 1 | 2 | 3 | 4 (default 1) */
   colSpan?: number;
+  /** Grid position for react-grid-layout */
+  gridX?: number;
+  gridY?: number;
+  gridW?: number;
+  gridH?: number;
   /** For shortcuts only */
   targetRoute?: string;
 }

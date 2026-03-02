@@ -1,125 +1,137 @@
-import { ReactNode, useCallback } from "react";
-import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext, sortableKeyboardCoordinates,
-  useSortable, rectSortingStrategy, arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Maximize2, Minimize2 } from "lucide-react";
+import { ReactNode, useCallback, useMemo, useRef } from "react";
+// @ts-ignore - react-grid-layout CJS exports
+import { Responsive, WidthProvider } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+import { GripVertical } from "lucide-react";
 import { DashboardCardItem } from "@/hooks/useDashboardLayout";
 
-const SPAN_OPTIONS = [1, 2, 3, 4] as const;
-const SPAN_LABELS: Record<number, string> = { 1: "1col", 2: "2col", 3: "3col", 4: "4col" };
-const COL_SPAN_CLASS: Record<number, string> = {
-  1: "",
-  2: "sm:col-span-2",
-  3: "sm:col-span-2 lg:col-span-3",
-  4: "sm:col-span-2 lg:col-span-3 xl:col-span-4",
-};
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
-interface SortableCardProps {
-  id: string;
-  children: ReactNode;
-  editMode: boolean;
-  colSpan: number;
-  onCycleSize?: () => void;
+interface LayoutItem {
+  i: string; x: number; y: number; w: number; h: number;
+  minW?: number; minH?: number;
 }
 
-function SortableCard({ id, children, editMode, colSpan, onCycleSize }: SortableCardProps) {
-  const {
-    attributes, listeners, setNodeRef, transform, transition, isDragging,
-  } = useSortable({ id, disabled: !editMode });
+const COLS = { lg: 4, md: 3, sm: 2, xs: 1 };
+const ROW_HEIGHT = 120;
+const MARGIN: [number, number] = [16, 16];
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : undefined,
-    opacity: isDragging ? 0.7 : 1,
-  };
+/** Default height for different widget types */
+function defaultH(card: DashboardCardItem): number {
+  const key = card.key;
+  if (
+    key === "support_tickets_card" ||
+    key === "maintenance_card" ||
+    key === "bulletins_card" ||
+    key === "recent_files_card"
+  ) return 3;
+  if (key === "financial_status_card") return 2;
+  return 1;
+}
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`relative group h-full ${COL_SPAN_CLASS[colSpan] ?? ""}`}
-    >
-      {editMode && (
-        <div className="absolute -top-2 -left-2 z-10 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            {...attributes}
-            {...listeners}
-            className="p-1 rounded-md bg-primary text-primary-foreground shadow-md cursor-grab active:cursor-grabbing"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onCycleSize?.(); }}
-            className="p-1 rounded-md bg-secondary text-secondary-foreground shadow-md hover:bg-accent transition-colors"
-            title={`Tamanho: ${SPAN_LABELS[colSpan]} → ${SPAN_LABELS[colSpan >= 4 ? 1 : colSpan + 1]}`}
-          >
-            {colSpan >= 2 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-          <span className="text-[9px] font-medium bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded shadow-md">
-            {SPAN_LABELS[colSpan]}
-          </span>
-        </div>
-      )}
-      {children}
-    </div>
-  );
+/** Build layout from cards, auto-placing if no grid positions stored */
+function buildLayout(cards: DashboardCardItem[]): LayoutItem[] {
+  const hasPositions = cards.some(c => c.gridX != null && c.gridY != null);
+
+  if (hasPositions) {
+    return cards.map(card => ({
+      i: card.key,
+      x: card.gridX ?? 0,
+      y: card.gridY ?? 0,
+      w: card.gridW ?? card.colSpan ?? 1,
+      h: card.gridH ?? defaultH(card),
+      minW: 1,
+      minH: 1,
+    }));
+  }
+
+  // Auto-place cards in a simple top-to-bottom flow (4 cols)
+  const layout: LayoutItem[] = [];
+  let col = 0;
+  let row = 0;
+  let rowMaxH = 0;
+
+  for (const card of cards) {
+    const w = card.colSpan ?? 1;
+    const h = defaultH(card);
+    if (col + w > 4) {
+      col = 0;
+      row += rowMaxH;
+      rowMaxH = 0;
+    }
+    layout.push({ i: card.key, x: col, y: row, w, h, minW: 1, minH: 1 });
+    col += w;
+    rowMaxH = Math.max(rowMaxH, h);
+  }
+
+  return layout;
 }
 
 interface Props {
   cards: DashboardCardItem[];
   editMode: boolean;
-  onReorder: (cards: DashboardCardItem[]) => void;
-  onResizeCard: (key: string, colSpan: number) => void;
+  onLayoutChange: (cards: DashboardCardItem[]) => void;
   renderCard: (card: DashboardCardItem) => ReactNode;
 }
 
-export function DraggableDashboardGrid({ cards, editMode, onReorder, onResizeCard, renderCard }: Props) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+export function DraggableDashboardGrid({ cards, editMode, onLayoutChange, renderCard }: Props) {
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = cards.findIndex(c => c.key === active.id);
-      const newIndex = cards.findIndex(c => c.key === over.id);
-      onReorder(arrayMove(cards, oldIndex, newIndex));
-    }
-  }, [cards, onReorder]);
+  const layouts = useMemo(() => {
+    const lg = buildLayout(cards);
+    return { lg };
+  }, [cards]);
 
-  const cycleSize = useCallback((key: string, currentSpan: number) => {
-    const nextSpan = currentSpan >= 4 ? 1 : currentSpan + 1;
-    onResizeCard(key, nextSpan);
-  }, [onResizeCard]);
+  const handleLayoutChange = useCallback((layout: LayoutItem[]) => {
+    if (!editMode) return;
+    const currentCards = cardsRef.current;
+    const updated = currentCards.map(card => {
+      const item = layout.find(l => l.i === card.key);
+      if (!item) return card;
+      return {
+        ...card,
+        gridX: item.x,
+        gridY: item.y,
+        gridW: item.w,
+        gridH: item.h,
+        colSpan: item.w,
+        order: item.y * 100 + item.x,
+      };
+    });
+    onLayoutChange(updated);
+  }, [editMode, onLayoutChange]);
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={cards.map(c => c.key)} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {cards.map(card => {
-            const span = card.colSpan ?? 1;
-            return (
-              <SortableCard
-                key={card.key}
-                id={card.key}
-                editMode={editMode}
-                colSpan={span}
-                onCycleSize={() => cycleSize(card.key, span)}
-              >
-                {renderCard(card)}
-              </SortableCard>
-            );
-          })}
-        </div>
-      </SortableContext>
-    </DndContext>
+    <div className="dashboard-grid-container">
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={layouts}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 0 }}
+        cols={COLS}
+        rowHeight={ROW_HEIGHT}
+        margin={MARGIN}
+        isDraggable={editMode}
+        isResizable={editMode}
+        draggableHandle=".grid-drag-handle"
+        onLayoutChange={handleLayoutChange}
+        useCSSTransforms
+        compactType="vertical"
+      >
+        {cards.map(card => (
+          <div key={card.key} className="relative group h-full">
+            {editMode && (
+              <div className="grid-drag-handle absolute -top-2 -left-2 z-10 p-1 rounded-md bg-primary text-primary-foreground shadow-md cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="w-3.5 h-3.5" />
+              </div>
+            )}
+            <div className="h-full overflow-hidden">
+              {renderCard(card)}
+            </div>
+          </div>
+        ))}
+      </ResponsiveGridLayout>
+    </div>
   );
 }
