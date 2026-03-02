@@ -206,8 +206,8 @@ export function DimensionRoutines() {
       .eq("routine_id", activatingRoutine.id);
 
     if (templateFiles && templateFiles.length > 0) {
-      for (const tf of templateFiles) {
-        const taskId = createdTasks[tf.task_index]?.id;
+      for (const tf of templateFiles as any[]) {
+        const taskId = (createdTasks as any[])[tf.task_index]?.id;
         if (!taskId) continue;
 
         const newPath = `tasks/${taskId}/${crypto.randomUUID()}-${tf.file_name}`;
