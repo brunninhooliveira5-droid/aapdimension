@@ -21,6 +21,8 @@ export interface PricingData {
   avgCutSpeed: number;       // mm/min — velocidade base do simulador
   profitMarginPercent: number; // margem de lucro configurada
   pricingMode: PricingMode;
+  fixedCostPerMinute: number;
+  machineCostPerMinute: number;
   // Admin override limits
   minSpeedOverrideMMmin: number;
   maxSpeedOverrideMMmin: number;
@@ -111,14 +113,17 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
   const minPrice = costPerMinute * 1.15; // preço mínimo sustentável (15% acima do custo)
   const suggestedPrice = costPerMinute * marginMultiplier;
 
+  const fixedCostPerMinute = productiveHours > 0 ? totalFixed / (productiveHours * 60) : 0;
+  const machineCostPerMinute = productiveHours > 0 ? totalMachine / (productiveHours * 60) : 0;
+
   useEffect(() => {
     onPricingChange({
       costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
-      pricingMode,
+      pricingMode, fixedCostPerMinute, machineCostPerMinute,
       minSpeedOverrideMMmin: minSpeedOverride, maxSpeedOverrideMMmin: maxSpeedOverride, maxPassesOverride,
       allowUserOverrideSpeed: allowOverrideSpeed, allowUserOverridePasses: allowOverridePasses,
     });
-  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin, pricingMode, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
+  }, [costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMargin, pricingMode, fixedCostPerMinute, machineCostPerMinute, minSpeedOverride, maxSpeedOverride, maxPassesOverride, allowOverrideSpeed, allowOverridePasses]);
 
   // Auto-save with debounce
   const saveSettings = useCallback(async () => {

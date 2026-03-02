@@ -33,6 +33,8 @@ export default function CuttingQuotePage() {
     avgCutSpeed: 0,
     profitMarginPercent: 30,
     pricingMode: 'time',
+    fixedCostPerMinute: 0,
+    machineCostPerMinute: 0,
     minSpeedOverrideMMmin: 500,
     maxSpeedOverrideMMmin: 12000,
     maxPassesOverride: 10,
@@ -57,6 +59,8 @@ export default function CuttingQuotePage() {
     const totalFixed = (Number(data.rent) || 0) + (Number(data.electricity) || 0) + (Number(data.internet) || 0) + (Number(data.other_fixed) || 0);
     const totalMachine = (Number(data.machine_cost) || 0) + (Number(data.gas_consumable) || 0) + (Number(data.maintenance_cost) || 0) + (Number(data.other_machine) || 0);
     const totalMonthlyCost = totalFixed + totalMachine;
+    const fixedCostPerMinute = productiveHours > 0 ? totalFixed / (productiveHours * 60) : 0;
+    const machineCostPerMinute = productiveHours > 0 ? totalMachine / (productiveHours * 60) : 0;
 
     const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
     const costPerMinute = costPerHour / 60;
@@ -67,7 +71,7 @@ export default function CuttingQuotePage() {
 
     return {
       costPerHour, costPerMinute, costPerMeter, minPrice, suggestedPrice, avgCutSpeed, profitMarginPercent: profitMargin,
-      pricingMode: (data as any).pricing_mode || 'time',
+      pricingMode: (data as any).pricing_mode || 'time', fixedCostPerMinute, machineCostPerMinute,
       minSpeedOverrideMMmin: Number(data.min_speed_override_mmmin) || 500,
       maxSpeedOverrideMMmin: Number(data.max_speed_override_mmmin) || 12000,
       maxPassesOverride: Number(data.max_passes_override) || 10,
