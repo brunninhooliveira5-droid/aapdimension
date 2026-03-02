@@ -1,6 +1,6 @@
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Camera, Video, Image, Move, Save, LayoutTemplate } from "lucide-react";
+import { Camera, Video, Image, Move, Save, LayoutTemplate, Cpu, DollarSign, AlertTriangle, Calendar, Scissors } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,10 +16,10 @@ import {
 import { BulletinCard } from "@/components/BulletinCard";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { ProStatusCard } from "@/components/ProStatusCard";
+import { StatCard } from "@/components/StatCard";
 import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
 import { DraggableDashboardGrid } from "@/components/dashboard/DraggableDashboardGrid";
 import { useDashboardLayout, DashboardCardItem } from "@/hooks/useDashboardLayout";
-import { StatsGridWidget } from "@/components/dashboard/widgets/StatsGridWidget";
 import { FinancialStatusWidget } from "@/components/dashboard/widgets/FinancialStatusWidget";
 import { TicketsWidget } from "@/components/dashboard/widgets/TicketsWidget";
 import { MaintenanceWidget } from "@/components/dashboard/widgets/MaintenanceWidget";
@@ -353,21 +353,44 @@ const Index = () => {
             overdueInvoices={overdueInvoices}
           />
         );
-      case "stats_grid":
+      case "stat_active_machines":
         return (
-          <StatsGridWidget
-            isAdminMaster={!!isAdminMaster}
-            isViewingUser={isViewingUser}
-            totalMachines={totalMachines}
-            openInvoicesCount={openInvoices.length}
-            overdueInvoicesCount={overdueInvoices.length}
-            nextDueDate={nextDueInvoice ? new Date(nextDueInvoice.due_date).toLocaleDateString("pt-BR") : null}
-            nextMaintenanceDate={upcomingMaintenances.length > 0 ? new Date(upcomingMaintenances[0].scheduled_date).toLocaleDateString("pt-BR") : null}
-            nextMaintenanceInfo={upcomingMaintenances.length > 0 ? `${upcomingMaintenances[0].machine_model} • ${upcomingMaintenances[0].type}` : null}
-            pendingServiceQuotes={pendingServiceQuotes}
-            onShowOpen={() => setShowOpenDialog(true)}
-            onShowOverdue={() => setShowOverdueDialog(true)}
-          />
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/maquinas")}>
+            <StatCard title="Máquinas Ativas" value={totalMachines} subtitle="Total cadastradas" icon={Cpu} variant="highlight" />
+          </div>
+        );
+      case "stat_open_invoices":
+        return (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOpenDialog(true)}>
+            <StatCard title="Faturas em Aberto" value={openInvoices.length}
+              subtitle={nextDueInvoice ? `Próx. venc. ${new Date(nextDueInvoice.due_date).toLocaleDateString("pt-BR")}` : "Nenhum"}
+              icon={DollarSign} variant="warning" />
+          </div>
+        );
+      case "stat_overdue_invoices":
+        return (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => setShowOverdueDialog(true)}>
+            <StatCard title="Faturas em Atraso" value={overdueInvoices.length}
+              subtitle={overdueInvoices.length > 0 ? "Requerem atenção" : "Nenhum atraso"}
+              icon={AlertTriangle} variant={overdueInvoices.length > 0 ? "danger" : "default"} />
+          </div>
+        );
+      case "stat_next_maintenance":
+        return (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/manutencao")}>
+            <StatCard title="Próxima Manutenção"
+              value={upcomingMaintenances.length > 0 ? new Date(upcomingMaintenances[0].scheduled_date).toLocaleDateString("pt-BR") : "—"}
+              subtitle={upcomingMaintenances.length > 0 ? `${upcomingMaintenances[0].machine_model} • ${upcomingMaintenances[0].type}` : undefined}
+              icon={Calendar} />
+          </div>
+        );
+      case "stat_cutting_services":
+        return (
+          <div className="cursor-pointer transition-transform hover:scale-[1.02]" onClick={() => navigate("/orcamento?tab=clients")}>
+            <StatCard title="Serviços de Corte" value={pendingServiceQuotes}
+              subtitle={pendingServiceQuotes > 0 ? "Pendentes de finalização" : "Todos finalizados"}
+              icon={Scissors} variant={pendingServiceQuotes > 0 ? "warning" : "default"} />
+          </div>
         );
       case "bulletins_card":
         return <BulletinCard />;
