@@ -290,7 +290,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
       <div className="flex items-center justify-between">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
           {kpis.map((kpi) => (
-            <Card key={kpi.label} className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" onClick={() => setKpiDialog(kpi.key)}>
+            <Card key={kpi.label} data-negative={kpi.key === "overdue" && kpi.value > 0 ? "true" : undefined} className="app-card cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" onClick={() => setKpiDialog(kpi.key)}>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={`p-2 rounded-lg bg-muted ${kpi.color}`}>
                   <kpi.icon className="h-5 w-5" />
