@@ -4841,6 +4841,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_layout: {
+        Row: {
+          layout: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          layout?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          layout?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_login_events: {
         Row: {
           id: string
