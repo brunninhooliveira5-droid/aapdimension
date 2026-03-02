@@ -19,7 +19,7 @@ const variantClasses = {
 
 export function StatCard({ title, value, subtitle, icon: Icon, variant = "default", className }: StatCardProps) {
   return (
-    <div className={cn("rounded-lg border p-5 animate-fade-in", variantClasses[variant], className)}>
+    <div data-negative={variant === "danger" ? "true" : undefined} className={cn("rounded-lg border p-5 animate-fade-in", variantClasses[variant], className)}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
