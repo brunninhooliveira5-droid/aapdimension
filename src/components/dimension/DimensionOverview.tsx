@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X, Pencil, Trash2 } from "lucide-react";
+import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Download, FileImage, FileText, File as FileIcon, X, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [detailTask, setDetailTask] = useState<any>(null);
   const [editForm, setEditForm] = useState({ title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer", category: "producao" });
+  const [showAllTasks, setShowAllTasks] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
 
   // File management state
@@ -97,7 +98,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   // Only show tasks without a sector in the overview kanban
   const overviewTasks = tasks.filter((t) => {
-    if (t.sector) return false;
+    if (!showAllTasks && t.sector) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     if (filterCategory !== "all" && t.category !== filterCategory) return false;
     return true;
@@ -286,12 +287,18 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
       {/* Kanban de tarefas sem setor */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground">Tarefas não distribuídas ({overviewTasks.length})</h3>
-          {onNavigateToTasks && (
-            <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={onNavigateToTasks}>
-              Ver todas →
-            </Button>
-          )}
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            {showAllTasks ? "Todas as tarefas" : "Tarefas não distribuídas"} ({overviewTasks.length})
+          </h3>
+          <Button
+            variant={showAllTasks ? "secondary" : "outline"}
+            size="sm"
+            className="text-[10px] h-7 gap-1.5"
+            onClick={() => setShowAllTasks(!showAllTasks)}
+          >
+            {showAllTasks ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {showAllTasks ? "Só não distribuídas" : "Ver todas as tarefas"}
+          </Button>
         </div>
         <div className="flex items-center gap-2 -mt-1">
           <p className="text-[10px] text-muted-foreground">Arraste tarefas para os setores acima para distribuí-las</p>
@@ -377,6 +384,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                       </div>
                       {task.responsible && <p className="text-[9px] text-muted-foreground">👤 {task.responsible}</p>}
                       {task.due_date && <p className="text-[9px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                      {showAllTasks && task.sector && <p className="text-[9px] text-muted-foreground">📍 {task.sector}</p>}
                       {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[9px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-2.5 h-2.5" />{taskFileCounts[task.id]}</p>}
                     </div>
                   ))}
