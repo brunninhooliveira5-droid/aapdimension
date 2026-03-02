@@ -50,6 +50,7 @@ const assignableRoles: { value: UserRole; label: string }[] = [
   { value: "operador", label: "Operador" },
   { value: "financeiro", label: "Financeiro" },
   { value: "servico", label: "Serviço" },
+  { value: "usuario_interno", label: "Usuário Interno" },
 ];
 
 const UsersPage = () => {

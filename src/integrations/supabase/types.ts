@@ -4273,7 +4273,13 @@ export type Database = {
       stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin_master" | "admin" | "operador" | "financeiro" | "servico"
+      app_role:
+        | "admin_master"
+        | "admin"
+        | "operador"
+        | "financeiro"
+        | "servico"
+        | "usuario_interno"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4401,7 +4407,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin_master", "admin", "operador", "financeiro", "servico"],
+      app_role: [
+        "admin_master",
+        "admin",
+        "operador",
+        "financeiro",
+        "servico",
+        "usuario_interno",
+      ],
     },
   },
 } as const

@@ -73,6 +73,7 @@ const BulletinsPage = () => {
     { value: "operador", label: roleLabels.operador },
     { value: "financeiro", label: roleLabels.financeiro },
     { value: "servico", label: roleLabels.servico },
+    { value: "usuario_interno", label: roleLabels.usuario_interno },
   ];
 
   const fetchBulletins = async () => {
