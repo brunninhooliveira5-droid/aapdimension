@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, DollarSign, AlertTriangle, PackageX, BookmarkCheck, ArrowDownUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -8,55 +9,55 @@ import { format, subMonths, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export function InventoryDashboard() {
+  const { tables } = useModule();
+
   const { data: items = [] } = useQuery({
-    queryKey: ["inventory-items-dashboard"],
+    queryKey: [tables.inventoryItems, "dashboard"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("inventory_items").select("*").eq("is_active", true);
+      const { data, error } = await supabase.from(tables.inventoryItems as any).select("*").eq("is_active", true);
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const { data: movements = [] } = useQuery({
-    queryKey: ["inventory-movements-dashboard"],
+    queryKey: [tables.inventoryMovements, "dashboard"],
     queryFn: async () => {
       const sixMonthsAgo = subMonths(new Date(), 6).toISOString();
       const { data, error } = await supabase
-        .from("inventory_movements")
-        .select("*, inventory_items(name)")
+        .from(tables.inventoryMovements as any)
+        .select(`*, ${tables.inventoryItems}(name)`)
         .gte("created_at", sixMonthsAgo)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const totalItems = items.length;
-  const totalValue = items.reduce((sum, i) => sum + Number(i.current_quantity) * Number(i.avg_cost || i.unit_cost), 0);
-  const belowMin = items.filter((i) => Number(i.current_quantity) <= Number(i.min_quantity) && Number(i.current_quantity) > 0).length;
-  const zeroItems = items.filter((i) => Number(i.current_quantity) === 0).length;
-  const reservedItems = items.filter((i) => Number(i.reserved_quantity) > 0).length;
+  const totalValue = items.reduce((sum: number, i: any) => sum + Number(i.current_quantity) * Number(i.avg_cost || i.unit_cost), 0);
+  const belowMin = items.filter((i: any) => Number(i.current_quantity) <= Number(i.min_quantity) && Number(i.current_quantity) > 0).length;
+  const zeroItems = items.filter((i: any) => Number(i.current_quantity) === 0).length;
+  const reservedItems = items.filter((i: any) => Number(i.reserved_quantity) > 0).length;
 
-  // Monthly entries vs exits
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
     const month = subMonths(new Date(), 5 - i);
     const monthStart = startOfMonth(month);
     const monthEnd = startOfMonth(subMonths(new Date(), 4 - i));
-    const monthMovements = movements.filter((m) => {
+    const monthMovements = movements.filter((m: any) => {
       const d = new Date(m.created_at);
       return d >= monthStart && (i === 5 || d < monthEnd);
     });
     return {
       month: format(month, "MMM", { locale: ptBR }),
-      entradas: monthMovements.filter((m) => m.movement_type === "entrada").reduce((s, m) => s + Number(m.quantity), 0),
-      saidas: monthMovements.filter((m) => m.movement_type === "saida").reduce((s, m) => s + Number(m.quantity), 0),
+      entradas: monthMovements.filter((m: any) => m.movement_type === "entrada").reduce((s: number, m: any) => s + Number(m.quantity), 0),
+      saidas: monthMovements.filter((m: any) => m.movement_type === "saida").reduce((s: number, m: any) => s + Number(m.quantity), 0),
     };
   });
 
-  // By type
   const typeMap: Record<string, number> = {};
-  items.forEach((i) => {
-    const label = { materia_prima: "Matéria-prima", componente: "Componente", consumivel: "Consumível", ferramenta: "Ferramenta", produto_acabado: "Produto Acabado" }[i.item_type] || i.item_type;
+  items.forEach((i: any) => {
+    const label = { materia_prima: "Matéria-prima", componente: "Componente", consumivel: "Consumível", ferramenta: "Ferramenta", produto_acabado: "Produto Acabado" }[i.item_type as string] || i.item_type;
     typeMap[label] = (typeMap[label] || 0) + 1;
   });
   const typeData = Object.entries(typeMap).map(([name, value]) => ({ name, value }));
@@ -135,9 +136,9 @@ export function InventoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {movements.slice(0, 8).map((m) => (
+              {movements.slice(0, 8).map((m: any) => (
                 <div key={m.id} className="flex items-center justify-between text-sm border-b pb-1">
-                  <span className="font-medium">{(m as any).inventory_items?.name || "Item"}</span>
+                  <span className="font-medium">{(m as any)[tables.inventoryItems]?.name || "Item"}</span>
                   <span className={m.movement_type === "entrada" ? "text-emerald-500" : "text-destructive"}>
                     {m.movement_type === "entrada" ? "+" : "-"}{Number(m.quantity)}
                   </span>

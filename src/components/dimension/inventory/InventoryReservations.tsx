@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,26 +24,27 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export function InventoryReservations() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", quantity: "", linked_order: "", linked_machine: "", notes: "" });
 
   const { data: reservations = [], isLoading } = useQuery({
-    queryKey: ["inventory-reservations"],
+    queryKey: [tables.inventoryReservations],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("inventory_reservations")
-        .select("*, inventory_items(name)")
+        .from(tables.inventoryReservations as any)
+        .select(`*, ${tables.inventoryItems}(name)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["inventory-items"],
+    queryKey: [tables.inventoryItems],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_items").select("id, name, current_quantity, reserved_quantity").eq("is_active", true).order("name");
+      const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, current_quantity, reserved_quantity").eq("is_active", true).order("name");
       return data || [];
     },
   });
@@ -52,7 +54,7 @@ export function InventoryReservations() {
       if (!form.item_id || !form.quantity) throw new Error("Item e quantidade obrigatórios");
       const qty = Number(form.quantity);
 
-      const { error } = await supabase.from("inventory_reservations").insert({
+      const { error } = await supabase.from(tables.inventoryReservations as any).insert({
         item_id: form.item_id,
         quantity: qty,
         linked_order: form.linked_order,
@@ -62,18 +64,17 @@ export function InventoryReservations() {
       });
       if (error) throw error;
 
-      // Update reserved qty on item
-      const { data: item } = await supabase.from("inventory_items").select("reserved_quantity").eq("id", form.item_id).single();
+      const { data: item } = await supabase.from(tables.inventoryItems as any).select("reserved_quantity").eq("id", form.item_id).single();
       if (item) {
-        await supabase.from("inventory_items").update({
-          reserved_quantity: Number(item.reserved_quantity) + qty,
+        await supabase.from(tables.inventoryItems as any).update({
+          reserved_quantity: Number((item as any).reserved_quantity) + qty,
         }).eq("id", form.item_id);
       }
     },
     onSuccess: () => {
       toast.success("Reserva criada!");
-      qc.invalidateQueries({ queryKey: ["inventory-reservations"] });
-      qc.invalidateQueries({ queryKey: ["inventory-items"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryReservations] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setOpen(false);
       setForm({ item_id: "", quantity: "", linked_order: "", linked_machine: "", notes: "" });
     },
@@ -82,32 +83,32 @@ export function InventoryReservations() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, item_id, quantity }: { id: string; status: string; item_id: string; quantity: number }) => {
-      await supabase.from("inventory_reservations").update({
+      await supabase.from(tables.inventoryReservations as any).update({
         status,
         consumed_at: status === "consumido" ? new Date().toISOString() : null,
       }).eq("id", id);
 
       if (status === "consumido") {
-        const { data: item } = await supabase.from("inventory_items").select("current_quantity, reserved_quantity").eq("id", item_id).single();
+        const { data: item } = await supabase.from(tables.inventoryItems as any).select("current_quantity, reserved_quantity").eq("id", item_id).single();
         if (item) {
-          await supabase.from("inventory_items").update({
-            current_quantity: Math.max(0, Number(item.current_quantity) - quantity),
-            reserved_quantity: Math.max(0, Number(item.reserved_quantity) - quantity),
+          await supabase.from(tables.inventoryItems as any).update({
+            current_quantity: Math.max(0, Number((item as any).current_quantity) - quantity),
+            reserved_quantity: Math.max(0, Number((item as any).reserved_quantity) - quantity),
           }).eq("id", item_id);
         }
       } else if (status === "cancelado") {
-        const { data: item } = await supabase.from("inventory_items").select("reserved_quantity").eq("id", item_id).single();
+        const { data: item } = await supabase.from(tables.inventoryItems as any).select("reserved_quantity").eq("id", item_id).single();
         if (item) {
-          await supabase.from("inventory_items").update({
-            reserved_quantity: Math.max(0, Number(item.reserved_quantity) - quantity),
+          await supabase.from(tables.inventoryItems as any).update({
+            reserved_quantity: Math.max(0, Number((item as any).reserved_quantity) - quantity),
           }).eq("id", item_id);
         }
       }
     },
     onSuccess: () => {
       toast.success("Reserva atualizada!");
-      qc.invalidateQueries({ queryKey: ["inventory-reservations"] });
-      qc.invalidateQueries({ queryKey: ["inventory-items"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryReservations] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
     },
   });
 
@@ -127,7 +128,7 @@ export function InventoryReservations() {
                   <Label>Item *</Label>
                   <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                    <SelectContent>{items.map((i: any) => <SelectItem key={i.id} value={i.id}>{i.name} (Disp: {Number(i.current_quantity) - Number(i.reserved_quantity)})</SelectItem>)}</SelectContent>
+                    <SelectContent>{(items as any[]).map((i) => <SelectItem key={i.id} value={i.id}>{i.name} (Disp: {Number(i.current_quantity) - Number(i.reserved_quantity)})</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div><Label>Quantidade *</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
@@ -146,7 +147,7 @@ export function InventoryReservations() {
       <CardContent>
         {isLoading ? (
           <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
-        ) : reservations.length === 0 ? (
+        ) : (reservations as any[]).length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhuma reserva.</p>
         ) : (
           <div className="overflow-auto">
@@ -163,11 +164,11 @@ export function InventoryReservations() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reservations.map((r) => {
+                {(reservations as any[]).map((r) => {
                   const s = STATUS_MAP[r.status] || { label: r.status, color: "" };
                   return (
                     <TableRow key={r.id}>
-                      <TableCell className="font-medium">{(r as any).inventory_items?.name}</TableCell>
+                      <TableCell className="font-medium">{r[tables.inventoryItems]?.name}</TableCell>
                       <TableCell className="text-right">{Number(r.quantity)}</TableCell>
                       <TableCell className="text-xs">{r.linked_order || "-"}</TableCell>
                       <TableCell className="text-xs">{r.linked_machine || "-"}</TableCell>

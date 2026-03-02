@@ -2681,6 +2681,509 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_inventory_alerts: {
+        Row: {
+          alert_type: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          item_id: string
+          message: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          alert_type?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          item_id: string
+          message?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          alert_type?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          item_id?: string
+          message?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_alerts_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_id: string | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_id?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_id?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_items: {
+        Row: {
+          avg_cost: number | null
+          category_id: string | null
+          compatible_with: string[] | null
+          created_at: string | null
+          created_by: string
+          current_quantity: number | null
+          id: string
+          ideal_quantity: number | null
+          image_url: string | null
+          internal_code: string | null
+          is_active: boolean | null
+          item_type: string | null
+          last_cost: number | null
+          location_id: string | null
+          min_quantity: number | null
+          name: string
+          reserved_quantity: number | null
+          subcategory: string | null
+          supplier_id: string | null
+          unit_cost: number | null
+          unit_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_cost?: number | null
+          category_id?: string | null
+          compatible_with?: string[] | null
+          created_at?: string | null
+          created_by: string
+          current_quantity?: number | null
+          id?: string
+          ideal_quantity?: number | null
+          image_url?: string | null
+          internal_code?: string | null
+          is_active?: boolean | null
+          item_type?: string | null
+          last_cost?: number | null
+          location_id?: string | null
+          min_quantity?: number | null
+          name: string
+          reserved_quantity?: number | null
+          subcategory?: string | null
+          supplier_id?: string | null
+          unit_cost?: number | null
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_cost?: number | null
+          category_id?: string | null
+          compatible_with?: string[] | null
+          created_at?: string | null
+          created_by?: string
+          current_quantity?: number | null
+          id?: string
+          ideal_quantity?: number | null
+          image_url?: string | null
+          internal_code?: string | null
+          is_active?: boolean | null
+          item_type?: string | null
+          last_cost?: number | null
+          location_id?: string | null
+          min_quantity?: number | null
+          name?: string
+          reserved_quantity?: number | null
+          subcategory?: string | null
+          supplier_id?: string | null
+          unit_cost?: number | null
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_inventory_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_inventory_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_inventory_items_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_locations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      pc_inventory_movements: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          destination: string | null
+          id: string
+          invoice_name: string | null
+          invoice_url: string | null
+          item_id: string
+          linked_machine: string | null
+          linked_project: string | null
+          movement_type: string | null
+          notes: string | null
+          quantity: number | null
+          reason: string | null
+          supplier_id: string | null
+          total_cost: number | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          destination?: string | null
+          id?: string
+          invoice_name?: string | null
+          invoice_url?: string | null
+          item_id: string
+          linked_machine?: string | null
+          linked_project?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          quantity?: number | null
+          reason?: string | null
+          supplier_id?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          destination?: string | null
+          id?: string
+          invoice_name?: string | null
+          invoice_url?: string | null
+          item_id?: string
+          linked_machine?: string | null
+          linked_project?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          quantity?: number | null
+          reason?: string | null
+          supplier_id?: string | null
+          total_cost?: number | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_inventory_movements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_reservations: {
+        Row: {
+          consumed_at: string | null
+          created_at: string | null
+          id: string
+          item_id: string
+          linked_machine: string | null
+          linked_order: string | null
+          linked_sheet_id: string | null
+          notes: string | null
+          quantity: number | null
+          reserved_by: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string | null
+          id?: string
+          item_id: string
+          linked_machine?: string | null
+          linked_order?: string | null
+          linked_sheet_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          reserved_by: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          linked_machine?: string | null
+          linked_order?: string | null
+          linked_sheet_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          reserved_by?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_reservations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_session_items: {
+        Row: {
+          actual_quantity: number | null
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string | null
+          difference: number | null
+          expected_quantity: number | null
+          id: string
+          item_id: string
+          notes: string | null
+          session_id: string
+        }
+        Insert: {
+          actual_quantity?: number | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          difference?: number | null
+          expected_quantity?: number | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          session_id: string
+        }
+        Update: {
+          actual_quantity?: number | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          difference?: number | null
+          expected_quantity?: number | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_session_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_inventory_session_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_inventory_sessions: {
+        Row: {
+          created_at: string | null
+          finished_at: string | null
+          id: string
+          started_by: string
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          started_by: string
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          started_by?: string
+          status?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      pc_inventory_settings: {
+        Row: {
+          allow_negative_stock: boolean | null
+          consumption_period_days: number | null
+          created_at: string | null
+          global_min_alert: number | null
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          allow_negative_stock?: boolean | null
+          consumption_period_days?: number | null
+          created_at?: string | null
+          global_min_alert?: number | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          allow_negative_stock?: boolean | null
+          consumption_period_days?: number | null
+          created_at?: string | null
+          global_min_alert?: number | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      pc_inventory_suppliers: {
+        Row: {
+          avg_delivery_days: number | null
+          contact_name: string | null
+          created_at: string | null
+          created_by: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          avg_delivery_days?: number | null
+          contact_name?: string | null
+          created_at?: string | null
+          created_by: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          avg_delivery_days?: number | null
+          contact_name?: string | null
+          created_at?: string | null
+          created_by?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      pc_inventory_units: {
+        Row: {
+          abbreviation: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          abbreviation: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          abbreviation?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       pc_pendencies: {
         Row: {
           category: string | null

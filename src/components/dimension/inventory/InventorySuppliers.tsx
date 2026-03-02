@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,23 +15,24 @@ import { toast } from "sonner";
 
 export function InventorySuppliers() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", contact_name: "", whatsapp: "", email: "", avg_delivery_days: "", notes: "" });
 
   const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ["inventory-suppliers"],
+    queryKey: [tables.inventorySuppliers],
     queryFn: async () => {
-      const { data, error } = await supabase.from("inventory_suppliers").select("*").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from(tables.inventorySuppliers as any).select("*").eq("is_active", true).order("name");
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const createSupplier = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Nome obrigatório");
-      const { error } = await supabase.from("inventory_suppliers").insert({
+      const { error } = await supabase.from(tables.inventorySuppliers as any).insert({
         name: form.name.trim(),
         contact_name: form.contact_name,
         whatsapp: form.whatsapp,
@@ -43,7 +45,7 @@ export function InventorySuppliers() {
     },
     onSuccess: () => {
       toast.success("Fornecedor cadastrado!");
-      qc.invalidateQueries({ queryKey: ["inventory-suppliers"] });
+      qc.invalidateQueries({ queryKey: [tables.inventorySuppliers] });
       setOpen(false);
       setForm({ name: "", contact_name: "", whatsapp: "", email: "", avg_delivery_days: "", notes: "" });
     },
@@ -83,7 +85,7 @@ export function InventorySuppliers() {
       <CardContent>
         {isLoading ? (
           <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
-        ) : suppliers.length === 0 ? (
+        ) : (suppliers as any[]).length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum fornecedor cadastrado.</p>
         ) : (
           <div className="overflow-auto">
@@ -98,7 +100,7 @@ export function InventorySuppliers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliers.map((s) => (
+                {(suppliers as any[]).map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{s.name}</TableCell>
                     <TableCell>{s.contact_name || "-"}</TableCell>

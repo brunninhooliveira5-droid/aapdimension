@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,30 +16,31 @@ import { format } from "date-fns";
 
 export function InventoryAudit() {
   const { session: authSession } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["inventory-sessions"],
+    queryKey: [tables.inventorySessions],
     queryFn: async () => {
-      const { data, error } = await supabase.from("inventory_sessions").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from(tables.inventorySessions as any).select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
   const { data: sessionItems = [] } = useQuery({
-    queryKey: ["inventory-session-items", selectedSession],
+    queryKey: [tables.inventorySessionItems, selectedSession],
     enabled: !!selectedSession,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("inventory_session_items")
-        .select("*, inventory_items(name, internal_code)")
+        .from(tables.inventorySessionItems as any)
+        .select(`*, ${tables.inventoryItems}(name, internal_code)`)
         .eq("session_id", selectedSession!);
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -46,30 +48,28 @@ export function InventoryAudit() {
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Título obrigatório");
 
-      // Create session
       const { data: session, error: sessErr } = await supabase
-        .from("inventory_sessions")
+        .from(tables.inventorySessions as any)
         .insert({ title: title.trim(), started_by: authSession?.user.id! })
         .select()
         .single();
       if (sessErr) throw sessErr;
 
-      // Add all active items
-      const { data: items } = await supabase.from("inventory_items").select("id, current_quantity").eq("is_active", true);
-      if (items && items.length > 0) {
-        const rows = items.map((i) => ({
-          session_id: session.id,
+      const { data: items } = await supabase.from(tables.inventoryItems as any).select("id, current_quantity").eq("is_active", true);
+      if (items && (items as any[]).length > 0) {
+        const rows = (items as any[]).map((i: any) => ({
+          session_id: (session as any).id,
           item_id: i.id,
           expected_quantity: Number(i.current_quantity),
         }));
-        await supabase.from("inventory_session_items").insert(rows);
+        await supabase.from(tables.inventorySessionItems as any).insert(rows);
       }
 
-      return session.id;
+      return (session as any).id;
     },
     onSuccess: (id) => {
       toast.success("Inventário iniciado!");
-      qc.invalidateQueries({ queryKey: ["inventory-sessions"] });
+      qc.invalidateQueries({ queryKey: [tables.inventorySessions] });
       setSelectedSession(id);
       setOpen(false);
       setTitle("");
@@ -79,13 +79,13 @@ export function InventoryAudit() {
 
   const updateActual = useMutation({
     mutationFn: async ({ id, actual }: { id: string; actual: number }) => {
-      await supabase.from("inventory_session_items").update({
+      await supabase.from(tables.inventorySessionItems as any).update({
         actual_quantity: actual,
         checked_by: authSession?.user.id!,
         checked_at: new Date().toISOString(),
       }).eq("id", id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["inventory-session-items"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [tables.inventorySessionItems] }),
   });
 
   return (
@@ -110,9 +110,9 @@ export function InventoryAudit() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {sessions.length > 0 && (
+        {(sessions as any[]).length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {sessions.map((s) => (
+            {(sessions as any[]).map((s) => (
               <Badge
                 key={s.id}
                 variant={selectedSession === s.id ? "default" : "outline"}
@@ -126,7 +126,7 @@ export function InventoryAudit() {
           </div>
         )}
 
-        {selectedSession && sessionItems.length > 0 && (
+        {selectedSession && (sessionItems as any[]).length > 0 && (
           <div className="overflow-auto">
             <Table>
               <TableHeader>
@@ -138,9 +138,9 @@ export function InventoryAudit() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sessionItems.map((si) => (
+                {(sessionItems as any[]).map((si) => (
                   <TableRow key={si.id}>
-                    <TableCell className="font-medium">{(si as any).inventory_items?.name}</TableCell>
+                    <TableCell className="font-medium">{si[tables.inventoryItems]?.name}</TableCell>
                     <TableCell className="text-right">{Number(si.expected_quantity)}</TableCell>
                     <TableCell className="text-right">
                       <Input
@@ -163,7 +163,7 @@ export function InventoryAudit() {
           </div>
         )}
 
-        {!selectedSession && sessions.length === 0 && (
+        {!selectedSession && (sessions as any[]).length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum inventário realizado.</p>
         )}
       </CardContent>

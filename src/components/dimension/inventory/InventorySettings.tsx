@@ -2,46 +2,44 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings, Plus, Trash2 } from "lucide-react";
+import { Settings, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export function InventorySettings() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const qc = useQueryClient();
 
-  // Settings
   const { data: settings } = useQuery({
-    queryKey: ["inventory-settings"],
+    queryKey: [tables.inventorySettings],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_settings").select("*").limit(1).single();
-      return data;
+      const { data } = await supabase.from(tables.inventorySettings as any).select("*").limit(1).single();
+      return data as any;
     },
   });
 
   const updateSettings = useMutation({
     mutationFn: async (updates: any) => {
       if (!settings) return;
-      await supabase.from("inventory_settings").update({ ...updates, updated_by: session?.user.id }).eq("id", settings.id);
+      await supabase.from(tables.inventorySettings as any).update({ ...updates, updated_by: session?.user.id }).eq("id", settings.id);
     },
     onSuccess: () => {
       toast.success("Configurações salvas!");
-      qc.invalidateQueries({ queryKey: ["inventory-settings"] });
+      qc.invalidateQueries({ queryKey: [tables.inventorySettings] });
     },
   });
 
-  // Categories
   const { data: categories = [] } = useQuery({
-    queryKey: ["inventory-categories"],
+    queryKey: [tables.inventoryCategories],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_categories").select("*").order("sort_order");
+      const { data } = await supabase.from(tables.inventoryCategories as any).select("*").order("sort_order");
       return data || [];
     },
   });
@@ -50,20 +48,19 @@ export function InventorySettings() {
   const addCategory = useMutation({
     mutationFn: async () => {
       if (!newCat.trim()) return;
-      await supabase.from("inventory_categories").insert({ name: newCat.trim() });
+      await supabase.from(tables.inventoryCategories as any).insert({ name: newCat.trim() });
     },
     onSuccess: () => {
       toast.success("Categoria criada!");
-      qc.invalidateQueries({ queryKey: ["inventory-categories"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryCategories] });
       setNewCat("");
     },
   });
 
-  // Units
   const { data: units = [] } = useQuery({
-    queryKey: ["inventory-units"],
+    queryKey: [tables.inventoryUnits],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_units").select("*").order("name");
+      const { data } = await supabase.from(tables.inventoryUnits as any).select("*").order("name");
       return data || [];
     },
   });
@@ -72,20 +69,19 @@ export function InventorySettings() {
   const addUnit = useMutation({
     mutationFn: async () => {
       if (!newUnit.name.trim() || !newUnit.abbreviation.trim()) return;
-      await supabase.from("inventory_units").insert({ name: newUnit.name.trim(), abbreviation: newUnit.abbreviation.trim() });
+      await supabase.from(tables.inventoryUnits as any).insert({ name: newUnit.name.trim(), abbreviation: newUnit.abbreviation.trim() });
     },
     onSuccess: () => {
       toast.success("Unidade criada!");
-      qc.invalidateQueries({ queryKey: ["inventory-units"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryUnits] });
       setNewUnit({ name: "", abbreviation: "" });
     },
   });
 
-  // Locations
   const { data: locations = [] } = useQuery({
-    queryKey: ["inventory-locations"],
+    queryKey: [tables.inventoryLocations],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_locations").select("*").order("name");
+      const { data } = await supabase.from(tables.inventoryLocations as any).select("*").order("name");
       return data || [];
     },
   });
@@ -94,18 +90,17 @@ export function InventorySettings() {
   const addLocation = useMutation({
     mutationFn: async () => {
       if (!newLoc.trim()) return;
-      await supabase.from("inventory_locations").insert({ name: newLoc.trim() });
+      await supabase.from(tables.inventoryLocations as any).insert({ name: newLoc.trim() });
     },
     onSuccess: () => {
       toast.success("Localização criada!");
-      qc.invalidateQueries({ queryKey: ["inventory-locations"] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryLocations] });
       setNewLoc("");
     },
   });
 
   return (
     <div className="space-y-4">
-      {/* Global Settings */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Settings className="h-4 w-4" />Configurações Gerais</CardTitle>
@@ -143,7 +138,6 @@ export function InventorySettings() {
         </CardContent>
       </Card>
 
-      {/* Categories */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Categorias</CardTitle>
@@ -154,14 +148,13 @@ export function InventorySettings() {
             <Button size="sm" onClick={() => addCategory.mutate()}><Plus className="h-4 w-4" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {categories.map((c: any) => (
+            {(categories as any[]).map((c) => (
               <span key={c.id} className="px-2 py-1 bg-muted rounded text-xs">{c.name}</span>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Units */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Unidades de Medida</CardTitle>
@@ -173,14 +166,13 @@ export function InventorySettings() {
             <Button size="sm" onClick={() => addUnit.mutate()}><Plus className="h-4 w-4" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {units.map((u: any) => (
+            {(units as any[]).map((u) => (
               <span key={u.id} className="px-2 py-1 bg-muted rounded text-xs">{u.name} ({u.abbreviation})</span>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Locations */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Localizações Físicas</CardTitle>
@@ -191,7 +183,7 @@ export function InventorySettings() {
             <Button size="sm" onClick={() => addLocation.mutate()}><Plus className="h-4 w-4" /></Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {locations.map((l: any) => (
+            {(locations as any[]).map((l) => (
               <span key={l.id} className="px-2 py-1 bg-muted rounded text-xs">{l.name}</span>
             ))}
           </div>

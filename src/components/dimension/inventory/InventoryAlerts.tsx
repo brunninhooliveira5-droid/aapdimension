@@ -1,35 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, AlertTriangle, PackageX, TrendingUp, ShoppingCart } from "lucide-react";
 
 export function InventoryAlerts() {
+  const { tables } = useModule();
+
   const { data: items = [] } = useQuery({
-    queryKey: ["inventory-items-alerts"],
+    queryKey: [tables.inventoryItems, "alerts"],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_items").select("*, inventory_units(abbreviation)").eq("is_active", true);
+      const { data } = await supabase.from(tables.inventoryItems as any).select(`*, ${tables.inventoryUnits}(abbreviation)`).eq("is_active", true);
       return data || [];
     },
   });
 
   const { data: movements = [] } = useQuery({
-    queryKey: ["inventory-movements-90d"],
+    queryKey: [tables.inventoryMovements, "90d"],
     queryFn: async () => {
       const d = new Date();
       d.setDate(d.getDate() - 90);
-      const { data } = await supabase.from("inventory_movements").select("item_id, quantity, movement_type").eq("movement_type", "saida").gte("created_at", d.toISOString());
+      const { data } = await supabase.from(tables.inventoryMovements as any).select("item_id, quantity, movement_type").eq("movement_type", "saida").gte("created_at", d.toISOString());
       return data || [];
     },
   });
 
-  // Generate alerts
   const alerts: { type: string; icon: any; color: string; message: string }[] = [];
 
-  items.forEach((item) => {
+  (items as any[]).forEach((item) => {
     const qty = Number(item.current_quantity);
     const min = Number(item.min_quantity);
-    const unit = (item as any).inventory_units?.abbreviation || "un";
+    const unit = item[tables.inventoryUnits]?.abbreviation || "un";
 
     if (qty === 0) {
       alerts.push({ type: "zerado", icon: PackageX, color: "text-destructive", message: `${item.name} — estoque ZERADO` });
@@ -37,9 +39,8 @@ export function InventoryAlerts() {
       alerts.push({ type: "baixo", icon: AlertTriangle, color: "text-amber-500", message: `${item.name} — estoque baixo (${qty} ${unit}, mín: ${min})` });
     }
 
-    // Consumption intelligence
-    const itemMovements = movements.filter((m) => m.item_id === item.id);
-    const totalOut = itemMovements.reduce((s, m) => s + Number(m.quantity), 0);
+    const itemMovements = (movements as any[]).filter((m) => m.item_id === item.id);
+    const totalOut = itemMovements.reduce((s: number, m: any) => s + Number(m.quantity), 0);
     const avgMonthly = totalOut / 3;
     if (avgMonthly > 0 && qty > 0) {
       const daysRemaining = Math.round((qty / avgMonthly) * 30);

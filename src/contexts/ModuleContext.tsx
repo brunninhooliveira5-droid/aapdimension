@@ -13,6 +13,18 @@ export interface ModuleConfig {
     routineTemplateFiles: string;
     goals: string;
     goalHistory: string;
+    // Inventory tables
+    inventoryItems: string;
+    inventoryMovements: string;
+    inventoryCategories: string;
+    inventoryUnits: string;
+    inventoryLocations: string;
+    inventorySuppliers: string;
+    inventoryReservations: string;
+    inventoryAlerts: string;
+    inventorySettings: string;
+    inventorySessions: string;
+    inventorySessionItems: string;
   };
   storage: {
     taskFiles: string;
@@ -33,6 +45,17 @@ export const dimensionConfig: ModuleConfig = {
     routineTemplateFiles: "dimension_routine_template_files",
     goals: "dimension_goals",
     goalHistory: "dimension_goal_history",
+    inventoryItems: "inventory_items",
+    inventoryMovements: "inventory_movements",
+    inventoryCategories: "inventory_categories",
+    inventoryUnits: "inventory_units",
+    inventoryLocations: "inventory_locations",
+    inventorySuppliers: "inventory_suppliers",
+    inventoryReservations: "inventory_reservations",
+    inventoryAlerts: "inventory_alerts",
+    inventorySettings: "inventory_settings",
+    inventorySessions: "inventory_sessions",
+    inventorySessionItems: "inventory_session_items",
   },
   storage: {
     taskFiles: "dimension-task-files",
@@ -53,10 +76,21 @@ export const productionControlConfig: ModuleConfig = {
     routineTemplateFiles: "pc_routine_template_files",
     goals: "pc_goals",
     goalHistory: "pc_goal_history",
+    inventoryItems: "pc_inventory_items",
+    inventoryMovements: "pc_inventory_movements",
+    inventoryCategories: "pc_inventory_categories",
+    inventoryUnits: "pc_inventory_units",
+    inventoryLocations: "pc_inventory_locations",
+    inventorySuppliers: "pc_inventory_suppliers",
+    inventoryReservations: "pc_inventory_reservations",
+    inventoryAlerts: "pc_inventory_alerts",
+    inventorySettings: "pc_inventory_settings",
+    inventorySessions: "pc_inventory_sessions",
+    inventorySessionItems: "pc_inventory_session_items",
   },
   storage: {
     taskFiles: "pc-task-files",
-    productionImages: "dimension-production-images", // reuse same bucket for images
+    productionImages: "dimension-production-images",
   },
 };
 
