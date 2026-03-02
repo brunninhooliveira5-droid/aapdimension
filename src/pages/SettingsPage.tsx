@@ -8,6 +8,7 @@ import { useAuth, roleLabels } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { hexToHsl, applyCustomBg } from "@/components/ThemeToggle";
+import { useUserAppearance } from "@/hooks/useUserAppearance";
 
 const presetColors = [
   { name: "Padrão", value: "" },
@@ -23,7 +24,8 @@ const presetColors = [
 ];
 
 const SettingsPage = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const { saveAppearance } = useUserAppearance(session?.user?.id ?? null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -46,6 +48,7 @@ const SettingsPage = () => {
       localStorage.removeItem("custom-bg-color");
     }
     applyCustomBg();
+    saveAppearance();
   };
 
   const applySidebarColor = (hex: string) => {
@@ -56,6 +59,7 @@ const SettingsPage = () => {
       localStorage.removeItem("custom-sidebar-color");
     }
     applyCustomBg();
+    saveAppearance();
   };
 
   const [customCard, setCustomCard] = useState(() => localStorage.getItem("custom-card-color") || "");
@@ -68,6 +72,7 @@ const SettingsPage = () => {
       localStorage.removeItem("custom-card-color");
     }
     applyCustomBg();
+    saveAppearance();
   };
 
   const [customFg, setCustomFg] = useState(() => localStorage.getItem("custom-fg-color") || "");
@@ -80,6 +85,7 @@ const SettingsPage = () => {
       localStorage.removeItem("custom-fg-color");
     }
     applyCustomBg();
+    saveAppearance();
   };
 
   const textFxOptions = [
@@ -124,6 +130,7 @@ const SettingsPage = () => {
       document.documentElement.style.removeProperty("--text-fx-shadow-color");
       localStorage.removeItem("custom-text-shadow-color");
     }
+    saveAppearance();
   };
 
   const applyTextOption = (options: { label: string; value: string }[], val: string, key: string, setter: (v: string) => void) => {
@@ -132,6 +139,7 @@ const SettingsPage = () => {
     options.forEach(o => { if (o.value) root.classList.remove(o.value); });
     if (val) { root.classList.add(val); localStorage.setItem(key, val); }
     else localStorage.removeItem(key);
+    saveAppearance();
   };
 
   const cardFxOptions = [
@@ -151,6 +159,7 @@ const SettingsPage = () => {
     if (val) root.classList.add(val);
     if (val) localStorage.setItem("card-fx", val);
     else localStorage.removeItem("card-fx");
+    saveAppearance();
   };
 
   const toggleCard3d = () => {
@@ -163,6 +172,7 @@ const SettingsPage = () => {
       document.documentElement.classList.remove("card-fx-3d");
       localStorage.removeItem("card-3d");
     }
+    saveAppearance();
   };
 
   const [cardFxColor, setCardFxColor] = useState(() => localStorage.getItem("custom-card-fx-color") || "");
@@ -175,6 +185,7 @@ const SettingsPage = () => {
       localStorage.removeItem("custom-card-fx-color");
     }
     applyCustomBg();
+    saveAppearance();
   };
 
   // Apply saved effects on mount
@@ -198,6 +209,7 @@ const SettingsPage = () => {
     else root.classList.remove("light");
     localStorage.setItem("theme", next);
     applyCustomBg();
+    saveAppearance();
   };
 
   // Sync if localStorage changes externally
