@@ -195,7 +195,7 @@ export function DimensionTasks() {
       <div
         draggable
         onDragStart={(e) => handleDragStart(e, task.id)}
-        onClick={() => !readOnly && openEdit(task)}
+        onClick={(e) => { if ((e.target as HTMLElement).closest('[data-delete-zone]')) return; !readOnly && openEdit(task); }}
         data-status={task.status}
         className="app-card relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing border border-transparent"
       >
@@ -208,7 +208,7 @@ export function DimensionTasks() {
               <div className="flex gap-0.5 shrink-0">
                 <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={() => openEdit(task)}><Pencil className="h-3 w-3" /></Button>
                 <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                  <AlertDialogTrigger asChild><Button data-delete-zone variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
                   <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                     <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}>Excluir</AlertDialogAction></AlertDialogFooter>
