@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target, Package } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
@@ -8,6 +8,7 @@ import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
+import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
 import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContext";
 
 const tabs = [
@@ -18,6 +19,7 @@ const tabs = [
   { value: "production", label: "Produção", icon: Factory },
   { value: "routines", label: "Rotinas", icon: RotateCcw },
   { value: "metas", label: "Metas", icon: Target },
+  { value: "estoque", label: "Estoque/Produção", icon: Package },
 ];
 
 export default function ProductionControlPage() {
@@ -52,6 +54,7 @@ export default function ProductionControlPage() {
           <TabsContent value="production"><DimensionProduction /></TabsContent>
           <TabsContent value="routines"><DimensionRoutines /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
+          <TabsContent value="estoque"><DimensionDocumentation /></TabsContent>
         </Tabs>
       </div>
     </ModuleProvider>
