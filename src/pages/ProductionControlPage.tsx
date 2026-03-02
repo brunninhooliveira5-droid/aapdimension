@@ -8,7 +8,7 @@ import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
-import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
+import { InventoryControl } from "@/components/dimension/inventory/InventoryControl";
 import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContext";
 
 const tabs = [
@@ -54,7 +54,7 @@ export default function ProductionControlPage() {
           <TabsContent value="production"><DimensionProduction /></TabsContent>
           <TabsContent value="routines"><DimensionRoutines /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
-          <TabsContent value="estoque"><DimensionDocumentation /></TabsContent>
+          <TabsContent value="estoque"><InventoryControl /></TabsContent>
         </Tabs>
       </div>
     </ModuleProvider>
