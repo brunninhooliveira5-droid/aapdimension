@@ -148,8 +148,15 @@
 }
 
 /* Card effects — targets .gradient-card and .app-card globally */
-/* --card-fx-color defaults to --primary; [data-status="atrasada"] forces red */
-[data-status="atrasada"] { --card-fx-color: 0 72% 51% !important; }
+/* Negative/overdue indicators automatically get red effect color */
+[data-status="atrasada"],
+[data-status="atrasado"],
+[data-negative="true"],
+.border-destructive\/30,
+.border-l-destructive,
+.border-destructive\/50 {
+  --card-fx-color: 0 72% 51% !important;
+}
 
 .card-fx-subtle .gradient-card,
 .card-fx-subtle .app-card {
