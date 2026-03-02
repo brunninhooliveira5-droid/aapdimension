@@ -53,45 +53,113 @@ export const ALL_WIDGETS: WidgetDefinition[] = [
   { key: "recent_files_card", label: "Arquivos Recentes", requiredAccess: ["arquivos"], defaultColSpan: 2 },
 ];
 
-const rolePresets: Record<string, string[]> = {
+/** Grid-positioned presets per role. Each entry: [key, x, y, w, h] */
+type GridPreset = [string, number, number, number, number][];
+
+const roleGridPresets: Record<string, GridPreset> = {
   admin_master: [
-    "tips_card", "stat_active_machines", "stat_open_invoices", "stat_overdue_invoices",
-    "stat_next_maintenance", "stat_cutting_services",
-    "bulletins_card", "support_tickets_card", "maintenance_card", "cutting_quote_shortcut",
+    // Row 0: Sugestões (span 2) + 2 KPIs
+    ["tips_card",              0, 0, 2, 1],
+    ["stat_active_machines",   2, 0, 1, 1],
+    ["stat_cutting_services",  3, 0, 1, 1],
+    // Row 1: 4 KPIs financeiros/manutenção
+    ["stat_open_invoices",     0, 1, 1, 1],
+    ["stat_overdue_invoices",  1, 1, 1, 1],
+    ["stat_next_maintenance",  2, 1, 1, 1],
+    ["cutting_quote_shortcut", 3, 1, 1, 1],
+    // Row 2: Painéis grandes (span 2 cada)
+    ["bulletins_card",         0, 2, 2, 3],
+    ["support_tickets_card",   2, 2, 2, 3],
+    // Row 5: Manutenção grande
+    ["maintenance_card",       0, 5, 2, 3],
   ],
   admin: [
-    "tips_card", "pro_countdown_card", "financial_status_card",
-    "stat_open_invoices", "stat_overdue_invoices", "stat_next_maintenance",
-    "support_tickets_card", "maintenance_card",
+    // Row 0: Sugestões + PRO + Financeiro
+    ["tips_card",              0, 0, 2, 1],
+    ["pro_countdown_card",     2, 0, 1, 1],
+    ["financial_status_card",  3, 0, 1, 2],
+    // Row 1: KPIs
+    ["stat_open_invoices",     0, 1, 1, 1],
+    ["stat_overdue_invoices",  1, 1, 1, 1],
+    ["stat_next_maintenance",  2, 1, 1, 1],
+    // Row 2: Painéis grandes
+    ["support_tickets_card",   0, 2, 2, 3],
+    ["maintenance_card",       2, 2, 2, 3],
   ],
   operador: [
-    "tips_card", "pro_countdown_card", "financial_status_card",
-    "stat_open_invoices", "stat_overdue_invoices", "stat_next_maintenance",
-    "support_tickets_card", "maintenance_card",
+    // Row 0: Sugestões + PRO + Financeiro
+    ["tips_card",              0, 0, 2, 1],
+    ["pro_countdown_card",     2, 0, 1, 1],
+    ["financial_status_card",  3, 0, 1, 2],
+    // Row 1: KPIs
+    ["stat_open_invoices",     0, 1, 1, 1],
+    ["stat_overdue_invoices",  1, 1, 1, 1],
+    ["stat_next_maintenance",  2, 1, 1, 1],
+    // Row 2: Painéis grandes
+    ["support_tickets_card",   0, 2, 2, 3],
+    ["maintenance_card",       2, 2, 2, 3],
   ],
   financeiro: [
-    "tips_card", "pro_countdown_card", "financial_status_card",
-    "stat_open_invoices", "stat_overdue_invoices",
+    // Row 0: Sugestões + PRO
+    ["tips_card",              0, 0, 2, 1],
+    ["pro_countdown_card",     2, 0, 1, 1],
+    ["financial_status_card",  3, 0, 1, 2],
+    // Row 1: KPIs financeiros
+    ["stat_open_invoices",     0, 1, 2, 1],
+    ["stat_overdue_invoices",  2, 1, 2, 1],
   ],
   servico: [
-    "tips_card", "cutting_quote_shortcut",
+    // Row 0: Sugestões + Atalho de corte
+    ["tips_card",              0, 0, 2, 1],
+    ["cutting_quote_shortcut", 2, 0, 1, 1],
   ],
   usuario_interno: [
-    "tips_card", "pro_countdown_card",
+    // Row 0: Sugestões + PRO
+    ["tips_card",              0, 0, 2, 1],
+    ["pro_countdown_card",     2, 0, 1, 1],
   ],
 };
 
 function getDefaultCards(role: UserRole): DashboardCardItem[] {
-  const preset = rolePresets[role] ?? rolePresets.operador;
-  return ALL_WIDGETS.map((w, i) => ({
-    id: `w_${w.key}`,
-    type: "widget" as CardType,
-    key: w.key,
-    title: w.label,
-    visible: preset.includes(w.key),
-    order: i,
-    colSpan: w.defaultColSpan ?? 1,
-  }));
+  const preset = roleGridPresets[role] ?? roleGridPresets.operador;
+  const presetMap = new Map(preset.map(([key, x, y, w, h]) => [key, { x, y, w, h }]));
+
+  const cards: DashboardCardItem[] = [];
+
+  // First add preset cards with grid positions
+  for (const [key, x, y, w, h] of preset) {
+    const def = ALL_WIDGETS.find(wd => wd.key === key);
+    cards.push({
+      id: `w_${key}`,
+      type: "widget" as CardType,
+      key,
+      title: def?.label ?? key,
+      visible: true,
+      order: y * 100 + x,
+      colSpan: w,
+      gridX: x,
+      gridY: y,
+      gridW: w,
+      gridH: h,
+    });
+  }
+
+  // Then add remaining widgets as hidden
+  for (const w of ALL_WIDGETS) {
+    if (!presetMap.has(w.key)) {
+      cards.push({
+        id: `w_${w.key}`,
+        type: "widget" as CardType,
+        key: w.key,
+        title: w.label,
+        visible: false,
+        order: 9999,
+        colSpan: w.defaultColSpan ?? 1,
+      });
+    }
+  }
+
+  return cards;
 }
 
 export function useDashboardLayout() {
