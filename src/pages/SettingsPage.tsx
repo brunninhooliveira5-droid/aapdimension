@@ -88,6 +88,7 @@ const SettingsPage = () => {
     { label: "Médio", value: "card-fx-medium" },
     { label: "Forte", value: "card-fx-strong" },
     { label: "Brilho", value: "card-fx-glow" },
+    { label: "3D", value: "card-fx-3d" },
   ];
   const [cardFx, setCardFx] = useState(() => localStorage.getItem("card-fx") || "");
 
@@ -98,6 +99,18 @@ const SettingsPage = () => {
     if (val) root.classList.add(val);
     if (val) localStorage.setItem("card-fx", val);
     else localStorage.removeItem("card-fx");
+  };
+
+  const [cardFxColor, setCardFxColor] = useState(() => localStorage.getItem("custom-card-fx-color") || "");
+
+  const applyCardFxColor = (hex: string) => {
+    setCardFxColor(hex);
+    if (hex) {
+      localStorage.setItem("custom-card-fx-color", hex);
+    } else {
+      localStorage.removeItem("custom-card-fx-color");
+    }
+    applyCustomBg();
   };
 
   // Apply saved card fx on mount
@@ -390,6 +403,30 @@ const SettingsPage = () => {
                 {o.label}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <Label className="text-xs text-muted-foreground shrink-0">Cor do efeito</Label>
+            <input
+              type="color"
+              value={cardFxColor || "#3b82f6"}
+              onChange={(e) => applyCardFxColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+            />
+            <Input
+              value={cardFxColor}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) applyCardFxColor(v);
+                setCardFxColor(v);
+              }}
+              placeholder="#3b82f6"
+              className="bg-accent border-border w-28 font-mono text-xs"
+            />
+            {cardFxColor && (
+              <Button variant="ghost" size="sm" onClick={() => applyCardFxColor("")} className="text-xs gap-1">
+                <RotateCcw className="w-3 h-3" /> Padrão
+              </Button>
+            )}
           </div>
         </div>
       </div>

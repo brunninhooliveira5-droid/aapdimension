@@ -23,10 +23,6 @@ export function hexToHsl(hex: string): string {
 }
 
 export function applyCustomBg() {
-  const saved = localStorage.getItem("custom-bg-color");
-  const savedSidebar = localStorage.getItem("custom-sidebar-color");
-  const savedCard = localStorage.getItem("custom-card-color");
-  const savedFg = localStorage.getItem("custom-fg-color");
   const pairs: [string, string][] = [
     ["--background", "custom-bg-color"],
     ["--sidebar-background", "custom-sidebar-color"],
@@ -36,6 +32,7 @@ export function applyCustomBg() {
     ["--popover-foreground", "custom-fg-color"],
     ["--accent-foreground", "custom-fg-color"],
     ["--sidebar-accent-foreground", "custom-fg-color"],
+    ["--card-fx-color", "custom-card-fx-color"],
   ];
   pairs.forEach(([prop, key]) => {
     const val = localStorage.getItem(key);
