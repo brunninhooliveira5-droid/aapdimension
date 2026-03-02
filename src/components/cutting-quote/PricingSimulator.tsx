@@ -359,7 +359,7 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       {/* Results */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
-          { label: "Custo Máquina/Mês", value: fmt(totalMachine), icon: Cog },
+          { label: "Custo Máquina/Hora", value: fmt(productiveHours > 0 ? totalMachine / productiveHours : 0), icon: Cog },
           { label: "Custo / Hora", value: fmt(costPerHour), icon: Clock },
           { label: "Custo / Minuto", value: fmt(costPerMinute), icon: Clock },
           { label: "Custo / Metro", value: fmt(costPerMeter), icon: Ruler },
