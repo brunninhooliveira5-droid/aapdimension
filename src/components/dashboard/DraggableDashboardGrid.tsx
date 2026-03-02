@@ -1,21 +1,18 @@
 import { ReactNode, useCallback, useMemo, useRef } from "react";
-// @ts-ignore - react-grid-layout CJS exports
-import { Responsive, WidthProvider } from "react-grid-layout";
+import { ResponsiveGridLayout, useContainerWidth, getCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { GripVertical } from "lucide-react";
 import { DashboardCardItem } from "@/hooks/useDashboardLayout";
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
+const COLS = { lg: 4, md: 3, sm: 2, xs: 1 };
+const ROW_HEIGHT = 120;
+const MARGIN: [number, number] = [16, 16];
 
 interface LayoutItem {
   i: string; x: number; y: number; w: number; h: number;
   minW?: number; minH?: number;
 }
-
-const COLS = { lg: 4, md: 3, sm: 2, xs: 1 };
-const ROW_HEIGHT = 120;
-const MARGIN: [number, number] = [16, 16];
 
 /** Default height for different widget types */
 function defaultH(card: DashboardCardItem): number {
@@ -46,7 +43,6 @@ function buildLayout(cards: DashboardCardItem[]): LayoutItem[] {
     }));
   }
 
-  // Auto-place cards in a simple top-to-bottom flow (4 cols)
   const layout: LayoutItem[] = [];
   let col = 0;
   let row = 0;
@@ -76,6 +72,7 @@ interface Props {
 }
 
 export function DraggableDashboardGrid({ cards, editMode, onLayoutChange, renderCard }: Props) {
+  const { width, containerRef } = useContainerWidth({ initialWidth: 1280 });
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
 
@@ -84,11 +81,13 @@ export function DraggableDashboardGrid({ cards, editMode, onLayoutChange, render
     return { lg };
   }, [cards]);
 
-  const handleLayoutChange = useCallback((layout: LayoutItem[]) => {
+  const compactor = useMemo(() => getCompactor("vertical"), []);
+
+  const handleLayoutChange = useCallback((layout: any[]) => {
     if (!editMode) return;
     const currentCards = cardsRef.current;
     const updated = currentCards.map(card => {
-      const item = layout.find(l => l.i === card.key);
+      const item = layout.find((l: any) => l.i === card.key);
       if (!item) return card;
       return {
         ...card,
@@ -104,20 +103,18 @@ export function DraggableDashboardGrid({ cards, editMode, onLayoutChange, render
   }, [editMode, onLayoutChange]);
 
   return (
-    <div className="dashboard-grid-container">
+    <div ref={containerRef as any} className="dashboard-grid-container">
       <ResponsiveGridLayout
-        className="layout"
-        layouts={layouts}
+        width={width}
+        layouts={layouts as any}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 0 }}
         cols={COLS}
         rowHeight={ROW_HEIGHT}
         margin={MARGIN}
-        isDraggable={editMode}
-        isResizable={editMode}
-        draggableHandle=".grid-drag-handle"
+        dragConfig={{ enabled: editMode, handle: ".grid-drag-handle" }}
+        resizeConfig={{ enabled: editMode, handles: ["se"] }}
+        compactor={compactor}
         onLayoutChange={handleLayoutChange}
-        useCSSTransforms
-        compactType="vertical"
       >
         {cards.map(card => (
           <div key={card.key} className="relative group h-full">
