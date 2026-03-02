@@ -234,25 +234,26 @@ export async function generateQuotePDF(
     doc.text(lines, 14, finalY + 12);
   }
 
-  // ── MARCA D'ÁGUA ──
-  if (s.show_watermark && s.watermark_text?.trim()) {
-    const pageH = doc.internal.pageSize.getHeight();
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.saveGraphicsState();
-      doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
-      doc.setFontSize(48);
-      doc.setTextColor(150, 150, 150);
-      const text = s.watermark_text.trim().toUpperCase();
-      const centerX = pageW / 2;
-      const centerY = pageH / 2;
-      doc.text(text, centerX, centerY, {
-        align: "center",
-        angle: 45,
-      });
-      doc.restoreGraphicsState();
-    }
+  // ── MARCA D'ÁGUA (imagem) ──
+  if (s.show_watermark && s.watermark_url?.trim()) {
+    try {
+      const wmDataUrl = await imageToDataUrl(s.watermark_url);
+      if (wmDataUrl) {
+        const pageH = doc.internal.pageSize.getHeight();
+        const totalPages = doc.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.saveGraphicsState();
+          doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+          const wmW = 120;
+          const wmH = 120;
+          const centerX = (pageW - wmW) / 2;
+          const centerY = (pageH - wmH) / 2;
+          doc.addImage(wmDataUrl, "PNG", centerX, centerY, wmW, wmH);
+          doc.restoreGraphicsState();
+        }
+      }
+    } catch { /* skip watermark */ }
   }
 
   // ── 5/6. GERAÇÃO E DOWNLOAD ──

@@ -2613,7 +2613,6 @@ export type Database = {
           show_watermark: boolean | null
           updated_at: string
           user_id: string
-          watermark_text: string
           watermark_url: string | null
         }
         Insert: {
@@ -2642,7 +2641,6 @@ export type Database = {
           show_watermark?: boolean | null
           updated_at?: string
           user_id: string
-          watermark_text?: string
           watermark_url?: string | null
         }
         Update: {
@@ -2671,7 +2669,6 @@ export type Database = {
           show_watermark?: boolean | null
           updated_at?: string
           user_id?: string
-          watermark_text?: string
           watermark_url?: string | null
         }
         Relationships: []

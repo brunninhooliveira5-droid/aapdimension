@@ -32,7 +32,7 @@ export interface PdfSettings {
   label_service_value: string;
   footer_text: string;
   show_watermark: boolean;
-  watermark_text: string;
+  watermark_url: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
@@ -56,7 +56,7 @@ const DEFAULT_SETTINGS: PdfSettings = {
   label_service_value: "Valor de Serviço",
   footer_text: "",
   show_watermark: false,
-  watermark_text: "",
+  watermark_url: "",
 };
 
 export function PdfConfiguration() {
@@ -102,7 +102,7 @@ export function PdfConfiguration() {
         label_service_value: d.label_service_value || "Valor de Serviço",
         footer_text: d.footer_text || "",
         show_watermark: d.show_watermark ?? false,
-        watermark_text: d.watermark_text || "",
+        watermark_url: d.watermark_url || "",
       });
     }
     setLoading(false);
@@ -488,7 +488,7 @@ export function PdfConfiguration() {
             <Eye className="w-4 h-4 text-primary" />
             Marca d'Água
           </CardTitle>
-          <CardDescription>Texto exibido como marca d'água no fundo do PDF</CardDescription>
+          <CardDescription>Imagem exibida como marca d'água no fundo do PDF</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
@@ -496,14 +496,69 @@ export function PdfConfiguration() {
             <Switch checked={settings.show_watermark} onCheckedChange={(v) => update("show_watermark", v)} />
           </div>
           {settings.show_watermark && (
-            <div>
-              <Label className="text-xs">Texto da marca d'água</Label>
-              <Input
-                value={settings.watermark_text}
-                onChange={(e) => update("watermark_text", e.target.value)}
-                placeholder="Ex: ORÇAMENTO - SEM VALOR FISCAL"
-                className="mt-1"
-              />
+            <div className="space-y-2">
+              <Label className="text-xs">Imagem da marca d'água (PNG)</Label>
+              <div className="flex items-center gap-3">
+                {settings.watermark_url ? (
+                  <div className="relative">
+                    <img
+                      src={settings.watermark_url}
+                      alt="Watermark"
+                      className="h-16 w-auto rounded border border-border object-contain bg-white p-1 opacity-30"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => update("watermark_url", "")}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="h-16 w-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => document.getElementById("watermark-upload")?.click()}
+                  >
+                    <div className="text-center">
+                      <Upload className="w-5 h-5 mx-auto text-muted-foreground" />
+                      <p className="text-[10px] text-muted-foreground mt-1">Enviar imagem</p>
+                    </div>
+                  </div>
+                )}
+                <input
+                  id="watermark-upload"
+                  type="file"
+                  accept="image/png"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !session?.user) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error("Imagem deve ter no máximo 2MB.");
+                      return;
+                    }
+                    const ext = file.name.split(".").pop();
+                    const path = `${session.user.id}/watermark.${ext}`;
+                    const { error } = await supabase.storage.from("quote-logos").upload(path, file, { upsert: true });
+                    if (error) {
+                      toast.error("Erro ao enviar marca d'água.");
+                      console.error(error);
+                    } else {
+                      const { data: urlData } = supabase.storage.from("quote-logos").getPublicUrl(path);
+                      update("watermark_url", urlData.publicUrl);
+                      toast.success("Marca d'água enviada!");
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                {settings.watermark_url && (
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById("watermark-upload")?.click()}>
+                    Trocar
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">A imagem aparecerá centralizada com baixa opacidade no PDF.</p>
             </div>
           )}
         </CardContent>

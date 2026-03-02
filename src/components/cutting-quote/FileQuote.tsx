@@ -465,7 +465,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             show_service_value: d.show_service_value ?? true,
             label_service_value: d.label_service_value || "Valor de Serviço",
             show_watermark: d.show_watermark ?? false,
-            watermark_text: d.watermark_text || "",
+            watermark_url: d.watermark_url || "",
           });
         }
       });
