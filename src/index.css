@@ -165,24 +165,42 @@
   box-shadow: 0 0 20px -4px hsl(var(--card-fx-color, var(--primary)) / 0.4), 0 4px 30px -6px hsl(var(--card-fx-color, var(--primary)) / 0.25), inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.1);
 }
 .card-fx-3d .gradient-card {
-  border-color: hsl(var(--card-fx-color, var(--primary)) / 0.25);
-  box-shadow:
-    0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.1),
-    0 4px 6px -1px hsl(0 0% 0% / 0.25),
-    0 8px 20px -4px hsl(0 0% 0% / 0.3),
-    inset 0 1px 0 hsl(0 0% 100% / 0.06),
-    inset 0 -2px 4px hsl(0 0% 0% / 0.15);
   transform: translateY(-1px);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-bottom-width: 2px;
+  border-bottom-color: hsl(0 0% 0% / 0.3);
+  box-shadow:
+    0 4px 6px -1px hsl(0 0% 0% / 0.25),
+    0 10px 24px -6px hsl(0 0% 0% / 0.3),
+    0 16px 40px -10px hsl(var(--card-fx-color, var(--primary)) / 0.15),
+    inset 0 1px 0 hsl(0 0% 100% / 0.06),
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
 .card-fx-3d .gradient-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.005);
   box-shadow:
-    0 2px 0 hsl(var(--card-fx-color, var(--primary)) / 0.15),
     0 8px 16px -2px hsl(0 0% 0% / 0.3),
-    0 16px 32px -8px hsl(0 0% 0% / 0.35),
+    0 20px 48px -12px hsl(0 0% 0% / 0.35),
+    0 24px 56px -16px hsl(var(--card-fx-color, var(--primary)) / 0.2),
     inset 0 1px 0 hsl(0 0% 100% / 0.08),
-    inset 0 -2px 4px hsl(0 0% 0% / 0.15);
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
+}
+.card-fx-3d.card-fx-glow .gradient-card {
+  box-shadow:
+    0 0 20px -4px hsl(var(--card-fx-color, var(--primary)) / 0.4),
+    0 10px 24px -6px hsl(0 0% 0% / 0.3),
+    0 20px 48px -12px hsl(var(--card-fx-color, var(--primary)) / 0.2),
+    inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.1),
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
+}
+.card-fx-3d.card-fx-glow .gradient-card:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow:
+    0 0 28px -4px hsl(var(--card-fx-color, var(--primary)) / 0.5),
+    0 16px 32px -4px hsl(0 0% 0% / 0.35),
+    0 28px 56px -16px hsl(var(--card-fx-color, var(--primary)) / 0.25),
+    inset 0 1px 0 hsl(var(--card-fx-color, var(--primary)) / 0.12),
+    inset 0 -2px 4px hsl(0 0% 0% / 0.12);
 }
 
 a[href*="lovable.dev"],

@@ -88,9 +88,9 @@ const SettingsPage = () => {
     { label: "Médio", value: "card-fx-medium" },
     { label: "Forte", value: "card-fx-strong" },
     { label: "Brilho", value: "card-fx-glow" },
-    { label: "3D", value: "card-fx-3d" },
   ];
   const [cardFx, setCardFx] = useState(() => localStorage.getItem("card-fx") || "");
+  const [card3d, setCard3d] = useState(() => localStorage.getItem("card-3d") === "true");
 
   const applyCardFx = (val: string) => {
     setCardFx(val);
@@ -99,6 +99,18 @@ const SettingsPage = () => {
     if (val) root.classList.add(val);
     if (val) localStorage.setItem("card-fx", val);
     else localStorage.removeItem("card-fx");
+  };
+
+  const toggleCard3d = () => {
+    const next = !card3d;
+    setCard3d(next);
+    if (next) {
+      document.documentElement.classList.add("card-fx-3d");
+      localStorage.setItem("card-3d", "true");
+    } else {
+      document.documentElement.classList.remove("card-fx-3d");
+      localStorage.removeItem("card-3d");
+    }
   };
 
   const [cardFxColor, setCardFxColor] = useState(() => localStorage.getItem("custom-card-fx-color") || "");
@@ -117,6 +129,7 @@ const SettingsPage = () => {
   useEffect(() => {
     const saved = localStorage.getItem("card-fx");
     if (saved) document.documentElement.classList.add(saved);
+    if (localStorage.getItem("card-3d") === "true") document.documentElement.classList.add("card-fx-3d");
   }, []);
 
   const toggleTheme = () => {
@@ -403,6 +416,10 @@ const SettingsPage = () => {
                 {o.label}
               </button>
             ))}
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Label className="text-sm text-foreground">Efeito 3D</Label>
+            <Switch checked={card3d} onCheckedChange={toggleCard3d} />
           </div>
           <div className="flex items-center gap-3 pt-1">
             <Label className="text-xs text-muted-foreground shrink-0">Cor do efeito</Label>
