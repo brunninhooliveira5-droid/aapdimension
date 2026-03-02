@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Clock, Ruler, TrendingUp, Save, Check, Shield } from "lucide-react";
+import { DollarSign, Clock, Ruler, TrendingUp, Save, Check, Shield, Cog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -357,8 +357,9 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
       </Card>
 
       {/* Results */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
+          { label: "Custo Máquina/Mês", value: fmt(totalMachine), icon: Cog },
           { label: "Custo / Hora", value: fmt(costPerHour), icon: Clock },
           { label: "Custo / Minuto", value: fmt(costPerMinute), icon: Clock },
           { label: "Custo / Metro", value: fmt(costPerMeter), icon: Ruler },
