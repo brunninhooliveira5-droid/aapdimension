@@ -425,13 +425,16 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
       {/* Tarefas dos setores quando showAllTasks está ativo */}
       {showAllTasks && Object.keys(sectorTasksGrouped).length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground">Tarefas nos setores ({sectorTasks.length})</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
             {Object.entries(sectorTasksGrouped).map(([sector, sTasks]) => (
-              <div key={sector} className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">📍 {sector} ({sTasks.length})</p>
-                <div className="flex flex-col gap-1.5">
+              <Card key={sector} className="overflow-hidden border-border/60 shadow-sm">
+                <div className="bg-muted/60 px-3 py-2 border-b flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wide">📍 {sector}</span>
+                  <Badge variant="secondary" className="text-[9px] px-1.5">{sTasks.length}</Badge>
+                </div>
+                <CardContent className="p-2 space-y-1.5">
                   {sTasks.map((task: any) => {
                     const statusGradients: Record<string, string> = {
                       a_fazer: "from-slate-500 to-slate-700",
@@ -449,7 +452,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
-                        <div className="relative px-2 py-1.5 space-y-0.5">
+                        <div className="relative px-2.5 py-1.5 space-y-0.5">
                           <p className="text-[10px] font-semibold leading-tight text-white drop-shadow-sm truncate">{task.title}</p>
                           <div className="flex gap-1">
                             <Badge className="text-[7px] px-1 py-0 bg-white/20 text-white border-0">{statusLabels[task.status]}</Badge>
@@ -459,8 +462,8 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                       </div>
                     );
                   })}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
