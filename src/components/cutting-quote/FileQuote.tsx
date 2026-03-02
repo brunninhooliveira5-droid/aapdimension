@@ -1341,8 +1341,9 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
               {/* Profit Card */}
               {(() => {
                 const totalCosts = pricing.costPerMinute * currentEstimatedTimeMin + (materialOwner === "usuario" ? materialCost : 0);
-                const profit = totalPrice - totalCosts;
-                const profitPercent = totalPrice > 0 ? (profit / totalPrice) * 100 : 0;
+                const revenueForProfit = totalPrice - serviceAmount;
+                const profit = revenueForProfit - totalCosts;
+                const profitPercent = revenueForProfit > 0 ? (profit / revenueForProfit) * 100 : 0;
                 return (
                   <Card className={`border ${profit >= 0 ? "bg-green-500/10 border-green-500/30" : "bg-destructive/10 border-destructive/30"}`}>
                     <CardContent className="p-3 flex items-center justify-between">
@@ -1351,7 +1352,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
                         <div>
                           <p className="text-xs font-medium">Lucro Estimado</p>
                           <p className="text-[10px] text-muted-foreground">
-                            Total {fmt(totalPrice)} − Custos {fmt(totalCosts)}
+                            Corte+Mat {fmt(revenueForProfit)} − Custos {fmt(totalCosts)}
                           </p>
                         </div>
                       </div>
