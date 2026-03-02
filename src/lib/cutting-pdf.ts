@@ -39,6 +39,7 @@ export interface PdfQuoteData {
   materialCost: number;
   serviceValue: number;
   serviceValueIncluded: boolean;
+  serviceDescription: string;
   totalPrice: number;
 
   // Extras
@@ -195,6 +196,9 @@ export async function generateQuotePDF(
   if (s.show_service_value !== false && data.serviceValueIncluded && data.serviceValue > 0) {
     const serviceLabel = s.label_service_value || "Valor de Serviço";
     body.push([serviceLabel, fmtBRL(data.serviceValue)]);
+    if (data.serviceDescription?.trim()) {
+      body.push(["Descrição do Serviço", data.serviceDescription.trim()]);
+    }
   }
   body.push(["", ""]);
   body.push(["TOTAL", fmtBRL(data.totalPrice)]);
