@@ -15,6 +15,8 @@ export interface DashboardCardItem {
   title: string;
   visible: boolean;
   order: number;
+  /** Column span: 1 | 2 | 3 | 4 (default 1) */
+  colSpan?: number;
   /** For shortcuts only */
   targetRoute?: string;
 }
