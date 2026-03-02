@@ -25,6 +25,13 @@ export interface ModuleConfig {
     inventorySettings: string;
     inventorySessions: string;
     inventorySessionItems: string;
+    // Production documentation tables
+    productionSheets: string;
+    productionBomItems: string;
+    productionProcessSteps: string;
+    productionBomTemplates: string;
+    productionProcessTemplates: string;
+    productionPdfConfig: string;
   };
   storage: {
     taskFiles: string;
@@ -56,6 +63,12 @@ export const dimensionConfig: ModuleConfig = {
     inventorySettings: "inventory_settings",
     inventorySessions: "inventory_sessions",
     inventorySessionItems: "inventory_session_items",
+    productionSheets: "production_sheets",
+    productionBomItems: "production_bom_items",
+    productionProcessSteps: "production_process_steps",
+    productionBomTemplates: "production_bom_templates",
+    productionProcessTemplates: "production_process_templates",
+    productionPdfConfig: "production_pdf_config",
   },
   storage: {
     taskFiles: "dimension-task-files",
@@ -87,6 +100,12 @@ export const productionControlConfig: ModuleConfig = {
     inventorySettings: "pc_inventory_settings",
     inventorySessions: "pc_inventory_sessions",
     inventorySessionItems: "pc_inventory_session_items",
+    productionSheets: "pc_production_sheets",
+    productionBomItems: "pc_production_bom_items",
+    productionProcessSteps: "pc_production_process_steps",
+    productionBomTemplates: "pc_production_bom_templates",
+    productionProcessTemplates: "pc_production_process_templates",
+    productionPdfConfig: "pc_production_pdf_config",
   },
   storage: {
     taskFiles: "pc-task-files",

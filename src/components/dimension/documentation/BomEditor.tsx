@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 
 const categoriaLabels: Record<string, string> = {
@@ -27,17 +28,18 @@ interface BomItem {
 }
 
 export function BomEditor({ fichaId }: { fichaId: string }) {
+  const { tables } = useModule();
   const [items, setItems] = useState<BomItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState("all");
 
   const fetchItems = async () => {
-    const { data } = await supabase.from("production_bom_items").select("*").eq("ficha_id", fichaId).order("created_at");
+    const { data } = await supabase.from(tables.productionBomItems as any).select("*").eq("ficha_id", fichaId).order("created_at");
     setItems((data as any) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [fichaId]);
+  useEffect(() => { fetchItems(); }, [fichaId, tables]);
 
   const addItem = () => {
     setItems([...items, {
@@ -55,7 +57,7 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
   const removeItem = async (index: number) => {
     const item = items[index];
     if (item.id) {
-      await supabase.from("production_bom_items").delete().eq("id", item.id);
+      await supabase.from(tables.productionBomItems as any).delete().eq("id", item.id);
     }
     setItems(items.filter((_, i) => i !== index));
     toast.success("Item removido");
@@ -66,12 +68,12 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
     const toUpdate = items.filter(i => i.id);
 
     if (toInsert.length > 0) {
-      const { error } = await supabase.from("production_bom_items").insert(toInsert as any);
+      const { error } = await supabase.from(tables.productionBomItems as any).insert(toInsert as any);
       if (error) { toast.error("Erro ao inserir itens"); return; }
     }
     for (const item of toUpdate) {
       const { id, ...rest } = item;
-      await supabase.from("production_bom_items").update(rest as any).eq("id", id!);
+      await supabase.from(tables.productionBomItems as any).update(rest as any).eq("id", id!);
     }
     toast.success("BOM salva com sucesso");
     fetchItems();

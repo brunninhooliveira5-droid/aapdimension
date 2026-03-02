@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, FileText, Pencil, Trash2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -54,6 +55,7 @@ interface ProcessTemplate {
 
 export function ProductionSheetsList() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const [sheets, setSheets] = useState<ProductionSheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -72,21 +74,21 @@ export function ProductionSheetsList() {
   });
 
   const fetchSheets = async () => {
-    const { data } = await supabase.from("production_sheets").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from(tables.productionSheets as any).select("*").order("created_at", { ascending: false });
     setSheets((data as any) || []);
     setLoading(false);
   };
 
   const fetchTemplates = async () => {
     const [bomRes, procRes] = await Promise.all([
-      supabase.from("production_bom_templates").select("*").order("nome"),
-      supabase.from("production_process_templates").select("*").order("nome"),
+      supabase.from(tables.productionBomTemplates as any).select("*").order("nome"),
+      supabase.from(tables.productionProcessTemplates as any).select("*").order("nome"),
     ]);
     setBomTemplates((bomRes.data as any) || []);
     setProcessTemplates((procRes.data as any) || []);
   };
 
-  useEffect(() => { fetchSheets(); fetchTemplates(); }, []);
+  useEffect(() => { fetchSheets(); fetchTemplates(); }, [tables]);
 
   const openNew = () => {
     setEditingSheet(null);
@@ -117,26 +119,25 @@ export function ProductionSheetsList() {
     };
 
     if (editingSheet) {
-      const { error } = await supabase.from("production_sheets").update(payload as any).eq("id", editingSheet.id);
+      const { error } = await supabase.from(tables.productionSheets as any).update(payload as any).eq("id", editingSheet.id);
       if (error) { toast.error("Erro ao atualizar"); return; }
       toast.success("Ficha atualizada");
     } else {
-      const { data, error } = await supabase.from("production_sheets").insert({ ...payload, created_by: session?.user.id } as any).select().single();
+      const { data, error } = await supabase.from(tables.productionSheets as any).insert({ ...payload, created_by: session?.user.id } as any).select().single();
       if (error) { toast.error("Erro ao criar ficha"); return; }
-      // Apply templates if selected
       const sheetId = (data as any).id;
       if (selectedBomTemplate) {
         const tpl = bomTemplates.find(t => t.id === selectedBomTemplate);
         if (tpl && tpl.items.length > 0) {
           const items = tpl.items.map((item: any) => ({ ...item, ficha_id: sheetId }));
-          await supabase.from("production_bom_items").insert(items as any);
+          await supabase.from(tables.productionBomItems as any).insert(items as any);
         }
       }
       if (selectedProcessTemplate) {
         const tpl = processTemplates.find(t => t.id === selectedProcessTemplate);
         if (tpl && tpl.steps.length > 0) {
           const steps = tpl.steps.map((step: any, i: number) => ({ ...step, ficha_id: sheetId, ordem: i }));
-          await supabase.from("production_process_steps").insert(steps as any);
+          await supabase.from(tables.productionProcessSteps as any).insert(steps as any);
         }
       }
       toast.success("Ficha criada");
@@ -146,7 +147,7 @@ export function ProductionSheetsList() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("production_sheets").delete().eq("id", id);
+    const { error } = await supabase.from(tables.productionSheets as any).delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir"); return; }
     toast.success("Ficha excluída");
     fetchSheets();
