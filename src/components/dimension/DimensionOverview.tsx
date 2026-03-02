@@ -340,54 +340,68 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                   {statusLabels[col]} ({colTasks.length})
                 </div>
                 <div className={`space-y-2 min-h-[60px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
-                  {colTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task.id)}
-                      onClick={() => openDetail(task)}
-                      className="p-2.5 rounded-lg border bg-card space-y-1.5 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <p className="text-xs font-medium leading-tight flex-1">{task.title}</p>
-                        <div className="flex gap-0.5 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
-                            <Pencil className="h-2.5 w-2.5" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={(e) => e.stopPropagation()}>
-                                <Trash2 className="h-2.5 w-2.5" />
+                  {colTasks.map((task) => {
+                    const gradients: Record<string, string> = {
+                      producao: "from-blue-600 to-blue-800",
+                      financeiro: "from-emerald-600 to-emerald-800",
+                      comercial: "from-violet-600 to-violet-800",
+                      tecnico: "from-amber-600 to-amber-800",
+                      app_sistema: "from-rose-600 to-rose-800",
+                    };
+                    const gradient = gradients[task.category] || "from-slate-600 to-slate-800";
+                    return (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task.id)}
+                        onClick={() => openDetail(task)}
+                        className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing`}
+                      >
+                        <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+                        <div className="relative p-2.5 space-y-1.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="text-xs font-semibold leading-tight flex-1 text-white drop-shadow-sm">{task.title}</p>
+                            <div className="flex gap-0.5 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
+                                <Pencil className="h-2.5 w-2.5" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
-                                <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={async () => {
-                                  await supabase.from("dimension_task_files").delete().eq("task_id", task.id);
-                                  await supabase.from("dimension_tasks").delete().eq("id", task.id);
-                                  toast.success("Tarefa excluída!");
-                                  fetchAll();
-                                }}>Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
+                                    <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={async () => {
+                                      await supabase.from("dimension_task_files").delete().eq("task_id", task.id);
+                                      await supabase.from("dimension_tasks").delete().eq("id", task.id);
+                                      toast.success("Tarefa excluída!");
+                                      fetchAll();
+                                    }}>Excluir</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge className={`text-[8px] bg-white/20 text-white border-0 backdrop-blur-sm`}>{task.priority}</Badge>
+                            <Badge className="text-[8px] bg-white/20 text-white border-0 backdrop-blur-sm">{categoryLabels[task.category] ?? task.category}</Badge>
+                          </div>
+                          {task.responsible && <p className="text-[9px] text-white/80 drop-shadow-sm">👤 {task.responsible}</p>}
+                          {task.due_date && <p className="text-[9px] text-white/80 drop-shadow-sm">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                          {showAllTasks && task.sector && <p className="text-[9px] text-white/80 drop-shadow-sm">📍 {task.sector}</p>}
+                          {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[9px] text-white/80 flex items-center gap-1 drop-shadow-sm"><Paperclip className="w-2.5 h-2.5" />{taskFileCounts[task.id]}</p>}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline" className={`text-[8px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
-                        <Badge variant="outline" className="text-[8px]">{categoryLabels[task.category] ?? task.category}</Badge>
-                      </div>
-                      {task.responsible && <p className="text-[9px] text-muted-foreground">👤 {task.responsible}</p>}
-                      {task.due_date && <p className="text-[9px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
-                      {showAllTasks && task.sector && <p className="text-[9px] text-muted-foreground">📍 {task.sector}</p>}
-                      {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[9px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-2.5 h-2.5" />{taskFileCounts[task.id]}</p>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
