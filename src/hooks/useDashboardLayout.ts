@@ -23,10 +23,12 @@ export interface WidgetDefinition {
   key: string;
   label: string;
   requiredAccess?: string[];
+  /** If true, always visible and cannot be hidden */
+  fixed?: boolean;
 }
 
 export const ALL_WIDGETS: WidgetDefinition[] = [
-  { key: "tips_card", label: "Sugestões / Feedback" },
+  { key: "tips_card", label: "Sugestões / Feedback", fixed: true },
   { key: "pro_countdown_card", label: "Status PRO" },
   { key: "financial_status_card", label: "Status Financeiro" },
   { key: "stats_grid", label: "Indicadores Rápidos" },
