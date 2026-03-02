@@ -3426,6 +3426,7 @@ export type Database = {
       pc_production_pdf_config: {
         Row: {
           cor_principal: string | null
+          created_by: string | null
           empresa_cnpj: string | null
           empresa_contato: string | null
           empresa_endereco: string | null
@@ -3441,6 +3442,7 @@ export type Database = {
         }
         Insert: {
           cor_principal?: string | null
+          created_by?: string | null
           empresa_cnpj?: string | null
           empresa_contato?: string | null
           empresa_endereco?: string | null
@@ -3456,6 +3458,7 @@ export type Database = {
         }
         Update: {
           cor_principal?: string | null
+          created_by?: string | null
           empresa_cnpj?: string | null
           empresa_contato?: string | null
           empresa_endereco?: string | null

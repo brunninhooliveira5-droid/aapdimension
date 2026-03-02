@@ -116,9 +116,11 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
       setSaving(false);
       return;
     }
+    const userId = (await supabase.auth.getUser()).data.user?.id;
     const { error } = await supabase.from(tables.productionCards as any).insert({
       key,
       title: newTitle.trim(),
+      created_by: userId,
     } as any);
     if (error) {
       toast.error("Erro ao criar setor");
