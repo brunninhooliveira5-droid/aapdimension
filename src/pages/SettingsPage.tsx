@@ -82,6 +82,30 @@ const SettingsPage = () => {
     applyCustomBg();
   };
 
+  const cardFxOptions = [
+    { label: "Nenhum", value: "" },
+    { label: "Sutil", value: "card-fx-subtle" },
+    { label: "Médio", value: "card-fx-medium" },
+    { label: "Forte", value: "card-fx-strong" },
+    { label: "Brilho", value: "card-fx-glow" },
+  ];
+  const [cardFx, setCardFx] = useState(() => localStorage.getItem("card-fx") || "");
+
+  const applyCardFx = (val: string) => {
+    setCardFx(val);
+    const root = document.documentElement;
+    cardFxOptions.forEach(o => { if (o.value) root.classList.remove(o.value); });
+    if (val) root.classList.add(val);
+    if (val) localStorage.setItem("card-fx", val);
+    else localStorage.removeItem("card-fx");
+  };
+
+  // Apply saved card fx on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("card-fx");
+    if (saved) document.documentElement.classList.add(saved);
+  }, []);
+
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -348,6 +372,24 @@ const SettingsPage = () => {
                 <RotateCcw className="w-3 h-3" /> Padrão
               </Button>
             )}
+          </div>
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
+          <Label className="text-xs text-muted-foreground">Efeito dos cards</Label>
+          <div className="flex flex-wrap gap-2">
+            {cardFxOptions.map((o) => (
+              <button
+                key={o.label}
+                onClick={() => applyCardFx(o.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                  cardFx === o.value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
