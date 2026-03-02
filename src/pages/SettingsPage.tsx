@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, Bell, Shield, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,20 @@ import { Input } from "@/components/ui/input";
 import { useAuth, roleLabels } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { hexToHsl, applyCustomBg } from "@/components/ThemeToggle";
+
+const presetColors = [
+  { name: "Padrão", value: "" },
+  { name: "Azul Marinho", value: "#0a1628" },
+  { name: "Grafite", value: "#1a1a2e" },
+  { name: "Carvão", value: "#1e1e1e" },
+  { name: "Verde Escuro", value: "#0a1f1a" },
+  { name: "Roxo Escuro", value: "#1a0a2e" },
+  { name: "Marrom", value: "#1e140a" },
+  { name: "Azul Petróleo", value: "#0a2028" },
+  { name: "Vinho", value: "#2a0a14" },
+  { name: "Cinza Quente", value: "#2a2520" },
+];
 
 const SettingsPage = () => {
   const { user } = useAuth();
@@ -17,6 +31,34 @@ const SettingsPage = () => {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [customBg, setCustomBg] = useState(() => localStorage.getItem("custom-bg-color") || "");
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    (localStorage.getItem("theme") as "dark" | "light") || "dark"
+  );
+
+  const applyBgColor = (hex: string) => {
+    setCustomBg(hex);
+    if (hex) {
+      localStorage.setItem("custom-bg-color", hex);
+    } else {
+      localStorage.removeItem("custom-bg-color");
+    }
+    applyCustomBg();
+  };
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    const root = document.documentElement;
+    if (next === "light") root.classList.add("light");
+    else root.classList.remove("light");
+    localStorage.setItem("theme", next);
+    applyCustomBg();
+  };
+
+  // Sync if localStorage changes externally
+  useEffect(() => { applyCustomBg(); }, []);
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -33,7 +75,6 @@ const SettingsPage = () => {
     }
 
     setSaving(true);
-    // Verify current password by re-signing in
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user?.email ?? "",
       password: currentPassword,
@@ -65,6 +106,67 @@ const SettingsPage = () => {
       <div>
         <h1 className="text-xl font-bold text-foreground">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Gerencie sua conta e preferências</p>
+      </div>
+
+      {/* Appearance */}
+      <div className="gradient-card rounded-lg border border-border p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <Palette className="w-5 h-5 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Aparência</h3>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-foreground">Modo {theme === "dark" ? "Escuro" : "Claro"}</Label>
+          <Switch checked={theme === "light"} onCheckedChange={toggleTheme} />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Cor de fundo</Label>
+          <div className="flex flex-wrap gap-2">
+            {presetColors.map((c) => (
+              <button
+                key={c.name}
+                title={c.name}
+                onClick={() => applyBgColor(c.value)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  customBg === c.value
+                    ? "border-primary ring-2 ring-primary/40 scale-110"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+                style={{
+                  background: c.value
+                    ? c.value
+                    : "linear-gradient(135deg, hsl(220 20% 10%), hsl(210 20% 96%))",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Label className="text-xs text-muted-foreground shrink-0">Cor personalizada</Label>
+          <input
+            type="color"
+            value={customBg || "#191d2b"}
+            onChange={(e) => applyBgColor(e.target.value)}
+            className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+          />
+          <Input
+            value={customBg}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/^#[0-9a-fA-F]{6}$/.test(v)) applyBgColor(v);
+              setCustomBg(v);
+            }}
+            placeholder="#1a1a2e"
+            className="bg-accent border-border w-28 font-mono text-xs"
+          />
+          {customBg && (
+            <Button variant="ghost" size="sm" onClick={() => applyBgColor("")} className="text-xs gap-1">
+              <RotateCcw className="w-3 h-3" /> Padrão
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Profile */}
