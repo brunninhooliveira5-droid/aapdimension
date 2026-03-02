@@ -8,10 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 
 export function ProductionPdfConfig() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const [config, setConfig] = useState({
     id: "",
     empresa_nome: "Dimension",
@@ -28,20 +30,20 @@ export function ProductionPdfConfig() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("production_pdf_config").select("*").limit(1).single().then(({ data }) => {
+    supabase.from(tables.productionPdfConfig as any).select("*").limit(1).single().then(({ data }) => {
       if (data) setConfig(data as any);
       setLoading(false);
     });
-  }, []);
+  }, [tables]);
 
   const handleSave = async () => {
     const payload = { ...config, updated_by: session?.user.id };
     if (config.id) {
-      const { error } = await supabase.from("production_pdf_config").update(payload as any).eq("id", config.id);
+      const { error } = await supabase.from(tables.productionPdfConfig as any).update(payload as any).eq("id", config.id);
       if (error) { toast.error("Erro ao salvar"); return; }
     } else {
       const { id, ...rest } = payload;
-      const { error } = await supabase.from("production_pdf_config").insert(rest as any);
+      const { error } = await supabase.from(tables.productionPdfConfig as any).insert(rest as any);
       if (error) { toast.error("Erro ao criar configuração"); return; }
     }
     toast.success("Configuração salva");

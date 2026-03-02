@@ -3229,6 +3229,89 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_production_bom_items: {
+        Row: {
+          categoria: string
+          created_at: string
+          ficha_id: string
+          fornecedor: string | null
+          id: string
+          item_nome: string
+          lead_time_dias: number | null
+          observacao: string | null
+          quantidade: number
+          unidade: string
+          updated_at: string
+          valor_unitario: number
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          ficha_id: string
+          fornecedor?: string | null
+          id?: string
+          item_nome?: string
+          lead_time_dias?: number | null
+          observacao?: string | null
+          quantidade?: number
+          unidade?: string
+          updated_at?: string
+          valor_unitario?: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          ficha_id?: string
+          fornecedor?: string | null
+          id?: string
+          item_nome?: string
+          lead_time_dias?: number | null
+          observacao?: string | null
+          quantidade?: number
+          unidade?: string
+          updated_at?: string
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_production_bom_items_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "pc_production_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_production_bom_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          items: Json
+          nome: string
+          produto_modelo: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          items?: Json
+          nome: string
+          produto_modelo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          items?: Json
+          nome?: string
+          produto_modelo?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pc_production_cards: {
         Row: {
           id: string
@@ -3298,6 +3381,182 @@ export type Database = {
           responsible?: string | null
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_production_pdf_config: {
+        Row: {
+          cor_principal: string | null
+          empresa_cnpj: string | null
+          empresa_contato: string | null
+          empresa_endereco: string | null
+          empresa_nome: string | null
+          id: string
+          logo_url: string | null
+          mostrar_cliente: boolean | null
+          mostrar_fornecedor: boolean | null
+          mostrar_valores: boolean | null
+          rodape_texto: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cor_principal?: string | null
+          empresa_cnpj?: string | null
+          empresa_contato?: string | null
+          empresa_endereco?: string | null
+          empresa_nome?: string | null
+          id?: string
+          logo_url?: string | null
+          mostrar_cliente?: boolean | null
+          mostrar_fornecedor?: boolean | null
+          mostrar_valores?: boolean | null
+          rodape_texto?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cor_principal?: string | null
+          empresa_cnpj?: string | null
+          empresa_contato?: string | null
+          empresa_endereco?: string | null
+          empresa_nome?: string | null
+          id?: string
+          logo_url?: string | null
+          mostrar_cliente?: boolean | null
+          mostrar_fornecedor?: boolean | null
+          mostrar_valores?: boolean | null
+          rodape_texto?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      pc_production_process_steps: {
+        Row: {
+          created_at: string
+          data_alvo: string | null
+          etapa_nome: string
+          ficha_id: string
+          id: string
+          observacao: string | null
+          ordem: number
+          prazo_dias: number | null
+          setor_responsavel: string
+          status: string
+          tempo_estimado_horas: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_alvo?: string | null
+          etapa_nome?: string
+          ficha_id: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          prazo_dias?: number | null
+          setor_responsavel?: string
+          status?: string
+          tempo_estimado_horas?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_alvo?: string | null
+          etapa_nome?: string
+          ficha_id?: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          prazo_dias?: number | null
+          setor_responsavel?: string
+          status?: string
+          tempo_estimado_horas?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_production_process_steps_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "pc_production_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_production_process_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          nome: string
+          produto_modelo: string | null
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          nome: string
+          produto_modelo?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          nome?: string
+          produto_modelo?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pc_production_sheets: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          created_by: string
+          data_inicio: string | null
+          id: string
+          nome_projeto: string
+          observacoes: string | null
+          prazo_final: string | null
+          produto_modelo: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          created_by: string
+          data_inicio?: string | null
+          id?: string
+          nome_projeto: string
+          observacoes?: string | null
+          prazo_final?: string | null
+          produto_modelo?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          created_by?: string
+          data_inicio?: string | null
+          id?: string
+          nome_projeto?: string
+          observacoes?: string | null
+          prazo_final?: string | null
+          produto_modelo?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
         }
         Relationships: []
       }

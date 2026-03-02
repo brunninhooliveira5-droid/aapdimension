@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -33,21 +34,22 @@ interface Props {
 }
 
 export function ProductionPdfExport({ sheet }: Props) {
+  const { tables } = useModule();
   const [config, setConfig] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    supabase.from("production_pdf_config").select("*").limit(1).single().then(({ data }) => {
+    supabase.from(tables.productionPdfConfig as any).select("*").limit(1).single().then(({ data }) => {
       setConfig(data || { empresa_nome: "Dimension", cor_principal: "#1e40af", mostrar_cliente: true, mostrar_valores: true, mostrar_fornecedor: false });
     });
-  }, []);
+  }, [tables]);
 
   const generatePdf = async () => {
     setGenerating(true);
     try {
       const [bomRes, stepsRes] = await Promise.all([
-        supabase.from("production_bom_items").select("*").eq("ficha_id", sheet.id).order("created_at"),
-        supabase.from("production_process_steps").select("*").eq("ficha_id", sheet.id).order("ordem"),
+        supabase.from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id).order("created_at"),
+        supabase.from(tables.productionProcessSteps as any).select("*").eq("ficha_id", sheet.id).order("ordem"),
       ]);
       const bomItems = (bomRes.data as any[]) || [];
       const processSteps = (stepsRes.data as any[]) || [];
@@ -70,7 +72,6 @@ export function ProductionPdfExport({ sheet }: Props) {
       if (cfg.empresa_contato) doc.text(cfg.empresa_contato, 14, 24);
       doc.text(`Emitido em: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 150, 20);
 
-      // Project info
       let y = 36;
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(13);
@@ -97,7 +98,6 @@ export function ProductionPdfExport({ sheet }: Props) {
         y += 5;
       });
 
-      // BOM Table
       if (bomItems.length > 0) {
         y += 6;
         doc.setFontSize(11);
@@ -116,11 +116,8 @@ export function ProductionPdfExport({ sheet }: Props) {
         if (cfg.mostrar_fornecedor) bomHead.push("Fornecedor");
 
         autoTable(doc, {
-          head: [bomHead],
-          body: bomBody,
-          startY: y,
-          styles: { fontSize: 7, cellPadding: 2 },
-          headStyles: { fillColor: [r, g, b] },
+          head: [bomHead], body: bomBody, startY: y,
+          styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [r, g, b] },
         });
 
         y = (doc as any).lastAutoTable.finalY + 3;
@@ -133,7 +130,6 @@ export function ProductionPdfExport({ sheet }: Props) {
         }
       }
 
-      // Process Steps Table
       if (processSteps.length > 0) {
         y += 4;
         if (y > 250) { doc.addPage(); y = 20; }
@@ -150,11 +146,8 @@ export function ProductionPdfExport({ sheet }: Props) {
         ]);
 
         autoTable(doc, {
-          head: [procHead],
-          body: procBody,
-          startY: y,
-          styles: { fontSize: 7, cellPadding: 2 },
-          headStyles: { fillColor: [r, g, b] },
+          head: [procHead], body: procBody, startY: y,
+          styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [r, g, b] },
         });
 
         y = (doc as any).lastAutoTable.finalY + 3;
@@ -164,7 +157,6 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text(`Prazo total estimado: ${totalDias} dias`, 14, y);
       }
 
-      // Observations
       if (sheet.observacoes) {
         y += 8;
         if (y > 260) { doc.addPage(); y = 20; }
@@ -178,7 +170,6 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text(lines, 14, y);
       }
 
-      // Footer
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);

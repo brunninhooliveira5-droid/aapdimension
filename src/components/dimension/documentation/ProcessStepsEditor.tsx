@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 
 const setorLabels: Record<string, string> = {
@@ -13,10 +14,6 @@ const setorLabels: Record<string, string> = {
 };
 const stepStatusLabels: Record<string, string> = {
   todo: "A Fazer", doing: "Fazendo", waiting: "Aguardando", done: "Concluído"
-};
-const stepStatusColors: Record<string, string> = {
-  todo: "bg-muted text-muted-foreground", doing: "bg-blue-500/10 text-blue-600",
-  waiting: "bg-amber-500/10 text-amber-600", done: "bg-green-500/10 text-green-600"
 };
 
 interface ProcessStep {
@@ -33,16 +30,17 @@ interface ProcessStep {
 }
 
 export function ProcessStepsEditor({ fichaId }: { fichaId: string }) {
+  const { tables } = useModule();
   const [steps, setSteps] = useState<ProcessStep[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSteps = async () => {
-    const { data } = await supabase.from("production_process_steps").select("*").eq("ficha_id", fichaId).order("ordem");
+    const { data } = await supabase.from(tables.productionProcessSteps as any).select("*").eq("ficha_id", fichaId).order("ordem");
     setSteps((data as any) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchSteps(); }, [fichaId]);
+  useEffect(() => { fetchSteps(); }, [fichaId, tables]);
 
   const addStep = () => {
     setSteps([...steps, {
@@ -60,7 +58,7 @@ export function ProcessStepsEditor({ fichaId }: { fichaId: string }) {
 
   const removeStep = async (index: number) => {
     const step = steps[index];
-    if (step.id) await supabase.from("production_process_steps").delete().eq("id", step.id);
+    if (step.id) await supabase.from(tables.productionProcessSteps as any).delete().eq("id", step.id);
     setSteps(steps.filter((_, i) => i !== index));
     toast.success("Etapa removida");
   };
@@ -79,12 +77,12 @@ export function ProcessStepsEditor({ fichaId }: { fichaId: string }) {
     const toUpdate = steps.filter(s => s.id);
 
     if (toInsert.length > 0) {
-      const { error } = await supabase.from("production_process_steps").insert(toInsert as any);
+      const { error } = await supabase.from(tables.productionProcessSteps as any).insert(toInsert as any);
       if (error) { toast.error("Erro ao inserir etapas"); return; }
     }
     for (const step of toUpdate) {
       const { id, ...rest } = step;
-      await supabase.from("production_process_steps").update(rest as any).eq("id", id!);
+      await supabase.from(tables.productionProcessSteps as any).update(rest as any).eq("id", id!);
     }
     toast.success("Processos salvos com sucesso");
     fetchSteps();

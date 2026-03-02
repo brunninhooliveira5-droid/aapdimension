@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, List, Route, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +18,7 @@ const unidadeOptions = ["un", "m", "kg", "mm", "cm", "L", "pç", "conj"];
 
 export function ProductionTemplatesManager() {
   const { session } = useAuth();
+  const { tables } = useModule();
   const [tab, setTab] = useState("bom");
   const [bomTemplates, setBomTemplates] = useState<any[]>([]);
   const [processTemplates, setProcessTemplates] = useState<any[]>([]);
@@ -29,14 +31,14 @@ export function ProductionTemplatesManager() {
 
   const fetchAll = async () => {
     const [b, p] = await Promise.all([
-      supabase.from("production_bom_templates").select("*").order("nome"),
-      supabase.from("production_process_templates").select("*").order("nome"),
+      supabase.from(tables.productionBomTemplates as any).select("*").order("nome"),
+      supabase.from(tables.productionProcessTemplates as any).select("*").order("nome"),
     ]);
     setBomTemplates((b.data as any) || []);
     setProcessTemplates((p.data as any) || []);
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [tables]);
 
   // BOM Template CRUD
   const openNewBom = () => { setEditingBom(null); setBomForm({ nome: "", produto_modelo: "", items: [] }); setShowBomDialog(true); };
@@ -44,13 +46,13 @@ export function ProductionTemplatesManager() {
   const saveBom = async () => {
     if (!bomForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingBom) {
-      await supabase.from("production_bom_templates").update({ nome: bomForm.nome, produto_modelo: bomForm.produto_modelo, items: bomForm.items } as any).eq("id", editingBom.id);
+      await supabase.from(tables.productionBomTemplates as any).update({ nome: bomForm.nome, produto_modelo: bomForm.produto_modelo, items: bomForm.items } as any).eq("id", editingBom.id);
     } else {
-      await supabase.from("production_bom_templates").insert({ ...bomForm, created_by: session?.user.id } as any);
+      await supabase.from(tables.productionBomTemplates as any).insert({ ...bomForm, created_by: session?.user.id } as any);
     }
     toast.success("Template BOM salvo"); setShowBomDialog(false); fetchAll();
   };
-  const deleteBom = async (id: string) => { await supabase.from("production_bom_templates").delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
+  const deleteBom = async (id: string) => { await supabase.from(tables.productionBomTemplates as any).delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
 
   const addBomItem = () => setBomForm({ ...bomForm, items: [...bomForm.items, { item_nome: "", categoria: "outro", unidade: "un", quantidade: 1, valor_unitario: 0, fornecedor: "" }] });
   const updateBomItem = (i: number, field: string, val: any) => { const items = [...bomForm.items]; items[i][field] = val; setBomForm({ ...bomForm, items }); };
@@ -62,13 +64,13 @@ export function ProductionTemplatesManager() {
   const saveProcess = async () => {
     if (!processForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingProcess) {
-      await supabase.from("production_process_templates").update({ nome: processForm.nome, produto_modelo: processForm.produto_modelo, steps: processForm.steps } as any).eq("id", editingProcess.id);
+      await supabase.from(tables.productionProcessTemplates as any).update({ nome: processForm.nome, produto_modelo: processForm.produto_modelo, steps: processForm.steps } as any).eq("id", editingProcess.id);
     } else {
-      await supabase.from("production_process_templates").insert({ ...processForm, created_by: session?.user.id } as any);
+      await supabase.from(tables.productionProcessTemplates as any).insert({ ...processForm, created_by: session?.user.id } as any);
     }
     toast.success("Template processos salvo"); setShowProcessDialog(false); fetchAll();
   };
-  const deleteProcess = async (id: string) => { await supabase.from("production_process_templates").delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
+  const deleteProcess = async (id: string) => { await supabase.from(tables.productionProcessTemplates as any).delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
 
   const addProcessStep = () => setProcessForm({ ...processForm, steps: [...processForm.steps, { etapa_nome: "", setor_responsavel: "montagem", tempo_estimado_horas: null, prazo_dias: null, status: "todo" }] });
   const updateProcessStep = (i: number, field: string, val: any) => { const steps = [...processForm.steps]; steps[i][field] = val; setProcessForm({ ...processForm, steps }); };
