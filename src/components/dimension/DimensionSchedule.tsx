@@ -22,7 +22,8 @@ const emptyForm = { title: "", description: "", event_type: "reuniao", event_dat
 
 export function DimensionSchedule() {
   const { tables } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [events, setEvents] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,7 +80,7 @@ export function DimensionSchedule() {
           <h3 className="text-lg font-semibold capitalize">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</h3>
           <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => openCreate()}><Plus className="h-3.5 w-3.5" />Novo Evento</Button>
+        {!readOnly && <Button size="sm" className="gap-1.5" onClick={() => openCreate()}><Plus className="h-3.5 w-3.5" />Novo Evento</Button>}
       </div>
 
       {/* Legend */}
@@ -142,11 +143,15 @@ export function DimensionSchedule() {
                       <p className="text-sm font-medium truncate">{ev.title}</p>
                       <p className="text-[10px] text-muted-foreground">{eventTypeLabels[ev.event_type]} {ev.event_time ? `• ${ev.event_time.slice(0, 5)}` : ""} {ev.responsible ? `• ${ev.responsible}` : ""}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(ev)}><Pencil className="h-3 w-3" /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir evento?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ev.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-                    </AlertDialog>
+                    {!readOnly && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(ev)}><Pencil className="h-3 w-3" /></Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                          <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir evento?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ev.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

@@ -28,7 +28,8 @@ interface DimensionOverviewProps {
 
 export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps) {
   const { tables, storage } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [activeSector, setActiveSector] = useState<{ key: string; title: string } | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [pendencies, setPendencies] = useState<any[]>([]);
@@ -302,15 +303,17 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
             </Card>
           ))}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-2 h-8 w-8 opacity-50 hover:opacity-100 transition-opacity"
-          onClick={() => setCreateOpen(true)}
-          title="Nova tarefa"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-2 h-8 w-8 opacity-50 hover:opacity-100 transition-opacity"
+            onClick={() => setCreateOpen(true)}
+            title="Nova tarefa"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Kanban de tarefas sem setor */}
@@ -381,43 +384,45 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                     return (
                       <div
                         key={task.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, task.id)}
-                        onClick={() => openDetail(task)}
-                        className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing`}
+                        draggable={!readOnly}
+                        onDragStart={(e) => !readOnly && handleDragStart(e, task.id)}
+                        onClick={() => !readOnly && openDetail(task)}
+                        className={`relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg ${readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                         <div className="relative p-2.5 space-y-1.5">
                           <div className="flex items-start justify-between gap-1">
                             <p className="text-xs font-semibold leading-tight flex-1 text-white drop-shadow-sm">{task.title}</p>
-                            <div className="flex gap-0.5 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
-                                <Pencil className="h-2.5 w-2.5" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
-                                    <Trash2 className="h-2.5 w-2.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
-                                    <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={async () => {
-                                      await supabase.from(tables.taskFiles as any).delete().eq("task_id", task.id);
-                                      await supabase.from(tables.tasks as any).delete().eq("id", task.id);
-                                      toast.success("Tarefa excluída!");
-                                      fetchAll();
-                                    }}>Excluir</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
+                            {!readOnly && (
+                              <div className="flex gap-0.5 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
+                                      <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={async () => {
+                                        await supabase.from(tables.taskFiles as any).delete().eq("task_id", task.id);
+                                        await supabase.from(tables.tasks as any).delete().eq("id", task.id);
+                                        toast.success("Tarefa excluída!");
+                                        fetchAll();
+                                      }}>Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             <Badge className={`text-[8px] bg-white/20 text-white border-0 backdrop-blur-sm`}>{task.priority}</Badge>

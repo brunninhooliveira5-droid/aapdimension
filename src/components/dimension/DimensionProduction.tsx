@@ -22,7 +22,8 @@ const emptyForm = { project_name: "", client_name: "", machine_name: "", status:
 
 export function DimensionProduction() {
   const { tables } = useModule();
-  const { session } = useAuth();
+  const { session, isReadOnly } = useAuth();
+  const readOnly = isReadOnly();
   const [items, setItems] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -63,7 +64,7 @@ export function DimensionProduction() {
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground">Quadro de Produção</h3>
-        <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Novo Item</Button>
+        {!readOnly && <Button size="sm" className="gap-1.5" onClick={openCreate}><Plus className="h-3.5 w-3.5" />Novo Item</Button>}
       </div>
 
       <div className="border rounded-lg overflow-auto">
@@ -76,7 +77,7 @@ export function DimensionProduction() {
               <TableHead className="text-xs">Status</TableHead>
               <TableHead className="text-xs">Prazo</TableHead>
               <TableHead className="text-xs">Responsável</TableHead>
-              <TableHead className="text-xs w-20">Ações</TableHead>
+              {!readOnly && <TableHead className="text-xs w-20">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -90,15 +91,17 @@ export function DimensionProduction() {
                 <TableCell><Badge variant="outline" className={`text-[9px] ${statusColors[item.status]}`}>{statusLabels[item.status]}</Badge></TableCell>
                 <TableCell className="text-xs">{item.estimated_deadline ? format(new Date(item.estimated_deadline + "T00:00:00"), "dd/MM/yy", { locale: ptBR }) : "—"}</TableCell>
                 <TableCell className="text-xs">{item.responsible || "—"}</TableCell>
-                <TableCell>
-                  <div className="flex gap-0.5">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </TableCell>
+                {!readOnly && (
+                  <TableCell>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

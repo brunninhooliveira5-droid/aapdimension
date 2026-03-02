@@ -68,6 +68,7 @@ interface AuthContextType {
   hasAccess: (section: string) => boolean;
   getSectionVisibility: (section: string) => SectionVisibility;
   hasProAccess: (feature?: string) => boolean;
+  isReadOnly: () => boolean;
   loadImpersonatedProfile: (targetUserId: string) => Promise<void>;
   clearImpersonatedProfile: () => void;
 }
@@ -294,6 +295,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const isReadOnly = (): boolean => {
+    return user?.role === "usuario_interno";
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -308,6 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasAccess,
         getSectionVisibility,
         hasProAccess,
+        isReadOnly,
         loadImpersonatedProfile,
         clearImpersonatedProfile,
       }}
