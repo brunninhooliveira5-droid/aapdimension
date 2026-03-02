@@ -70,6 +70,18 @@ const SettingsPage = () => {
     applyCustomBg();
   };
 
+  const [customFg, setCustomFg] = useState(() => localStorage.getItem("custom-fg-color") || "");
+
+  const applyFgColor = (hex: string) => {
+    setCustomFg(hex);
+    if (hex) {
+      localStorage.setItem("custom-fg-color", hex);
+    } else {
+      localStorage.removeItem("custom-fg-color");
+    }
+    applyCustomBg();
+  };
+
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -277,6 +289,62 @@ const SettingsPage = () => {
             />
             {customCard && (
               <Button variant="ghost" size="sm" onClick={() => applyCardColor("")} className="text-xs gap-1">
+                <RotateCcw className="w-3 h-3" /> Padrão
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
+          <Label className="text-xs text-muted-foreground">Cor das letras</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { name: "Padrão", value: "" },
+              { name: "Branco", value: "#ffffff" },
+              { name: "Cinza Claro", value: "#d4d4d8" },
+              { name: "Cinza", value: "#a1a1aa" },
+              { name: "Âmbar", value: "#fbbf24" },
+              { name: "Verde Claro", value: "#86efac" },
+              { name: "Azul Claro", value: "#93c5fd" },
+              { name: "Rosa", value: "#f9a8d4" },
+              { name: "Preto", value: "#1a1a1a" },
+            ].map((c) => (
+              <button
+                key={c.name}
+                title={c.name}
+                onClick={() => applyFgColor(c.value)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  customFg === c.value
+                    ? "border-primary ring-2 ring-primary/40 scale-110"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+                style={{
+                  background: c.value
+                    ? c.value
+                    : "linear-gradient(135deg, hsl(210 20% 90%), hsl(220 20% 14%))",
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground shrink-0">Cor personalizada</Label>
+            <input
+              type="color"
+              value={customFg || "#e4e4e7"}
+              onChange={(e) => applyFgColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+            />
+            <Input
+              value={customFg}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) applyFgColor(v);
+                setCustomFg(v);
+              }}
+              placeholder="#e4e4e7"
+              className="bg-accent border-border w-28 font-mono text-xs"
+            />
+            {customFg && (
+              <Button variant="ghost" size="sm" onClick={() => applyFgColor("")} className="text-xs gap-1">
                 <RotateCcw className="w-3 h-3" /> Padrão
               </Button>
             )}
