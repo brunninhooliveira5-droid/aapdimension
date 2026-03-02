@@ -112,7 +112,21 @@ export function useDashboardLayout() {
         .single();
 
       if (data && (data as any).layout) {
-        const saved = (data as any).layout as DashboardCardItem[];
+        const raw = (data as any).layout as any[];
+        // Migrate legacy items (no type/id) to new format
+        const saved: DashboardCardItem[] = raw.map(item => {
+          if (!item.type) {
+            // Legacy widget item
+            const def = ALL_WIDGETS.find(w => w.key === item.key);
+            return {
+              ...item,
+              id: item.id || `w_${item.key}`,
+              type: "widget" as CardType,
+              title: item.title || def?.label || item.key,
+            };
+          }
+          return item as DashboardCardItem;
+        });
         // Merge with any new widgets that may have been added since last save
         const savedKeys = new Set(saved.map(s => s.key));
         const merged = [...saved];
@@ -128,6 +142,13 @@ export function useDashboardLayout() {
             });
           }
         });
+        // Force fixed widgets to always be visible
+        for (const m of merged) {
+          if (m.type === "widget") {
+            const def = ALL_WIDGETS.find(w => w.key === m.key);
+            if (def?.fixed) m.visible = true;
+          }
+        }
         setCards(merged.sort((a, b) => a.order - b.order));
       } else {
         const defaultCards = getDefaultCards(role as UserRole);
