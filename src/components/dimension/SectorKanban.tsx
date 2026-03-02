@@ -201,35 +201,49 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
               {statusLabels[col]} ({tasks.filter((t) => t.status === col).length})
             </div>
             <div className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
-              {tasks.filter((t) => t.status === col).map((task) => (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, task.id)}
-                  onClick={() => openEdit(task)}
-                  className="p-3 rounded-lg border bg-card space-y-2 hover:shadow-sm transition-shadow cursor-grab active:cursor-grabbing hover:border-primary/40"
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <p className="text-sm font-medium leading-tight">{task.title}</p>
-                    <div className="flex gap-0.5 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+              {tasks.filter((t) => t.status === col).map((task) => {
+                const statusGradients: Record<string, string> = {
+                  a_fazer: "from-slate-500 to-slate-700",
+                  em_andamento: "from-blue-500 to-blue-700",
+                  aguardando: "from-amber-500 to-amber-700",
+                  atrasada: "from-red-500 to-red-700",
+                  concluida: "from-emerald-500 to-emerald-700",
+                };
+                const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
+                return (
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    onClick={() => openEdit(task)}
+                    className="relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing"
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+                    <div className="relative p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="text-sm font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
+                        <div className="flex gap-0.5 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(task.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
+                      </div>
+                      {task.responsible && <p className="text-[10px] text-white/80 drop-shadow-sm">👤 {task.responsible}</p>}
+                      {task.due_date && <p className="text-[10px] text-white/80 drop-shadow-sm">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+                      {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-white/80 flex items-center gap-1 drop-shadow-sm"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
-                  </div>
-                  {task.responsible && <p className="text-[10px] text-muted-foreground">👤 {task.responsible}</p>}
-                  {task.due_date && <p className="text-[10px] text-muted-foreground">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
-                  {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
