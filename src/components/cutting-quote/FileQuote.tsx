@@ -931,6 +931,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
           materialCost,
           serviceValue: serviceValueIncluded ? serviceValue : 0,
           serviceValueIncluded,
+          serviceDescription: serviceValueIncluded ? serviceDescription : "",
           totalPrice,
           deliveryDeadline: deliveryDeadline.trim(),
         },
