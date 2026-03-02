@@ -94,7 +94,9 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
 
   const monthlyEnergyCost = energyCostPerKwh * machineEnergyConsumptionKw * productiveHours;
   const totalFixed = rent + electricity + internet + otherFixed;
-  const totalMachine = machineCost + gasConsumable + maintenanceCost + otherMachine + operatorSalary + monthlyEnergyCost;
+  const baseMachineCost = gasConsumable + maintenanceCost + otherMachine + operatorSalary + monthlyEnergyCost;
+  const depreciationValue = baseMachineCost * (machineCost / 100);
+  const totalMachine = baseMachineCost + depreciationValue;
   const totalMonthlyCost = totalFixed + totalMachine;
 
   const costPerHour = productiveHours > 0 ? totalMonthlyCost / productiveHours : 0;
@@ -208,16 +210,6 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs">Depreciação / Parcela (R$)</Label>
-              <Input 
-                type="text" 
-                inputMode="decimal"
-                value={machineCost > 0 ? machineCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} 
-                onChange={(e) => setMachineCost(Number(e.target.value.replace(/[^\d]/g, "")) / 100)} 
-                placeholder="0,00" 
-              />
-            </div>
-            <div>
               <Label className="text-xs">Consumíveis (R$)</Label>
               <Input 
                 type="text" 
@@ -306,6 +298,10 @@ export function PricingSimulator({ onPricingChange }: PricingSimulatorProps) {
             <CardDescription>Configurações de produtividade</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div>
+              <Label className="text-xs">Depreciação (%)</Label>
+              <Input type="number" min={0} step={0.1} value={machineCost || ""} onChange={(e) => setMachineCost(Number(e.target.value))} placeholder="10" />
+            </div>
             <div>
               <Label className="text-xs">Horas Produtivas / Mês</Label>
               <Input type="number" min={1} value={productiveHours || ""} onChange={(e) => setProductiveHours(Number(e.target.value))} placeholder="160" />
