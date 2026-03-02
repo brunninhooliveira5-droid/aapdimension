@@ -26,21 +26,25 @@ export function applyCustomBg() {
   const saved = localStorage.getItem("custom-bg-color");
   const savedSidebar = localStorage.getItem("custom-sidebar-color");
   const savedCard = localStorage.getItem("custom-card-color");
-  if (saved) {
-    document.documentElement.style.setProperty("--background", hexToHsl(saved));
-  } else {
-    document.documentElement.style.removeProperty("--background");
-  }
-  if (savedSidebar) {
-    document.documentElement.style.setProperty("--sidebar-background", hexToHsl(savedSidebar));
-  } else {
-    document.documentElement.style.removeProperty("--sidebar-background");
-  }
-  if (savedCard) {
-    document.documentElement.style.setProperty("--card", hexToHsl(savedCard));
-  } else {
-    document.documentElement.style.removeProperty("--card");
-  }
+  const savedFg = localStorage.getItem("custom-fg-color");
+  const pairs: [string, string][] = [
+    ["--background", "custom-bg-color"],
+    ["--sidebar-background", "custom-sidebar-color"],
+    ["--card", "custom-card-color"],
+    ["--foreground", "custom-fg-color"],
+    ["--card-foreground", "custom-fg-color"],
+    ["--popover-foreground", "custom-fg-color"],
+    ["--accent-foreground", "custom-fg-color"],
+    ["--sidebar-accent-foreground", "custom-fg-color"],
+  ];
+  pairs.forEach(([prop, key]) => {
+    const val = localStorage.getItem(key);
+    if (val) {
+      document.documentElement.style.setProperty(prop, hexToHsl(val));
+    } else {
+      document.documentElement.style.removeProperty(prop);
+    }
+  });
 }
 
 export function ThemeToggle() {
