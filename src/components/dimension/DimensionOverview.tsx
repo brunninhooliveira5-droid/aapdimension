@@ -268,11 +268,22 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
 
   return (
     <div className="space-y-6 mt-4">
-      <ProductionCards
-        onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })}
-        onTaskDroppedToSector={handleTaskDroppedToSector}
-        sectorTaskCounts={sectorTaskCounts}
-      />
+      <div className="space-y-2">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <Factory className="h-4 w-4 text-primary" />
+            Setores de Produção
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Clique em um setor para ver seu kanban. Arraste tarefas do pool abaixo para distribuí-las.
+          </p>
+        </div>
+        <ProductionCards
+          onCardClick={(card) => setActiveSector({ key: card.key, title: card.title })}
+          onTaskDroppedToSector={handleTaskDroppedToSector}
+          sectorTaskCounts={sectorTaskCounts}
+        />
+      </div>
 
       {/* KPIs + botão discreto */}
       <div className="flex items-center justify-between">
