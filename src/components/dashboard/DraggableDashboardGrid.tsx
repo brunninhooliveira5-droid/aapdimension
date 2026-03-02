@@ -44,7 +44,7 @@ function SortableCard({ id, children, editMode, colSpan, onCycleSize }: Sortable
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group ${COL_SPAN_CLASS[colSpan] ?? ""}`}
+      className={`relative group h-full ${COL_SPAN_CLASS[colSpan] ?? ""}`}
     >
       {editMode && (
         <div className="absolute -top-2 -left-2 z-10 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

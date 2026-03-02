@@ -38,7 +38,7 @@ export function TicketsWidget({ tickets, setTickets, isAdmin }: Props) {
   });
 
   return (
-    <div className="gradient-card rounded-lg border border-border p-5">
+    <div className="gradient-card rounded-lg border border-border p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Chamados Recentes</h3>
         {!isAdmin && (
@@ -62,7 +62,7 @@ export function TicketsWidget({ tickets, setTickets, isAdmin }: Props) {
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+      <div className="space-y-3 flex-1 min-h-0 overflow-y-auto max-h-[350px]">
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum chamado encontrado.</p>
         ) : filtered.map(ticket => (

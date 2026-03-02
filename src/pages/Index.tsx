@@ -431,7 +431,7 @@ const Index = () => {
         />
       );
     }
-    return <div key={card.key}>{renderWidget(card.key)}</div>;
+    return <div key={card.key} className="h-full">{renderWidget(card.key)}</div>;
   };
 
   return (
