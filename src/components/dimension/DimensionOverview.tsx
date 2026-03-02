@@ -341,14 +341,14 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                 </div>
                 <div className={`space-y-2 min-h-[60px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
                   {colTasks.map((task) => {
-                    const gradients: Record<string, string> = {
-                      producao: "from-blue-600 to-blue-800",
-                      financeiro: "from-emerald-600 to-emerald-800",
-                      comercial: "from-violet-600 to-violet-800",
-                      tecnico: "from-amber-600 to-amber-800",
-                      app_sistema: "from-rose-600 to-rose-800",
+                    const statusGradients: Record<string, string> = {
+                      a_fazer: "from-slate-500 to-slate-700",
+                      em_andamento: "from-blue-500 to-blue-700",
+                      aguardando: "from-amber-500 to-amber-700",
+                      atrasada: "from-red-500 to-red-700",
+                      concluida: "from-emerald-500 to-emerald-700",
                     };
-                    const gradient = gradients[task.category] || "from-slate-600 to-slate-800";
+                    const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
                     return (
                       <div
                         key={task.id}
