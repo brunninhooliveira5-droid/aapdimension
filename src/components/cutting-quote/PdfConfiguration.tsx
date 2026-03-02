@@ -31,6 +31,8 @@ export interface PdfSettings {
   show_service_value: boolean;
   label_service_value: string;
   footer_text: string;
+  show_watermark: boolean;
+  watermark_text: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
@@ -53,6 +55,8 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_service_value: true,
   label_service_value: "Valor de Serviço",
   footer_text: "",
+  show_watermark: false,
+  watermark_text: "",
 };
 
 export function PdfConfiguration() {
@@ -97,6 +101,8 @@ export function PdfConfiguration() {
         show_service_value: d.show_service_value ?? true,
         label_service_value: d.label_service_value || "Valor de Serviço",
         footer_text: d.footer_text || "",
+        show_watermark: d.show_watermark ?? false,
+        watermark_text: d.watermark_text || "",
       });
     }
     setLoading(false);
@@ -474,6 +480,34 @@ export function PdfConfiguration() {
           </CardContent>
         </Card>
       )}
+
+      {/* Watermark */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Eye className="w-4 h-4 text-primary" />
+            Marca d'Água
+          </CardTitle>
+          <CardDescription>Texto exibido como marca d'água no fundo do PDF</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Ativar marca d'água</Label>
+            <Switch checked={settings.show_watermark} onCheckedChange={(v) => update("show_watermark", v)} />
+          </div>
+          {settings.show_watermark && (
+            <div>
+              <Label className="text-xs">Texto da marca d'água</Label>
+              <Input
+                value={settings.watermark_text}
+                onChange={(e) => update("watermark_text", e.target.value)}
+                placeholder="Ex: ORÇAMENTO - SEM VALOR FISCAL"
+                className="mt-1"
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Footer */}
       <Card>
