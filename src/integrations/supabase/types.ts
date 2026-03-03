@@ -4313,6 +4313,9 @@ export type Database = {
           phone: string | null
           rejected: boolean
           state: string | null
+          suspended_by: string | null
+          suspended_reason: string | null
+          suspended_until: string | null
           updated_at: string
           zip_code: string | null
         }
@@ -4329,6 +4332,9 @@ export type Database = {
           phone?: string | null
           rejected?: boolean
           state?: string | null
+          suspended_by?: string | null
+          suspended_reason?: string | null
+          suspended_until?: string | null
           updated_at?: string
           zip_code?: string | null
         }
@@ -4345,6 +4351,9 @@ export type Database = {
           phone?: string | null
           rejected?: boolean
           state?: string | null
+          suspended_by?: string | null
+          suspended_reason?: string | null
+          suspended_until?: string | null
           updated_at?: string
           zip_code?: string | null
         }

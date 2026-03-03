@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare, LayoutTemplate } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare, LayoutTemplate, Ban } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,8 @@ interface ManagedUser {
   login_count: number;
   last_login_at: string | null;
   appliedTemplateName: string | null;
+  suspended_until: string | null;
+  suspended_reason: string | null;
 }
 
 const assignableRoles: { value: UserRole; label: string }[] = [
@@ -80,6 +82,11 @@ const UsersPage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetUser, setDeleteTargetUser] = useState<ManagedUser | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [suspendTargetUser, setSuspendTargetUser] = useState<ManagedUser | null>(null);
+  const [suspendDays, setSuspendDays] = useState("7");
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspending, setSuspending] = useState(false);
   const [sortField, setSortField] = useState<"name" | "last_login" | "login_count">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [activityFilter, setActivityFilter] = useState<"todos" | "nunca" | "30" | "60" | "90">("todos");
@@ -130,6 +137,8 @@ const UsersPage = () => {
       login_count: activityMap.get(p.id)?.login_count ?? 0,
       last_login_at: activityMap.get(p.id)?.last_login_at ?? null,
       appliedTemplateName: templateMap.get(p.id) ?? null,
+      suspended_until: p.suspended_until ?? null,
+      suspended_reason: p.suspended_reason ?? null,
     }));
 
     setUsers(mapped);
@@ -295,6 +304,38 @@ const UsersPage = () => {
     setDeletingUser(false);
     setDeleteConfirmOpen(false);
     setDeleteTargetUser(null);
+  };
+
+  const handleSuspendUser = async () => {
+    if (!suspendTargetUser) return;
+    setSuspending(true);
+    try {
+      const days = parseInt(suspendDays);
+      const until = new Date();
+      until.setDate(until.getDate() + days);
+      await supabase.from("profiles").update({
+        suspended_until: until.toISOString(),
+        suspended_reason: suspendReason || `Suspenso por ${days} dias`,
+      } as any).eq("id", suspendTargetUser.id);
+      toast.success(`Usuário "${suspendTargetUser.name}" suspenso por ${days} dias.`);
+      fetchUsers();
+    } catch {
+      toast.error("Erro ao suspender usuário.");
+    }
+    setSuspending(false);
+    setSuspendDialogOpen(false);
+    setSuspendTargetUser(null);
+    setSuspendReason("");
+    setSuspendDays("7");
+  };
+
+  const handleUnsuspendUser = async (u: ManagedUser) => {
+    await supabase.from("profiles").update({
+      suspended_until: null,
+      suspended_reason: null,
+    } as any).eq("id", u.id);
+    toast.success(`Suspensão de "${u.name}" removida.`);
+    fetchUsers();
   };
 
   const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
@@ -584,7 +625,27 @@ const UsersPage = () => {
                         />
                       ) : <span className="w-4" />}
                     </TableCell>
-                    <TableCell className="text-foreground font-medium text-sm">{u.name}</TableCell>
+                    <TableCell className="text-foreground font-medium text-sm">
+                      <div className="flex items-center gap-1.5">
+                        {u.name}
+                        {u.suspended_until && new Date(u.suspended_until) > new Date() && (
+                          <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[9px] font-semibold text-destructive border border-destructive/20">
+                                  <Ban className="w-2.5 h-2.5" />
+                                  Suspenso
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Suspenso até {new Date(u.suspended_until).toLocaleDateString("pt-BR")}
+                                {u.suspended_reason ? ` — ${u.suspended_reason}` : ""}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{u.company}</TableCell>
                     <TableCell>
@@ -678,6 +739,32 @@ const UsersPage = () => {
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </Button>
+                        {u.role !== "admin_master" && (
+                          u.suspended_until && new Date(u.suspended_until) > new Date() ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-success"
+                              title="Remover suspensão"
+                              onClick={() => handleUnsuspendUser(u)}
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              title="Suspender usuário"
+                              onClick={() => {
+                                setSuspendTargetUser(u);
+                                setSuspendDialogOpen(true);
+                              }}
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </Button>
+                          )
+                        )}
                         {u.role !== "admin_master" && (
                           <Button
                             variant="ghost"
@@ -879,6 +966,59 @@ const UsersPage = () => {
               onClick={handleDeleteUser}
             >
               {deletingUser ? "Excluindo..." : "Excluir Usuário"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend User Dialog */}
+      <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Suspender Usuário</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-2">
+            Suspender <span className="font-semibold text-foreground">{suspendTargetUser?.name}</span> por quanto tempo?
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-foreground text-sm">Duração (dias)</Label>
+              <Select value={suspendDays} onValueChange={setSuspendDays}>
+                <SelectTrigger className="bg-accent border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 dia</SelectItem>
+                  <SelectItem value="3">3 dias</SelectItem>
+                  <SelectItem value="7">7 dias</SelectItem>
+                  <SelectItem value="15">15 dias</SelectItem>
+                  <SelectItem value="30">30 dias</SelectItem>
+                  <SelectItem value="60">60 dias</SelectItem>
+                  <SelectItem value="90">90 dias</SelectItem>
+                  <SelectItem value="365">1 ano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-foreground text-sm">Motivo (opcional)</Label>
+              <Input
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+                placeholder="Ex: Violação de uso"
+                className="bg-accent border-border"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={suspending}
+              onClick={handleSuspendUser}
+            >
+              {suspending ? "Suspendendo..." : "Confirmar Suspensão"}
             </Button>
           </DialogFooter>
         </DialogContent>
