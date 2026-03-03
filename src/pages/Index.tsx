@@ -510,13 +510,16 @@ const Index = () => {
         </div>
       )}
 
+      {/* Suggestion/Feedback card — always visible at top regardless of template */}
+      <SuggestionCard />
+
       {/* Dynamic cards grid OR embedded page */}
       {!layoutLoading && (
         isEmbeddedProductionControl ? (
           <ProductionControlDashboard />
         ) : (
           <DraggableDashboardGrid
-            cards={visibleCards}
+            cards={visibleCards.filter(c => c.key !== "tips_card")}
             editMode={editMode && !dashboardLocked}
             onLayoutChange={handleLayoutChange}
             renderCard={renderCard}
