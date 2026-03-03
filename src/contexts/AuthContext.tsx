@@ -44,6 +44,7 @@ interface Profile {
   approved: boolean;
   userPlan: UserPlan | null;
   sectionAccess: Record<string, SectionVisibility>;
+  suspendedUntil: string | null;
 }
 
 interface SignupExtra {
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       approved,
       userPlan,
       sectionAccess,
+      suspendedUntil: (profile as any)?.suspended_until ?? null,
     };
 
     return p;
@@ -134,6 +136,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const p = await fetchProfile(newSession.user.id, newSession.user.email ?? "");
             if (p && !p.approved && p.role !== "admin_master") {
               toast.error("Seu cadastro ainda não foi aprovado pelo administrador.", { duration: 5000 });
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+            } else if (p && p.suspendedUntil && new Date(p.suspendedUntil) > new Date()) {
+              const until = new Date(p.suspendedUntil).toLocaleDateString("pt-BR");
+              toast.error(`Sua conta está suspensa até ${until}.`, { duration: 6000 });
               await supabase.auth.signOut();
               setSession(null);
               setUser(null);
@@ -158,6 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (existingSession?.user) {
         const p = await fetchProfile(existingSession.user.id, existingSession.user.email ?? "");
         if (p && !p.approved && p.role !== "admin_master") {
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+        } else if (p && p.suspendedUntil && new Date(p.suspendedUntil) > new Date()) {
+          const until = new Date(p.suspendedUntil).toLocaleDateString("pt-BR");
+          toast.error(`Sua conta está suspensa até ${until}.`, { duration: 6000 });
           await supabase.auth.signOut();
           setSession(null);
           setUser(null);
@@ -257,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       approved: (profile as any)?.approved ?? false,
       userPlan,
       sectionAccess,
+      suspendedUntil: (profile as any)?.suspended_until ?? null,
     });
   }, [user]);
 
