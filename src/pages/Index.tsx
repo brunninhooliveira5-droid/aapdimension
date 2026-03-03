@@ -513,13 +513,16 @@ const Index = () => {
       {/* Suggestion/Feedback card — always visible at top regardless of template */}
       <SuggestionCard />
 
+      {/* Bulletins card — always visible regardless of profile/template */}
+      <BulletinCard />
+
       {/* Dynamic cards grid OR embedded page */}
       {!layoutLoading && (
         isEmbeddedProductionControl ? (
           <ProductionControlDashboard />
         ) : (
           <DraggableDashboardGrid
-            cards={visibleCards.filter(c => c.key !== "tips_card")}
+            cards={visibleCards.filter(c => c.key !== "tips_card" && c.key !== "bulletins_card")}
             editMode={editMode && !dashboardLocked}
             onLayoutChange={handleLayoutChange}
             renderCard={renderCard}
