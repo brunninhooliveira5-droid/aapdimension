@@ -77,6 +77,9 @@ const UsersPage = () => {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetTargetUser, setResetTargetUser] = useState<ManagedUser | null>(null);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<ManagedUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
   const [sortField, setSortField] = useState<"name" | "last_login" | "login_count">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [activityFilter, setActivityFilter] = useState<"todos" | "nunca" | "30" | "60" | "90">("todos");
@@ -270,6 +273,28 @@ const UsersPage = () => {
       const homeRoute = u.role === "servico" ? "/orcamento" : "/";
       navigate(homeRoute);
     }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTargetUser) return;
+    setDeletingUser(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("delete-user", {
+        body: { target_user_id: deleteTargetUser.id },
+      });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || "Erro ao excluir usuário.");
+      } else {
+        toast.success(`Usuário "${deleteTargetUser.name}" excluído com sucesso.`);
+        fetchUsers();
+      }
+    } catch {
+      toast.error("Erro ao excluir usuário.");
+    }
+    setDeletingUser(false);
+    setDeleteConfirmOpen(false);
+    setDeleteTargetUser(null);
   };
 
   const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
@@ -653,6 +678,20 @@ const UsersPage = () => {
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </Button>
+                        {u.role !== "admin_master" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            title="Excluir usuário"
+                            onClick={() => {
+                              setDeleteTargetUser(u);
+                              setDeleteConfirmOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -816,6 +855,30 @@ const UsersPage = () => {
               }}
             >
               {resettingPassword ? "Resetando..." : "Confirmar Reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirm Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Excluir Usuário</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir permanentemente o usuário <span className="font-semibold text-foreground">{deleteTargetUser?.name}</span> ({deleteTargetUser?.email})? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={deletingUser}
+              onClick={handleDeleteUser}
+            >
+              {deletingUser ? "Excluindo..." : "Excluir Usuário"}
             </Button>
           </DialogFooter>
         </DialogContent>
