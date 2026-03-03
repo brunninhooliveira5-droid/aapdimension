@@ -170,7 +170,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
     justDeletedRef.current = true;
     await supabase.from(tables.tasks as any).delete().eq("id", id);
     toast.success("Tarefa excluída!"); fetchTasks();
-    setTimeout(() => { justDeletedRef.current = false; }, 300);
+    setTimeout(() => { justDeletedRef.current = false; }, 1000);
   };
 
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
@@ -223,7 +223,12 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                     key={task.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    onClick={() => !readOnly && !justDeletedRef.current && openEdit(task)}
+                    onClick={(e) => {
+                      if (readOnly || justDeletedRef.current) return;
+                      const target = e.target as HTMLElement;
+                      if (target.closest('[data-alert-dialog]')) return;
+                      openEdit(task);
+                    }}
                     data-status={task.status}
                     className="app-card relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing border border-transparent"
                   >
@@ -235,7 +240,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                         {!readOnly && (
                           <div className="flex gap-0.5 shrink-0">
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
-                            <AlertDialog>
+                            <AlertDialog onOpenChange={(open) => { if (!open) justDeletedRef.current = true; setTimeout(() => { justDeletedRef.current = false; }, 500); }}>
                               <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
