@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
   const [taskFiles, setTaskFiles] = useState<any[]>([]);
   const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
   const [uploadingFile, setUploadingFile] = useState(false);
+  const justDeletedRef = useRef(false);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -166,8 +167,10 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
   };
 
   const handleDelete = async (id: string) => {
+    justDeletedRef.current = true;
     await supabase.from(tables.tasks as any).delete().eq("id", id);
     toast.success("Tarefa excluída!"); fetchTasks();
+    setTimeout(() => { justDeletedRef.current = false; }, 300);
   };
 
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
@@ -220,7 +223,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                     key={task.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    onClick={() => !readOnly && openEdit(task)}
+                    onClick={() => !readOnly && !justDeletedRef.current && openEdit(task)}
                     data-status={task.status}
                     className="app-card relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing border border-transparent"
                   >
