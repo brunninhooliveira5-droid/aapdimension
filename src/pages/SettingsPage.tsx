@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw } from "lucide-react";
+import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -611,6 +611,17 @@ const SettingsPage = () => {
               ))}
             </div>
           </div>
+        </div>
+        <div className="border-t border-border pt-4 flex justify-end">
+          <Button
+            onClick={async () => {
+              await saveAppearance();
+              toast.success("Aparência salva com sucesso!");
+            }}
+            className="gap-2"
+          >
+            <Save className="w-4 h-4" /> Salvar Aparência
+          </Button>
         </div>
       </div>
       <div className="gradient-card rounded-lg border border-border p-5 space-y-4">

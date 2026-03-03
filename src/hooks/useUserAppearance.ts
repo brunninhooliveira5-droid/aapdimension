@@ -21,7 +21,6 @@ const APPEARANCE_KEYS = [
 
 /** Global flag: once settings are loaded from DB for this session, don't reload */
 let globalLoadedUserId: string | null = null;
-let globalSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function getAppearanceFromLocalStorage(): Record<string, string> {
   const settings: Record<string, string> = {};
@@ -128,21 +127,34 @@ export function useUserAppearance(userId: string | null) {
     load();
   }, [userId]);
 
-  // Save current appearance to DB (debounced)
+  // Save current appearance to DB (explicit)
   const saveAppearance = useCallback(async () => {
     if (!userId || savingRef.current) return;
 
-    // Debounce: cancel previous pending save and schedule a new one
-    if (globalSaveTimeout) clearTimeout(globalSaveTimeout);
-
-    globalSaveTimeout = setTimeout(async () => {
-      savingRef.current = true;
+    savingRef.current = true;
+    try {
       const settings = getAppearanceFromLocalStorage();
-      await supabase
+
+      // Check if row exists
+      const { data: existing } = await supabase
         .from("user_appearance_settings" as any)
-        .upsert({ user_id: userId, settings } as any);
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("user_appearance_settings" as any)
+          .update({ settings } as any)
+          .eq("user_id", userId);
+      } else {
+        await supabase
+          .from("user_appearance_settings" as any)
+          .insert({ user_id: userId, settings } as any);
+      }
+    } finally {
       savingRef.current = false;
-    }, 500);
+    }
   }, [userId]);
 
   return { saveAppearance };
