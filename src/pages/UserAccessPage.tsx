@@ -106,11 +106,21 @@ const UserAccessPage = () => {
     setHasAccessRow(!!accessData);
     setBonuses((bonusData as any[]) ?? []);
 
-    // Build sections state from saved data or defaults
+    // Build sections state from saved data or role-aware defaults
     const saved = (accessData as any)?.sections ?? {};
+    const role = (roleData?.role as UserRole) ?? "operador";
+    const rolePerms: Record<UserRole, string[]> = {
+      admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "gestao_financeira", "configuracoes", "usuarios", "boletins", "orcamento", "arquivos", "propostas", "dimension", "controle_producao"],
+      admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos"],
+      operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos"],
+      financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
+      servico: ["home", "equipamentos", "configuracoes", "orcamento"],
+      usuario_interno: ["home", "configuracoes"],
+    };
+    const allowedByRole = rolePerms[role] ?? [];
     const initial: Record<string, Visibility> = {};
     ALL_SECTIONS.forEach((s) => {
-      initial[s.key] = saved[s.key] ?? "visible";
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes(s.key) ? "visible" : "hidden");
     });
     // Also initialize sub-feature keys (orcamento_pdf, orcamento_salvos, etc.)
     ORCAMENTO_SUB_FEATURES.forEach((s) => {
