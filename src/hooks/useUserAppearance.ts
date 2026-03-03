@@ -97,9 +97,15 @@ export function applyAllAppearanceEffects() {
 export function useUserAppearance(userId: string | null) {
   const savingRef = useRef(false);
 
-  // Load from DB only once per user session (global singleton)
+  // Load from DB when user changes
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      // User logged out — reset to defaults
+      APPEARANCE_KEYS.forEach(key => localStorage.removeItem(key));
+      applyAllAppearanceEffects();
+      globalLoadedUserId = null;
+      return;
+    }
     // If already loaded for this user in this browser session, skip
     if (globalLoadedUserId === userId) return;
 
@@ -112,6 +118,9 @@ export function useUserAppearance(userId: string | null) {
 
       if (data && (data as any).settings) {
         setAppearanceToLocalStorage((data as any).settings as Record<string, string>);
+      } else {
+        // No saved settings: reset localStorage to defaults (clear all appearance keys)
+        APPEARANCE_KEYS.forEach(key => localStorage.removeItem(key));
       }
       applyAllAppearanceEffects();
       globalLoadedUserId = userId;
