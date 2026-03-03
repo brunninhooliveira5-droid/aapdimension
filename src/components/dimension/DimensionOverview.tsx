@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   const [newTask, setNewTask] = useState({ title: "", priority: "media", responsible: "", due_date: "" });
   const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const suppressEditRef = useRef(false);
   const [detailTask, setDetailTask] = useState<any>(null);
   const [editForm, setEditForm] = useState({ title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer", category: "producao" });
   const [showAllTasks, setShowAllTasks] = useState(false);
@@ -386,7 +387,7 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                         key={task.id}
                       draggable
                         onDragStart={(e) => handleDragStart(e, task.id)}
-                        onClick={() => !readOnly && openDetail(task)}
+                        onClick={() => { if (!readOnly && !suppressEditRef.current) openDetail(task); }}
                         data-status={task.status}
                         className="app-card relative rounded-xl overflow-hidden group transition-all duration-300 hover:ring-2 hover:ring-primary/40 hover:shadow-lg cursor-grab active:cursor-grabbing border border-transparent"
                       >
@@ -400,24 +401,27 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
                                 <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openDetail(task); }}>
                                   <Pencil className="h-2.5 w-2.5" />
                                 </Button>
-                                <AlertDialog>
+                                <AlertDialog onOpenChange={(open) => { if (!open) { suppressEditRef.current = true; setTimeout(() => { suppressEditRef.current = false; }, 500); } }}>
                                   <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-5 w-5 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
                                       <Trash2 className="h-2.5 w-2.5" />
                                     </Button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent>
+                                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                                     <AlertDialogHeader>
                                       <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
                                       <AlertDialogDescription>Esta ação não pode ser desfeita. A tarefa "{task.title}" será removida permanentemente.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={async () => {
+                                      <AlertDialogAction onClick={async (e) => {
+                                        e.stopPropagation();
+                                        suppressEditRef.current = true;
                                         await supabase.from(tables.taskFiles as any).delete().eq("task_id", task.id);
                                         await supabase.from(tables.tasks as any).delete().eq("id", task.id);
                                         toast.success("Tarefa excluída!");
                                         fetchAll();
+                                        setTimeout(() => { suppressEditRef.current = false; }, 1000);
                                       }}>Excluir</AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
