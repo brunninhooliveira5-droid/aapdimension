@@ -32,73 +32,71 @@ export function BulletinCard({ filterByRole }: BulletinCardProps = {}) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchBulletins = async () => {
       if (!user) return;
       const today = new Date().toISOString().split("T")[0];
 
-      // Fetch active bulletins within validity
-      const { data: bulletins } = await supabase
-        .from("technical_bulletins")
-        .select("*")
-        .eq("active", true)
-        .lte("valid_from", today)
-        .order("created_at", { ascending: false });
+      try {
+        // Fetch active bulletins within validity
+        const { data: bulletins, error: bulletinErr } = await supabase
+          .from("technical_bulletins")
+          .select("*")
+          .eq("active", true)
+          .lte("valid_from", today)
+          .order("created_at", { ascending: false });
 
-      if (!bulletins || bulletins.length === 0) { setLoading(false); return; }
+        if (bulletinErr || !bulletins || bulletins.length === 0) { setLoading(false); return; }
 
-      // Filter by validity and target_models (match user's machines)
-      const { data: userMachines } = await supabase
-        .from("machines")
-        .select("model");
-      const userModels = new Set(userMachines?.map(m => m.model.toLowerCase()) ?? []);
-
-      // Get read bulletins
-      const { data: reads } = await supabase
-        .from("bulletin_reads")
-        .select("bulletin_id");
-      const readIds = new Set(reads?.map(r => r.bulletin_id) ?? []);
-
-      // Find first valid, unread bulletin relevant to user
-      const activeBulletin = bulletins.find(b => {
-        if (b.valid_until && b.valid_until < today) return false;
-        if (readIds.has(b.id)) return false;
-        // Filter by target_roles if filterByRole is specified
-        const targetRoles: string[] = b.target_roles ?? [];
-        if (filterByRole) {
-          if (targetRoles.length > 0 && !targetRoles.includes(filterByRole)) return false;
-        } else {
-          // When no filterByRole, skip bulletins that target specific roles
-        }
-        // If no target_models, show to everyone
-        const targets: string[] = b.target_models ?? [];
-        if (targets.length === 0) return true;
-        return targets.some(t => userModels.has(t.toLowerCase()));
-      });
-
-      // If all unread are filtered, show most recent read one
-      if (!activeBulletin) {
-        const anyValid = bulletins.find(b => {
-          if (b.valid_until && b.valid_until < today) return false;
-          const targetRoles: string[] = b.target_roles ?? [];
-          if (filterByRole) {
-            if (targetRoles.length > 0 && !targetRoles.includes(filterByRole)) return false;
+        // Get user machines (optional, may fail for some users)
+        let userModels = new Set<string>();
+        try {
+          const { data: userMachines } = await supabase
+            .from("machines")
+            .select("model");
+          if (userMachines) {
+            userModels = new Set(userMachines.map(m => m.model.toLowerCase()));
           }
+        } catch { /* ignore - user may not have machines access */ }
+
+        // Get read bulletins for current user
+        const { data: reads } = await supabase
+          .from("bulletin_reads")
+          .select("bulletin_id");
+        const readIds = new Set(reads?.map(r => r.bulletin_id) ?? []);
+
+        // Check if bulletin is relevant to user
+        const isRelevant = (b: any): boolean => {
+          if (b.valid_until && b.valid_until < today) return false;
+          // Filter by target_roles if filterByRole is specified
+          const targetRoles: string[] = b.target_roles ?? [];
+          if (filterByRole && targetRoles.length > 0 && !targetRoles.includes(filterByRole)) return false;
+          // If no target_models, show to everyone
           const targets: string[] = b.target_models ?? [];
           if (targets.length === 0) return true;
-          return targets.some(t => userModels.has(t.toLowerCase()));
-        });
-        if (anyValid) {
-          setBulletin(anyValid as Bulletin);
-          setIsRead(true);
+          return targets.some((t: string) => userModels.has(t.toLowerCase()));
+        };
+
+        // Find first unread relevant bulletin
+        const activeBulletin = bulletins.find(b => isRelevant(b) && !readIds.has(b.id));
+
+        if (activeBulletin) {
+          setBulletin(activeBulletin as Bulletin);
+          setIsRead(false);
+        } else {
+          // Show most recent read one
+          const anyValid = bulletins.find(b => isRelevant(b));
+          if (anyValid) {
+            setBulletin(anyValid as Bulletin);
+            setIsRead(true);
+          }
         }
-      } else {
-        setBulletin(activeBulletin as Bulletin);
-        setIsRead(false);
+      } catch (err) {
+        console.error("Error fetching bulletins:", err);
       }
       setLoading(false);
     };
-    fetch();
-  }, [user]);
+    fetchBulletins();
+  }, [user, filterByRole]);
 
   const handleMarkRead = async () => {
     if (!bulletin || !user) return;
