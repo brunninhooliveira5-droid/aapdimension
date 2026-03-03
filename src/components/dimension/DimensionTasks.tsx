@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, List, Columns3, Paperclip, Download, X, FileImage, FileText, File as FileIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Pencil, Trash2, List, Columns3, Paperclip, Download, X, FileImage, FileText, File as FileIcon, ChevronDown, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
@@ -20,6 +20,14 @@ const statusLabels: Record<string, string> = { a_fazer: "A fazer", em_andamento:
 const statusColors: Record<string, string> = { a_fazer: "bg-muted text-muted-foreground", em_andamento: "bg-blue-500/10 text-blue-600", aguardando: "bg-amber-500/10 text-amber-600", concluida: "bg-green-500/10 text-green-600" };
 const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-destructive", media: "bg-amber-500/10 text-amber-600", baixa: "bg-muted text-muted-foreground" };
 const categoryLabels: Record<string, string> = { producao: "Produção", financeiro: "Financeiro", comercial: "Comercial", tecnico: "Técnico", app_sistema: "App/Sistema" };
+
+const statusGradients: Record<string, string> = {
+  a_fazer: "from-slate-500 to-slate-700",
+  em_andamento: "from-blue-500 to-blue-700",
+  aguardando: "from-amber-500 to-amber-700",
+  atrasada: "from-red-500 to-red-700",
+  concluida: "from-emerald-500 to-emerald-700",
+};
 
 const emptyTask = { title: "", description: "", priority: "media", category: "producao", responsible: "", due_date: "", status: "a_fazer" };
 
@@ -35,12 +43,14 @@ export function DimensionTasks() {
   const [saving, setSaving] = useState(false);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [includeDone, setIncludeDone] = useState(false);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [taskFiles, setTaskFiles] = useState<any[]>([]);
   const [taskFileCounts, setTaskFileCounts] = useState<Record<string, number>>({});
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [recentDoneOpen, setRecentDoneOpen] = useState(true);
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const loadTaskFiles = async (taskId: string) => {
     const { data } = await supabase
@@ -121,16 +131,36 @@ export function DimensionTasks() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || task.status === newStatus) return;
 
+    const previousStatus = task.status;
+
     // Optimistic update
-    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : t.completed_at } : t));
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus, completed_at: newStatus === "concluida" ? new Date().toISOString() : (newStatus !== "concluida" ? null : t.completed_at) } : t));
 
     const payload: any = { status: newStatus };
-    if (newStatus === "concluida" && task.status !== "concluida") payload.completed_at = new Date().toISOString();
+    if (newStatus === "concluida") {
+      payload.completed_at = new Date().toISOString();
+    }
 
     const { error } = await supabase.from(tables.tasks as any).update(payload).eq("id", taskId);
     if (error) {
       toast.error("Erro ao mover tarefa");
       fetchAll();
+      return;
+    }
+
+    if (newStatus === "concluida") {
+      toast.success("Tarefa concluída ✅", {
+        duration: 7000,
+        action: {
+          label: "Desfazer",
+          onClick: async () => {
+            // Undo: restore previous status
+            setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: previousStatus, completed_at: null } : t));
+            await supabase.from(tables.tasks as any).update({ status: previousStatus, completed_at: null }).eq("id", taskId);
+            toast.success("Tarefa restaurada!");
+          },
+        },
+      });
     } else {
       toast.success(`Tarefa movida para "${statusLabels[newStatus]}"`);
     }
@@ -149,10 +179,21 @@ export function DimensionTasks() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Active tasks (excluding done unless filter is on)
   const filtered = tasks.filter((t) => {
+    if (!includeDone && t.status === "concluida") return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     if (filterCategory !== "all" && t.category !== filterCategory) return false;
     return true;
+  });
+
+  // Recent completed (last 48h) for list view section
+  const now = Date.now();
+  const recentDone = tasks.filter((t) => {
+    if (t.status !== "concluida") return false;
+    if (!t.completed_at) return false;
+    const completedAt = new Date(t.completed_at).getTime();
+    return now - completedAt <= 48 * 60 * 60 * 1000;
   });
 
   const openCreate = () => { setEditingTask(null); setForm(emptyTask); setDialogOpen(true); };
@@ -164,6 +205,7 @@ export function DimensionTasks() {
     const payload: any = { ...form, due_date: form.due_date || null };
     if (editingTask) {
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
+      if (form.status !== "concluida" && editingTask.status === "concluida") payload.completed_at = null;
       await supabase.from(tables.tasks as any).update(payload).eq("id", editingTask.id);
       toast.success("Tarefa atualizada!");
     } else {
@@ -179,15 +221,10 @@ export function DimensionTasks() {
     toast.success("Tarefa excluída!"); fetchAll();
   };
 
-  const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "concluida"];
-
-  const statusGradients: Record<string, string> = {
-    a_fazer: "from-slate-500 to-slate-700",
-    em_andamento: "from-blue-500 to-blue-700",
-    aguardando: "from-amber-500 to-amber-700",
-    atrasada: "from-red-500 to-red-700",
-    concluida: "from-emerald-500 to-emerald-700",
-  };
+  // Kanban columns: only show "concluida" column when filter is active
+  const kanbanCols = includeDone
+    ? ["a_fazer", "em_andamento", "aguardando", "concluida"]
+    : ["a_fazer", "em_andamento", "aguardando"];
 
   const TaskCard = ({ task }: { task: any }) => {
     const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
@@ -229,10 +266,24 @@ export function DimensionTasks() {
     );
   };
 
+  // Drop zone for "Concluída" when column is hidden (drop target at the end)
+  const DoneDropZone = () => (
+    <div
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCol("concluida"); }}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => handleDrop(e, "concluida")}
+      className={`flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-4 px-3 text-xs font-medium transition-all ${dragOverCol === "concluida" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-muted-foreground/20 text-muted-foreground/50"}`}
+    >
+      <CheckCircle2 className="h-4 w-4" />
+      Arraste aqui para concluir
+    </div>
+  );
+
   return (
     <div className="space-y-4 mt-4">
+      {/* Filters bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Select value={filterPriority} onValueChange={setFilterPriority}>
             <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Prioridade" /></SelectTrigger>
             <SelectContent>
@@ -253,6 +304,10 @@ export function DimensionTasks() {
               <SelectItem value="app_sistema">App/Sistema</SelectItem>
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none ml-1">
+            <Checkbox checked={includeDone} onCheckedChange={(v) => setIncludeDone(!!v)} />
+            Incluir concluídas
+          </label>
         </div>
         <div className="flex gap-2">
           <div className="flex border rounded-md overflow-hidden">
@@ -263,39 +318,73 @@ export function DimensionTasks() {
         </div>
       </div>
 
+      {/* Kanban view */}
       {view === "kanban" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kanbanCols.map((col) => (
-            <div
-              key={col}
-              className="space-y-2"
-              onDragOver={(e) => handleDragOver(e, col)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, col)}
-            >
-              <div className={`rounded-md px-3 py-1.5 text-xs font-semibold ${statusColors[col]}`}>{statusLabels[col]} ({filtered.filter((t) => t.status === col).length})</div>
-              <div className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
-                {filtered.filter((t) => t.status === col).map((task) => <TaskCard key={task.id} task={task} />)}
+        <div className="space-y-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${includeDone ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
+            {kanbanCols.map((col) => (
+              <div
+                key={col}
+                className="space-y-2"
+                onDragOver={(e) => handleDragOver(e, col)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, col)}
+              >
+                <div className={`rounded-md px-3 py-1.5 text-xs font-semibold ${statusColors[col]}`}>{statusLabels[col]} ({filtered.filter((t) => t.status === col).length})</div>
+                <div className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${dragOverCol === col ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}>
+                  {filtered.filter((t) => t.status === col).map((task) => <TaskCard key={task.id} task={task} />)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          {/* Drop zone for done when column is hidden */}
+          {!includeDone && <DoneDropZone />}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa encontrada.</p> : filtered.map((task) => {
-            const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
-            return (
-              <div key={task.id} className={`relative flex items-center gap-3 p-3 rounded-xl overflow-hidden cursor-pointer`} onClick={() => openEdit(task)}>
-                <div className={`absolute inset-0 bg-gradient-to-r ${gradient}`} />
-                <div className="absolute inset-0 bg-black/30" />
-                <Badge className="relative text-[9px] shrink-0 bg-white/20 text-white border-0 backdrop-blur-sm">{statusLabels[task.status]}</Badge>
-                <span className="relative text-sm flex-1 truncate text-white font-medium drop-shadow-sm">{task.title}</span>
-                <Badge className="relative text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
-                {task.due_date && <span className="relative text-[10px] text-white/80">{format(new Date(task.due_date + "T00:00:00"), "dd/MM", { locale: ptBR })}</span>}
-                <Button variant="ghost" size="icon" className="relative h-7 w-7 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3.5 w-3.5" /></Button>
-              </div>
-            );
-          })}
+        <div className="space-y-4">
+          {/* Active tasks list */}
+          <div className="space-y-2">
+            {filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa encontrada.</p> : filtered.map((task) => {
+              const gradient = statusGradients[task.status] || "from-slate-600 to-slate-800";
+              return (
+                <div key={task.id} className="relative flex items-center gap-3 p-3 rounded-xl overflow-hidden cursor-pointer" onClick={() => openEdit(task)}>
+                  <div className={`absolute inset-0 bg-gradient-to-r ${gradient}`} />
+                  <div className="absolute inset-0 bg-black/30" />
+                  <Badge className="relative text-[9px] shrink-0 bg-white/20 text-white border-0 backdrop-blur-sm">{statusLabels[task.status]}</Badge>
+                  <span className="relative text-sm flex-1 truncate text-white font-medium drop-shadow-sm">{task.title}</span>
+                  <Badge className="relative text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{task.priority}</Badge>
+                  {task.due_date && <span className="relative text-[10px] text-white/80">{format(new Date(task.due_date + "T00:00:00"), "dd/MM", { locale: ptBR })}</span>}
+                  <Button variant="ghost" size="icon" className="relative h-7 w-7 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Recent completed section (only when not showing all done) */}
+          {!includeDone && recentDone.length > 0 && (
+            <Collapsible open={recentDoneOpen} onOpenChange={setRecentDoneOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full py-2">
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${recentDoneOpen ? "" : "-rotate-90"}`} />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  Concluídas recentes ({recentDone.length})
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1.5 opacity-70">
+                  {recentDone.map((task) => (
+                    <div key={task.id} className="relative flex items-center gap-3 p-2.5 rounded-xl overflow-hidden cursor-pointer" onClick={() => openEdit(task)}>
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-emerald-700" />
+                      <div className="absolute inset-0 bg-black/40" />
+                      <CheckCircle2 className="relative h-3.5 w-3.5 text-white/80" />
+                      <span className="relative text-xs flex-1 truncate text-white/90 font-medium line-through decoration-white/40">{task.title}</span>
+                      {task.completed_at && <span className="relative text-[10px] text-white/60">{format(new Date(task.completed_at), "dd/MM HH:mm", { locale: ptBR })}</span>}
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
       )}
 
