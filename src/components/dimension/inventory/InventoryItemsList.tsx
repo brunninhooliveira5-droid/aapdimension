@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package } from "lucide-react";
 import { toast } from "sonner";
+import { CurrencyInput } from "./CurrencyInput";
+import { InventoryImageUpload } from "./InventoryImageUpload";
 
 const ITEM_TYPES = [
   { value: "materia_prima", label: "Matéria-prima" },
@@ -34,6 +36,7 @@ export function InventoryItemsList() {
     name: "", internal_code: "", subcategory: "", item_type: "materia_prima",
     compatible_with: [] as string[], min_quantity: "0", ideal_quantity: "0",
     unit_cost: "0", category_id: "", unit_id: "", location_id: "", supplier_id: "",
+    image_url: null as string | null,
   });
 
   const { data: items = [], isLoading } = useQuery({
@@ -97,6 +100,7 @@ export function InventoryItemsList() {
         unit_id: form.unit_id || null,
         location_id: form.location_id || null,
         supplier_id: form.supplier_id || null,
+        image_url: form.image_url,
         created_by: session?.user.id!,
       });
       if (error) throw error;
@@ -105,7 +109,7 @@ export function InventoryItemsList() {
       toast.success("Item criado!");
       qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setOpen(false);
-      setForm({ name: "", internal_code: "", subcategory: "", item_type: "materia_prima", compatible_with: [], min_quantity: "0", ideal_quantity: "0", unit_cost: "0", category_id: "", unit_id: "", location_id: "", supplier_id: "" });
+      setForm({ name: "", internal_code: "", subcategory: "", item_type: "materia_prima", compatible_with: [], min_quantity: "0", ideal_quantity: "0", unit_cost: "0", category_id: "", unit_id: "", location_id: "", supplier_id: "", image_url: null });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -135,6 +139,13 @@ export function InventoryItemsList() {
             <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Novo Item de Estoque</DialogTitle></DialogHeader>
               <div className="space-y-3">
+                <div>
+                  <Label>Foto do Item</Label>
+                  <InventoryImageUpload
+                    imageUrl={form.image_url}
+                    onImageChange={(url) => setForm({ ...form, image_url: url })}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                   <div><Label>Código Interno</Label><Input value={form.internal_code} onChange={(e) => setForm({ ...form, internal_code: e.target.value })} /></div>
@@ -195,7 +206,7 @@ export function InventoryItemsList() {
                 <div className="grid grid-cols-3 gap-3">
                   <div><Label>Estoque Mín.</Label><Input type="number" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} /></div>
                   <div><Label>Estoque Ideal</Label><Input type="number" value={form.ideal_quantity} onChange={(e) => setForm({ ...form, ideal_quantity: e.target.value })} /></div>
-                  <div><Label>Custo Unit. (R$)</Label><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} /></div>
+                  <div><Label>Custo Unit.</Label><CurrencyInput value={form.unit_cost} onChange={(v) => setForm({ ...form, unit_cost: v })} /></div>
                 </div>
                 <div>
                   <Label>Fornecedor Principal</Label>
@@ -228,6 +239,7 @@ export function InventoryItemsList() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Tipo</TableHead>
@@ -241,13 +253,22 @@ export function InventoryItemsList() {
               <TableBody>
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
+                    <TableCell className="w-12 pr-0">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="h-8 w-8 rounded object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">{item.internal_code || "-"}</TableCell>
                     <TableCell className="text-xs">{ITEM_TYPES.find((t) => t.value === item.item_type)?.label}</TableCell>
                     <TableCell className="text-right">{Number(item.current_quantity)}</TableCell>
                     <TableCell className="text-right">{Number(item.reserved_quantity)}</TableCell>
                     <TableCell className="text-right font-medium">{Number(item.current_quantity) - Number(item.reserved_quantity)}</TableCell>
-                    <TableCell className="text-right">R$ {Number(item.avg_cost || item.unit_cost).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">R$ {Number(item.avg_cost || item.unit_cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>{getStockBadge(item)}</TableCell>
                   </TableRow>
                 ))}
