@@ -448,6 +448,12 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
               <span>{fmt(metrics.accumulated)}</span>
               <span>{fmt(investment.invested_value)}</span>
             </div>
+            {metrics.percentPaid >= 100 && (
+              <div className="mt-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">🎉 Máquina Paga — Lucro Excedente</p>
+                <p className="text-lg font-bold text-primary">{fmt(metrics.accumulated - investment.invested_value)}</p>
+              </div>
+            )}
           </div>
 
           {/* Resale Value Card */}
