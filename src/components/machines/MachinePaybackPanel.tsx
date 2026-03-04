@@ -256,15 +256,14 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
     const monthsSincePurchase = Math.max(1, differenceInMonths(now, purchaseDate));
     const totalProfit = services.reduce((sum, s) => sum + s.profit, 0);
     const totalDepreciation = inv.depreciation_monthly * monthsSincePurchase;
-    const netProfit = totalProfit - totalDepreciation;
-    const accumulated = Math.max(0, netProfit);
+    const accumulated = Math.max(0, totalProfit);
     const percentPaid = Math.min(200, (accumulated / inv.invested_value) * 100);
     const remaining = Math.max(0, inv.invested_value - accumulated);
 
     const last3MonthsCutoff = format(subMonths(now, 3), "yyyy-MM-dd");
     const last3Services = services.filter((s) => s.service_date >= last3MonthsCutoff);
     const last3Profit = last3Services.reduce((sum, s) => sum + s.profit, 0);
-    const avgMonthlyNet = (last3Profit / 3) - inv.depreciation_monthly;
+    const avgMonthlyNet = last3Profit / 3;
     const monthsToPayoff = avgMonthlyNet > 0 ? Math.ceil(remaining / avgMonthlyNet) : Infinity;
 
     const filteredProfit = filteredServices.reduce((sum, s) => sum + s.profit, 0);
@@ -278,7 +277,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
 
     return {
       percentPaid, accumulated, remaining, depreciationMonthly: inv.depreciation_monthly,
-      avgMonthlyNet, monthsToPayoff, totalProfit, totalDepreciation, netProfit, monthsSincePurchase,
+      avgMonthlyNet, monthsToPayoff, totalProfit, totalDepreciation, monthsSincePurchase,
       filteredProfit, filteredRevenue, serviceCount: filteredServices.length,
       depAccumulated, bookValue, marketFloor, estimatedResaleValue, valuePreservedPercent,
     };
