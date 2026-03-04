@@ -556,6 +556,61 @@ export function MachinePayback() {
             </CardContent>
           </Card>
 
+          {/* Resale Value Estimation Card */}
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-primary" /> Valor Estimado da Máquina (Revenda)
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Valor mínimo de mercado garantido em 75% do valor inicial
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Valor Inicial</p>
+                  <p className="text-sm font-bold">{fmt(selectedInvestment.invested_value)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tempo de Uso</p>
+                  <p className="text-sm font-bold">{metrics.monthsSincePurchase} meses</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Deprec. Acumulada</p>
+                  <p className="text-sm font-bold text-destructive">{fmt(metrics.depAccumulated)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Valor Contábil</p>
+                  <p className="text-sm font-bold">{fmt(metrics.bookValue)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mín. Mercado (75%)</p>
+                  <p className="text-sm font-bold">{fmt(metrics.marketFloor)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Valor Estimado</p>
+                  <p className="text-lg font-bold text-primary">{fmt(metrics.estimatedResaleValue)}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium">Valor Preservado</span>
+                  <span className="text-sm font-bold text-primary">{metrics.valuePreservedPercent.toFixed(1)}%</span>
+                </div>
+                <Progress value={Math.min(100, metrics.valuePreservedPercent)} className="h-3" />
+                <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                  <span>0%</span>
+                  <span className="text-primary font-medium">Mín. 75%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Accumulated chart */}
