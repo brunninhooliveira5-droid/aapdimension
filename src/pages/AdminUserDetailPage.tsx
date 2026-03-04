@@ -75,12 +75,41 @@ const AdminUserDetailPage = () => {
 
     if (profileData) setProfile(profileData as any);
 
-    // Fetch account
-    const { data: accountData } = await supabase
+    // Fetch or auto-provision account
+    let { data: accountData } = await supabase
       .from("accounts")
       .select("id, max_members")
       .eq("owner_user_id", userId)
       .maybeSingle();
+
+    // Auto-provision account if it doesn't exist
+    if (!accountData && profileData) {
+      const { data: newAccount } = await supabase
+        .from("accounts")
+        .insert({
+          name: (profileData as any).company || (profileData as any).name || "Empresa",
+          owner_user_id: userId,
+        } as any)
+        .select("id, max_members")
+        .single();
+
+      if (newAccount) {
+        // Insert owner as client_admin
+        await supabase.from("account_members").insert({
+          account_id: newAccount.id,
+          user_id: userId,
+          role: "client_admin",
+          permissions: {
+            maquinas: true, suporte: true, manutencao: true,
+            equipamentos: true, pecas: true, financeiro: true,
+            orcamento: true, configuracoes: true, arquivos: true,
+            controle_producao: true, gestao_financeira: true,
+            can_manage_users: true,
+          },
+        } as any);
+        accountData = newAccount;
+      }
+    }
 
     if (accountData) {
       setAccountId(accountData.id);
