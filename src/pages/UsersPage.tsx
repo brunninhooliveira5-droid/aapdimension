@@ -687,7 +687,14 @@ const UsersPage = () => {
                     </TableCell>
                     <TableCell className="text-foreground font-medium text-sm">
                       <div className="flex items-center gap-1.5">
-                        {u.name}
+                        {u.role === "admin" ? (
+                          <button
+                            className="text-foreground hover:text-primary hover:underline font-medium transition-colors text-left"
+                            onClick={() => navigate(`/usuarios/${u.id}/detalhes`)}
+                          >
+                            {u.name}
+                          </button>
+                        ) : u.name}
                         {u.suspended_until && new Date(u.suspended_until) > new Date() && (
                           <TooltipProvider delayDuration={0}>
                             <Tooltip>
