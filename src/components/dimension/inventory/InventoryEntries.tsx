@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowDownToLine, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { CurrencyInput } from "./CurrencyInput";
 
 export function InventoryEntries() {
   const { session } = useAuth();
@@ -100,7 +101,7 @@ export function InventoryEntries() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Quantidade *</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
-                  <div><Label>Valor Unitário (R$)</Label><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} /></div>
+                  <div><Label>Valor Unitário</Label><CurrencyInput value={form.unit_cost} onChange={(v) => setForm({ ...form, unit_cost: v })} /></div>
                 </div>
                 <div>
                   <Label>Fornecedor</Label>
