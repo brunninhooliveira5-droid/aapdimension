@@ -3475,6 +3475,38 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_member_sector_access: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          sector_key: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          sector_key: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          sector_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_member_sector_access_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pc_pendencies: {
         Row: {
           category: string | null

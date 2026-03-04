@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2, AlertTriangle, Eye } from "lucide-react";
 import { CreateMemberDialog } from "@/components/company/CreateMemberDialog";
 import { MemberPermissionsEditor } from "@/components/company/MemberPermissionsEditor";
+import { SectorAccessEditor } from "@/components/company/SectorAccessEditor";
 
 interface Member {
   id: string;
@@ -39,6 +40,7 @@ const CompanyUsersPage = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [editPermissions, setEditPermissions] = useState<Record<string, boolean>>({});
+  const [editSectorKeys, setEditSectorKeys] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Member | null>(null);
   const [provisioning, setProvisioning] = useState(false);
@@ -188,15 +190,44 @@ const CompanyUsersPage = () => {
     fetchMembers();
   };
 
-  const handleEditOpen = (member: Member) => {
+  const handleEditOpen = async (member: Member) => {
     setEditMember(member);
     setEditPermissions({ ...member.permissions });
+    // Load sector access
+    if (accountId) {
+      const { data } = await supabase
+        .from("pc_member_sector_access" as any)
+        .select("sector_key")
+        .eq("account_id", accountId)
+        .eq("user_id", member.user_id);
+      setEditSectorKeys(((data as any[]) ?? []).map((r: any) => r.sector_key));
+    } else {
+      setEditSectorKeys([]);
+    }
   };
 
   const handleSavePermissions = async () => {
-    if (!editMember) return;
+    if (!editMember || !accountId) return;
     setSaving(true);
     await supabase.from("account_members").update({ permissions: editPermissions } as any).eq("id", editMember.id);
+
+    // Save sector access: delete all then insert selected
+    await supabase
+      .from("pc_member_sector_access" as any)
+      .delete()
+      .eq("account_id", accountId)
+      .eq("user_id", editMember.user_id);
+
+    if (editSectorKeys.length > 0) {
+      await supabase.from("pc_member_sector_access" as any).insert(
+        editSectorKeys.map((key) => ({
+          account_id: accountId,
+          user_id: editMember.user_id,
+          sector_key: key,
+        }))
+      );
+    }
+
     toast.success("Permissões atualizadas! O usuário verá as mudanças no próximo login.");
     setSaving(false);
     setEditMember(null);
@@ -344,6 +375,16 @@ const CompanyUsersPage = () => {
             <DialogTitle>Permissões — {editMember?.name}</DialogTitle>
           </DialogHeader>
           <MemberPermissionsEditor permissions={editPermissions} onChange={setEditPermissions} />
+          {editMember && editMember.role !== "client_admin" && accountId && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <SectorAccessEditor
+                accountId={accountId}
+                userId={editMember.user_id}
+                value={editSectorKeys}
+                onChange={setEditSectorKeys}
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMember(null)}>Cancelar</Button>
             <Button onClick={handleSavePermissions} disabled={saving}>
