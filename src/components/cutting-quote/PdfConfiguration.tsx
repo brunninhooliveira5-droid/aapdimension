@@ -60,12 +60,14 @@ const DEFAULT_SETTINGS: PdfSettings = {
 };
 
 export function PdfConfiguration() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [settings, setSettings] = useState<PdfSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
 
   useEffect(() => {
     if (!session?.user) return;
@@ -74,10 +76,23 @@ export function PdfConfiguration() {
 
   const loadSettings = async () => {
     setLoading(true);
+
+    let pdfOwnerId = session!.user.id;
+    if (isSubUser && user?.accountMembership?.accountId) {
+      const { data: accountData } = await supabase
+        .from("accounts")
+        .select("owner_user_id")
+        .eq("id", user.accountMembership.accountId)
+        .single();
+      if (accountData?.owner_user_id) {
+        pdfOwnerId = accountData.owner_user_id;
+      }
+    }
+
     const { data, error } = await supabase
       .from("pdf_quote_settings" as any)
       .select("*")
-      .eq("user_id", session!.user.id)
+      .eq("user_id", pdfOwnerId)
       .maybeSingle();
     if (data) {
       const d = data as any;
@@ -224,6 +239,14 @@ export function PdfConfiguration() {
 
   return (
     <div className="space-y-6">
+      {isSubUser && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
+          <p className="text-sm font-semibold text-foreground">Configuração do Administrador</p>
+          <p className="text-xs text-muted-foreground">
+            As configurações de PDF são herdadas do administrador da conta. Apenas visualização disponível.
+          </p>
+        </div>
+      )}
       {/* Live Preview */}
       <Card>
         <CardHeader className="pb-3">
@@ -305,6 +328,7 @@ export function PdfConfiguration() {
         </CardContent>
       </Card>
 
+      <fieldset disabled={isSubUser} className={isSubUser ? "opacity-60 pointer-events-none" : ""}>
       {/* Company Info */}
       <Card>
         <CardHeader className="pb-3">
@@ -582,11 +606,14 @@ export function PdfConfiguration() {
           />
         </CardContent>
       </Card>
+      </fieldset>
 
-      <Button onClick={saveSettings} disabled={saving} className="w-full gap-2">
-        <Save className="w-4 h-4" />
-        {saving ? "Salvando..." : "Salvar Configurações"}
-      </Button>
+      {!isSubUser && (
+        <Button onClick={saveSettings} disabled={saving} className="w-full gap-2">
+          <Save className="w-4 h-4" />
+          {saving ? "Salvando..." : "Salvar Configurações"}
+        </Button>
+      )}
     </div>
   );
 }
