@@ -5393,6 +5393,7 @@ export type Database = {
         Returns: boolean
       }
       is_client_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_same_account: { Args: { _user_id: string }; Returns: boolean }
       record_login_activity: { Args: { p_user_id: string }; Returns: undefined }
       record_login_event: { Args: { p_user_id: string }; Returns: undefined }
       record_page_visit: {
