@@ -99,8 +99,10 @@ export default function CuttingQuotePage() {
       const inheritMaster = (planData as any)?.use_master_pricing ?? false;
       const inheritDimensionMaterials = (planData as any)?.use_dimension_materials ?? false;
       setUseMasterPricing(inheritMaster);
-      // Service users inheriting master pricing should also use dimension materials
       setUseDimensionMaterials(inheritDimensionMaterials || inheritMaster);
+
+      // Check if user is a sub-user (account member but not client_admin)
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
 
       if (inheritMaster) {
         // Find admin_master user via secure RPC function (bypasses RLS)
@@ -128,6 +130,42 @@ export default function CuttingQuotePage() {
           setPricingSource("master");
           setPricingOwnerId(null);
         }
+      } else if (isSubUser && user?.accountMembership?.accountId) {
+        // Sub-user inherits from account owner (client_admin)
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("owner_user_id")
+          .eq("id", user.accountMembership.accountId)
+          .single();
+
+        const ownerId = accountData?.owner_user_id;
+        if (ownerId) {
+          const { data: ownerSettings } = await supabase
+            .from("pricing_settings" as any)
+            .select("*")
+            .eq("user_id", ownerId)
+            .maybeSingle();
+
+          if (ownerSettings) {
+            setPricing(computePricing(ownerSettings));
+            setPricingSource("master");
+            setPricingOwnerId(ownerId);
+          } else {
+            setMasterPricingError(true);
+            setPricingSource("master");
+            setPricingOwnerId(ownerId);
+          }
+
+          // Also inherit dimension materials from owner
+          const { data: ownerPlan } = await supabase
+            .from("user_plans")
+            .select("use_dimension_materials")
+            .eq("user_id", ownerId)
+            .maybeSingle();
+          if ((ownerPlan as any)?.use_dimension_materials) {
+            setUseDimensionMaterials(true);
+          }
+        }
       } else {
         // Load the effective user's own pricing settings
         const { data } = await supabase
@@ -148,15 +186,31 @@ export default function CuttingQuotePage() {
 
     loadPricing();
 
-    // Load machines owned by the effective user (respects impersonation)
-    supabase
-      .from("machines")
-      .select("*")
-      .eq("owner_id", effectiveUserId)
-      .then(({ data }) => {
-        if (data) setMachines(data);
-      });
-  }, [session, effectiveUserId, isImpersonating]);
+    // Sub-users also inherit machines from account owner
+    const loadMachines = async () => {
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      let machineOwnerId = effectiveUserId;
+
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("owner_user_id")
+          .eq("id", user.accountMembership.accountId)
+          .single();
+        if (accountData?.owner_user_id) {
+          machineOwnerId = accountData.owner_user_id;
+        }
+      }
+
+      const { data } = await supabase
+        .from("machines")
+        .select("*")
+        .eq("owner_id", machineOwnerId);
+      if (data) setMachines(data);
+    };
+
+    loadMachines();
+  }, [session, effectiveUserId, isImpersonating, user?.accountMembership]);
 
   const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
   const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing || isSubUser;
