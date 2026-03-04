@@ -49,8 +49,10 @@ interface Service {
 type PeriodFilter = "3m" | "6m" | "12m" | "all" | "custom";
 
 export function MachinePayback() {
-  const { session } = useAuth();
-  const userId = session?.user?.id;
+  const { session, user } = useAuth();
+  const sessionUserId = session?.user?.id;
+  const [effectiveOwnerId, setEffectiveOwnerId] = useState<string | null>(null);
+  const userId = effectiveOwnerId || sessionUserId;
 
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -93,6 +95,26 @@ export function MachinePayback() {
   const [svcAdditional, setSvcAdditional] = useState(0);
   const [svcNotes, setSvcNotes] = useState("");
 
+  // Resolve effective owner for sub-users
+  useEffect(() => {
+    const resolveOwner = async () => {
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("owner_user_id")
+          .eq("id", user.accountMembership.accountId)
+          .single();
+        if (accountData?.owner_user_id) {
+          setEffectiveOwnerId(accountData.owner_user_id);
+          return;
+        }
+      }
+      setEffectiveOwnerId(sessionUserId ?? null);
+    };
+    resolveOwner();
+  }, [sessionUserId, user?.accountMembership]);
+
   // Load data
   useEffect(() => {
     if (!userId) return;
@@ -103,8 +125,8 @@ export function MachinePayback() {
     if (!userId) return;
     setLoading(true);
     const [invRes, svcRes] = await Promise.all([
-      supabase.from("cnc_investments" as any).select("*").order("created_at", { ascending: false }),
-      supabase.from("cnc_services" as any).select("*").order("service_date", { ascending: false }),
+      supabase.from("cnc_investments" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase.from("cnc_services" as any).select("*").eq("user_id", userId).order("service_date", { ascending: false }),
     ]);
     if (invRes.data) {
       setInvestments(invRes.data as any);

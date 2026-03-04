@@ -246,8 +246,20 @@ export function SavedQuotes() {
     const machineCost = Number(paybackQuote.estimated_cost);
     const profit = revenue - machineCost;
 
+    // Sub-users save services under the account owner's user_id
+    const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+    let paybackUserId = session?.user?.id;
+    if (isSubUser && user?.accountMembership?.accountId) {
+      const { data: acctData } = await supabase
+        .from("accounts")
+        .select("owner_user_id")
+        .eq("id", user.accountMembership.accountId)
+        .single();
+      if (acctData?.owner_user_id) paybackUserId = acctData.owner_user_id;
+    }
+
     const { error } = await supabase.from("cnc_services" as any).insert({
-      user_id: session?.user?.id,
+      user_id: paybackUserId,
       investment_id: selectedPaybackInvestment,
       service_date: paybackQuote.created_at.substring(0, 10),
       client_name: paybackQuote.client_name || "Sem nome",
