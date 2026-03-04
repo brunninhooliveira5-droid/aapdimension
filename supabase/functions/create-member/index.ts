@@ -48,11 +48,13 @@ Deno.serve(async (req) => {
     // Verify caller has permission to add to this account
     if (!isAdminMaster) {
       // Check if caller is account owner
-      const { data: accountOwner } = await supabase
+      const { data: accountOwner, error: ownerErr } = await supabase
         .from("accounts")
         .select("owner_user_id")
         .eq("id", account_id)
         .single();
+
+      console.log("Account owner check:", { accountOwner, ownerErr, callerId: caller.id, account_id });
 
       const isOwner = accountOwner?.owner_user_id === caller.id;
 
@@ -67,6 +69,7 @@ Deno.serve(async (req) => {
           .single();
 
         if (!membership || membership.role !== "client_admin") {
+          console.log("Permission denied. isOwner:", isOwner, "membership:", membership);
           return new Response(JSON.stringify({ error: "Sem permissão para criar membros" }), {
             status: 403,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
