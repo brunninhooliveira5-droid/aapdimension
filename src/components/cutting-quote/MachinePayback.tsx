@@ -163,6 +163,7 @@ export function MachinePayback() {
     setEditingInvestment(null);
     setFormMachineName("");
     setFormInvestedValue(0);
+    setFormInvestedDisplay("");
     setFormPurchaseDate(format(new Date(), "yyyy-MM-dd"));
     setFormUsefulLife(60);
     setFormDepMethod("linear");
@@ -173,6 +174,7 @@ export function MachinePayback() {
     setEditingInvestment(inv);
     setFormMachineName(inv.machine_name);
     setFormInvestedValue(inv.invested_value);
+    setFormInvestedDisplay(inv.invested_value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setFormPurchaseDate(inv.purchase_date);
     setFormUsefulLife(inv.useful_life_months);
     setFormDepMethod(inv.depreciation_method as any);
@@ -407,7 +409,7 @@ export function MachinePayback() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Investido (R$)</Label>
-                    <Input type="number" min={0} value={formInvestedValue || ""} onChange={(e) => setFormInvestedValue(Number(e.target.value))} />
+                    <Input type="text" inputMode="numeric" placeholder="0,00" value={formInvestedDisplay} onChange={handleInvestedChange} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Data de Aquisição</Label>
