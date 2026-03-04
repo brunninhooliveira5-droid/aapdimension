@@ -245,7 +245,7 @@ export function SavedQuotes() {
       profit,
       origin: "orcamento",
       quote_id: paybackQuote.id,
-      notes: `Orçamento: ${paybackQuote.file_name} | ${paybackQuote.material} ${paybackQuote.thickness}`,
+      notes: `Orçamento: ${paybackQuote.file_name} | ${paybackQuote.material} ${paybackQuote.thickness} | Tempo: ${Number(paybackQuote.estimated_time_min).toFixed(2)} min`,
     });
 
     setSendingPayback(false);
