@@ -41,6 +41,7 @@ interface SavedQuote {
   client_name: string;
   client_phone: string;
   notes: string;
+  payment_status: string;
   quote_id?: string;
 }
 
@@ -126,6 +127,21 @@ export function SavedQuotes() {
       };
       toast.success(`Status alterado para "${labels[newStatus] || newStatus}".`);
       setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
+    }
+  };
+
+  const togglePaymentStatus = async (q: SavedQuote) => {
+    const newPayment = q.payment_status === "pago" ? "nao_pago" : "pago";
+    const { error } = await supabase
+      .from("cutting_quotes" as any)
+      .update({ payment_status: newPayment } as any)
+      .eq("id", q.id);
+    if (error) {
+      toast.error("Erro ao atualizar pagamento.");
+    } else {
+      toast.success(newPayment === "pago" ? "Marcado como Pago!" : "Marcado como Não Pago.");
+      setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, payment_status: newPayment } : item));
+      if (selectedQuote?.id === q.id) setSelectedQuote({ ...q, payment_status: newPayment });
     }
   };
 
@@ -341,6 +357,7 @@ export function SavedQuotes() {
                   <TableHead>Material</TableHead>
                   <TableHead>Espessura</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Pagamento</TableHead>
                   <TableHead className="text-right">Tempo</TableHead>
                   <TableHead className="text-right">Valor Total</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -349,7 +366,7 @@ export function SavedQuotes() {
               <TableBody>
                 {filteredQuotes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
                       Nenhum orçamento encontrado com os filtros aplicados.
                     </TableCell>
                   </TableRow>
@@ -387,6 +404,15 @@ export function SavedQuotes() {
                           </Badge>
                         );
                       })()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={q.payment_status === "pago" ? "default" : "secondary"}
+                        className={`text-[10px] cursor-pointer whitespace-nowrap ${q.payment_status === "pago" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-accent"}`}
+                        onClick={() => togglePaymentStatus(q)}
+                      >
+                        {q.payment_status === "pago" ? "Pago" : "Não Pago"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
                     <TableCell className="text-xs text-right font-medium text-primary">
@@ -530,6 +556,16 @@ export function SavedQuotes() {
                       </Badge>
                     );
                   })()}
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Pagamento</p>
+                  <Badge
+                    variant={selectedQuote.payment_status === "pago" ? "default" : "secondary"}
+                    className={`text-[10px] cursor-pointer ${selectedQuote.payment_status === "pago" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-accent"}`}
+                    onClick={() => togglePaymentStatus(selectedQuote)}
+                  >
+                    {selectedQuote.payment_status === "pago" ? "Pago" : "Não Pago"}
+                  </Badge>
                 </div>
               </div>
 

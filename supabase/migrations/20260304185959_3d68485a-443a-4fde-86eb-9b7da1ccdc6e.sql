@@ -1,0 +1,1 @@
+ALTER TABLE public.cutting_quotes ADD COLUMN payment_status text NOT NULL DEFAULT 'nao_pago' CHECK (payment_status IN ('nao_pago', 'pago'));
