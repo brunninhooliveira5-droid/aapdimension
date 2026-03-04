@@ -494,6 +494,7 @@ export type Database = {
           passes_origin: string
           path_length_m: number
           path_length_mm: number
+          payment_status: string
           pdf_url: string | null
           quantity: number
           service_value: number
@@ -532,6 +533,7 @@ export type Database = {
           passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
+          payment_status?: string
           pdf_url?: string | null
           quantity?: number
           service_value?: number
@@ -570,6 +572,7 @@ export type Database = {
           passes_origin?: string
           path_length_m?: number
           path_length_mm?: number
+          payment_status?: string
           pdf_url?: string | null
           quantity?: number
           service_value?: number
