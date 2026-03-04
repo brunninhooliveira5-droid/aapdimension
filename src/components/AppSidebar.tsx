@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell } from "lucide-react";
+import { useSidebarNotifications } from "@/hooks/useSidebarNotifications";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -64,6 +65,7 @@ export function AppSidebar() {
   const { toggleCalculator } = useCalculator();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const sidebarNotifications = useSidebarNotifications();
 
   const handleLogout = async () => {
     await logout();
@@ -163,6 +165,9 @@ export function AppSidebar() {
                       <NavLink to={effectiveUrl} end={effectiveUrl === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
+                        {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
+                          <Bell className="ml-auto h-3.5 w-3.5 text-destructive animate-pulse" />
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -234,6 +239,9 @@ export function AppSidebar() {
                           <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
                             <item.icon className="h-4 w-4" />
                             <span>{item.title}</span>
+                            {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
+                              <Bell className="h-3.5 w-3.5 text-destructive animate-pulse" />
+                            )}
                             <span className="ml-auto inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">
                               <Construction className="w-2.5 h-2.5" />
                               Beta
