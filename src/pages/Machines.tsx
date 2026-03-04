@@ -165,8 +165,23 @@ const Machines = () => {
       query = query.eq("owner_id", targetUserId);
     } else if (!isAdminMaster) {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession?.user?.id) {
-        query = query.eq("owner_id", currentSession.user.id);
+      let machineOwnerId = currentSession?.user?.id;
+
+      // Sub-users inherit machines from their account owner (client_admin)
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("owner_user_id")
+          .eq("id", user.accountMembership.accountId)
+          .single();
+        if (accountData?.owner_user_id) {
+          machineOwnerId = accountData.owner_user_id;
+        }
+      }
+
+      if (machineOwnerId) {
+        query = query.eq("owner_id", machineOwnerId);
       }
     }
     const { data: machinesData } = await query;
