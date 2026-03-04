@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectWithAdd } from "./SelectWithAdd";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ const ITEM_TYPES = [
   { value: "produto_acabado", label: "Produto Acabado" },
 ];
 
-const COMPATIBLE = ["Orion", "Falcon", "Quantum", "Laser", "Geral"];
+const DEFAULT_COMPATIBLE = ["Orion", "Falcon", "Quantum", "Laser", "Geral"];
 
 const emptyForm = {
   name: "", internal_code: "", subcategory: "", item_type: "materia_prima",
@@ -41,11 +42,16 @@ export function InventoryItemsList() {
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [customCompatible, setCustomCompatible] = useState<string[]>([]);
+  const [newCompatibleInput, setNewCompatibleInput] = useState("");
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteVerifying, setDeleteVerifying] = useState(false);
+
+  // Merge default + custom compatible options
+  const allCompatible = [...DEFAULT_COMPATIBLE, ...customCompatible];
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: [tables.inventoryItems],
@@ -221,33 +227,62 @@ export function InventoryItemsList() {
         </div>
         <div>
           <Label>Categoria</Label>
-          <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>{(categories as any[]).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-          </Select>
+          <SelectWithAdd
+            value={form.category_id}
+            onValueChange={(v) => setForm({ ...form, category_id: v })}
+            placeholder="Selecionar"
+            options={(categories as any[]).map((c) => ({ id: c.id, label: c.name }))}
+            onAdd={async (name) => {
+              const { data, error } = await (supabase.from(tables.inventoryCategories as any) as any).insert({ name }).select("id").single();
+              if (error) { toast.error(error.message); return null; }
+              qc.invalidateQueries({ queryKey: [tables.inventoryCategories] });
+              toast.success("Categoria criada!");
+              return data?.id || null;
+            }}
+          />
         </div>
       </div>
       <div><Label>Subcategoria</Label><Input value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Unidade</Label>
-          <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>{(units as any[]).map((u) => <SelectItem key={u.id} value={u.id}>{u.name} ({u.abbreviation})</SelectItem>)}</SelectContent>
-          </Select>
+          <SelectWithAdd
+            value={form.unit_id}
+            onValueChange={(v) => setForm({ ...form, unit_id: v })}
+            placeholder="Selecionar"
+            options={(units as any[]).map((u) => ({ id: u.id, label: `${u.name} (${u.abbreviation})` }))}
+            withAbbreviation
+            onAdd={async (name, abbr) => {
+              if (!abbr) { toast.error("Abreviação obrigatória"); return null; }
+              const { data, error } = await (supabase.from(tables.inventoryUnits as any) as any).insert({ name, abbreviation: abbr }).select("id").single();
+              if (error) { toast.error(error.message); return null; }
+              qc.invalidateQueries({ queryKey: [tables.inventoryUnits] });
+              toast.success("Unidade criada!");
+              return data?.id || null;
+            }}
+          />
         </div>
         <div>
           <Label>Localização</Label>
-          <Select value={form.location_id} onValueChange={(v) => setForm({ ...form, location_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>{(locations as any[]).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
-          </Select>
+          <SelectWithAdd
+            value={form.location_id}
+            onValueChange={(v) => setForm({ ...form, location_id: v })}
+            placeholder="Selecionar"
+            options={(locations as any[]).map((l) => ({ id: l.id, label: l.name }))}
+            onAdd={async (name) => {
+              const { data, error } = await (supabase.from(tables.inventoryLocations as any) as any).insert({ name }).select("id").single();
+              if (error) { toast.error(error.message); return null; }
+              qc.invalidateQueries({ queryKey: [tables.inventoryLocations] });
+              toast.success("Localização criada!");
+              return data?.id || null;
+            }}
+          />
         </div>
       </div>
       <div>
         <Label>Compatível com</Label>
         <div className="flex flex-wrap gap-2 mt-1">
-          {COMPATIBLE.map((c) => (
+          {allCompatible.map((c) => (
             <Badge
               key={c}
               variant={form.compatible_with.includes(c) ? "default" : "outline"}
@@ -263,6 +298,44 @@ export function InventoryItemsList() {
             </Badge>
           ))}
         </div>
+        <div className="flex gap-1.5 mt-2">
+          <Input
+            value={newCompatibleInput}
+            onChange={(e) => setNewCompatibleInput(e.target.value)}
+            placeholder="Adicionar compatível..."
+            className="h-8 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newCompatibleInput.trim()) {
+                const val = newCompatibleInput.trim();
+                if (!allCompatible.includes(val)) {
+                  setCustomCompatible([...customCompatible, val]);
+                }
+                if (!form.compatible_with.includes(val)) {
+                  setForm({ ...form, compatible_with: [...form.compatible_with, val] });
+                }
+                setNewCompatibleInput("");
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-2"
+            onClick={() => {
+              if (!newCompatibleInput.trim()) return;
+              const val = newCompatibleInput.trim();
+              if (!allCompatible.includes(val)) {
+                setCustomCompatible([...customCompatible, val]);
+              }
+              if (!form.compatible_with.includes(val)) {
+                setForm({ ...form, compatible_with: [...form.compatible_with, val] });
+              }
+              setNewCompatibleInput("");
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div><Label>Estoque Mín.</Label><Input type="number" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} /></div>
@@ -271,10 +344,19 @@ export function InventoryItemsList() {
       </div>
       <div>
         <Label>Fornecedor Principal</Label>
-        <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-          <SelectContent>{(suppliers as any[]).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-        </Select>
+        <SelectWithAdd
+          value={form.supplier_id}
+          onValueChange={(v) => setForm({ ...form, supplier_id: v })}
+          placeholder="Selecionar"
+          options={(suppliers as any[]).map((s) => ({ id: s.id, label: s.name }))}
+          onAdd={async (name) => {
+            const { data, error } = await (supabase.from(tables.inventorySuppliers as any) as any).insert({ name }).select("id").single();
+            if (error) { toast.error(error.message); return null; }
+            qc.invalidateQueries({ queryKey: [tables.inventorySuppliers] });
+            toast.success("Fornecedor criado!");
+            return data?.id || null;
+          }}
+        />
       </div>
       <Button onClick={() => saveItem.mutate()} disabled={saveItem.isPending} className="w-full">
         {saveItem.isPending ? "Salvando..." : editingItem ? "Salvar Alterações" : "Cadastrar Item"}
