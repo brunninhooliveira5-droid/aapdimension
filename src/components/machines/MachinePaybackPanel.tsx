@@ -462,9 +462,6 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                       ? `${(metrics.totalEstimatedMinutes / 60).toFixed(1)} horas`
                       : `${metrics.totalEstimatedMinutes.toFixed(1)} minutos`}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Com base em {services.filter(s => s.notes?.match(/Tempo:/)).length} orçamentos enviados
-                  </p>
                 </div>
               </CardContent>
             </Card>
