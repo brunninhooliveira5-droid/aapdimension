@@ -2,3 +2,6 @@ project_id = "zleaaxsfcovyqryzfged"
 
 [functions.finance-password]
 verify_jwt = false
+
+[functions.create-member]
+verify_jwt = false

@@ -181,6 +181,13 @@ export type Database = {
             referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_members_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accounts: {
@@ -5379,6 +5386,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_account_owner: {
+        Args: { _account_id: string; _user_id: string }
         Returns: boolean
       }
       is_client_admin: { Args: { _user_id: string }; Returns: boolean }
