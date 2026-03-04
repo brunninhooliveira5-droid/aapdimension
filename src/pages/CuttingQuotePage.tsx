@@ -12,6 +12,7 @@ import { ServiceClientsTab } from "@/components/cutting-quote/ServiceClientsTab"
 import { ServiceBonusCard } from "@/components/cutting-quote/ServiceBonusCard";
 import { ServiceBonusManager } from "@/components/cutting-quote/ServiceBonusManager";
 import { BulletinCard } from "@/components/BulletinCard";
+import { MachinePayback } from "@/components/cutting-quote/MachinePayback";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -265,6 +266,9 @@ export default function CuttingQuotePage() {
               <Users className="w-4 h-4" /> Clientes
             </TabsTrigger>
           )}
+          <TabsTrigger value="payback" className="gap-2">
+            <PiggyBank className="w-4 h-4" /> Payback
+          </TabsTrigger>
         </TabsList>
 
         {!isServico && (
@@ -315,6 +319,10 @@ export default function CuttingQuotePage() {
             <ServiceClientsTab />
           </TabsContent>
         )}
+
+        <TabsContent value="payback">
+          <MachinePayback />
+        </TabsContent>
       </Tabs>
     </div>
   );
