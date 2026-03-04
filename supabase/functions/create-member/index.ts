@@ -65,8 +65,6 @@ Deno.serve(async (req) => {
 
       const isOwner = accountOwner.owner_user_id === caller.id;
 
-      const isOwner = accountOwner?.owner_user_id === caller.id;
-
       if (!isOwner) {
         // Check if caller is client_admin of the account
         const { data: membership } = await supabase
