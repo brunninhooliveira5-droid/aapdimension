@@ -48,7 +48,7 @@ interface SavedQuote {
 }
 
 export function SavedQuotes() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { effectiveUserId, isImpersonating, showAllData } = useEffectiveUser();
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,13 +179,26 @@ export function SavedQuotes() {
     setPaybackDialogOpen(true);
     setLoadingInvestments(true);
 
-    const userId = session?.user?.id;
+    // Sub-users should see the administrator's machines
+    const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+    let machineOwnerId = session?.user?.id;
 
-    // 1. Get machines owned by this user
+    if (isSubUser && user?.accountMembership?.accountId) {
+      const { data: accountData } = await supabase
+        .from("accounts")
+        .select("owner_user_id")
+        .eq("id", user.accountMembership.accountId)
+        .single();
+      if (accountData?.owner_user_id) {
+        machineOwnerId = accountData.owner_user_id;
+      }
+    }
+
+    // 1. Get machines owned by the effective owner
     const { data: userMachines } = await supabase
       .from("machines" as any)
       .select("id")
-      .eq("owner_id", userId);
+      .eq("owner_id", machineOwnerId);
 
     const ownedMachineIds = (userMachines as any[])?.map((m: any) => m.id) ?? [];
 
