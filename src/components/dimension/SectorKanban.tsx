@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ArrowLeft, Paperclip, Download, FileImage, FileText, File as FileIcon, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, Paperclip, Download, FileImage, FileText, File as FileIcon, X, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
@@ -173,6 +173,14 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
     setTimeout(() => { justDeletedRef.current = false; }, 1000);
   };
 
+  const handleRemoveFromSector = async (taskId: string) => {
+    justDeletedRef.current = true;
+    await supabase.from(tables.tasks as any).update({ sector: null } as any).eq("id", taskId);
+    toast.success("Tarefa removida do setor e devolvida ao pool.");
+    fetchTasks();
+    setTimeout(() => { justDeletedRef.current = false; }, 1000);
+  };
+
   const kanbanCols = ["a_fazer", "em_andamento", "aguardando", "atrasada", "concluida"];
 
   return (
@@ -239,6 +247,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
                         <p className="text-sm font-semibold leading-tight text-white drop-shadow-sm">{task.title}</p>
                         {!readOnly && (
                           <div className="flex gap-0.5 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" title="Remover do setor" onClick={(e) => { e.stopPropagation(); handleRemoveFromSector(task.id); }}><Undo2 className="h-3 w-3" /></Button>
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); openEdit(task); }}><Pencil className="h-3 w-3" /></Button>
                             <AlertDialog onOpenChange={(open) => { if (!open) justDeletedRef.current = true; setTimeout(() => { justDeletedRef.current = false; }, 500); }}>
                               <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20" onClick={(e) => e.stopPropagation()}><Trash2 className="h-3 w-3" /></Button></AlertDialogTrigger>
