@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot, PiggyBank } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot, PiggyBank, LayoutGrid, List, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EquipmentRegistration from "@/pages/EquipmentRegistration";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MachinePaybackPanel } from "@/components/machines/MachinePaybackPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -98,12 +99,33 @@ const Machines = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [paybackMachine, setPaybackMachine] = useState<{ id: string; name: string } | null>(null);
 
+  // View mode & table filters
+  const [viewMode, setViewMode] = useState<"cards" | "table">(isAdminMaster ? "table" : "cards");
+  const [searchClient, setSearchClient] = useState("");
+  const [searchSerial, setSearchSerial] = useState("");
+  const [searchModel, setSearchModel] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
     if (filterOwnerSearch.trim() && !m.owner_name.toLowerCase().includes(filterOwnerSearch.trim().toLowerCase())) return false;
+    if (searchClient.trim() && !m.owner_name.toLowerCase().includes(searchClient.trim().toLowerCase())) return false;
+    if (searchSerial.trim() && !m.serial_number.toLowerCase().includes(searchSerial.trim().toLowerCase())) return false;
+    if (searchModel.trim() && !(m.name || m.model).toLowerCase().includes(searchModel.trim().toLowerCase())) return false;
+    if (filterStatus !== "todos" && m.status !== filterStatus) return false;
     return true;
   });
+
+  const totalPages = Math.ceil(filteredMachines.length / ITEMS_PER_PAGE);
+  const paginatedMachines = viewMode === "table"
+    ? filteredMachines.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    : filteredMachines;
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [searchClient, searchSerial, searchModel, filterStatus, filterOwnerId, filterCategory, filterOwnerSearch]);
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -376,6 +398,26 @@ const Machines = () => {
               <p className="text-sm text-muted-foreground mt-1">{filteredMachines.length} itens registrados</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              {isAdminMaster && (
+                <div className="flex items-center border border-border rounded-md overflow-hidden">
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-none h-9 gap-1.5 text-xs"
+                    onClick={() => setViewMode("table")}
+                  >
+                    <List className="w-3.5 h-3.5" /> Tabela
+                  </Button>
+                  <Button
+                    variant={viewMode === "cards" ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-none h-9 gap-1.5 text-xs"
+                    onClick={() => setViewMode("cards")}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" /> Cards
+                  </Button>
+                </div>
+              )}
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="bg-accent border-border h-9 text-xs w-[160px]">
                   <SelectValue placeholder="Categoria" />
@@ -407,82 +449,278 @@ const Machines = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredMachines.map(machine => (
-              <div
-                key={machine.id}
-                className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
-                onClick={() => navigate(`/maquinas/${machine.id}`)}
-              >
-                <div className="h-28 bg-accent/50 flex items-center justify-center overflow-hidden">
-                  {machine.image_url ? (
-                    <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
-                  ) : (
-                    <Cpu className="w-10 h-10 text-muted-foreground/30" />
-                  )}
-                </div>
-
-                <div className="p-3 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold text-sm text-foreground truncate">{machine.name || machine.model}</h3>
-                        {machine.category === "acessorio" && (
-                          <span className="text-[9px] px-1 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider shrink-0">Acessório</span>
-                        )}
-                      </div>
-                      <p className="text-[11px] font-mono text-muted-foreground truncate">{machine.serial_number}</p>
-                    </div>
-                    <StatusBadge status={machine.status} />
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <User className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{machine.owner_name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <CalendarDays className="w-3 h-3 shrink-0" />
-                      <span>{new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
-                    </div>
-                    {machine.accessories.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Wrench className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{machine.accessories.join(", ")}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-3 pt-1.5 border-t border-border">
-                    <div className="text-center flex-1">
-                      <p className="text-sm font-bold text-foreground">{machine.ticket_count}</p>
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Chamados</p>
-                    </div>
-                    <div className="text-center flex-1">
-                      <p className="text-sm font-bold text-foreground">{machine.maintenance_count}</p>
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
-                    </div>
-                    {machine.category === "maquina" && (
-                      <div className="text-center flex-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-3 gap-1.5 text-xs font-medium border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPaybackMachine({ id: machine.id, name: machine.name || machine.model });
-                          }}
-                        >
-                          <PiggyBank className="w-3.5 h-3.5" />
-                          Payback
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {/* Table filters - visible in table mode */}
+          {viewMode === "table" && isAdminMaster && (
+            <div className="flex items-center gap-3 flex-wrap p-3 rounded-lg border border-border bg-accent/30">
+              <div className="flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Filtros:</span>
               </div>
-            ))}
-          </div>
+              <Input
+                placeholder="Cliente..."
+                value={searchClient}
+                onChange={e => setSearchClient(e.target.value)}
+                className="bg-background border-border h-8 text-xs w-[160px]"
+              />
+              <Input
+                placeholder="Nº de série..."
+                value={searchSerial}
+                onChange={e => setSearchSerial(e.target.value)}
+                className="bg-background border-border h-8 text-xs w-[160px]"
+              />
+              <Input
+                placeholder="Modelo..."
+                value={searchModel}
+                onChange={e => setSearchModel(e.target.value)}
+                className="bg-background border-border h-8 text-xs w-[160px]"
+              />
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="bg-background border-border h-8 text-xs w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos status</SelectItem>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
+                  <SelectItem value="manutencao">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+              {(searchClient || searchSerial || searchModel || filterStatus !== "todos") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => { setSearchClient(""); setSearchSerial(""); setSearchModel(""); setFilterStatus("todos"); }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Table view */}
+          {viewMode === "table" ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-accent/50">
+                      <TableHead className="w-[60px]">Img</TableHead>
+                      <TableHead>Modelo</TableHead>
+                      <TableHead>Nº Série</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Cadastro</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Chamados</TableHead>
+                      <TableHead className="text-center">Manutenções</TableHead>
+                      <TableHead className="text-center">Payback</TableHead>
+                      <TableHead className="text-center">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedMachines.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                          Nenhuma máquina encontrada
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedMachines.map(machine => (
+                        <TableRow
+                          key={machine.id}
+                          className="cursor-pointer hover:bg-accent/30"
+                          onClick={() => navigate(`/maquinas/${machine.id}`)}
+                        >
+                          <TableCell className="p-2">
+                            <div className="w-10 h-10 rounded bg-accent/50 flex items-center justify-center overflow-hidden">
+                              {machine.image_url ? (
+                                <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+                              ) : (
+                                <Cpu className="w-4 h-4 text-muted-foreground/40" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{machine.name || machine.model}</p>
+                              {machine.category === "acessorio" && (
+                                <span className="text-[9px] px-1 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider">Acessório</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{machine.serial_number}</TableCell>
+                          <TableCell className="text-sm">{machine.owner_name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(machine.install_date).toLocaleDateString("pt-BR")}</TableCell>
+                          <TableCell><StatusBadge status={machine.status} /></TableCell>
+                          <TableCell className="text-center font-semibold">{machine.ticket_count}</TableCell>
+                          <TableCell className="text-center font-semibold">{machine.maintenance_count}</TableCell>
+                          <TableCell className="text-center">
+                            {machine.category === "maquina" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 gap-1 text-[11px] border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPaybackMachine({ id: machine.id, name: machine.name || machine.model });
+                                }}
+                              >
+                                <PiggyBank className="w-3 h-3" />
+                                Payback
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/maquinas/${machine.id}`);
+                              }}
+                            >
+                              Detalhes
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredMachines.length)} de {filteredMachines.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                      let page: number;
+                      if (totalPages <= 7) {
+                        page = i + 1;
+                      } else if (currentPage <= 4) {
+                        page = i + 1;
+                      } else if (currentPage >= totalPages - 3) {
+                        page = totalPages - 6 + i;
+                      } else {
+                        page = currentPage - 3 + i;
+                      }
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 w-8 p-0 text-xs"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Card view */
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredMachines.map(machine => (
+                <div
+                  key={machine.id}
+                  className="gradient-card rounded-lg border border-border overflow-hidden hover:border-primary/30 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/maquinas/${machine.id}`)}
+                >
+                  <div className="h-28 bg-accent/50 flex items-center justify-center overflow-hidden">
+                    {machine.image_url ? (
+                      <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+                    ) : (
+                      <Cpu className="w-10 h-10 text-muted-foreground/30" />
+                    )}
+                  </div>
+
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-semibold text-sm text-foreground truncate">{machine.name || machine.model}</h3>
+                          {machine.category === "acessorio" && (
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-accent text-muted-foreground font-medium uppercase tracking-wider shrink-0">Acessório</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-mono text-muted-foreground truncate">{machine.serial_number}</p>
+                      </div>
+                      <StatusBadge status={machine.status} />
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <User className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{machine.owner_name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <CalendarDays className="w-3 h-3 shrink-0" />
+                        <span>{new Date(machine.install_date).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                      {machine.accessories.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Wrench className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{machine.accessories.join(", ")}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-1.5 border-t border-border">
+                      <div className="text-center flex-1">
+                        <p className="text-sm font-bold text-foreground">{machine.ticket_count}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Chamados</p>
+                      </div>
+                      <div className="text-center flex-1">
+                        <p className="text-sm font-bold text-foreground">{machine.maintenance_count}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
+                      </div>
+                      {machine.category === "maquina" && (
+                        <div className="text-center flex-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 gap-1.5 text-xs font-medium border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPaybackMachine({ id: machine.id, name: machine.name || machine.model });
+                            }}
+                          >
+                            <PiggyBank className="w-3.5 h-3.5" />
+                            Payback
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Add Machine Dialog */}
           <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
