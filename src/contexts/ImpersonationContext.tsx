@@ -53,9 +53,9 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
 
   const startImpersonation = useCallback(async (targetUserId: string, targetName: string): Promise<boolean> => {
     try {
-      // Call RPC to validate admin_master and create audit log
-      const { data, error } = await supabase.rpc("start_impersonation", {
-        target_user_id: targetUserId,
+      // Use account-level impersonation RPC (works for admin_master AND client_admin)
+      const { data, error } = await supabase.rpc("start_account_impersonation", {
+        _target_user_id: targetUserId,
       });
 
       if (error) {
