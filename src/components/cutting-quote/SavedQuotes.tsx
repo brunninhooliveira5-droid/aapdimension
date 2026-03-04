@@ -715,7 +715,7 @@ export function SavedQuotes() {
                   <SelectContent>
                     {userInvestments.map((inv) => (
                       <SelectItem key={inv.id} value={inv.id}>
-                        {inv.machine_name} — {fmt(inv.invested_value)}
+                        {inv.machine_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
