@@ -286,6 +286,31 @@
   border-radius: 0.5rem;
 }
 
+/* ===== Input / Progress / Badge contrast protection ===== */
+/* Inputs, textareas, selects inside cards keep stable bg & text */
+.app-card input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),
+.app-card textarea,
+.app-card select,
+.app-card [cmdk-input] {
+  background-color: hsl(var(--input-bg, var(--muted))) !important;
+  color: hsl(var(--input-text, var(--foreground))) !important;
+  border-color: hsl(var(--input-border, var(--border))) !important;
+}
+/* Popover / dropdown inputs */
+[data-radix-popper-content-wrapper] input,
+[data-radix-popper-content-wrapper] textarea {
+  background-color: hsl(var(--input-bg, var(--muted))) !important;
+  color: hsl(var(--input-text, var(--foreground))) !important;
+}
+/* Progress bars — always use primary, never inherit card color */
+[role="progressbar"] [data-state] {
+  background-color: hsl(var(--primary)) !important;
+}
+/* Badges keep their own palette */
+.app-card [class*="badge"] {
+  color: revert;
+}
+
 a[href*="lovable.dev"],
 iframe[src*="lovable.dev"],
 div[style*="Edit with Lovable"],
