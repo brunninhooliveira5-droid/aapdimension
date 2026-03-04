@@ -127,7 +127,7 @@ export const MENU_REGISTRY: MenuRegistryItem[] = [
   },
   {
     id: "nav_company_users",
-    label: "Minha Empresa",
+    label: "Colaboradores",
     route: "/empresa/usuarios",
     icon: Users,
     section: "empresa",
