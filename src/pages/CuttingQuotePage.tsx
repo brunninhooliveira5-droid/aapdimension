@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield, Users, PiggyBank } from "lucide-react";
+import { Calculator, FileText, History, BarChart3, Layers, Settings2, Lock, Shield, Users } from "lucide-react";
 import { PricingSimulator, type PricingData } from "@/components/cutting-quote/PricingSimulator";
 import { FileQuote } from "@/components/cutting-quote/FileQuote";
 import { SavedQuotes } from "@/components/cutting-quote/SavedQuotes";
@@ -12,7 +12,7 @@ import { ServiceClientsTab } from "@/components/cutting-quote/ServiceClientsTab"
 import { ServiceBonusCard } from "@/components/cutting-quote/ServiceBonusCard";
 import { ServiceBonusManager } from "@/components/cutting-quote/ServiceBonusManager";
 import { BulletinCard } from "@/components/BulletinCard";
-import { MachinePayback } from "@/components/cutting-quote/MachinePayback";
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -266,9 +266,6 @@ export default function CuttingQuotePage() {
               <Users className="w-4 h-4" /> Clientes
             </TabsTrigger>
           )}
-          <TabsTrigger value="payback" className="gap-2">
-            <PiggyBank className="w-4 h-4" /> Payback
-          </TabsTrigger>
         </TabsList>
 
         {!isServico && (
@@ -320,9 +317,6 @@ export default function CuttingQuotePage() {
           </TabsContent>
         )}
 
-        <TabsContent value="payback">
-          <MachinePayback />
-        </TabsContent>
       </Tabs>
     </div>
   );

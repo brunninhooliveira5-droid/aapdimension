@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot, PiggyBank } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EquipmentRegistration from "@/pages/EquipmentRegistration";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MachinePaybackPanel } from "@/components/machines/MachinePaybackPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
@@ -94,6 +96,7 @@ const Machines = () => {
   const catalogAdminPdfRef = useRef<HTMLInputElement>(null);
   const [editingCatalogItem, setEditingCatalogItem] = useState<EquipCatalogItem | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [paybackMachine, setPaybackMachine] = useState<{ id: string; name: string } | null>(null);
 
   const filteredMachines = machines.filter(m => {
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
@@ -459,6 +462,22 @@ const Machines = () => {
                       <p className="text-sm font-bold text-foreground">{machine.maintenance_count}</p>
                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Manutenções</p>
                     </div>
+                    {machine.category === "maquina" && (
+                      <div className="text-center flex-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 flex flex-col items-center gap-0.5 hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPaybackMachine({ id: machine.id, name: machine.name || machine.model });
+                          }}
+                        >
+                          <PiggyBank className="w-4 h-4 text-primary" />
+                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Payback</p>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -560,6 +579,22 @@ const Machines = () => {
           <EquipmentRegistration />
         </TabsContent>
       </Tabs>
+
+      {/* Payback Sheet */}
+      <Sheet open={!!paybackMachine} onOpenChange={(open) => { if (!open) setPaybackMachine(null); }}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <PiggyBank className="w-5 h-5" /> Payback — {paybackMachine?.name}
+            </SheetTitle>
+          </SheetHeader>
+          {paybackMachine && (
+            <div className="mt-4">
+              <MachinePaybackPanel machineId={paybackMachine.id} machineName={paybackMachine.name} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
