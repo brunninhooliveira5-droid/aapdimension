@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Settings, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 export function InventorySettings() {
@@ -99,6 +100,21 @@ export function InventorySettings() {
     },
   });
 
+  // Compatible options management
+  const compatibleOptions: string[] = settings?.compatible_options || [];
+  const [newCompat, setNewCompat] = useState("");
+
+  const addCompatible = () => {
+    const val = newCompat.trim();
+    if (!val || compatibleOptions.includes(val)) return;
+    updateSettings.mutate({ compatible_options: [...compatibleOptions, val] });
+    setNewCompat("");
+  };
+
+  const removeCompatible = (val: string) => {
+    updateSettings.mutate({ compatible_options: compatibleOptions.filter((c: string) => c !== val) });
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -135,6 +151,36 @@ export function InventorySettings() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Compatíveis (Máquinas)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Nome da máquina/modelo"
+              value={newCompat}
+              onChange={(e) => setNewCompat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addCompatible()}
+            />
+            <Button size="sm" onClick={addCompatible}><Plus className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {compatibleOptions.map((c: string) => (
+              <Badge key={c} variant="secondary" className="gap-1 pr-1">
+                {c}
+                <button onClick={() => removeCompatible(c)} className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+          {compatibleOptions.length === 0 && (
+            <p className="text-xs text-muted-foreground">Nenhum compatível cadastrado. Adicione acima.</p>
+          )}
         </CardContent>
       </Card>
 

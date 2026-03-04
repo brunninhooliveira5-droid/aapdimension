@@ -2256,6 +2256,7 @@ export type Database = {
       inventory_settings: {
         Row: {
           allow_negative_stock: boolean
+          compatible_options: string[] | null
           consumption_period_days: number
           global_min_alert: number
           id: string
@@ -2264,6 +2265,7 @@ export type Database = {
         }
         Insert: {
           allow_negative_stock?: boolean
+          compatible_options?: string[] | null
           consumption_period_days?: number
           global_min_alert?: number
           id?: string
@@ -2272,6 +2274,7 @@ export type Database = {
         }
         Update: {
           allow_negative_stock?: boolean
+          compatible_options?: string[] | null
           consumption_period_days?: number
           global_min_alert?: number
           id?: string
@@ -3385,6 +3388,7 @@ export type Database = {
       pc_inventory_settings: {
         Row: {
           allow_negative_stock: boolean | null
+          compatible_options: string[] | null
           consumption_period_days: number | null
           created_at: string | null
           global_min_alert: number | null
@@ -3394,6 +3398,7 @@ export type Database = {
         }
         Insert: {
           allow_negative_stock?: boolean | null
+          compatible_options?: string[] | null
           consumption_period_days?: number | null
           created_at?: string | null
           global_min_alert?: number | null
@@ -3403,6 +3408,7 @@ export type Database = {
         }
         Update: {
           allow_negative_stock?: boolean | null
+          compatible_options?: string[] | null
           consumption_period_days?: number | null
           created_at?: string | null
           global_min_alert?: number | null
