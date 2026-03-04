@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EquipmentRow {
   id: string;
@@ -31,6 +32,8 @@ interface ProfileOption {
 
 const EquipmentRegistration = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdminMaster = user?.role === "admin_master";
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<EquipmentRow[]>([]);
@@ -236,12 +239,16 @@ const EquipmentRegistration = () => {
               <SelectItem value="acessorio">Acessórios</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
-            <Plus className="w-4 h-4" /> Adicionar Máquina
-          </Button>
-          <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
-            <Plus className="w-4 h-4" /> Adicionar Acessório
-          </Button>
+          {isAdminMaster && (
+            <>
+              <Button onClick={() => { setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
+                <Plus className="w-4 h-4" /> Adicionar Máquina
+              </Button>
+              <Button variant="outline" onClick={() => { setFormCategory("acessorio"); setShowAddDialog(true); }} className="gap-2 border-border">
+                <Plus className="w-4 h-4" /> Adicionar Acessório
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -299,6 +306,7 @@ const EquipmentRegistration = () => {
                   )}
                 </div>
 
+                {isAdminMaster && (
                 <div className="pt-2 border-t border-border flex items-center gap-2" onClick={e => e.stopPropagation()}>
                   <Button
                     variant="ghost"
@@ -317,6 +325,7 @@ const EquipmentRegistration = () => {
                     Excluir
                   </Button>
                 </div>
+                )}
               </div>
             </div>
           ))}
