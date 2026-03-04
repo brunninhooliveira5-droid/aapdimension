@@ -6,10 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Clock, Copy, MessageCircle } from "lucide-react";
-import { InviteMemberDialog } from "@/components/company/InviteMemberDialog";
+import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2 } from "lucide-react";
+import { CreateMemberDialog } from "@/components/company/CreateMemberDialog";
 import { MemberPermissionsEditor } from "@/components/company/MemberPermissionsEditor";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Member {
   id: string;
@@ -22,17 +21,6 @@ interface Member {
   email: string;
 }
 
-interface Invite {
-  id: string;
-  name: string;
-  email: string;
-  suggested_role: string;
-  status: string;
-  invite_token: string;
-  created_at: string;
-  expires_at: string;
-}
-
 const ROLE_LABELS: Record<string, string> = {
   client_admin: "Administrador",
   operator: "Operador",
@@ -41,26 +29,26 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const CompanyUsersPage = () => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [editPermissions, setEditPermissions] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Member | null>(null);
 
   const accountId = user?.accountMembership?.accountId;
   const accountName = user?.accountMembership?.accountName;
 
-  const fetchData = async () => {
+  const fetchMembers = async () => {
     if (!accountId) return;
     setLoading(true);
 
-    const [{ data: membersData }, { data: invitesData }] = await Promise.all([
-      supabase.from("account_members").select("*, profiles:user_id(name, email)").eq("account_id", accountId),
-      supabase.from("account_invites").select("*").eq("account_id", accountId).order("created_at", { ascending: false }),
-    ]);
+    const { data: membersData } = await supabase
+      .from("account_members")
+      .select("*, profiles:user_id(name, email)")
+      .eq("account_id", accountId);
 
     const mapped: Member[] = (membersData ?? []).map((m: any) => ({
       id: m.id,
@@ -74,33 +62,25 @@ const CompanyUsersPage = () => {
     }));
 
     setMembers(mapped);
-    setInvites((invitesData as any[] ?? []).map((i: any) => ({
-      id: i.id,
-      name: i.name,
-      email: i.email,
-      suggested_role: i.suggested_role,
-      status: i.status,
-      invite_token: i.invite_token,
-      created_at: i.created_at,
-      expires_at: i.expires_at,
-    })));
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchMembers();
   }, [accountId]);
 
   const handleToggleActive = async (member: Member) => {
     await supabase.from("account_members").update({ is_active: !member.is_active } as any).eq("id", member.id);
     toast.success(member.is_active ? "Membro desativado" : "Membro reativado");
-    fetchData();
+    fetchMembers();
   };
 
-  const handleRemoveMember = async (member: Member) => {
-    await supabase.from("account_members").delete().eq("id", member.id);
+  const handleRemoveMember = async () => {
+    if (!deleteConfirm) return;
+    await supabase.from("account_members").delete().eq("id", deleteConfirm.id);
     toast.success("Membro removido");
-    fetchData();
+    setDeleteConfirm(null);
+    fetchMembers();
   };
 
   const handleEditOpen = (member: Member) => {
@@ -112,22 +92,10 @@ const CompanyUsersPage = () => {
     if (!editMember) return;
     setSaving(true);
     await supabase.from("account_members").update({ permissions: editPermissions } as any).eq("id", editMember.id);
-    toast.success("Permissões atualizadas");
+    toast.success("Permissões atualizadas! O usuário verá as mudanças no próximo login.");
     setSaving(false);
     setEditMember(null);
-    fetchData();
-  };
-
-  const handleCancelInvite = async (inviteId: string) => {
-    await supabase.from("account_invites").update({ status: "expirado" } as any).eq("id", inviteId);
-    toast.success("Convite cancelado");
-    fetchData();
-  };
-
-  const handleCopyInviteLink = (token: string) => {
-    const link = `${window.location.origin}/login?invite=${token}`;
-    navigator.clipboard.writeText(link);
-    toast.success("Link copiado!");
+    fetchMembers();
   };
 
   if (!accountId) {
@@ -142,8 +110,6 @@ const CompanyUsersPage = () => {
     );
   }
 
-  const pendingInvites = invites.filter(i => i.status === "pendente");
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -154,147 +120,73 @@ const CompanyUsersPage = () => {
             {accountName} — Gerencie os usuários da sua empresa
           </p>
         </div>
-        <Button onClick={() => setInviteDialogOpen(true)} className="gap-1.5">
+        <Button onClick={() => setCreateDialogOpen(true)} className="gap-1.5">
           <UserPlus className="h-4 w-4" />
-          Convidar Usuário
+          Adicionar Usuário
         </Button>
       </div>
 
-      <Tabs defaultValue="members">
-        <TabsList>
-          <TabsTrigger value="members">Membros ({members.length})</TabsTrigger>
-          <TabsTrigger value="invites">
-            Convites
-            {pendingInvites.length > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{pendingInvites.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="members" className="mt-4">
-          {loading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
-          ) : (
-            <div className="rounded-lg border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>E-mail</TableHead>
-                    <TableHead>Papel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.map(m => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium text-sm">{m.name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{m.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
-                          {ROLE_LABELS[m.role] ?? m.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {m.is_active ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Ativo</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px]">Inativo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditOpen(m)} title="Editar permissões">
-                            <Pencil className="h-3.5 w-3.5" />
+      {loading ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map(m => (
+                <TableRow key={m.id}>
+                  <TableCell className="font-medium text-sm">{m.name}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{m.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px]">
+                      {ROLE_LABELS[m.role] ?? m.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {m.is_active ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Ativo</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">Inativo</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditOpen(m)} title="Editar permissões">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      {m.role !== "client_admin" && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleActive(m)} title={m.is_active ? "Desativar" : "Reativar"}>
+                            {m.is_active ? <UserX className="h-3.5 w-3.5 text-destructive" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-600" />}
                           </Button>
-                          {m.role !== "client_admin" && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleActive(m)} title={m.is_active ? "Desativar" : "Reativar"}>
-                                {m.is_active ? <UserX className="h-3.5 w-3.5 text-destructive" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-600" />}
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {members.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                        Nenhum membro encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="invites" className="mt-4">
-          <div className="rounded-lg border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Papel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expira em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteConfirm(m)} title="Remover">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invites.map(inv => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-medium text-sm">{inv.name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{inv.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px]">
-                        {ROLE_LABELS[inv.suggested_role] ?? inv.suggested_role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {inv.status === "pendente" ? (
-                        <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">
-                          <Clock className="h-3 w-3 mr-1" />Pendente
-                        </Badge>
-                      ) : inv.status === "aceito" ? (
-                        <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Aceito</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px]">Expirado</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(inv.expires_at).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {inv.status === "pendente" && (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyInviteLink(inv.invite_token)} title="Copiar link">
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleCancelInvite(inv.id)} title="Cancelar">
-                            <UserX className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {invites.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
-                      Nenhum convite encontrado
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-      </Tabs>
+              ))}
+              {members.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                    Nenhum membro encontrado. Clique em "Adicionar Usuário" para começar.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Edit Permissions Dialog */}
       <Dialog open={!!editMember} onOpenChange={(open) => !open && setEditMember(null)}>
@@ -312,12 +204,28 @@ const CompanyUsersPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Invite Dialog */}
-      <InviteMemberDialog
-        open={inviteDialogOpen}
-        onOpenChange={setInviteDialogOpen}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover membro</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja remover <strong>{deleteConfirm?.name}</strong> da empresa? O usuário perderá acesso aos dados compartilhados.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRemoveMember}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Member Dialog */}
+      <CreateMemberDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
         accountId={accountId}
-        onSuccess={fetchData}
+        onSuccess={fetchMembers}
       />
     </div>
   );
