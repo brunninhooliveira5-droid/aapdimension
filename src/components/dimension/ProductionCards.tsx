@@ -38,7 +38,7 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
   const [saving, setSaving] = useState(false);
   const [dragOverCard, setDragOverCard] = useState<string | null>(null);
 
-  const isAdmin = user?.role === "admin_master";
+  const isAdmin = user?.role === "admin_master" || user?.accountMembership?.memberRole === "client_admin";
 
   const fetchCards = async () => {
     const { data } = await supabase
