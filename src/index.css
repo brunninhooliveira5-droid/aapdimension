@@ -36,6 +36,15 @@
 
     --radius: 0.5rem;
 
+    /* Isolated input variables — never inherit from card */
+    --input-bg: 228 33% 12%;
+    --input-text: 0 0% 100%;
+    --input-border: 232 29% 24%;
+
+    /* Filled fields / results */
+    --fill-bg: 229 36% 9%;
+    --fill-text: 0 0% 100%;
+
     --sidebar-background: 220 22% 8%;
     --sidebar-foreground: 210 15% 70%;
     --sidebar-primary: 213 94% 52%;
@@ -87,6 +96,15 @@
     --border: 215 15% 85%;
     --input: 215 15% 85%;
     --ring: 213 94% 48%;
+
+    /* Light mode input variables */
+    --input-bg: 0 0% 100%;
+    --input-text: 220 20% 14%;
+    --input-border: 215 15% 80%;
+
+    /* Light mode filled fields */
+    --fill-bg: 215 15% 96%;
+    --fill-text: 220 20% 14%;
 
     --sidebar-background: 210 15% 97%;
     --sidebar-foreground: 215 10% 40%;
@@ -286,29 +304,50 @@
   border-radius: 0.5rem;
 }
 
-/* ===== Input / Progress / Badge contrast protection ===== */
-/* Inputs, textareas, selects inside cards keep stable bg & text */
-.app-card input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),
-.app-card textarea,
-.app-card select,
-.app-card [cmdk-input] {
-  background-color: hsl(var(--input-bg, var(--muted))) !important;
-  color: hsl(var(--input-text, var(--foreground))) !important;
-  border-color: hsl(var(--input-border, var(--border))) !important;
+/* ===== Input / Progress / Badge / Fill contrast protection ===== */
+/* ALL inputs across the app use isolated variables — never inherit card color */
+input:not([type="color"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select,
+[cmdk-input],
+[role="combobox"] {
+  background-color: hsl(var(--input-bg)) !important;
+  color: hsl(var(--input-text)) !important;
+  border-color: hsl(var(--input-border)) !important;
 }
-/* Popover / dropdown inputs */
-[data-radix-popper-content-wrapper] input,
+/* Popover / dropdown content inputs */
+[data-radix-popper-content-wrapper] input:not([type="color"]),
 [data-radix-popper-content-wrapper] textarea {
-  background-color: hsl(var(--input-bg, var(--muted))) !important;
-  color: hsl(var(--input-text, var(--foreground))) !important;
+  background-color: hsl(var(--input-bg)) !important;
+  color: hsl(var(--input-text)) !important;
+  border-color: hsl(var(--input-border)) !important;
+}
+/* Filled value fields (results, calculations, readonly) */
+input[readonly],
+input[disabled],
+.fill-field {
+  background-color: hsl(var(--fill-bg)) !important;
+  color: hsl(var(--fill-text)) !important;
 }
 /* Progress bars — always use primary, never inherit card color */
 [role="progressbar"] [data-state] {
   background-color: hsl(var(--primary)) !important;
 }
-/* Badges keep their own palette */
-.app-card [class*="badge"] {
-  color: revert;
+/* Progress bar tracks use neutral bg */
+[role="progressbar"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+/* Badges keep their own palette — never inherit card foreground */
+[class*="badge"],
+.badge {
+  --badge-bg: var(--primary);
+  --badge-text: var(--primary-foreground);
+}
+/* Select trigger text stays legible */
+[data-radix-select-trigger] {
+  background-color: hsl(var(--input-bg)) !important;
+  color: hsl(var(--input-text)) !important;
+  border-color: hsl(var(--input-border)) !important;
 }
 
 a[href*="lovable.dev"],

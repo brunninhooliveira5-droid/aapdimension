@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { hexToHsl } from "@/components/ThemeToggle";
+import { hexToHsl, hexLuminance } from "@/components/ThemeToggle";
 
 /** All localStorage keys used for appearance */
 const APPEARANCE_KEYS = [
@@ -17,6 +17,7 @@ const APPEARANCE_KEYS = [
   "text-sz",
   "text-sp",
   "theme",
+  "auto-contrast",
 ] as const;
 
 /** Global flag: once settings are loaded from DB for this session, don't reload */
@@ -64,6 +65,21 @@ export function applyAllAppearanceEffects() {
     if (val) root.style.setProperty(prop, hexToHsl(val));
     else root.style.removeProperty(prop);
   });
+
+  // Auto-contrast: override --card-foreground based on card luminance
+  const autoContrast = localStorage.getItem("auto-contrast") === "true";
+  if (autoContrast) {
+    const cardHex = localStorage.getItem("custom-card-color");
+    if (cardHex) {
+      const lum = hexLuminance(cardHex);
+      root.style.setProperty("--card-foreground", lum > 0.179 ? "220 20% 10%" : "0 0% 98%");
+    }
+    const bgHex = localStorage.getItem("custom-bg-color");
+    if (bgHex) {
+      const bgLum = hexLuminance(bgHex);
+      root.style.setProperty("--foreground", bgLum > 0.179 ? "220 20% 10%" : "210 20% 90%");
+    }
+  }
 
   // Class-based effects
   const classKeys = ["card-fx", "text-fx", "text-wt", "text-sz", "text-sp"];

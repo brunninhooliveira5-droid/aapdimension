@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth, roleLabels } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { hexToHsl, applyCustomBg } from "@/components/ThemeToggle";
+import { hexToHsl, applyCustomBg, hexLuminance } from "@/components/ThemeToggle";
 import { useUserAppearance } from "@/hooks/useUserAppearance";
 
 const presetColors = [
@@ -120,6 +120,19 @@ const SettingsPage = () => {
   const [textSize, setTextSize] = useState(() => localStorage.getItem("text-sz") || "");
   const [textSpacing, setTextSpacing] = useState(() => localStorage.getItem("text-sp") || "");
   const [textShadowColor, setTextShadowColor] = useState(() => localStorage.getItem("custom-text-shadow-color") || "");
+  const [autoContrast, setAutoContrast] = useState(() => localStorage.getItem("auto-contrast") === "true");
+
+  const toggleAutoContrast = () => {
+    const next = !autoContrast;
+    setAutoContrast(next);
+    if (next) {
+      localStorage.setItem("auto-contrast", "true");
+    } else {
+      localStorage.removeItem("auto-contrast");
+    }
+    applyCustomBg();
+    saveAppearance();
+  };
 
   const applyTextShadowColor = (hex: string) => {
     setTextShadowColor(hex);
@@ -468,6 +481,15 @@ const SettingsPage = () => {
                 <RotateCcw className="w-3 h-3" /> Padrão
               </Button>
             )}
+          </div>
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm text-foreground">Ajustar contraste automaticamente</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Garante texto legível independente da cor do card</p>
+            </div>
+            <Switch checked={autoContrast} onCheckedChange={toggleAutoContrast} />
           </div>
         </div>
         <div className="border-t border-border pt-4 space-y-2">
