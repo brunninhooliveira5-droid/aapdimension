@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot, PiggyBank, LayoutGrid, List, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Cpu, CalendarDays, Wrench, User, ImagePlus, Filter, Trash2, Pencil, Package, FileText, Upload, CircleDot, PiggyBank, LayoutGrid, List, Search, ChevronLeft, ChevronRight, Factory, Settings2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EquipmentRegistration from "@/pages/EquipmentRegistration";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,31 @@ interface MachineRow {
   maintenance_count: number;
   image_url: string | null;
   category: string;
+  origin_type: string;
+  operational_status: string;
 }
 
 interface ProfileOption {
   id: string;
   name: string;
 }
+
+const operationalStatusConfig: Record<string, { label: string; className: string }> = {
+  livre: { label: "Livre", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  em_producao: { label: "Em Produção", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  parada: { label: "Parada", className: "bg-red-500/15 text-red-400 border-red-500/30" },
+  manutencao: { label: "Manutenção", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  setup: { label: "Setup", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
+};
+
+const OperationalStatusBadge = ({ status }: { status: string }) => {
+  const config = operationalStatusConfig[status] ?? operationalStatusConfig.livre;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${config.className}`}>
+      {config.label}
+    </span>
+  );
+};
 
 const Machines = () => {
   const { user } = useAuth();
@@ -80,6 +99,7 @@ const Machines = () => {
   const [filterCategory, setFilterCategory] = useState<string>("todos");
   const [formRegisteredEquipId, setFormRegisteredEquipId] = useState<string>("");
   const [registeredEquipments, setRegisteredEquipments] = useState<{ id: string; name: string; model: string; image_path: string | null; accessories: string[]; category: string }[]>([]);
+  const [formOriginType, setFormOriginType] = useState<string>("client");
 
   // Catalog state (admin master only)
   const [catalogItems, setCatalogItems] = useState<EquipCatalogItem[]>([]);
@@ -109,6 +129,7 @@ const Machines = () => {
   const ITEMS_PER_PAGE = 20;
 
   const filteredMachines = machines.filter(m => {
+    if (m.origin_type !== "client") return false;
     if (filterOwnerId !== "todos" && m.owner_id !== filterOwnerId) return false;
     if (filterCategory !== "todos" && m.category !== filterCategory) return false;
     if (filterOwnerSearch.trim() && !m.owner_name.toLowerCase().includes(filterOwnerSearch.trim().toLowerCase())) return false;
@@ -118,6 +139,8 @@ const Machines = () => {
     if (filterStatus !== "todos" && m.status !== filterStatus) return false;
     return true;
   });
+
+  const dimensionMachines = machines.filter(m => m.origin_type === "dimension");
 
   const totalPages = Math.ceil(filteredMachines.length / ITEMS_PER_PAGE);
   const paginatedMachines = viewMode === "table"
@@ -175,6 +198,8 @@ const Machines = () => {
         maintenance_count: maintMap.get(m.id) ?? 0,
         image_url: getImageUrl((m as any).image_path),
         category: (m as any).category ?? "maquina",
+        origin_type: (m as any).origin_type ?? "client",
+        operational_status: (m as any).operational_status ?? "livre",
       })));
     }
     setLoading(false);
@@ -246,6 +271,7 @@ const Machines = () => {
       accessories,
       image_path: imagePath,
       category: formCategory,
+      origin_type: formOriginType,
     } as any).select().single();
 
     if (error) {
@@ -303,7 +329,7 @@ const Machines = () => {
     setFormName(""); setFormModel(""); setFormSerial(""); setFormOwner("");
     setFormAccessories(""); setFormInstallDate(new Date().toISOString().split("T")[0]);
     setFormImageFile(null); setFormImagePreview(null); setFormCategory("maquina");
-    setFormRegisteredEquipId("");
+    setFormRegisteredEquipId(""); setFormOriginType("client");
   };
 
   const handleCatalogImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -386,8 +412,9 @@ const Machines = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="maquinas" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className={`grid w-full max-w-lg ${isAdminMaster ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="maquinas">Minhas Máquinas</TabsTrigger>
+          {isAdminMaster && <TabsTrigger value="dimension" className="gap-1.5"><Factory className="w-3.5 h-3.5" /> Parque Dimension</TabsTrigger>}
           <TabsTrigger value="cadastro">Cadastro de Equipamento</TabsTrigger>
         </TabsList>
 
@@ -754,6 +781,18 @@ const Machines = () => {
                   </Select>
                   <p className="text-xs text-muted-foreground">Ficha técnica, treinamentos e foto serão copiados automaticamente.</p>
                 </div>
+                {isAdminMaster && (
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Origem do Equipamento</Label>
+                    <Select value={formOriginType} onValueChange={setFormOriginType}>
+                      <SelectTrigger className="bg-accent border-border"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client">Cliente</SelectItem>
+                        <SelectItem value="dimension">Dimension (Interno)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-foreground">Categoria *</Label>
                   <Select value={formCategory} onValueChange={setFormCategory}>
@@ -812,6 +851,89 @@ const Machines = () => {
             </DialogContent>
           </Dialog>
         </TabsContent>
+
+        {/* Dimension Park Tab */}
+        {isAdminMaster && (
+          <TabsContent value="dimension" className="space-y-6 mt-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Factory className="w-5 h-5" /> Parque de Máquinas Dimension
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">{dimensionMachines.length} máquinas internas</p>
+              </div>
+              <Button onClick={() => { setFormOriginType("dimension"); setFormCategory("maquina"); setShowAddDialog(true); }} className="gap-2">
+                <Plus className="w-4 h-4" /> Adicionar Máquina Interna
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-accent/50">
+                    <TableHead className="w-[60px]">Foto</TableHead>
+                    <TableHead>Nome / Modelo</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Status Operacional</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Manutenções</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dimensionMachines.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Nenhuma máquina interna cadastrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    dimensionMachines.map(machine => (
+                      <TableRow
+                        key={machine.id}
+                        className="cursor-pointer hover:bg-accent/30"
+                        onClick={() => navigate(`/maquinas/${machine.id}`)}
+                      >
+                        <TableCell className="p-2">
+                          <div className="w-10 h-10 rounded bg-accent/50 flex items-center justify-center overflow-hidden">
+                            {machine.image_url ? (
+                              <img src={machine.image_url} alt={machine.name || machine.model} className="w-full h-full object-cover" />
+                            ) : (
+                              <Cpu className="w-4 h-4 text-muted-foreground/40" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm font-medium text-foreground">{machine.name || machine.model}</p>
+                          <p className="text-[11px] font-mono text-muted-foreground">{machine.serial_number}</p>
+                        </TableCell>
+                        <TableCell className="text-sm capitalize">{machine.category === "maquina" ? "Máquina" : "Acessório"}</TableCell>
+                        <TableCell>
+                          <OperationalStatusBadge status={machine.operational_status} />
+                        </TableCell>
+                        <TableCell><StatusBadge status={machine.status} /></TableCell>
+                        <TableCell className="text-center font-semibold">{machine.maintenance_count}</TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/maquinas/${machine.id}`);
+                            }}
+                          >
+                            Detalhes
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        )}
 
         <TabsContent value="cadastro" className="mt-4">
           <EquipmentRegistration />
