@@ -63,6 +63,21 @@ export function MachinePayback() {
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [formMachineName, setFormMachineName] = useState("");
   const [formInvestedValue, setFormInvestedValue] = useState(0);
+  const [formInvestedDisplay, setFormInvestedDisplay] = useState("");
+
+  const formatCurrencyInput = (raw: string): { display: string; numeric: number } => {
+    const digits = raw.replace(/\D/g, "");
+    const cents = parseInt(digits || "0", 10);
+    const value = cents / 100;
+    const display = value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return { display, numeric: value };
+  };
+
+  const handleInvestedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { display, numeric } = formatCurrencyInput(e.target.value);
+    setFormInvestedDisplay(display);
+    setFormInvestedValue(numeric);
+  };
   const [formPurchaseDate, setFormPurchaseDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formUsefulLife, setFormUsefulLife] = useState(60);
   const [formDepMethod, setFormDepMethod] = useState<"linear" | "percentage">("linear");
@@ -148,6 +163,7 @@ export function MachinePayback() {
     setEditingInvestment(null);
     setFormMachineName("");
     setFormInvestedValue(0);
+    setFormInvestedDisplay("");
     setFormPurchaseDate(format(new Date(), "yyyy-MM-dd"));
     setFormUsefulLife(60);
     setFormDepMethod("linear");
@@ -158,6 +174,7 @@ export function MachinePayback() {
     setEditingInvestment(inv);
     setFormMachineName(inv.machine_name);
     setFormInvestedValue(inv.invested_value);
+    setFormInvestedDisplay(inv.invested_value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setFormPurchaseDate(inv.purchase_date);
     setFormUsefulLife(inv.useful_life_months);
     setFormDepMethod(inv.depreciation_method as any);
@@ -392,7 +409,7 @@ export function MachinePayback() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor Investido (R$)</Label>
-                    <Input type="number" min={0} value={formInvestedValue || ""} onChange={(e) => setFormInvestedValue(Number(e.target.value))} />
+                    <Input type="text" inputMode="numeric" placeholder="0,00" value={formInvestedDisplay} onChange={handleInvestedChange} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Data de Aquisição</Label>
