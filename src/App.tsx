@@ -30,6 +30,7 @@ import EquipmentDashboard from "./pages/EquipmentDashboard";
 import DimensionPortal from "./pages/DimensionPortal";
 import ProductionControlPage from "./pages/ProductionControlPage";
 import CompanyUsersPage from "./pages/CompanyUsersPage";
+import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const AppRoutes = () => {
         <Route path="/configuracoes" element={<RoleGate section="configuracoes"><SettingsPage /></RoleGate>} />
         <Route path="/usuarios" element={<RoleGate section="usuarios"><UsersPage /></RoleGate>} />
         <Route path="/usuarios/:userId/acesso" element={<RoleGate section="usuarios"><UserAccessPage /></RoleGate>} />
+        <Route path="/usuarios/:userId/detalhes" element={<RoleGate section="usuarios"><AdminUserDetailPage /></RoleGate>} />
         <Route path="/boletins" element={<RoleGate section="boletins"><BulletinsPage /></RoleGate>} />
         <Route path="/orcamento" element={<RoleGate section="orcamento"><CuttingQuotePage /></RoleGate>} />
         <Route path="/arquivos" element={<RoleGate section="arquivos"><FilesPage /></RoleGate>} />
