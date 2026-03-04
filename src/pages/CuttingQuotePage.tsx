@@ -158,9 +158,11 @@ export default function CuttingQuotePage() {
       });
   }, [session, effectiveUserId, isImpersonating]);
 
-  const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing;
+  const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+  const canAccessSalvos = getSectionVisibility("orcamento_salvos") === "visible" || useMasterPricing || isSubUser;
   const canAccessClientes = user?.role === "admin_master";
   const isServico = user?.role === "servico";
+  const hideSimulator = isSubUser;
 
   // Build grid class with safe static values (dynamic classes like `grid-cols-${n}` are purged by Tailwind in production)
   const gridColsClass = (() => {
@@ -233,7 +235,7 @@ export default function CuttingQuotePage() {
           <TabsTrigger value="quote" className="gap-2">
             <FileText className="w-4 h-4" /> Orçamento
           </TabsTrigger>
-          {!isServico && (
+          {!isServico && !hideSimulator && (
             <TabsTrigger value="simulator" className="gap-2">
               <Calculator className="w-4 h-4" /> Simulador
             </TabsTrigger>
@@ -268,7 +270,7 @@ export default function CuttingQuotePage() {
           )}
         </TabsList>
 
-        {!isServico && (
+        {!isServico && !hideSimulator && (
           <TabsContent value="simulator">
             {useMasterPricing ? (
               <div className="gradient-card rounded-lg border border-primary/20 p-6 text-center space-y-2">
