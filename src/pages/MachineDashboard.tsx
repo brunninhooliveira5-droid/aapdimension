@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video, History } from "lucide-react";
+import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video, History, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MachinePaybackPanel } from "@/components/machines/MachinePaybackPanel";
 
 interface MachineDetail {
   id: string;
@@ -80,6 +82,7 @@ const MachineDashboard = () => {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [showPaybackSheet, setShowPaybackSheet] = useState(false);
   const [allExecutedReports, setAllExecutedReports] = useState<(ReportRow & { maintenance_type?: string; maintenance_notes?: string })[]>([]);
   const [historyStartDate, setHistoryStartDate] = useState("");
   const [historyEndDate, setHistoryEndDate] = useState("");
@@ -802,6 +805,14 @@ const MachineDashboard = () => {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+            onClick={() => setShowPaybackSheet(true)}
+          >
+            <PiggyBank className="w-3.5 h-3.5" /> Payback
+          </Button>
           <StatusBadge status={machine.status} />
           {isAdmin && (
             <>
@@ -1728,6 +1739,20 @@ const MachineDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payback Sheet */}
+      <Sheet open={showPaybackSheet} onOpenChange={setShowPaybackSheet}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <PiggyBank className="w-5 h-5" /> Payback — {machine.name || machine.model}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <MachinePaybackPanel machineId={machine.id} machineName={machine.name || machine.model} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
