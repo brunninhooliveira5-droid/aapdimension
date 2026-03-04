@@ -54,6 +54,13 @@ export function SavedQuotes() {
   const [notesText, setNotesText] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  // Payback dialog
+  const [paybackDialogOpen, setPaybackDialogOpen] = useState(false);
+  const [paybackQuote, setPaybackQuote] = useState<SavedQuote | null>(null);
+  const [userInvestments, setUserInvestments] = useState<{ id: string; machine_name: string; invested_value: number; machine_id: string | null }[]>([]);
+  const [selectedPaybackInvestment, setSelectedPaybackInvestment] = useState<string>("");
+  const [loadingInvestments, setLoadingInvestments] = useState(false);
+  const [sendingPayback, setSendingPayback] = useState(false);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [materialFilter, setMaterialFilter] = useState("todos");
 
@@ -164,54 +171,64 @@ export function SavedQuotes() {
     }
   };
 
-  const sendToPayback = async (q: SavedQuote) => {
-    if (!q.machine_id) {
-      toast.error("Este orçamento não tem uma máquina vinculada. Não é possível enviar ao Payback.");
-      return;
-    }
+  const openPaybackDialog = async (q: SavedQuote) => {
+    setPaybackQuote(q);
+    setSelectedPaybackInvestment("");
+    setPaybackDialogOpen(true);
+    setLoadingInvestments(true);
 
-    // Check if investment exists for this machine
-    const { data: invData, error: invError } = await supabase
+    const { data } = await supabase
       .from("cnc_investments" as any)
-      .select("id")
-      .eq("machine_id", q.machine_id)
-      .maybeSingle();
+      .select("id, machine_name, invested_value, machine_id")
+      .eq("user_id", session?.user?.id)
+      .order("created_at", { ascending: false });
 
-    if (invError || !invData) {
-      toast.error("Nenhum investimento registrado para esta máquina. Registre o investimento primeiro no painel de Payback.");
+    setUserInvestments((data as any) ?? []);
+    setLoadingInvestments(false);
+  };
+
+  const confirmSendToPayback = async () => {
+    if (!paybackQuote || !selectedPaybackInvestment) {
+      toast.error("Selecione uma máquina.");
       return;
     }
 
-    // Check if already sent (by quote_id)
+    setSendingPayback(true);
+
+    // Check if already sent
     const { data: existing } = await supabase
       .from("cnc_services" as any)
       .select("id")
-      .eq("quote_id", q.id)
+      .eq("quote_id", paybackQuote.id)
       .maybeSingle();
 
     if (existing) {
       toast.info("Este orçamento já foi enviado ao Payback anteriormente.");
+      setSendingPayback(false);
+      setPaybackDialogOpen(false);
       return;
     }
 
-    const revenue = Number(q.total_price) || Number(q.suggested_sale);
-    const machineCost = Number(q.estimated_cost);
+    const revenue = Number(paybackQuote.total_price) || Number(paybackQuote.suggested_sale);
+    const machineCost = Number(paybackQuote.estimated_cost);
     const profit = revenue - machineCost;
 
     const { error } = await supabase.from("cnc_services" as any).insert({
       user_id: session?.user?.id,
-      investment_id: (invData as any).id,
-      service_date: q.created_at.substring(0, 10),
-      client_name: q.client_name || "Sem nome",
+      investment_id: selectedPaybackInvestment,
+      service_date: paybackQuote.created_at.substring(0, 10),
+      client_name: paybackQuote.client_name || "Sem nome",
       revenue,
-      material_cost: Number(q.material_cost) || 0,
+      material_cost: Number(paybackQuote.material_cost) || 0,
       machine_cost: machineCost,
       additional_costs: 0,
       profit,
       origin: "orcamento",
-      quote_id: q.id,
-      notes: `Orçamento: ${q.file_name} | ${q.material} ${q.thickness}`,
+      quote_id: paybackQuote.id,
+      notes: `Orçamento: ${paybackQuote.file_name} | ${paybackQuote.material} ${paybackQuote.thickness}`,
     });
+
+    setSendingPayback(false);
 
     if (error) {
       console.error("Payback error:", error);
@@ -220,6 +237,7 @@ export function SavedQuotes() {
     }
 
     toast.success("Valores enviados para o Payback da máquina com sucesso!");
+    setPaybackDialogOpen(false);
   };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -420,7 +438,7 @@ export function SavedQuotes() {
                         <Button
                           size="sm"
                           className="h-7 px-2.5 gap-1.5 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50"
-                          onClick={() => sendToPayback(q)}
+                          onClick={() => openPaybackDialog(q)}
                           disabled={q.payment_status !== "pago"}
                         >
                           <TrendingUp className="w-3.5 h-3.5" />
@@ -622,7 +640,7 @@ export function SavedQuotes() {
                 <p className="text-xs font-medium text-muted-foreground">Payback</p>
                 <Button
                   className="w-full justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50"
-                  onClick={() => sendToPayback(selectedQuote)}
+                  onClick={() => openPaybackDialog(selectedQuote)}
                   disabled={selectedQuote.payment_status !== "pago"}
                 >
                   <TrendingUp className="w-4 h-4" />
@@ -639,6 +657,66 @@ export function SavedQuotes() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Payback Machine Selection Dialog */}
+      <Dialog open={paybackDialogOpen} onOpenChange={setPaybackDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              Selecionar Máquina para Payback
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {paybackQuote && (
+              <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+                <p className="font-medium">{paybackQuote.file_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {paybackQuote.material} • {paybackQuote.thickness} • {fmt(Number(paybackQuote.total_price) || Number(paybackQuote.suggested_sale))}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Máquina (Investimento)</Label>
+              {loadingInvestments ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">Carregando máquinas...</p>
+              ) : userInvestments.length === 0 ? (
+                <div className="text-center py-4 space-y-1">
+                  <p className="text-sm text-muted-foreground">Nenhum investimento cadastrado.</p>
+                  <p className="text-xs text-muted-foreground">Cadastre uma máquina no painel de Payback primeiro.</p>
+                </div>
+              ) : (
+                <Select value={selectedPaybackInvestment} onValueChange={setSelectedPaybackInvestment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a máquina..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userInvestments.map((inv) => (
+                      <SelectItem key={inv.id} value={inv.id}>
+                        {inv.machine_name} — {fmt(inv.invested_value)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setPaybackDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!selectedPaybackInvestment || sendingPayback}
+                onClick={confirmSendToPayback}
+              >
+                <TrendingUp className="w-4 h-4" />
+                {sendingPayback ? "Enviando..." : "Enviar"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
