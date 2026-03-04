@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     // Check max_members limit
     const { data: account } = await supabase
       .from("accounts")
-      .select("max_members")
+      .select("max_members, owner_user_id")
       .eq("id", account_id)
       .single();
 
@@ -137,7 +137,25 @@ Deno.serve(async (req) => {
     // 2. Approve the profile (trigger already created it)
     await supabase.from("profiles").update({ approved: true }).eq("id", userId);
 
-    // 3. Insert account_member
+    // 3. Propagate PRO status from account owner
+    const { data: ownerPlan } = await supabase
+      .from("user_plans")
+      .select("plan, pro_access, features_enabled, max_quotes_per_month, max_financial_entries, valid_until")
+      .eq("user_id", account.owner_user_id ?? caller.id)
+      .single();
+
+    if (ownerPlan?.pro_access) {
+      await supabase.from("user_plans").update({
+        plan: ownerPlan.plan,
+        pro_access: true,
+        features_enabled: ownerPlan.features_enabled,
+        max_quotes_per_month: ownerPlan.max_quotes_per_month,
+        max_financial_entries: ownerPlan.max_financial_entries,
+        valid_until: ownerPlan.valid_until,
+      }).eq("user_id", userId);
+    }
+
+    // 4. Insert account_member
     const { error: memberErr } = await supabase.from("account_members").insert({
       account_id,
       user_id: userId,
