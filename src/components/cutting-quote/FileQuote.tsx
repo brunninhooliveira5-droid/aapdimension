@@ -915,7 +915,8 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
   const passesOrigin = passesOverridden ? "manual_override" : "default";
   const baseSpeedOrigin = speedOverridden ? "manual_override" : "simulator";
 
-  const canExportPdf = getSectionVisibility("orcamento_pdf") === "visible";
+  const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+  const canExportPdf = getSectionVisibility("orcamento_pdf") === "visible" || isSubUser;
 
   const exportPDF = async () => {
     if (!result) return;
