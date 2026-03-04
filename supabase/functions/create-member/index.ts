@@ -52,9 +52,18 @@ Deno.serve(async (req) => {
         .from("accounts")
         .select("owner_user_id")
         .eq("id", account_id)
-        .single();
+        .maybeSingle();
 
       console.log("Account owner check:", { accountOwner, ownerErr, callerId: caller.id, account_id });
+
+      if (!accountOwner) {
+        return new Response(JSON.stringify({ error: "Conta não encontrada" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const isOwner = accountOwner.owner_user_id === caller.id;
 
       const isOwner = accountOwner?.owner_user_id === caller.id;
 
