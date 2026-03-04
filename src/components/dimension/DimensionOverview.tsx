@@ -11,6 +11,7 @@ import { ListTodo, AlertTriangle, Factory, CalendarDays, Plus, Paperclip, Downlo
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
+import { useSectorAccess } from "@/hooks/useSectorAccess";
 import { toast } from "sonner";
 import { format, addDays, isToday, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,6 +30,7 @@ interface DimensionOverviewProps {
 export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps) {
   const { tables, storage } = useModule();
   const { session, isReadOnly } = useAuth();
+  const { allowedSectors } = useSectorAccess();
   const readOnly = isReadOnly();
   const [activeSector, setActiveSector] = useState<{ key: string; title: string } | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -265,6 +267,10 @@ export function DimensionOverview({ onNavigateToTasks }: DimensionOverviewProps)
   };
 
   if (activeSector) {
+    // Verify user has access to this sector
+    if (allowedSectors !== null && !allowedSectors.includes(activeSector.key)) {
+      setActiveSector(null);
+    }
     return <SectorKanban sectorKey={activeSector.key} sectorTitle={activeSector.title} onBack={() => { setActiveSector(null); fetchAll(); }} />;
   }
 

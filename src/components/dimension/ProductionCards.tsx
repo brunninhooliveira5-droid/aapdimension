@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
+import { useSectorAccess } from "@/hooks/useSectorAccess";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Camera, Plus, Trash2 } from "lucide-react";
@@ -28,6 +29,7 @@ interface ProductionCardsProps {
 export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTaskCounts }: ProductionCardsProps) {
   const { tables, storage } = useModule();
   const { user } = useAuth();
+  const { allowedSectors } = useSectorAccess();
   const [cards, setCards] = useState<ProductionCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -168,7 +170,9 @@ export function ProductionCards({ onCardClick, onTaskDroppedToSector, sectorTask
   return (
     <TooltipProvider>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {cards.map((card) => {
+        {cards
+          .filter((card) => allowedSectors === null || allowedSectors.includes(card.key))
+          .map((card) => {
           const taskCount = sectorTaskCounts?.[card.key] || 0;
           return (
             <Tooltip key={card.id}>
