@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Plus, TrendingUp, DollarSign, Clock, Percent, Calculator, Trash2, Edit2, Save, Target, ShieldCheck, History as HistoryIcon } from "lucide-react";
+import { Plus, TrendingUp, DollarSign, Clock, Percent, Calculator, Trash2, Edit2, Save, Target, ShieldCheck, History as HistoryIcon, Search, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,6 +100,8 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
   const [svcAdditionalDisplay, setSvcAdditionalDisplay] = useState("");
   const [svcNotes, setSvcNotes] = useState("");
   const [showServiceHistory, setShowServiceHistory] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyOriginFilter, setHistoryOriginFilter] = useState<"all" | "manual" | "quote">("all");
 
   useEffect(() => {
     if (!userId) return;
@@ -615,36 +618,78 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
 
               {showServiceHistory && (
                 <>
-                  {filteredServices.length > 0 ? (
-                    <div className="overflow-auto max-h-[300px]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Data</TableHead>
-                            <TableHead className="text-xs text-right">Receita</TableHead>
-                            <TableHead className="text-xs text-right">Lucro</TableHead>
-                            <TableHead className="w-8"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredServices.map((s) => (
-                            <TableRow key={s.id}>
-                              <TableCell className="text-xs">{format(parseISO(s.service_date), "dd/MM/yy")}</TableCell>
-                              <TableCell className="text-xs text-right">{fmt(s.revenue)}</TableCell>
-                              <TableCell className={`text-xs text-right font-medium ${s.profit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(s.profit)}</TableCell>
-                              <TableCell>
-                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => deleteService(s.id)}>
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                  {/* Filters */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <div className="relative flex-1 min-w-[140px]">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar cliente..."
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        className="h-7 text-xs pl-7"
+                      />
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-4">Nenhum serviço registrado.</p>
-                  )}
+                    <Select value={historyOriginFilter} onValueChange={(v) => setHistoryOriginFilter(v as any)}>
+                      <SelectTrigger className="h-7 text-xs w-[120px]">
+                        <Filter className="w-3 h-3 mr-1" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas origens</SelectItem>
+                        <SelectItem value="manual">Manual</SelectItem>
+                        <SelectItem value="quote">Orçamento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(() => {
+                    const displayed = filteredServices.filter((s) => {
+                      const matchSearch = !historySearch || s.client_name.toLowerCase().includes(historySearch.toLowerCase()) || s.notes?.toLowerCase().includes(historySearch.toLowerCase());
+                      const matchOrigin = historyOriginFilter === "all" || (historyOriginFilter === "manual" ? s.origin === "manual" : s.origin !== "manual");
+                      return matchSearch && matchOrigin;
+                    });
+                    return displayed.length > 0 ? (
+                      <div className="overflow-auto max-h-[300px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Data</TableHead>
+                              <TableHead className="text-xs">Cliente</TableHead>
+                              <TableHead className="text-xs text-right">Receita</TableHead>
+                              <TableHead className="text-xs text-right">Lucro</TableHead>
+                              <TableHead className="text-xs text-center">Origem</TableHead>
+                              <TableHead className="w-8"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {displayed.map((s) => (
+                              <TableRow key={s.id}>
+                                <TableCell className="text-xs">{format(parseISO(s.service_date), "dd/MM/yy")}</TableCell>
+                                <TableCell className="text-xs max-w-[100px] truncate">{s.client_name || "—"}</TableCell>
+                                <TableCell className="text-xs text-right">{fmt(s.revenue)}</TableCell>
+                                <TableCell className={`text-xs text-right font-medium ${s.profit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(s.profit)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={s.origin === "manual" ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                    {s.origin === "manual" ? "Manual" : "Orçamento"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => deleteService(s.id)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <div className="text-[10px] text-muted-foreground text-right mt-1">
+                          {displayed.length} de {filteredServices.length} serviços
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-4">Nenhum serviço encontrado com os filtros aplicados.</p>
+                    );
+                  })()}
                 </>
               )}
             </CardContent>
