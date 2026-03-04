@@ -749,107 +749,6 @@ const Machines = () => {
             </div>
           )}
 
-          {/* Add Machine Dialog */}
-          <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label className="text-foreground">Equipamento Cadastrado (preenche automaticamente)</Label>
-                  <Select value={formRegisteredEquipId} onValueChange={(val) => {
-                    setFormRegisteredEquipId(val);
-                    const equip = registeredEquipments.find(e => e.id === val);
-                    if (equip) {
-                      setFormName(equip.name);
-                      setFormModel(equip.model);
-                      setFormCategory(equip.category);
-                      setFormAccessories(equip.accessories?.join(", ") ?? "");
-                      if (equip.image_path) {
-                        const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(equip.image_path);
-                        setFormImagePreview(pubData.publicUrl);
-                      }
-                    }
-                  }}>
-                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione um equipamento cadastrado (opcional)" /></SelectTrigger>
-                    <SelectContent>
-                      {registeredEquipments.map(e => (
-                        <SelectItem key={e.id} value={e.id}>{e.name || e.model}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Ficha técnica, treinamentos e foto serão copiados automaticamente.</p>
-                </div>
-                {isAdminMaster && (
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Origem do Equipamento</Label>
-                    <Select value={formOriginType} onValueChange={setFormOriginType}>
-                      <SelectTrigger className="bg-accent border-border"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="client">Cliente</SelectItem>
-                        <SelectItem value="dimension">Dimension (Interno)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label className="text-foreground">Categoria *</Label>
-                  <Select value={formCategory} onValueChange={setFormCategory}>
-                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="maquina">Máquina</SelectItem>
-                      <SelectItem value="acessorio">Acessório</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Nome</Label>
-                  <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Modelo *</Label>
-                  <Select value={formModel} onValueChange={setFormModel}>
-                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
-                    <SelectContent>
-                      {registeredEquipments.map(e => (
-                        <SelectItem key={e.id} value={e.name || e.model}>{e.name || e.model}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Número de Série *</Label>
-                  <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Data de Instalação</Label>
-                  <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Proprietário *</Label>
-                  <Select value={formOwner} onValueChange={setFormOwner}>
-                    <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
-                    <SelectContent>
-                      {profiles.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-foreground">Acessórios</Label>
-                  <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline" className="border-border">Cancelar</Button>
-                </DialogClose>
-                <Button onClick={handleAddMachine}>Salvar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
 
         {/* Dimension Park Tab */}
@@ -940,7 +839,108 @@ const Machines = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Payback Sheet */}
+      {/* Add Machine Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm(); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Adicionar Máquina</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Equipamento Cadastrado (preenche automaticamente)</Label>
+              <Select value={formRegisteredEquipId} onValueChange={(val) => {
+                setFormRegisteredEquipId(val);
+                const equip = registeredEquipments.find(e => e.id === val);
+                if (equip) {
+                  setFormName(equip.name);
+                  setFormModel(equip.model);
+                  setFormCategory(equip.category);
+                  setFormAccessories(equip.accessories?.join(", ") ?? "");
+                  if (equip.image_path) {
+                    const { data: pubData } = supabase.storage.from("machine-files").getPublicUrl(equip.image_path);
+                    setFormImagePreview(pubData.publicUrl);
+                  }
+                }
+              }}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione um equipamento cadastrado (opcional)" /></SelectTrigger>
+                <SelectContent>
+                  {registeredEquipments.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name || e.model}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Ficha técnica, treinamentos e foto serão copiados automaticamente.</p>
+            </div>
+            {isAdminMaster && (
+              <div className="space-y-2">
+                <Label className="text-foreground">Origem do Equipamento</Label>
+                <Select value={formOriginType} onValueChange={setFormOriginType}>
+                  <SelectTrigger className="bg-accent border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">Cliente</SelectItem>
+                    <SelectItem value="dimension">Dimension (Interno)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-foreground">Categoria *</Label>
+              <Select value={formCategory} onValueChange={setFormCategory}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="maquina">Máquina</SelectItem>
+                  <SelectItem value="acessorio">Acessório</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Nome</Label>
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: CNC Principal" className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Modelo *</Label>
+              <Select value={formModel} onValueChange={setFormModel}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                <SelectContent>
+                  {registeredEquipments.map(e => (
+                    <SelectItem key={e.id} value={e.name || e.model}>{e.name || e.model}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Número de Série *</Label>
+              <Input value={formSerial} onChange={e => setFormSerial(e.target.value)} placeholder="Ex: SN-2024-001" className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Data de Instalação</Label>
+              <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Proprietário *</Label>
+              <Select value={formOwner} onValueChange={setFormOwner}>
+                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
+                <SelectContent>
+                  {profiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Acessórios</Label>
+              <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-border">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleAddMachine}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Sheet open={!!paybackMachine} onOpenChange={(open) => { if (!open) setPaybackMachine(null); }}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
