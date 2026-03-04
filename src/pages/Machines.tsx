@@ -465,16 +465,16 @@ const Machines = () => {
                     {machine.category === "maquina" && (
                       <div className="text-center flex-1">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="h-auto p-0 flex flex-col items-center gap-0.5 hover:bg-transparent"
+                          className="h-8 px-3 gap-1.5 text-xs font-medium border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPaybackMachine({ id: machine.id, name: machine.name || machine.model });
                           }}
                         >
-                          <PiggyBank className="w-4 h-4 text-primary" />
-                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Payback</p>
+                          <PiggyBank className="w-3.5 h-3.5" />
+                          Payback
                         </Button>
                       </div>
                     )}
