@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2 } from "lucide-react";
+import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2, AlertTriangle } from "lucide-react";
 import { CreateMemberDialog } from "@/components/company/CreateMemberDialog";
 import { MemberPermissionsEditor } from "@/components/company/MemberPermissionsEditor";
 
@@ -37,18 +37,119 @@ const CompanyUsersPage = () => {
   const [editPermissions, setEditPermissions] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Member | null>(null);
+  const [provisioning, setProvisioning] = useState(false);
 
-  const accountId = user?.accountMembership?.accountId;
-  const accountName = user?.accountMembership?.accountName;
+  // Account info - can come from membership or be auto-provisioned
+  const [accountId, setAccountId] = useState<string | null>(user?.accountMembership?.accountId ?? null);
+  const [accountName, setAccountName] = useState<string>(user?.accountMembership?.accountName ?? "");
+  const [maxMembers, setMaxMembers] = useState<number>(3);
 
-  const fetchMembers = async () => {
+  // Auto-provision account for admin users without one
+  useEffect(() => {
+    const provisionAccount = async () => {
+      if (!user || user.role === "admin_master") return;
+      if (user.accountMembership?.accountId) {
+        setAccountId(user.accountMembership.accountId);
+        setAccountName(user.accountMembership.accountName);
+        return;
+      }
+
+      // Check if user is admin role - they can self-provision
+      if (user.role !== "admin") return;
+
+      // Check if account already exists for this user (by owner_user_id)
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session?.session?.user?.id;
+      if (!userId) return;
+
+      const { data: existingAccount } = await supabase
+        .from("accounts")
+        .select("id, name, max_members")
+        .eq("owner_user_id", userId)
+        .maybeSingle();
+
+      if (existingAccount) {
+        setAccountId(existingAccount.id);
+        setAccountName(existingAccount.name);
+        setMaxMembers((existingAccount as any).max_members ?? 3);
+
+        // Also ensure account_members entry exists
+        const { data: existingMember } = await supabase
+          .from("account_members")
+          .select("id")
+          .eq("account_id", existingAccount.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!existingMember) {
+          await supabase.from("account_members").insert({
+            account_id: existingAccount.id,
+            user_id: userId,
+            role: "client_admin" as any,
+            permissions: {
+              maquinas: true, suporte: true, manutencao: true,
+              equipamentos: true, pecas: true, financeiro: true,
+              orcamento: true, configuracoes: true, arquivos: true,
+              controle_producao: true, gestao_financeira: true,
+              can_manage_users: true,
+            },
+          });
+        }
+        return;
+      }
+
+      // Auto-create the account
+      setProvisioning(true);
+      const companyName = user.company || user.name || "Minha Empresa";
+
+      const { data: newAccount, error } = await supabase
+        .from("accounts")
+        .insert({ name: companyName, owner_user_id: userId })
+        .select("id, name, max_members")
+        .single();
+
+      if (error || !newAccount) {
+        console.error("Error creating account:", error);
+        setProvisioning(false);
+        return;
+      }
+
+      // Insert self as client_admin
+      await supabase.from("account_members").insert({
+        account_id: newAccount.id,
+        user_id: userId,
+        role: "client_admin" as any,
+        permissions: {
+          maquinas: true, suporte: true, manutencao: true,
+          equipamentos: true, pecas: true, financeiro: true,
+          orcamento: true, configuracoes: true, arquivos: true,
+          controle_producao: true, gestao_financeira: true,
+          can_manage_users: true,
+        },
+      });
+
+      setAccountId(newAccount.id);
+      setAccountName(newAccount.name);
+      setMaxMembers((newAccount as any).max_members ?? 3);
+      setProvisioning(false);
+    };
+
+    provisionAccount();
+  }, [user]);
+
+  const fetchMembers = useCallback(async () => {
     if (!accountId) return;
     setLoading(true);
 
-    const { data: membersData } = await supabase
-      .from("account_members")
-      .select("*, profiles:user_id(name, email)")
-      .eq("account_id", accountId);
+    // Also fetch max_members
+    const [{ data: membersData }, { data: accountData }] = await Promise.all([
+      supabase.from("account_members").select("*, profiles:user_id(name, email)").eq("account_id", accountId),
+      supabase.from("accounts").select("max_members").eq("id", accountId).single(),
+    ]);
+
+    if (accountData) {
+      setMaxMembers((accountData as any).max_members ?? 3);
+    }
 
     const mapped: Member[] = (membersData ?? []).map((m: any) => ({
       id: m.id,
@@ -63,11 +164,11 @@ const CompanyUsersPage = () => {
 
     setMembers(mapped);
     setLoading(false);
-  };
+  }, [accountId]);
 
   useEffect(() => {
     fetchMembers();
-  }, [accountId]);
+  }, [fetchMembers]);
 
   const handleToggleActive = async (member: Member) => {
     await supabase.from("account_members").update({ is_active: !member.is_active } as any).eq("id", member.id);
@@ -98,6 +199,19 @@ const CompanyUsersPage = () => {
     fetchMembers();
   };
 
+  // Count active members (excluding the admin/owner)
+  const activeMembersCount = members.filter(m => m.role !== "client_admin").length;
+  const canAddMore = activeMembersCount < maxMembers;
+
+  if (provisioning) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Users className="h-16 w-16 text-muted-foreground/40 animate-pulse" />
+        <p className="text-sm text-muted-foreground">Configurando sua empresa...</p>
+      </div>
+    );
+  }
+
   if (!accountId) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -112,19 +226,37 @@ const CompanyUsersPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-bold text-foreground">Minha Empresa</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <Shield className="inline h-3.5 w-3.5 mr-1" />
-            {accountName} — Gerencie os usuários da sua empresa
+            {accountName || "Minha Empresa"} — Gerencie os usuários da sua empresa
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} className="gap-1.5">
-          <UserPlus className="h-4 w-4" />
-          Adicionar Usuário
-        </Button>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-xs py-1 px-2.5">
+            {activeMembersCount} / {maxMembers} usuários
+          </Badge>
+          <Button 
+            onClick={() => setCreateDialogOpen(true)} 
+            className="gap-1.5"
+            disabled={!canAddMore}
+          >
+            <UserPlus className="h-4 w-4" />
+            Adicionar Usuário
+          </Button>
+        </div>
       </div>
+
+      {!canAddMore && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            Limite de {maxMembers} sub-usuários atingido. Entre em contato com o suporte para aumentar o limite.
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>

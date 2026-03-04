@@ -187,18 +187,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          max_members: number
           name: string
           owner_user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          max_members?: number
           name: string
           owner_user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          max_members?: number
           name?: string
           owner_user_id?: string
         }

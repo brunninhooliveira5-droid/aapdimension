@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate caller is authenticated and is client_admin or admin_master
+    // Validate caller is authenticated
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -32,27 +32,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller is admin_master or client_admin
+    // Check if caller is admin_master, client_admin, or account owner
     const { data: callerRole } = await supabase.from("user_roles").select("role").eq("user_id", caller.id).single();
     const isAdminMaster = callerRole?.role === "admin_master";
-
-    let callerAccountId: string | null = null;
-    if (!isAdminMaster) {
-      const { data: membership } = await supabase
-        .from("account_members")
-        .select("account_id, role")
-        .eq("user_id", caller.id)
-        .eq("is_active", true)
-        .single();
-
-      if (!membership || membership.role !== "client_admin") {
-        return new Response(JSON.stringify({ error: "Sem permissão para criar membros" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      callerAccountId = membership.account_id;
-    }
 
     const { name, email, password, account_id, member_role, permissions } = await req.json();
 
@@ -63,9 +45,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Ensure caller can only add to their own account
-    if (!isAdminMaster && callerAccountId !== account_id) {
-      return new Response(JSON.stringify({ error: "Não é possível adicionar membros a outra conta" }), {
+    // Verify caller has permission to add to this account
+    if (!isAdminMaster) {
+      // Check if caller is account owner
+      const { data: accountOwner } = await supabase
+        .from("accounts")
+        .select("owner_user_id")
+        .eq("id", account_id)
+        .single();
+
+      const isOwner = accountOwner?.owner_user_id === caller.id;
+
+      if (!isOwner) {
+        // Check if caller is client_admin of the account
+        const { data: membership } = await supabase
+          .from("account_members")
+          .select("role")
+          .eq("user_id", caller.id)
+          .eq("account_id", account_id)
+          .eq("is_active", true)
+          .single();
+
+        if (!membership || membership.role !== "client_admin") {
+          return new Response(JSON.stringify({ error: "Sem permissão para criar membros" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
+    // Check max_members limit
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("max_members")
+      .eq("id", account_id)
+      .single();
+
+    const maxMembers = (account as any)?.max_members ?? 3;
+
+    const { count: currentCount } = await supabase
+      .from("account_members")
+      .select("id", { count: "exact", head: true })
+      .eq("account_id", account_id)
+      .neq("role", "client_admin");
+
+    if ((currentCount ?? 0) >= maxMembers) {
+      return new Response(JSON.stringify({ error: `Limite de ${maxMembers} sub-usuários atingido. Solicite aumento ao administrador.` }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
