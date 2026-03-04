@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { hexToHsl } from "@/components/ThemeToggle";
+import { hexToHsl, hexLuminance } from "@/components/ThemeToggle";
 
 /** All localStorage keys used for appearance */
 const APPEARANCE_KEYS = [
@@ -17,6 +17,7 @@ const APPEARANCE_KEYS = [
   "text-sz",
   "text-sp",
   "theme",
+  "auto-contrast",
 ] as const;
 
 /** Global flag: once settings are loaded from DB for this session, don't reload */
