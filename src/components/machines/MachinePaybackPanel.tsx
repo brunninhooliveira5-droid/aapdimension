@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Plus, TrendingUp, DollarSign, Clock, Percent, Calculator, Trash2, Edit2, Save, Target, ShieldCheck } from "lucide-react";
+import { Plus, TrendingUp, DollarSign, Clock, Percent, Calculator, Trash2, Edit2, Save, Target, ShieldCheck, History as HistoryIcon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -98,6 +98,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
   const [svcAdditional, setSvcAdditional] = useState(0);
   const [svcAdditionalDisplay, setSvcAdditionalDisplay] = useState("");
   const [svcNotes, setSvcNotes] = useState("");
+  const [showServiceHistory, setShowServiceHistory] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -501,65 +502,82 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
             </CardContent>
           </Card>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 gap-3">
-            <Card>
-              <CardHeader className="pb-1 pt-3 px-4">
-                <CardTitle className="text-xs">Acumulado</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3">
-                {chartData.accumulated.length > 0 ? (
-                  <ChartContainer config={{
-                    acumulado: { label: "Acumulado", color: "hsl(var(--primary))" },
-                    meta: { label: "Meta", color: "hsl(var(--destructive))" },
-                  }} className="h-[180px]">
-                    <LineChart data={chartData.accumulated}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="acumulado" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="meta" stroke="hsl(var(--destructive))" strokeWidth={1} strokeDasharray="5 5" dot={false} />
-                    </LineChart>
-                  </ChartContainer>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-4">Sem dados</p>
-                )}
-              </CardContent>
-            </Card>
+          {/* Chart - Acumulado */}
+          <Card>
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs">Acumulado</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              {chartData.accumulated.length > 0 ? (
+                <ChartContainer config={{
+                  acumulado: { label: "Acumulado", color: "hsl(var(--primary))" },
+                  meta: { label: "Meta", color: "hsl(var(--destructive))" },
+                }} className="h-[180px]">
+                  <LineChart data={chartData.accumulated}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 9 }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="acumulado" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="meta" stroke="hsl(var(--destructive))" strokeWidth={1} strokeDasharray="5 5" dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">Sem dados</p>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="pb-1 pt-3 px-4">
-                <CardTitle className="text-xs">Lucro vs Depreciação</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3">
-                {chartData.monthly.length > 0 ? (
-                  <ChartContainer config={{
-                    lucro: { label: "Lucro", color: "hsl(var(--primary))" },
-                    depreciacao: { label: "Depreciação", color: "hsl(var(--destructive))" },
-                  }} className="h-[180px]">
-                    <BarChart data={chartData.monthly}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="depreciacao" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-4">Sem dados</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Chart - Lucro vs Depreciação */}
+          <Card>
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs">Lucro vs Depreciação (mensal)</CardTitle>
+              <CardDescription className="text-[10px]">
+                Total lucro: {fmt(metrics.totalProfit)} | Total deprec: {fmt(metrics.totalDepreciation)}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              {chartData.monthly.length > 0 ? (
+                <ChartContainer config={{
+                  lucro: { label: "Lucro", color: "hsl(var(--primary))" },
+                  depreciacao: { label: "Depreciação", color: "hsl(var(--destructive))" },
+                }} className="h-[180px]">
+                  <BarChart data={chartData.monthly}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 9 }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="depreciacao" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">Sem dados</p>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Services */}
+          {/* Services - Collapsible */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
-              <CardTitle className="text-xs">Serviços ({filteredServices.length})</CardTitle>
-              <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => setShowServiceForm(true)}>
-                <Plus className="w-3 h-3" /> Serviço
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setShowServiceForm(true)}
+                >
+                  <Plus className="w-3 h-3" /> Novo Serviço
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1 border-border"
+                onClick={() => setShowServiceHistory(!showServiceHistory)}
+              >
+                <HistoryIcon className="w-3 h-3" />
+                Histórico ({filteredServices.length})
               </Button>
             </CardHeader>
             <CardContent className="px-4 pb-3">
@@ -595,37 +613,39 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                 </Card>
               )}
 
-              {filteredServices.length > 0 ? (
-                <div className="overflow-auto max-h-[300px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Data</TableHead>
-                        <TableHead className="text-xs">Cliente</TableHead>
-                        <TableHead className="text-xs text-right">Receita</TableHead>
-                        <TableHead className="text-xs text-right">Lucro</TableHead>
-                        <TableHead className="w-8"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredServices.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell className="text-xs">{format(parseISO(s.service_date), "dd/MM/yy")}</TableCell>
-                          <TableCell className="text-xs">{s.client_name || "—"}</TableCell>
-                          <TableCell className="text-xs text-right">{fmt(s.revenue)}</TableCell>
-                          <TableCell className={`text-xs text-right font-medium ${s.profit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(s.profit)}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => deleteService(s.id)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-4">Nenhum serviço registrado.</p>
+              {showServiceHistory && (
+                <>
+                  {filteredServices.length > 0 ? (
+                    <div className="overflow-auto max-h-[300px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Data</TableHead>
+                            <TableHead className="text-xs text-right">Receita</TableHead>
+                            <TableHead className="text-xs text-right">Lucro</TableHead>
+                            <TableHead className="w-8"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredServices.map((s) => (
+                            <TableRow key={s.id}>
+                              <TableCell className="text-xs">{format(parseISO(s.service_date), "dd/MM/yy")}</TableCell>
+                              <TableCell className="text-xs text-right">{fmt(s.revenue)}</TableCell>
+                              <TableCell className={`text-xs text-right font-medium ${s.profit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(s.profit)}</TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => deleteService(s.id)}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-4">Nenhum serviço registrado.</p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
