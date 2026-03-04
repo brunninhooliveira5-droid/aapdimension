@@ -63,6 +63,21 @@ export function MachinePayback() {
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [formMachineName, setFormMachineName] = useState("");
   const [formInvestedValue, setFormInvestedValue] = useState(0);
+  const [formInvestedDisplay, setFormInvestedDisplay] = useState("");
+
+  const formatCurrencyInput = (raw: string): { display: string; numeric: number } => {
+    const digits = raw.replace(/\D/g, "");
+    const cents = parseInt(digits || "0", 10);
+    const value = cents / 100;
+    const display = value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return { display, numeric: value };
+  };
+
+  const handleInvestedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { display, numeric } = formatCurrencyInput(e.target.value);
+    setFormInvestedDisplay(display);
+    setFormInvestedValue(numeric);
+  };
   const [formPurchaseDate, setFormPurchaseDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formUsefulLife, setFormUsefulLife] = useState(60);
   const [formDepMethod, setFormDepMethod] = useState<"linear" | "percentage">("linear");
