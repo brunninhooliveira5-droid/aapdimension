@@ -26,18 +26,13 @@ export function SectorAccessEditor({ accountId, userId, onChange, value }: Secto
 
   useEffect(() => {
     const fetchSectors = async () => {
-      // Fetch from both dimension and pc tables
-      const [dim, pc] = await Promise.all([
-        supabase.from("dimension_production_cards").select("id, key, title").order("key"),
-        supabase.from("pc_production_cards" as any).select("id, key, title").order("key"),
-      ]);
+      // Fetch from the account's own production cards table (pc_production_cards)
+      const { data } = await supabase
+        .from("pc_production_cards" as any)
+        .select("id, key, title")
+        .order("key");
 
-      // Merge unique by key
-      const map = new Map<string, SectorCard>();
-      for (const s of [...(dim.data ?? []), ...((pc.data as any[]) ?? [])] as SectorCard[]) {
-        if (!map.has(s.key)) map.set(s.key, s);
-      }
-      setSectors(Array.from(map.values()));
+      setSectors(((data as any[]) ?? []) as SectorCard[]);
       setLoading(false);
     };
     fetchSectors();
