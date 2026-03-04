@@ -177,13 +177,28 @@ export function SavedQuotes() {
     setPaybackDialogOpen(true);
     setLoadingInvestments(true);
 
-    const { data } = await supabase
-      .from("cnc_investments" as any)
-      .select("id, machine_name, invested_value, machine_id")
-      .eq("user_id", session?.user?.id)
-      .order("created_at", { ascending: false });
+    const userId = session?.user?.id;
 
-    setUserInvestments((data as any) ?? []);
+    // 1. Get machines owned by this user
+    const { data: userMachines } = await supabase
+      .from("machines" as any)
+      .select("id")
+      .eq("owner_id", userId);
+
+    const ownedMachineIds = (userMachines as any[])?.map((m: any) => m.id) ?? [];
+
+    // 2. Get investments linked to those machines
+    let investments: any[] = [];
+    if (ownedMachineIds.length > 0) {
+      const { data } = await supabase
+        .from("cnc_investments" as any)
+        .select("id, machine_name, invested_value, machine_id")
+        .in("machine_id", ownedMachineIds)
+        .order("created_at", { ascending: false });
+      investments = (data as any) ?? [];
+    }
+
+    setUserInvestments(investments);
     setLoadingInvestments(false);
   };
 
