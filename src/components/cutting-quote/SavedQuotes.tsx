@@ -10,7 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
@@ -24,6 +25,7 @@ interface SavedQuote {
   material: string;
   thickness: string;
   machine_name: string;
+  machine_id: string | null;
   path_length_m: number;
   quantity: number;
   estimated_time_min: number;
@@ -39,6 +41,7 @@ interface SavedQuote {
   client_name: string;
   client_phone: string;
   notes: string;
+  quote_id?: string;
 }
 
 export function SavedQuotes() {
@@ -146,6 +149,64 @@ export function SavedQuotes() {
       setQuotes((prev) => prev.map((item) => item.id === selectedQuote.id ? { ...item, notes: notesText } : item));
       setSelectedQuote({ ...selectedQuote, notes: notesText });
     }
+  };
+
+  const sendToPayback = async (q: SavedQuote) => {
+    if (!q.machine_id) {
+      toast.error("Este orçamento não tem uma máquina vinculada. Não é possível enviar ao Payback.");
+      return;
+    }
+
+    // Check if investment exists for this machine
+    const { data: invData, error: invError } = await supabase
+      .from("cnc_investments" as any)
+      .select("id")
+      .eq("machine_id", q.machine_id)
+      .maybeSingle();
+
+    if (invError || !invData) {
+      toast.error("Nenhum investimento registrado para esta máquina. Registre o investimento primeiro no painel de Payback.");
+      return;
+    }
+
+    // Check if already sent (by quote_id)
+    const { data: existing } = await supabase
+      .from("cnc_services" as any)
+      .select("id")
+      .eq("quote_id", q.id)
+      .maybeSingle();
+
+    if (existing) {
+      toast.info("Este orçamento já foi enviado ao Payback anteriormente.");
+      return;
+    }
+
+    const revenue = Number(q.total_price) || Number(q.suggested_sale);
+    const machineCost = Number(q.estimated_cost);
+    const profit = revenue - machineCost;
+
+    const { error } = await supabase.from("cnc_services" as any).insert({
+      user_id: session?.user?.id,
+      investment_id: (invData as any).id,
+      service_date: q.created_at.substring(0, 10),
+      client_name: q.client_name || "Sem nome",
+      revenue,
+      material_cost: Number(q.material_cost) || 0,
+      machine_cost: machineCost,
+      additional_costs: 0,
+      profit,
+      origin: "orcamento",
+      quote_id: q.id,
+      notes: `Orçamento: ${q.file_name} | ${q.material} ${q.thickness}`,
+    });
+
+    if (error) {
+      console.error("Payback error:", error);
+      toast.error("Erro ao enviar para o Payback.");
+      return;
+    }
+
+    toast.success("Valores enviados para o Payback da máquina com sucesso!");
   };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -338,6 +399,16 @@ export function SavedQuotes() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => sendToPayback(q)} title="Enviar para Payback">
+                                <TrendingUp className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">Enviar para Payback</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
@@ -519,6 +590,24 @@ export function SavedQuotes() {
                     Arquivo original não disponível (orçamento salvo antes desta funcionalidade).
                   </p>
                 )}
+              </div>
+
+              <Separator />
+
+              {/* Payback Action */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Payback</p>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => sendToPayback(selectedQuote)}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Enviar Valores para Payback da Máquina
+                </Button>
+                <p className="text-[10px] text-muted-foreground">
+                  Registra a receita e custo deste orçamento no painel de retorno sobre investimento da máquina.
+                </p>
               </div>
             </div>
           )}
