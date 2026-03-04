@@ -330,9 +330,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return "hidden";
     }
 
-    // If user is an account member (not admin_master), apply account-level permissions
+    // If user is an account member, apply account-level permissions
+    // Account permissions OVERRIDE role-based restrictions
     if (user.accountMembership && section !== "home" && section !== "configuracoes") {
       const allowed = user.accountMembership.permissions[section];
+      if (allowed === true) return "visible";
       if (allowed === false) return "hidden";
     }
 
