@@ -398,17 +398,11 @@ export function SavedQuotes() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <TooltipProvider delayDuration={0}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => sendToPayback(q)} title="Enviar para Payback">
-                                <TrendingUp className="w-3.5 h-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-xs">Enviar para Payback</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                      <div className="flex justify-end gap-1 items-center">
+                        <Button size="sm" className="h-7 px-2.5 gap-1.5 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => sendToPayback(q)}>
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          Payback
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
@@ -598,8 +592,7 @@ export function SavedQuotes() {
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Payback</p>
                 <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
+                  className="w-full justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                   onClick={() => sendToPayback(selectedQuote)}
                 >
                   <TrendingUp className="w-4 h-4" />
