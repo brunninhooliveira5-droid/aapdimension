@@ -1,46 +1,34 @@
 
 
-# Plano: Corrigir Recursão Infinita nas Políticas RLS
+## Plano: Controle de Acesso por Setor de Produção
 
-## Problema Raiz
+O administrador poderá definir quais setores de produção cada sub-usuário pode acessar, diretamente na tela de permissões do membro.
 
-A query `account_members` retorna **erro 500** com `"infinite recursion detected in policy for relation account_members"`. Isso impede:
-- O AuthContext de carregar `accountMembership`
-- A página "Minha Empresa" de funcionar
-- O auto-provisioning de conta
+### Como funciona
 
-**Causa**: Existem políticas RLS duplicadas e conflitantes nas tabelas `account_members` e `accounts`:
+1. **Nova tabela `pc_member_sector_access`** -- armazena quais setores cada membro pode acessar
+   - `id`, `account_id`, `user_id`, `sector_key` (referência ao key do card de produção), `created_at`
+   - RLS: apenas `client_admin` da mesma conta pode ler/escrever; membros podem ler seus próprios registros
 
-1. **`account_members`** tem 2 políticas SELECT:
-   - `members_select` — usa `get_user_account_id(auth.uid())` (seguro, sem recursão)
-   - `Members can view same account members` — faz subquery direta em `account_members` (causa recursão infinita)
+2. **Lógica de acesso** -- Se não houver registros para um usuário, ele vê **todos** os setores (comportamento padrão atual). Se houver pelo menos 1 registro, ele só vê os setores listados. O admin sempre vê todos.
 
-2. **`account_members`** tem 2 políticas INSERT duplicadas
+3. **UI de configuração no editor de permissões** -- Ao editar permissões de um membro em "Minha Empresa", adicionar uma seção "Setores de Produção" abaixo das permissões de módulos. Essa seção busca os setores existentes (`pc_production_cards`) e exibe checkboxes/switches para cada setor. O admin marca quais setores o usuário pode ver.
 
-3. **`accounts`** tem política SELECT `Users can view own account` que faz subquery em `account_members` diretamente (recursão), além da política correta `accounts_select` que usa `get_user_account_id()`
+4. **Filtragem nos componentes** -- `ProductionCards.tsx` e `SectorKanban` filtram os cards exibidos baseado nos setores permitidos para o usuário logado (ou personificado).
 
-4. **`accounts`** tem 2 políticas INSERT conflitantes (uma exige `admin_master`, outra permite `owner_user_id = auth.uid()`)
+### Alterações
 
-## Solução
+| Arquivo | Mudança |
+|---|---|
+| **Migration SQL** | Criar tabela `pc_member_sector_access` com RLS |
+| **MemberPermissionsEditor.tsx** | Adicionar seção de seleção de setores com switches por setor |
+| **CompanyUsersPage.tsx** | Passar `accountId` ao editor e salvar/carregar setores permitidos |
+| **ProductionCards.tsx** | Filtrar cards exibidos baseado nos setores permitidos do usuário |
+| **DimensionOverview.tsx** | Filtrar setores no kanban baseado no acesso |
 
-Uma única migração SQL para:
-1. Dropar as políticas duplicadas/problemáticas
-2. Manter apenas as que usam funções `SECURITY DEFINER` (sem recursão)
-
-### Políticas a remover:
-- `account_members`: `"Members can view same account members"` (SELECT recursivo)
-- `account_members`: `"Account owners can insert members"` (INSERT duplicado)
-- `accounts`: `"Users can view own account"` (SELECT recursivo)
-- `accounts`: `"Users can create their own account"` (INSERT conflitante — vamos integrar na política existente)
-
-### Política a atualizar:
-- `accounts`: `accounts_insert` — permitir tanto `admin_master` quanto `owner_user_id = auth.uid()` (para auto-provisioning funcionar)
-
-## Arquivo Modificado
-
-| Acao | Arquivo |
-|------|---------|
-| Migração SQL | Dropar 4 políticas duplicadas, atualizar 1 política INSERT |
-
-Nenhuma mudança de código frontend necessária — o problema é exclusivamente nas RLS policies do banco.
+### Fluxo do admin
+1. Vai em "Minha Empresa" > clica no lápis de um sub-usuário
+2. Além dos switches de módulos, vê a lista de setores de produção
+3. Marca/desmarca quais setores o usuário pode acessar
+4. Salva -- o sub-usuário só verá os setores permitidos
 
