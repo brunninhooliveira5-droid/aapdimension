@@ -1,0 +1,1 @@
+ALTER TABLE public.cnc_investments ADD COLUMN machine_id uuid REFERENCES public.machines(id) ON DELETE SET NULL;

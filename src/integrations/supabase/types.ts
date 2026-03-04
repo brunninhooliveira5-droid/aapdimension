@@ -218,6 +218,7 @@ export type Database = {
           depreciation_rate_year: number
           id: string
           invested_value: number
+          machine_id: string | null
           machine_name: string
           purchase_date: string
           updated_at: string
@@ -231,6 +232,7 @@ export type Database = {
           depreciation_rate_year?: number
           id?: string
           invested_value?: number
+          machine_id?: string | null
           machine_name?: string
           purchase_date?: string
           updated_at?: string
@@ -244,13 +246,22 @@ export type Database = {
           depreciation_rate_year?: number
           id?: string
           invested_value?: number
+          machine_id?: string | null
           machine_name?: string
           purchase_date?: string
           updated_at?: string
           useful_life_months?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cnc_investments_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cnc_services: {
         Row: {
