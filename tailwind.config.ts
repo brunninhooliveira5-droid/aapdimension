@@ -18,6 +18,11 @@ export default {
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
+        "input-bg": "hsl(var(--input-bg))",
+        "input-text": "hsl(var(--input-text))",
+        "input-border": "hsl(var(--input-border))",
+        "fill-bg": "hsl(var(--fill-bg))",
+        "fill-text": "hsl(var(--fill-text))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
