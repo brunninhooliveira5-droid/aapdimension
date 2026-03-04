@@ -322,8 +322,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return "hidden";
     if (user.role === "admin_master") return "visible";
 
-    // "empresa" section: visible for client_admin or users with can_manage_users
+    // "empresa" section: visible for client_admin, admin role, or users with can_manage_users
     if (section === "empresa") {
+      if (user.role === "admin") return "visible";
       if (user.accountMembership?.memberRole === "client_admin") return "visible";
       if (user.accountMembership?.permissions?.can_manage_users) return "visible";
       return "hidden";
