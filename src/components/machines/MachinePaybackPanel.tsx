@@ -448,6 +448,28 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
             </div>
           </div>
 
+          {/* Estimated Usage Time Card */}
+          {metrics.totalEstimatedMinutes > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="flex items-center gap-3 py-3 px-4">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tempo Estimado de Uso</p>
+                  <p className="text-lg font-bold text-primary">
+                    {metrics.totalEstimatedMinutes >= 60
+                      ? `${(metrics.totalEstimatedMinutes / 60).toFixed(1)} horas`
+                      : `${metrics.totalEstimatedMinutes.toFixed(1)} minutos`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Com base em {services.filter(s => s.notes?.match(/Tempo:/)).length} orçamentos enviados
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Progress bar */}
           <div>
             <div className="flex items-center justify-between mb-1">
