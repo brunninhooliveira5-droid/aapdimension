@@ -277,6 +277,13 @@ export function MachinePayback() {
     const filteredProfit = filteredServices.reduce((sum, s) => sum + s.profit, 0);
     const filteredRevenue = filteredServices.reduce((sum, s) => sum + s.revenue, 0);
 
+    // Resale value estimation
+    const depAccumulated = Math.min(inv.invested_value, totalDepreciation);
+    const bookValue = Math.max(0, inv.invested_value - depAccumulated);
+    const marketFloor = inv.invested_value * 0.75;
+    const estimatedResaleValue = Math.max(bookValue, marketFloor);
+    const valuePreservedPercent = inv.invested_value > 0 ? (estimatedResaleValue / inv.invested_value) * 100 : 0;
+
     return {
       percentPaid,
       accumulated,
@@ -291,6 +298,12 @@ export function MachinePayback() {
       filteredProfit,
       filteredRevenue,
       serviceCount: filteredServices.length,
+      // Resale
+      depAccumulated,
+      bookValue,
+      marketFloor,
+      estimatedResaleValue,
+      valuePreservedPercent,
     };
   }, [selectedInvestment, services, filteredServices]);
 
