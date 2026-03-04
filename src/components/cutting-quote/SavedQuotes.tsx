@@ -110,10 +110,7 @@ export function SavedQuotes() {
     }
   };
 
-  const toggleStatus = async (q: SavedQuote) => {
-    const statusCycle = ["orcamento", "fechado", "aprovado_corte", "aguardando_retirada", "finalizado"];
-    const currentIdx = statusCycle.indexOf(q.status);
-    const newStatus = statusCycle[(currentIdx + 1) % statusCycle.length];
+  const updateStatus = async (q: SavedQuote, newStatus: string) => {
     const { error } = await supabase
       .from("cutting_quotes" as any)
       .update({ status: newStatus } as any)
@@ -127,11 +124,11 @@ export function SavedQuotes() {
       };
       toast.success(`Status alterado para "${labels[newStatus] || newStatus}".`);
       setQuotes((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
+      if (selectedQuote?.id === q.id) setSelectedQuote({ ...q, status: newStatus });
     }
   };
 
-  const togglePaymentStatus = async (q: SavedQuote) => {
-    const newPayment = q.payment_status === "pago" ? "nao_pago" : "pago";
+  const updatePaymentStatus = async (q: SavedQuote, newPayment: string) => {
     const { error } = await supabase
       .from("cutting_quotes" as any)
       .update({ payment_status: newPayment } as any)
@@ -385,34 +382,29 @@ export function SavedQuotes() {
                     <TableCell className="text-xs">{q.material}</TableCell>
                     <TableCell className="text-xs">{q.thickness}</TableCell>
                     <TableCell>
-                      {(() => {
-                        const labels: Record<string, string> = {
-                          orcamento: "Orçamento", fechado: "Fechado", aprovado_corte: "Aprovado p/ Corte",
-                          aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
-                        };
-                        const colors: Record<string, string> = {
-                          fechado: "bg-info hover:bg-info/90", aprovado_corte: "bg-success hover:bg-success/90",
-                          aguardando_retirada: "bg-warning hover:bg-warning/90 text-warning-foreground", finalizado: "bg-primary hover:bg-primary/90",
-                        };
-                        return (
-                          <Badge
-                            variant={q.status === "orcamento" ? "secondary" : "default"}
-                            className={`text-[10px] cursor-pointer whitespace-nowrap ${colors[q.status] || ""}`}
-                            onClick={() => toggleStatus(q)}
-                          >
-                            {labels[q.status] || q.status}
-                          </Badge>
-                        );
-                      })()}
+                      <Select value={q.status} onValueChange={(v) => updateStatus(q, v)}>
+                        <SelectTrigger className="h-7 w-[150px] text-[11px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="orcamento">Orçamento</SelectItem>
+                          <SelectItem value="fechado">Fechado</SelectItem>
+                          <SelectItem value="aprovado_corte">Aprovado p/ Corte</SelectItem>
+                          <SelectItem value="aguardando_retirada">Aguardando Retirada</SelectItem>
+                          <SelectItem value="finalizado">Finalizado</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={q.payment_status === "pago" ? "default" : "secondary"}
-                        className={`text-[10px] cursor-pointer whitespace-nowrap ${q.payment_status === "pago" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-accent"}`}
-                        onClick={() => togglePaymentStatus(q)}
-                      >
-                        {q.payment_status === "pago" ? "Pago" : "Não Pago"}
-                      </Badge>
+                      <Select value={q.payment_status} onValueChange={(v) => updatePaymentStatus(q, v)}>
+                        <SelectTrigger className="h-7 w-[110px] text-[11px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nao_pago">Não Pago</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-xs text-right">{Number(q.estimated_time_min).toFixed(1)} min</TableCell>
                     <TableCell className="text-xs text-right font-medium text-primary">
@@ -425,7 +417,12 @@ export function SavedQuotes() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 items-center">
-                        <Button size="sm" className="h-7 px-2.5 gap-1.5 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => sendToPayback(q)}>
+                        <Button
+                          size="sm"
+                          className="h-7 px-2.5 gap-1.5 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50"
+                          onClick={() => sendToPayback(q)}
+                          disabled={q.payment_status !== "pago"}
+                        >
                           <TrendingUp className="w-3.5 h-3.5" />
                           Payback
                         </Button>
@@ -538,34 +535,30 @@ export function SavedQuotes() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Status</p>
-                  {(() => {
-                    const labels: Record<string, string> = {
-                      orcamento: "Orçamento", fechado: "Fechado", aprovado_corte: "Aprovado p/ Corte",
-                      aguardando_retirada: "Aguardando Retirada", finalizado: "Finalizado",
-                    };
-                    const colors: Record<string, string> = {
-                      fechado: "bg-info", aprovado_corte: "bg-success",
-                      aguardando_retirada: "bg-warning text-warning-foreground", finalizado: "bg-primary",
-                    };
-                    return (
-                      <Badge
-                        variant={selectedQuote.status === "orcamento" ? "secondary" : "default"}
-                        className={`text-[10px] ${colors[selectedQuote.status] || ""}`}
-                      >
-                        {labels[selectedQuote.status] || selectedQuote.status}
-                      </Badge>
-                    );
-                  })()}
+                  <Select value={selectedQuote.status} onValueChange={(v) => updateStatus(selectedQuote, v)}>
+                    <SelectTrigger className="h-7 w-[160px] text-[11px] mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="orcamento">Orçamento</SelectItem>
+                      <SelectItem value="fechado">Fechado</SelectItem>
+                      <SelectItem value="aprovado_corte">Aprovado p/ Corte</SelectItem>
+                      <SelectItem value="aguardando_retirada">Aguardando Retirada</SelectItem>
+                      <SelectItem value="finalizado">Finalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Pagamento</p>
-                  <Badge
-                    variant={selectedQuote.payment_status === "pago" ? "default" : "secondary"}
-                    className={`text-[10px] cursor-pointer ${selectedQuote.payment_status === "pago" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-accent"}`}
-                    onClick={() => togglePaymentStatus(selectedQuote)}
-                  >
-                    {selectedQuote.payment_status === "pago" ? "Pago" : "Não Pago"}
-                  </Badge>
+                  <Select value={selectedQuote.payment_status} onValueChange={(v) => updatePaymentStatus(selectedQuote, v)}>
+                    <SelectTrigger className="h-7 w-[120px] text-[11px] mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao_pago">Não Pago</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -628,12 +621,18 @@ export function SavedQuotes() {
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Payback</p>
                 <Button
-                  className="w-full justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  className="w-full justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50"
                   onClick={() => sendToPayback(selectedQuote)}
+                  disabled={selectedQuote.payment_status !== "pago"}
                 >
                   <TrendingUp className="w-4 h-4" />
                   Enviar Valores para Payback da Máquina
                 </Button>
+                {selectedQuote.payment_status !== "pago" && (
+                  <p className="text-[10px] text-warning">
+                    ⚠ O orçamento precisa estar com status "Pago" para enviar ao Payback.
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground">
                   Registra a receita e custo deste orçamento no painel de retorno sobre investimento da máquina.
                 </p>
