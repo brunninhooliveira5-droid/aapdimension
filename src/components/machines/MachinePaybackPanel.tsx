@@ -90,9 +90,13 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
   const [svcDate, setSvcDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [svcClient, setSvcClient] = useState("");
   const [svcRevenue, setSvcRevenue] = useState(0);
+  const [svcRevenueDisplay, setSvcRevenueDisplay] = useState("");
   const [svcMaterialCost, setSvcMaterialCost] = useState(0);
+  const [svcMaterialCostDisplay, setSvcMaterialCostDisplay] = useState("");
   const [svcMachineCost, setSvcMachineCost] = useState(0);
+  const [svcMachineCostDisplay, setSvcMachineCostDisplay] = useState("");
   const [svcAdditional, setSvcAdditional] = useState(0);
+  const [svcAdditionalDisplay, setSvcAdditionalDisplay] = useState("");
   const [svcNotes, setSvcNotes] = useState("");
 
   useEffect(() => {
@@ -201,7 +205,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
       toast.error("Informe a receita do serviço.");
       return;
     }
-    const totalCosts = svcMaterialCost + svcMachineCost + svcAdditional;
+    const totalCosts = svcMaterialCost + svcAdditional;
     const profit = svcRevenue - totalCosts;
     const { error } = await supabase.from("cnc_services" as any).insert({
       user_id: userId,
@@ -223,7 +227,11 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
     toast.success("Serviço registrado!");
     setShowServiceForm(false);
     setSvcDate(format(new Date(), "yyyy-MM-dd"));
-    setSvcClient(""); setSvcRevenue(0); setSvcMaterialCost(0); setSvcMachineCost(0); setSvcAdditional(0); setSvcNotes("");
+    setSvcClient(""); setSvcRevenue(0); setSvcRevenueDisplay("");
+    setSvcMaterialCost(0); setSvcMaterialCostDisplay("");
+    setSvcMachineCost(0); setSvcMachineCostDisplay("");
+    setSvcAdditional(0); setSvcAdditionalDisplay("");
+    setSvcNotes("");
     loadData();
   };
 
@@ -565,19 +573,20 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Receita (R$)</Label>
-                        <Input type="number" min={0} value={svcRevenue || ""} onChange={(e) => setSvcRevenue(Number(e.target.value))} />
+                        <Input type="text" inputMode="numeric" placeholder="0,00" value={svcRevenueDisplay} onChange={(e) => { const r = formatCurrencyInput(e.target.value); setSvcRevenueDisplay(r.display); setSvcRevenue(r.numeric); }} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Custo Material</Label>
-                        <Input type="number" min={0} value={svcMaterialCost || ""} onChange={(e) => setSvcMaterialCost(Number(e.target.value))} />
+                        <Label className="text-xs">Custo Material (R$)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="0,00" value={svcMaterialCostDisplay} onChange={(e) => { const r = formatCurrencyInput(e.target.value); setSvcMaterialCostDisplay(r.display); setSvcMaterialCost(r.numeric); }} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Custo Máquina</Label>
-                        <Input type="number" min={0} value={svcMachineCost || ""} onChange={(e) => setSvcMachineCost(Number(e.target.value))} />
+                        <Label className="text-xs">Custo Máquina (R$)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="0,00" value={svcMachineCostDisplay} onChange={(e) => { const r = formatCurrencyInput(e.target.value); setSvcMachineCostDisplay(r.display); setSvcMachineCost(r.numeric); }} />
+                        <p className="text-[9px] text-muted-foreground">Informativo — não subtrai do lucro (depreciação já contabilizada)</p>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Custos Adicionais</Label>
-                        <Input type="number" min={0} value={svcAdditional || ""} onChange={(e) => setSvcAdditional(Number(e.target.value))} />
+                        <Label className="text-xs">Custos Adicionais (R$)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="0,00" value={svcAdditionalDisplay} onChange={(e) => { const r = formatCurrencyInput(e.target.value); setSvcAdditionalDisplay(r.display); setSvcAdditional(r.numeric); }} />
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -585,7 +594,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                       <Input placeholder="Notas" value={svcNotes} onChange={(e) => setSvcNotes(e.target.value)} />
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Lucro: <strong>{fmt(svcRevenue - svcMaterialCost - svcMachineCost - svcAdditional)}</strong>
+                      Lucro: <strong>{fmt(svcRevenue - svcMaterialCost - svcAdditional)}</strong>
                     </div>
                     <div className="flex gap-2">
                       <Button onClick={saveService} size="sm" className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Salvar</Button>
