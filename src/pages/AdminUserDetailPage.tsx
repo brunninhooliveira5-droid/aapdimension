@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   ArrowLeft, UserCheck, Users, Shield, Pencil, Settings2, Eye,
-  UserX, Trash2, AlertTriangle, Building2, Mail, Phone, MapPin,
+  UserX, Trash2, AlertTriangle, Building2, Mail, Phone, MapPin, UserPlus,
 } from "lucide-react";
+import { CreateMemberDialog } from "@/components/company/CreateMemberDialog";
 
 interface SubUser {
   id: string;
@@ -59,6 +60,7 @@ const AdminUserDetailPage = () => {
   const [savingLimit, setSavingLimit] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState<SubUser | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -236,6 +238,17 @@ const AdminUserDetailPage = () => {
               {nonAdminUsers.length} / {maxMembers} usuários
               <Pencil className="w-3 h-3 ml-1.5 inline" />
             </Badge>
+            {accountId && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                disabled={nonAdminUsers.length >= maxMembers}
+                onClick={() => setCreateDialogOpen(true)}
+              >
+                <UserPlus className="w-4 h-4" />
+                Adicionar Sub-Usuário
+              </Button>
+            )}
           </div>
         </div>
 
@@ -400,6 +413,16 @@ const AdminUserDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Sub-User Dialog */}
+      {accountId && (
+        <CreateMemberDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          accountId={accountId}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 };

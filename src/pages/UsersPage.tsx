@@ -396,8 +396,14 @@ const UsersPage = () => {
     fetchUsers();
   };
 
-  const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master");
-  const approvedUsersAll = users.filter(u => u.approved || u.role === "admin_master");
+  // Collect all sub-user IDs (non-client_admin account members) to exclude from main list
+  const subUserIds = new Set<string>();
+  accountsMap.forEach((info) => {
+    info.subUsers.forEach(su => subUserIds.add(su.userId));
+  });
+
+  const pendingUsers = users.filter(u => !u.approved && !u.rejected && u.role !== "admin_master" && !subUserIds.has(u.id));
+  const approvedUsersAll = users.filter(u => (u.approved || u.role === "admin_master") && !subUserIds.has(u.id));
   const approvedRoleFiltered = roleFilter === "todos" ? approvedUsersAll : approvedUsersAll.filter(u => u.role === roleFilter);
 
   // Activity filter
