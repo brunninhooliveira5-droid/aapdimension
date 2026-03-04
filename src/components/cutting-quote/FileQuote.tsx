@@ -980,7 +980,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
       path_length_m: result.pathLengthM,
       quantity,
       estimated_time_min: Math.round(currentEstimatedTimeMin * 100) / 100,
-      estimated_cost: recalcCutCost,
+      estimated_cost: Math.round((pricing.costPerMinute * currentEstimatedTimeMin + (materialOwner === "usuario" ? materialCost : 0)) * 100) / 100,
       min_recommended: result.minCutCost,
       suggested_sale: enforcedCutPrice,
       cost_per_minute: pricing.costPerMinute,
