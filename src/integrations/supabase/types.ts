@@ -92,6 +92,118 @@ export type Database = {
         }
         Relationships: []
       }
+      account_invites: {
+        Row: {
+          accepted_at: string | null
+          account_id: string
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invite_token: string | null
+          name: string
+          permissions: Json
+          status: string
+          suggested_role: Database["public"]["Enums"]["account_member_role"]
+          whatsapp: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          account_id: string
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invite_token?: string | null
+          name: string
+          permissions?: Json
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["account_member_role"]
+          whatsapp?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          account_id?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invite_token?: string | null
+          name?: string
+          permissions?: Json
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["account_member_role"]
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_invites_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_members: {
+        Row: {
+          account_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean
+          permissions: Json
+          role: Database["public"]["Enums"]["account_member_role"]
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json
+          role?: Database["public"]["Enums"]["account_member_role"]
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json
+          role?: Database["public"]["Enums"]["account_member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_members_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          owner_user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          owner_user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          owner_user_id?: string
+        }
+        Relationships: []
+      }
       bulletin_reads: {
         Row: {
           bulletin_id: string
@@ -5254,6 +5366,7 @@ export type Database = {
     }
     Functions: {
       get_admin_master_user_id: { Args: never; Returns: string }
+      get_user_account_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -5265,6 +5378,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_client_admin: { Args: { _user_id: string }; Returns: boolean }
       record_login_activity: { Args: { p_user_id: string }; Returns: undefined }
       record_login_event: { Args: { p_user_id: string }; Returns: undefined }
       record_page_visit: {
@@ -5275,6 +5389,11 @@ export type Database = {
       stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
     Enums: {
+      account_member_role:
+        | "client_admin"
+        | "operator"
+        | "client_finance"
+        | "viewer"
       app_role:
         | "admin_master"
         | "admin"
@@ -5409,6 +5528,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_member_role: [
+        "client_admin",
+        "operator",
+        "client_finance",
+        "viewer",
+      ],
       app_role: [
         "admin_master",
         "admin",

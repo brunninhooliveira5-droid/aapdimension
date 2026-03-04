@@ -45,6 +45,7 @@ const basicMenuItems = [
   { title: "Faturas", url: "/boletos", icon: Receipt, section: "financeiro" },
   { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento" },
   { title: "Controle de Produção", url: "/controle-producao", icon: Factory, section: "controle_producao" },
+  { title: "Minha Empresa", url: "/empresa/usuarios", icon: Users, section: "empresa" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
   { title: "Usuários", url: "/usuarios", icon: Users, section: "usuarios" },
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
