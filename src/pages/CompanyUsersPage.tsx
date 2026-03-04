@@ -271,10 +271,10 @@ const CompanyUsersPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Minha Empresa</h1>
+          <h1 className="text-xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <Shield className="inline h-3.5 w-3.5 mr-1" />
-            {accountName || "Minha Empresa"} — Gerencie os usuários da sua empresa
+            {accountName || "Minha Empresa"} — Gerencie os colaboradores da sua empresa
           </p>
         </div>
         <div className="flex items-center gap-3">
