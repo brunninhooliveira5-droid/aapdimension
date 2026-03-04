@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       supabase.from("user_plans").select("*").eq("user_id", userId).single(),
       supabase.from("user_section_access" as any).select("sections").eq("user_id", userId).single(),
-      supabase.from("account_members").select("account_id, role, permissions, accounts(name)").eq("user_id", userId).eq("is_active", true).maybeSingle(),
+      supabase.from("account_members").select("account_id, role, permissions, accounts(name, owner_user_id)").eq("user_id", userId).eq("is_active", true).maybeSingle(),
     ]);
 
     const role = (roleData?.role as UserRole) ?? "operador";
@@ -352,6 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
     if (user.role === "admin_master") return true;
     if (!user.userPlan) return false;
+    // Direct PRO or inherited from account owner
     if (!user.userPlan.pro_access) return false;
     if (user.userPlan.valid_until) {
       const expiresAt = new Date(user.userPlan.valid_until);
