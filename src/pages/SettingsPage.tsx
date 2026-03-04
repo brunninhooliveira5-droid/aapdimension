@@ -484,6 +484,15 @@ const SettingsPage = () => {
           </div>
         </div>
         <div className="border-t border-border pt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm text-foreground">Ajustar contraste automaticamente</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Garante texto legível independente da cor do card</p>
+            </div>
+            <Switch checked={autoContrast} onCheckedChange={toggleAutoContrast} />
+          </div>
+        </div>
+        <div className="border-t border-border pt-4 space-y-2">
           <Label className="text-xs text-muted-foreground">Efeito dos cards</Label>
           <div className="flex flex-wrap gap-2">
             {cardFxOptions.map((o) => (
