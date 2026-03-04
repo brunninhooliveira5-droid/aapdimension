@@ -43,6 +43,8 @@ interface SavedQuote {
   notes: string;
   payment_status: string;
   quote_id?: string;
+  service_value: number;
+  service_value_included: boolean;
 }
 
 export function SavedQuotes() {
@@ -224,7 +226,10 @@ export function SavedQuotes() {
       return;
     }
 
-    const revenue = Number(paybackQuote.total_price) || Number(paybackQuote.suggested_sale);
+    // Revenue = total_price minus service value (if service was added/included)
+    const totalPrice = Number(paybackQuote.total_price) || Number(paybackQuote.suggested_sale);
+    const serviceValue = paybackQuote.service_value_included ? (Number(paybackQuote.service_value) || 0) : 0;
+    const revenue = totalPrice - serviceValue;
     const machineCost = Number(paybackQuote.estimated_cost);
     const profit = revenue - machineCost;
 
