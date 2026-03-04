@@ -166,7 +166,7 @@ export function AppSidebar() {
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                         {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
-                          <Bell className="ml-auto h-3.5 w-3.5 text-destructive animate-pulse" />
+                          <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />
                         )}
                       </NavLink>
                     </SidebarMenuButton>
@@ -240,7 +240,7 @@ export function AppSidebar() {
                             <item.icon className="h-4 w-4" />
                             <span>{item.title}</span>
                             {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
-                              <Bell className="h-3.5 w-3.5 text-destructive animate-pulse" />
+                              <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />
                             )}
                             <span className="ml-auto inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">
                               <Construction className="w-2.5 h-2.5" />
