@@ -1,34 +1,44 @@
 
 
-## Plano: Controle de Acesso por Setor de Produção
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-O administrador poderá definir quais setores de produção cada sub-usuário pode acessar, diretamente na tela de permissões do membro.
+### Resumo
 
-### Como funciona
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-1. **Nova tabela `pc_member_sector_access`** -- armazena quais setores cada membro pode acessar
-   - `id`, `account_id`, `user_id`, `sector_key` (referência ao key do card de produção), `created_at`
-   - RLS: apenas `client_admin` da mesma conta pode ler/escrever; membros podem ler seus próprios registros
+### Alteracoes
 
-2. **Lógica de acesso** -- Se não houver registros para um usuário, ele vê **todos** os setores (comportamento padrão atual). Se houver pelo menos 1 registro, ele só vê os setores listados. O admin sempre vê todos.
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-3. **UI de configuração no editor de permissões** -- Ao editar permissões de um membro em "Minha Empresa", adicionar uma seção "Setores de Produção" abaixo das permissões de módulos. Essa seção busca os setores existentes (`pc_production_cards`) e exibe checkboxes/switches para cada setor. O admin marca quais setores o usuário pode ver.
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-4. **Filtragem nos componentes** -- `ProductionCards.tsx` e `SectorKanban` filtram os cards exibidos baseado nos setores permitidos para o usuário logado (ou personificado).
+#### 2. Editar limite de sub-usuarios (max_members)
 
-### Alterações
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-| Arquivo | Mudança |
+#### 3. Personificar sub-usuarios
+
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
+
+### Arquivos Modificados
+
+| Arquivo | Mudanca |
 |---|---|
-| **Migration SQL** | Criar tabela `pc_member_sector_access` com RLS |
-| **MemberPermissionsEditor.tsx** | Adicionar seção de seleção de setores com switches por setor |
-| **CompanyUsersPage.tsx** | Passar `accountId` ao editor e salvar/carregar setores permitidos |
-| **ProductionCards.tsx** | Filtrar cards exibidos baseado nos setores permitidos do usuário |
-| **DimensionOverview.tsx** | Filtrar setores no kanban baseado no acesso |
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
 
-### Fluxo do admin
-1. Vai em "Minha Empresa" > clica no lápis de um sub-usuário
-2. Além dos switches de módulos, vê a lista de setores de produção
-3. Marca/desmarca quais setores o usuário pode acessar
-4. Salva -- o sub-usuário só verá os setores permitidos
+### Fluxo
+
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 
