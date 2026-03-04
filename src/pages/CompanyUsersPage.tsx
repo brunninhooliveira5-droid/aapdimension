@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2, AlertTriangle } from "lucide-react";
+import { UserPlus, Users, Shield, Pencil, UserX, UserCheck, Trash2, AlertTriangle, Eye } from "lucide-react";
 import { CreateMemberDialog } from "@/components/company/CreateMemberDialog";
 import { MemberPermissionsEditor } from "@/components/company/MemberPermissionsEditor";
 
@@ -29,7 +31,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const CompanyUsersPage = () => {
-  const { user } = useAuth();
+  const { user, loadImpersonatedProfile } = useAuth();
+  const { startImpersonation } = useImpersonation();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -199,6 +203,14 @@ const CompanyUsersPage = () => {
     fetchMembers();
   };
 
+  const handleImpersonate = async (member: Member) => {
+    const success = await startImpersonation(member.user_id, member.name);
+    if (success) {
+      await loadImpersonatedProfile(member.user_id);
+      navigate("/");
+    }
+  };
+
   // Count active members (excluding the admin/owner)
   const activeMembersCount = members.filter(m => m.role !== "client_admin").length;
   const canAddMore = activeMembersCount < maxMembers;
@@ -291,6 +303,11 @@ const CompanyUsersPage = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {m.role !== "client_admin" && m.is_active && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleImpersonate(m)} title="Entrar como este usuário">
+                          <Eye className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditOpen(m)} title="Editar permissões">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>

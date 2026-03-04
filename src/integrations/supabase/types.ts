@@ -5399,6 +5399,10 @@ export type Database = {
         Args: { p_page_path: string; p_user_id: string }
         Returns: undefined
       }
+      start_account_impersonation: {
+        Args: { _target_user_id: string }
+        Returns: string
+      }
       start_impersonation: { Args: { target_user_id: string }; Returns: string }
       stop_impersonation: { Args: { log_id: string }; Returns: undefined }
     }
