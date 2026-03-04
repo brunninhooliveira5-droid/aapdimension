@@ -433,16 +433,31 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     }
   }, [session, effectiveDimensionMaterials]);
 
-  // Load PDF settings
+  // Load PDF settings (sub-users inherit from account owner)
   useEffect(() => {
     if (!session?.user) return;
-    supabase
-      .from("pdf_quote_settings" as any)
-      .select("*")
-      .eq("user_id", session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
+
+    const loadPdfSettings = async () => {
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      let pdfOwnerId = session.user.id;
+
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("owner_user_id")
+          .eq("id", user.accountMembership.accountId)
+          .single();
+        if (accountData?.owner_user_id) {
+          pdfOwnerId = accountData.owner_user_id;
+        }
+      }
+
+      const { data } = await supabase
+        .from("pdf_quote_settings" as any)
+        .select("*")
+        .eq("user_id", pdfOwnerId)
+        .maybeSingle();
+      if (data) {
           const d = data as any;
            setPdfSettings({
             company_name: d.company_name || "",
@@ -467,9 +482,11 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             show_watermark: d.show_watermark ?? false,
             watermark_url: d.watermark_url || "",
           });
-        }
-      });
-  }, [session]);
+      }
+    };
+
+    loadPdfSettings();
+  }, [session, user?.accountMembership]);
 
   // Load thicknesses for selected material in the quote form
   const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string; sheet_width: number; sheet_height: number; unit_price: number; speed_factor: number; is_dimension_preset: boolean; dimension_default_factor: number | null }[]>([]);
