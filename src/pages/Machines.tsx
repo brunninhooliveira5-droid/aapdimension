@@ -415,10 +415,10 @@ const Machines = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="maquinas" className="w-full">
-        <TabsList className={`grid w-full max-w-lg ${isAdminMaster ? "grid-cols-3" : "grid-cols-2"}`}>
+        <TabsList className={`grid w-full max-w-lg ${isAdminMaster ? "grid-cols-3" : "grid-cols-1"}`}>
           <TabsTrigger value="maquinas">Minhas Máquinas</TabsTrigger>
           {isAdminMaster && <TabsTrigger value="dimension" className="gap-1.5"><Factory className="w-3.5 h-3.5" /> Parque Dimension</TabsTrigger>}
-          <TabsTrigger value="cadastro">Cadastro de Equipamento</TabsTrigger>
+          {isAdminMaster && <TabsTrigger value="cadastro">Cadastro de Equipamento</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="maquinas" className="space-y-6 mt-4">
@@ -837,9 +837,11 @@ const Machines = () => {
           </TabsContent>
         )}
 
+        {isAdminMaster && (
         <TabsContent value="cadastro" className="mt-4">
           <EquipmentRegistration />
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Add Machine Dialog */}
