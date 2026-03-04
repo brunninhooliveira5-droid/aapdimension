@@ -237,7 +237,10 @@ const Machines = () => {
   };
 
   const handleAddMachine = async () => {
-    if (!formModel || !formSerial || !formOwner) {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const effectiveOwner = formOriginType === "dimension" ? currentSession?.user?.id ?? "" : formOwner;
+
+    if (!formModel || !formSerial || (!effectiveOwner && formOriginType === "client" && !formOwner)) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -266,7 +269,7 @@ const Machines = () => {
       name: formName,
       model: formModel,
       serial_number: formSerial,
-      owner_id: formOwner,
+      owner_id: effectiveOwner,
       install_date: formInstallDate,
       accessories,
       image_path: imagePath,
@@ -916,17 +919,24 @@ const Machines = () => {
               <Label className="text-foreground">Data de Instalação</Label>
               <Input type="date" value={formInstallDate} onChange={e => setFormInstallDate(e.target.value)} className="bg-accent border-border" />
             </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">Proprietário *</Label>
-              <Select value={formOwner} onValueChange={setFormOwner}>
-                <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
-                <SelectContent>
-                  {profiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {formOriginType === "dimension" ? (
+              <div className="space-y-2">
+                <Label className="text-foreground">Proprietário</Label>
+                <Input value="Dimension CNC" disabled className="bg-accent border-border opacity-70" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-foreground">Proprietário *</Label>
+                <Select value={formOwner} onValueChange={setFormOwner}>
+                  <SelectTrigger className="bg-accent border-border"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
+                  <SelectContent>
+                    {profiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-foreground">Acessórios</Label>
               <Input value={formAccessories} onChange={e => setFormAccessories(e.target.value)} placeholder="Separados por vírgula" className="bg-accent border-border" />
