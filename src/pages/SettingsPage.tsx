@@ -120,6 +120,19 @@ const SettingsPage = () => {
   const [textSize, setTextSize] = useState(() => localStorage.getItem("text-sz") || "");
   const [textSpacing, setTextSpacing] = useState(() => localStorage.getItem("text-sp") || "");
   const [textShadowColor, setTextShadowColor] = useState(() => localStorage.getItem("custom-text-shadow-color") || "");
+  const [autoContrast, setAutoContrast] = useState(() => localStorage.getItem("auto-contrast") === "true");
+
+  const toggleAutoContrast = () => {
+    const next = !autoContrast;
+    setAutoContrast(next);
+    if (next) {
+      localStorage.setItem("auto-contrast", "true");
+    } else {
+      localStorage.removeItem("auto-contrast");
+    }
+    applyCustomBg();
+    saveAppearance();
+  };
 
   const applyTextShadowColor = (hex: string) => {
     setTextShadowColor(hex);
