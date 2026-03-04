@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,27 +20,13 @@ interface AccessRequestData {
 }
 
 const Login = () => {
-  const [searchParams] = useSearchParams();
-  const inviteToken = searchParams.get("invite");
-  const [mode, setMode] = useState<"login" | "signup" | "success">(inviteToken ? "signup" : "login");
+  const [mode, setMode] = useState<"login" | "signup" | "success">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Pre-fill from invite
-  useEffect(() => {
-    if (inviteToken) {
-      supabase.from("account_invites").select("name, email").eq("invite_token", inviteToken).eq("status", "pendente").maybeSingle().then(({ data }) => {
-        if (data) {
-          setArName((data as any).name ?? "");
-          setArEmail((data as any).email ?? "");
-        }
-      });
-    }
-  }, [inviteToken]);
 
   // Access request fields
   const [arName, setArName] = useState("");
@@ -59,13 +45,11 @@ const Login = () => {
     if (!email || !password) return;
     setLoading(true);
     
-    // Try to sign in
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
       toast.error("E-mail ou senha incorretos.");
     } else if (data.user) {
-      // Check if user is approved
       const { data: profile } = await supabase.from("profiles").select("approved").eq("id", data.user.id).single();
       const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).single();
       
@@ -73,14 +57,12 @@ const Login = () => {
       const isApproved = (profile as any)?.approved ?? false;
       
       if (!isApproved && !isAdminMaster) {
-        // Sign out and show pending message
         await supabase.auth.signOut();
         toast.info(
           "⏳ Seu cadastro está aguardando aprovação do administrador. Você será notificado quando o acesso for liberado.",
           { duration: 6000 }
         );
       } else {
-        // Record login activity
         supabase.rpc("record_login_activity", { p_user_id: data.user.id }).then(() => {});
         supabase.rpc("record_login_event", { p_user_id: data.user.id }).then(() => {});
         navigate("/");
@@ -105,7 +87,6 @@ const Login = () => {
     }
     setLoading(true);
 
-    // 1. Create auth user with password
     const { error: signupError } = await supabase.auth.signUp({
       email: arEmail.trim(),
       password: arPassword,
@@ -131,10 +112,8 @@ const Login = () => {
       return;
     }
 
-    // Sign out immediately (user needs admin approval)
     await supabase.auth.signOut();
 
-    // 2. Insert access request for admin review
     const { error: arError } = await supabase.from("access_requests").insert({
       name: arName.trim(),
       company: arCompany.trim(),
@@ -146,21 +125,6 @@ const Login = () => {
 
     if (arError) {
       console.error(arError);
-    }
-
-    // If invited, accept the invite
-    if (inviteToken) {
-      // We need the user_id — re-login briefly to get it
-      const { data: loginData } = await supabase.auth.signInWithPassword({
-        email: arEmail.trim(),
-        password: arPassword,
-      });
-      if (loginData?.user) {
-        await supabase.functions.invoke("accept-invite", {
-          body: { invite_token: inviteToken, user_id: loginData.user.id },
-        });
-        await supabase.auth.signOut();
-      }
     }
 
     setSubmittedData({
@@ -178,16 +142,16 @@ const Login = () => {
   const buildWhatsAppUrl = () => {
     if (!submittedData) return "";
     const clientType = submittedData.is_dimension_client ? "Sim, tem equipamento Dimension" : "Não tem equipamento Dimension";
-    let msg = `Olá, Dimension CNC! Solicitei acesso ao Portal.\n`;
-    msg += `Nome: ${submittedData.name}\n`;
-    msg += `Empresa: ${submittedData.company}\n`;
-    msg += `E-mail: ${submittedData.email}\n`;
-    msg += `WhatsApp: ${submittedData.whatsapp}\n`;
+    let msg = `Olá, Dimension CNC! Solicitei acesso ao Portal.\\n`;
+    msg += `Nome: ${submittedData.name}\\n`;
+    msg += `Empresa: ${submittedData.company}\\n`;
+    msg += `E-mail: ${submittedData.email}\\n`;
+    msg += `WhatsApp: ${submittedData.whatsapp}\\n`;
     msg += `Equipamento Dimension: ${clientType}`;
     if (submittedData.observation) {
-      msg += `\nObservação: ${submittedData.observation}`;
+      msg += `\\nObservação: ${submittedData.observation}`;
     }
-    msg += `\nObrigado!`;
+    msg += `\\nObrigado!`;
     return `https://wa.me/5571982090464?text=${encodeURIComponent(msg)}`;
   };
 
@@ -321,7 +285,6 @@ const Login = () => {
                 <Input type="tel" placeholder="WhatsApp *" value={arWhatsapp} onChange={(e) => setArWhatsapp(e.target.value)} className={inputClass} required />
               </div>
 
-              {/* Password fields */}
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                 <Input
@@ -350,7 +313,6 @@ const Login = () => {
                 />
               </div>
 
-              {/* Equipamento Dimension toggle */}
               <div className="flex items-center gap-3 p-3 rounded-xl bg-background/20 border border-border/40">
                 <span className="text-sm text-foreground/80 flex-1">Tem equipamento Dimension?</span>
                 <div className="flex gap-2">
