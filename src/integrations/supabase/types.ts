@@ -210,6 +210,110 @@ export type Database = {
           },
         ]
       }
+      cnc_investments: {
+        Row: {
+          created_at: string
+          depreciation_method: string
+          depreciation_monthly: number
+          depreciation_rate_year: number
+          id: string
+          invested_value: number
+          machine_name: string
+          purchase_date: string
+          updated_at: string
+          useful_life_months: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          depreciation_method?: string
+          depreciation_monthly?: number
+          depreciation_rate_year?: number
+          id?: string
+          invested_value?: number
+          machine_name?: string
+          purchase_date?: string
+          updated_at?: string
+          useful_life_months?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          depreciation_method?: string
+          depreciation_monthly?: number
+          depreciation_rate_year?: number
+          id?: string
+          invested_value?: number
+          machine_name?: string
+          purchase_date?: string
+          updated_at?: string
+          useful_life_months?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cnc_services: {
+        Row: {
+          additional_costs: number
+          client_name: string
+          created_at: string
+          id: string
+          investment_id: string
+          machine_cost: number
+          material_cost: number
+          notes: string
+          origin: string
+          profit: number
+          quote_id: string | null
+          revenue: number
+          service_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          additional_costs?: number
+          client_name?: string
+          created_at?: string
+          id?: string
+          investment_id: string
+          machine_cost?: number
+          material_cost?: number
+          notes?: string
+          origin?: string
+          profit?: number
+          quote_id?: string | null
+          revenue?: number
+          service_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          additional_costs?: number
+          client_name?: string
+          created_at?: string
+          id?: string
+          investment_id?: string
+          machine_cost?: number
+          material_cost?: number
+          notes?: string
+          origin?: string
+          profit?: number
+          quote_id?: string | null
+          revenue?: number
+          service_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cnc_services_investment_id_fkey"
+            columns: ["investment_id"]
+            isOneToOne: false
+            referencedRelation: "cnc_investments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_files: {
         Row: {
           category_id: string
