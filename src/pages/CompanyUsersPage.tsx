@@ -64,7 +64,7 @@ const CompanyUsersPage = () => {
 
       const { data: existingAccount } = await supabase
         .from("accounts")
-        .select("id, name, max_members")
+        .select("*")
         .eq("owner_user_id", userId)
         .maybeSingle();
 
@@ -104,8 +104,8 @@ const CompanyUsersPage = () => {
 
       const { data: newAccount, error } = await supabase
         .from("accounts")
-        .insert({ name: companyName, owner_user_id: userId })
-        .select("id, name, max_members")
+        .insert({ name: companyName, owner_user_id: userId } as any)
+        .select("*")
         .single();
 
       if (error || !newAccount) {
@@ -144,7 +144,7 @@ const CompanyUsersPage = () => {
     // Also fetch max_members
     const [{ data: membersData }, { data: accountData }] = await Promise.all([
       supabase.from("account_members").select("*, profiles:user_id(name, email)").eq("account_id", accountId),
-      supabase.from("accounts").select("max_members").eq("id", accountId).single(),
+      supabase.from("accounts").select("*").eq("id", accountId).single(),
     ]);
 
     if (accountData) {
