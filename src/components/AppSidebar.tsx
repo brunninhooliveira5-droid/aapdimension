@@ -105,7 +105,11 @@ export function AppSidebar() {
   };
 
   // Filter items: show if visible or locked (not hidden)
-  const visibleBasicItems = basicMenuItems.filter((item) => hasAccess(item.section));
+  const visibleBasicItems = basicMenuItems.filter((item) => {
+    // Hide "Colaboradores" for admin_master
+    if (item.section === "empresa" && user?.role === "admin_master") return false;
+    return hasAccess(item.section);
+  });
   const visibleProItems = proMenuItems.filter((item) => hasAccess(item.section));
 
   const isPro = hasProAccess();
