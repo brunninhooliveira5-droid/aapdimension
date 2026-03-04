@@ -2581,6 +2581,10 @@ export type Database = {
           install_date: string
           model: string
           name: string
+          operational_status: string
+          operational_status_updated_at: string | null
+          operational_status_updated_by: string | null
+          origin_type: string
           owner_id: string
           serial_number: string
           status: string
@@ -2594,6 +2598,10 @@ export type Database = {
           install_date?: string
           model: string
           name?: string
+          operational_status?: string
+          operational_status_updated_at?: string | null
+          operational_status_updated_by?: string | null
+          origin_type?: string
           owner_id: string
           serial_number: string
           status?: string
@@ -2607,6 +2615,10 @@ export type Database = {
           install_date?: string
           model?: string
           name?: string
+          operational_status?: string
+          operational_status_updated_at?: string | null
+          operational_status_updated_by?: string | null
+          origin_type?: string
           owner_id?: string
           serial_number?: string
           status?: string
