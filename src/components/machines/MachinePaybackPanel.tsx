@@ -273,6 +273,12 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
     const filteredProfit = filteredServices.reduce((sum, s) => sum + s.profit, 0);
     const filteredRevenue = filteredServices.reduce((sum, s) => sum + s.revenue, 0);
 
+    // Parse estimated time from notes for all services
+    const totalEstimatedMinutes = services.reduce((sum, s) => {
+      const match = s.notes?.match(/Tempo:\s*([\d.,]+)\s*min/);
+      return sum + (match ? parseFloat(match[1].replace(",", ".")) : 0);
+    }, 0);
+
     const depAccumulated = Math.min(inv.invested_value, totalDepreciation);
     const bookValue = Math.max(0, inv.invested_value - depAccumulated);
     const marketFloor = inv.invested_value * 0.75;
@@ -284,6 +290,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
       avgMonthlyNet, monthsToPayoff, totalProfit, totalDepreciation, monthsSincePurchase,
       filteredProfit, filteredRevenue, serviceCount: filteredServices.length,
       depAccumulated, bookValue, marketFloor, estimatedResaleValue, valuePreservedPercent,
+      totalEstimatedMinutes,
     };
   }, [investment, services, filteredServices]);
 
@@ -476,6 +483,14 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                 <div>
                   <p className="text-[9px] text-muted-foreground uppercase">Uso</p>
                   <p className="text-xs font-bold">{metrics.monthsSincePurchase} meses</p>
+                  {metrics.totalEstimatedMinutes > 0 && (
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      {metrics.totalEstimatedMinutes >= 60
+                        ? `${(metrics.totalEstimatedMinutes / 60).toFixed(1)}h`
+                        : `${metrics.totalEstimatedMinutes.toFixed(1)} min`}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-[9px] text-muted-foreground uppercase">Contábil</p>
@@ -657,6 +672,7 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                               <TableHead className="text-xs">Cliente</TableHead>
                               <TableHead className="text-xs text-right">Receita</TableHead>
                               <TableHead className="text-xs text-right">Lucro</TableHead>
+                              <TableHead className="text-xs text-right">Tempo</TableHead>
                               <TableHead className="text-xs text-center">Origem</TableHead>
                               <TableHead className="w-8"></TableHead>
                             </TableRow>
@@ -668,6 +684,15 @@ export function MachinePaybackPanel({ machineId, machineName }: MachinePaybackPa
                                 <TableCell className="text-xs max-w-[100px] truncate">{s.client_name || "—"}</TableCell>
                                 <TableCell className="text-xs text-right">{fmt(s.revenue)}</TableCell>
                                 <TableCell className={`text-xs text-right font-medium ${s.profit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(s.profit)}</TableCell>
+                                <TableCell className="text-xs text-right">
+                                  {(() => {
+                                    const match = s.notes?.match(/Tempo:\s*([\d.,]+)\s*min/);
+                                    if (!match) return "—";
+                                    const mins = parseFloat(match[1].replace(",", "."));
+                                    if (mins >= 60) return `${(mins / 60).toFixed(1)}h`;
+                                    return `${mins.toFixed(1)} min`;
+                                  })()}
+                                </TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant={s.origin === "manual" ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0">
                                     {s.origin === "manual" ? "Manual" : "Orçamento"}
