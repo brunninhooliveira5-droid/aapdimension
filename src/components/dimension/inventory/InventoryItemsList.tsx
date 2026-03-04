@@ -25,7 +25,7 @@ const ITEM_TYPES = [
   { value: "produto_acabado", label: "Produto Acabado" },
 ];
 
-const DEFAULT_COMPATIBLE = ["Orion", "Falcon", "Quantum", "Laser", "Geral"];
+const FALLBACK_COMPATIBLE = ["Orion", "Falcon", "Quantum", "Laser", "Geral"];
 
 const emptyForm = {
   name: "", internal_code: "", subcategory: "", item_type: "materia_prima",
@@ -50,8 +50,17 @@ export function InventoryItemsList() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteVerifying, setDeleteVerifying] = useState(false);
 
-  // Merge default + custom compatible options
-  const allCompatible = [...DEFAULT_COMPATIBLE, ...customCompatible];
+  // Load compatible options from settings
+  const { data: settings } = useQuery({
+    queryKey: [tables.inventorySettings, "compatible"],
+    queryFn: async () => {
+      const { data } = await supabase.from(tables.inventorySettings as any).select("compatible_options").limit(1).single();
+      return data as any;
+    },
+  });
+
+  const configuredCompatible: string[] = settings?.compatible_options || FALLBACK_COMPATIBLE;
+  const allCompatible = [...new Set([...configuredCompatible, ...customCompatible])];
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: [tables.inventoryItems],
