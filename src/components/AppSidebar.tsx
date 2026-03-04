@@ -163,8 +163,8 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
                       <NavLink to={effectiveUrl} end={effectiveUrl === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <item.icon className={`h-4 w-4 ${sidebarNotifications[item.section as keyof typeof sidebarNotifications] ? "text-destructive animate-pulse" : ""}`} />
+                        <span className={sidebarNotifications[item.section as keyof typeof sidebarNotifications] ? "text-destructive animate-pulse" : ""}>{item.title}</span>
                         {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
                           <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />
                         )}
@@ -237,8 +237,8 @@ export function AppSidebar() {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
                           <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-primary font-medium">
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
+                            <item.icon className={`h-4 w-4 ${sidebarNotifications[item.section as keyof typeof sidebarNotifications] ? "text-destructive animate-pulse" : ""}`} />
+                            <span className={sidebarNotifications[item.section as keyof typeof sidebarNotifications] ? "text-destructive animate-pulse" : ""}>{item.title}</span>
                             {sidebarNotifications[item.section as keyof typeof sidebarNotifications] && (
                               <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />
                             )}
