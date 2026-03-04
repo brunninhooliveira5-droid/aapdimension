@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,13 +20,27 @@ interface AccessRequestData {
 }
 
 const Login = () => {
-  const [mode, setMode] = useState<"login" | "signup" | "success">("login");
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+  const [mode, setMode] = useState<"login" | "signup" | "success">(inviteToken ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Pre-fill from invite
+  useEffect(() => {
+    if (inviteToken) {
+      supabase.from("account_invites").select("name, email").eq("invite_token", inviteToken).eq("status", "pendente").maybeSingle().then(({ data }) => {
+        if (data) {
+          setArName((data as any).name ?? "");
+          setArEmail((data as any).email ?? "");
+        }
+      });
+    }
+  }, [inviteToken]);
 
   // Access request fields
   const [arName, setArName] = useState("");
@@ -132,7 +146,21 @@ const Login = () => {
 
     if (arError) {
       console.error(arError);
-      // Even if access_request fails, user was created — still show success
+    }
+
+    // If invited, accept the invite
+    if (inviteToken) {
+      // We need the user_id — re-login briefly to get it
+      const { data: loginData } = await supabase.auth.signInWithPassword({
+        email: arEmail.trim(),
+        password: arPassword,
+      });
+      if (loginData?.user) {
+        await supabase.functions.invoke("accept-invite", {
+          body: { invite_token: inviteToken, user_id: loginData.user.id },
+        });
+        await supabase.auth.signOut();
+      }
     }
 
     setSubmittedData({

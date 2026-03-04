@@ -126,6 +126,13 @@ export const MENU_REGISTRY: MenuRegistryItem[] = [
     section: "arquivos",
   },
   {
+    id: "nav_company_users",
+    label: "Minha Empresa",
+    route: "/empresa/usuarios",
+    icon: Users,
+    section: "empresa",
+  },
+  {
     id: "nav_settings",
     label: "Configurações",
     route: "/configuracoes",

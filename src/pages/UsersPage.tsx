@@ -265,6 +265,35 @@ const UsersPage = () => {
 
   const handleApprove = async (userId: string) => {
     await supabase.from("profiles").update({ approved: true } as any).eq("id", userId);
+
+    // Auto-create account for admin role users
+    const targetUser = users.find(u => u.id === userId);
+    if (targetUser) {
+      const userRole = targetUser.role;
+      if (userRole === "admin") {
+        // Create account and set as client_admin
+        const { data: newAccount } = await supabase.from("accounts").insert({
+          name: targetUser.company || targetUser.name,
+          owner_user_id: userId,
+        } as any).select("id").single();
+
+        if (newAccount) {
+          await supabase.from("account_members").insert({
+            account_id: (newAccount as any).id,
+            user_id: userId,
+            role: "client_admin",
+            permissions: {
+              maquinas: true, suporte: true, manutencao: true,
+              equipamentos: true, pecas: true, financeiro: true,
+              orcamento: true, configuracoes: true, arquivos: true,
+              controle_producao: true, gestao_financeira: true,
+              can_manage_users: true,
+            },
+          } as any);
+        }
+      }
+    }
+
     toast.success("Usuário aprovado com sucesso!");
     fetchUsers();
   };

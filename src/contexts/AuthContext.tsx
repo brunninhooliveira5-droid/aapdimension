@@ -4,6 +4,7 @@ import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 export type UserRole = "admin_master" | "admin" | "operador" | "financeiro" | "servico" | "usuario_interno";
+export type AccountMemberRole = "client_admin" | "operator" | "client_finance" | "viewer";
 
 export const roleLabels: Record<UserRole, string> = {
   admin_master: "Administrador Master",
@@ -35,6 +36,13 @@ interface UserPlan {
   pro_activated_at: string | null;
 }
 
+export interface AccountMembership {
+  accountId: string;
+  accountName: string;
+  memberRole: AccountMemberRole;
+  permissions: Record<string, boolean>;
+}
+
 interface Profile {
   name: string;
   email: string;
@@ -45,6 +53,7 @@ interface Profile {
   userPlan: UserPlan | null;
   sectionAccess: Record<string, SectionVisibility>;
   suspendedUntil: string | null;
+  accountMembership: AccountMembership | null;
 }
 
 interface SignupExtra {
@@ -70,6 +79,7 @@ interface AuthContextType {
   getSectionVisibility: (section: string) => SectionVisibility;
   hasProAccess: (feature?: string) => boolean;
   isReadOnly: () => boolean;
+  isClientAdmin: () => boolean;
   loadImpersonatedProfile: (targetUserId: string) => Promise<void>;
   clearImpersonatedProfile: () => void;
 }
@@ -83,11 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string, email: string): Promise<Profile | null> => {
-    const [{ data: profile }, { data: roleData }, { data: planData }, { data: accessData }] = await Promise.all([
+    const [{ data: profile }, { data: roleData }, { data: planData }, { data: accessData }, { data: memberData }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       supabase.from("user_plans").select("*").eq("user_id", userId).single(),
       supabase.from("user_section_access" as any).select("sections").eq("user_id", userId).single(),
+      supabase.from("account_members").select("account_id, role, permissions, accounts(name)").eq("user_id", userId).eq("is_active", true).maybeSingle(),
     ]);
 
     const role = (roleData?.role as UserRole) ?? "operador";
@@ -112,6 +123,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const sectionAccess: Record<string, SectionVisibility> = (accessData as any)?.sections ?? {};
 
+    // Account membership
+    let accountMembership: AccountMembership | null = null;
+    if (memberData) {
+      accountMembership = {
+        accountId: (memberData as any).account_id,
+        accountName: (memberData as any).accounts?.name ?? "",
+        memberRole: (memberData as any).role as AccountMemberRole,
+        permissions: ((memberData as any).permissions as Record<string, boolean>) ?? {},
+      };
+    }
+
     const p: Profile = {
       name: profile?.name ?? email.split("@")[0],
       email: profile?.email ?? email,
@@ -122,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userPlan,
       sectionAccess,
       suspendedUntil: (profile as any)?.suspended_until ?? null,
+      accountMembership,
     };
 
     return p;
@@ -262,6 +285,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const sectionAccess: Record<string, SectionVisibility> = (accessData as any)?.sections ?? {};
 
+    // Fetch account membership for impersonated user
+    const { data: memberData2 } = await supabase.from("account_members").select("account_id, role, permissions, accounts(name)").eq("user_id", targetUserId).eq("is_active", true).maybeSingle();
+    let accountMembership2: AccountMembership | null = null;
+    if (memberData2) {
+      accountMembership2 = {
+        accountId: (memberData2 as any).account_id,
+        accountName: (memberData2 as any).accounts?.name ?? "",
+        memberRole: (memberData2 as any).role as AccountMemberRole,
+        permissions: ((memberData2 as any).permissions as Record<string, boolean>) ?? {},
+      };
+    }
+
     setUser({
       name: profile?.name ?? "",
       email: profile?.email ?? "",
@@ -272,6 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userPlan,
       sectionAccess,
       suspendedUntil: (profile as any)?.suspended_until ?? null,
+      accountMembership: accountMembership2,
     });
   }, [user]);
 
@@ -285,6 +321,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getSectionVisibility = (section: string): SectionVisibility => {
     if (!user) return "hidden";
     if (user.role === "admin_master") return "visible";
+
+    // "empresa" section: visible for client_admin or users with can_manage_users
+    if (section === "empresa") {
+      if (user.accountMembership?.memberRole === "client_admin") return "visible";
+      if (user.accountMembership?.permissions?.can_manage_users) return "visible";
+      return "hidden";
+    }
+
+    // If user is an account member (not admin_master), apply account-level permissions
+    if (user.accountMembership && section !== "home" && section !== "configuracoes") {
+      const allowed = user.accountMembership.permissions[section];
+      if (allowed === false) return "hidden";
+    }
+
     const override = user.sectionAccess[section];
     if (override) return override;
     const roleAllows = rolePermissions[user.role]?.includes(section) ?? false;
@@ -314,6 +364,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user?.role === "usuario_interno";
   };
 
+  const isClientAdmin = (): boolean => {
+    if (!user) return false;
+    if (user.role === "admin_master") return true;
+    return user.accountMembership?.memberRole === "client_admin";
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -329,6 +385,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getSectionVisibility,
         hasProAccess,
         isReadOnly,
+        isClientAdmin,
         loadImpersonatedProfile,
         clearImpersonatedProfile,
       }}
