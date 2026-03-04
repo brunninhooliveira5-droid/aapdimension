@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target, Package } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
@@ -10,20 +10,34 @@ import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
 import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
 import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-const tabs = [
-  { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
-  { value: "tasks", label: "Tarefas", icon: ListTodo },
-  { value: "pendencies", label: "Pendências", icon: AlertTriangle },
-  { value: "schedule", label: "Cronograma", icon: CalendarDays },
-  { value: "production", label: "Produção", icon: Factory },
-  { value: "routines", label: "Rotinas", icon: RotateCcw },
-  { value: "metas", label: "Metas", icon: Target },
-  { value: "estoque", label: "Estoque/Produção", icon: Package },
+const allTabs = [
+  { value: "overview", label: "Visão Geral", icon: LayoutDashboard, permKey: null },
+  { value: "tasks", label: "Tarefas", icon: ListTodo, permKey: "pc_tarefas" },
+  { value: "pendencies", label: "Pendências", icon: AlertTriangle, permKey: "pc_pendencias" },
+  { value: "schedule", label: "Cronograma", icon: CalendarDays, permKey: "pc_cronograma" },
+  { value: "production", label: "Produção", icon: Factory, permKey: "pc_producao" },
+  { value: "routines", label: "Rotinas", icon: RotateCcw, permKey: "pc_rotinas" },
+  { value: "metas", label: "Metas", icon: Target, permKey: "pc_metas" },
+  { value: "estoque", label: "Estoque/Produção", icon: Package, permKey: "pc_estoque" },
 ];
 
 export default function ProductionControlPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user } = useAuth();
+
+  // Admin and admin_master see all tabs; sub-users respect pc_* permissions
+  const isAdmin = user?.role === "admin_master" || user?.accountMembership?.memberRole === "client_admin";
+  const memberPermissions = user?.accountMembership?.permissions as Record<string, boolean> | undefined;
+
+  const visibleTabs = allTabs.filter((tab) => {
+    if (!tab.permKey) return true; // overview always visible
+    if (isAdmin) return true;
+    if (!memberPermissions) return true; // no restrictions
+    // If the key is not explicitly set, default to true (visible)
+    return memberPermissions[tab.permKey] !== false;
+  });
 
   return (
     <ModuleProvider config={productionControlConfig}>
@@ -35,7 +49,7 @@ export default function ProductionControlPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
