@@ -86,6 +86,7 @@ const MachineDashboard = () => {
   const [allExecutedReports, setAllExecutedReports] = useState<(ReportRow & { maintenance_type?: string; maintenance_notes?: string })[]>([]);
   const [historyStartDate, setHistoryStartDate] = useState("");
   const [historyEndDate, setHistoryEndDate] = useState("");
+  const [estimatedUsageMinutes, setEstimatedUsageMinutes] = useState(0);
 
   // Report state
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -232,6 +233,24 @@ const MachineDashboard = () => {
           return { ...r, maintenance_type: maint?.type, maintenance_notes: maint?.notes ?? "" } as ReportRow & { maintenance_type?: string; maintenance_notes?: string };
         });
         setAllExecutedReports(reportsWithMaint);
+      }
+
+      // Fetch estimated usage time from cnc_services via investment
+      const { data: invData } = await supabase
+        .from("cnc_investments" as any)
+        .select("id")
+        .eq("machine_id", machineId)
+        .maybeSingle();
+      if (invData) {
+        const { data: svcData } = await supabase
+          .from("cnc_services" as any)
+          .select("notes")
+          .eq("investment_id", (invData as any).id);
+        const totalMin = (svcData ?? []).reduce((sum: number, s: any) => {
+          const match = s.notes?.match(/Tempo:\s*([\d.,]+)\s*min/);
+          return sum + (match ? parseFloat(match[1].replace(",", ".")) : 0);
+        }, 0);
+        setEstimatedUsageMinutes(totalMin);
       }
     };
 
@@ -846,7 +865,7 @@ const MachineDashboard = () => {
       </div>
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="gradient-card rounded-lg border border-border p-4 flex items-center gap-3">
           <User className="w-5 h-5 text-primary" />
           <div>
@@ -886,6 +905,21 @@ const MachineDashboard = () => {
           <div>
             <p className="text-xs text-muted-foreground uppercase">Acessórios</p>
             <p className="text-sm font-medium text-foreground">{machine.accessories.length > 0 ? machine.accessories.join(", ") : "Nenhum"}</p>
+          </div>
+        </div>
+        <div className="gradient-card rounded-lg border border-primary/20 p-4 flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-1.5">
+            <Clock className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase">Tempo Est. de Uso</p>
+            <p className="text-sm font-bold text-primary">
+              {estimatedUsageMinutes > 0
+                ? estimatedUsageMinutes >= 60
+                  ? `${(estimatedUsageMinutes / 60).toFixed(1)} horas`
+                  : `${estimatedUsageMinutes.toFixed(1)} min`
+                : "—"}
+            </p>
           </div>
         </div>
       </div>
