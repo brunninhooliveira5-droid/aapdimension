@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare, LayoutTemplate, Ban } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, CheckCircle, XCircle, Clock, Phone, Eye, Star, Settings2, SlidersHorizontal, BookmarkCheck, Trash2, KeyRound, UserCheck, ArrowUpDown, Activity, MessageSquare, LayoutTemplate, Ban, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { TemplatesTab } from "@/components/users/TemplatesTab";
 import { DashboardTemplatesManager } from "@/components/dashboard/DashboardTemplatesManager";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { SubUsersCell, SubUsersRows, EditMaxMembersDialog, type AccountInfo } from "@/components/users/SubUsersExpander";
 
 interface AccessTemplate {
   id: string;
@@ -87,6 +88,9 @@ const UsersPage = () => {
   const [suspendDays, setSuspendDays] = useState("7");
   const [suspendReason, setSuspendReason] = useState("");
   const [suspending, setSuspending] = useState(false);
+  const [accountsMap, setAccountsMap] = useState<Map<string, AccountInfo>>(new Map());
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [editLimitUser, setEditLimitUser] = useState<{ userId: string; name: string; accountId: string; max: number } | null>(null);
   const [sortField, setSortField] = useState<"name" | "last_login" | "login_count">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [activityFilter, setActivityFilter] = useState<"todos" | "nunca" | "30" | "60" | "90">("todos");
@@ -155,9 +159,34 @@ const UsersPage = () => {
     })));
   };
 
+  const fetchAccountsData = async () => {
+    const [{ data: accounts }, { data: allMembers }] = await Promise.all([
+      supabase.from("accounts").select("id, owner_user_id, max_members"),
+      supabase.from("account_members").select("account_id, user_id, role, is_active, profiles:user_id(name, email)"),
+    ]);
+
+    const map = new Map<string, AccountInfo>();
+    (accounts ?? []).forEach((acc: any) => {
+      const members = (allMembers ?? []).filter((m: any) => m.account_id === acc.id && m.role !== "client_admin");
+      map.set(acc.owner_user_id, {
+        accountId: acc.id,
+        maxMembers: acc.max_members ?? 3,
+        subUsers: members.map((m: any) => ({
+          userId: m.user_id,
+          name: (m as any).profiles?.name ?? "",
+          email: (m as any).profiles?.email ?? "",
+          role: m.role,
+          isActive: m.is_active,
+        })),
+      });
+    });
+    setAccountsMap(map);
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchTemplates();
+    fetchAccountsData();
   }, []);
 
   const toggleUserSelection = (userId: string) => {
@@ -627,6 +656,7 @@ const UsersPage = () => {
                   <TableHead className="text-muted-foreground text-xs uppercase">E-mail</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Empresa</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Perfil</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase">Sub-Usuários</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase">Template</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase cursor-pointer select-none" onClick={() => toggleSort("last_login")}>
                     <span className="inline-flex items-center gap-1">
@@ -645,7 +675,8 @@ const UsersPage = () => {
               </TableHeader>
               <TableBody>
                 {approvedUsers.map((u) => (
-                  <TableRow key={u.id} className="border-border">
+                  <React.Fragment key={u.id}>
+                  <TableRow className="border-border">
                     <TableCell>
                       {u.role !== "admin_master" ? (
                         <Checkbox
@@ -703,6 +734,27 @@ const UsersPage = () => {
                           </TooltipProvider>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {u.role === "admin" ? (
+                        <SubUsersCell
+                          userId={u.id}
+                          accountInfo={accountsMap.get(u.id)}
+                          expanded={expandedUsers.has(u.id)}
+                          onToggle={() => setExpandedUsers(prev => {
+                            const next = new Set(prev);
+                            if (next.has(u.id)) next.delete(u.id);
+                            else next.add(u.id);
+                            return next;
+                          })}
+                          onEditLimit={() => {
+                            const info = accountsMap.get(u.id);
+                            if (info) setEditLimitUser({ userId: u.id, name: u.name, accountId: info.accountId, max: info.maxMembers });
+                          }}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       {u.appliedTemplateName ? (
@@ -811,6 +863,20 @@ const UsersPage = () => {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {u.role === "admin" && expandedUsers.has(u.id) && accountsMap.get(u.id) && (
+                    <SubUsersRows
+                      accountInfo={accountsMap.get(u.id)!}
+                      onImpersonate={async (userId, name) => {
+                        const ok = await startImpersonation(userId, name);
+                        if (ok) {
+                          await loadImpersonatedProfile(userId);
+                          navigate("/");
+                        }
+                      }}
+                      colSpan={10}
+                    />
+                  )}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -1052,6 +1118,18 @@ const UsersPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Max Members Dialog */}
+      {editLimitUser && (
+        <EditMaxMembersDialog
+          open={!!editLimitUser}
+          onOpenChange={(open) => !open && setEditLimitUser(null)}
+          accountId={editLimitUser.accountId}
+          ownerName={editLimitUser.name}
+          currentMax={editLimitUser.max}
+          onSaved={() => { fetchAccountsData(); setEditLimitUser(null); }}
+        />
+      )}
     </div>
   );
 };
