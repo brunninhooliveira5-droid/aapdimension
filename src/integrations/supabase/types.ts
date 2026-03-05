@@ -1930,7 +1930,15 @@ export type Database = {
           old_quantity?: number
           reason?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_calibration_logs_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_categories: {
         Row: {
@@ -3158,7 +3166,15 @@ export type Database = {
           old_quantity?: number
           reason?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pc_inventory_calibration_logs_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pc_inventory_categories: {
         Row: {
