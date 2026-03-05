@@ -50,7 +50,7 @@ export function ProductionTemplatesManager() {
 
   useEffect(() => {
     const fetchInventory = async () => {
-      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, unit").order("name");
+      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost").order("name");
       if (error) console.error("Erro ao buscar itens do estoque:", error);
       setInventoryItems((data as any) || []);
     };
@@ -85,7 +85,7 @@ export function ProductionTemplatesManager() {
     const inv = inventoryItems.find((it: any) => it.id === itemId);
     if (!inv) return;
     const items = [...bomForm.items];
-    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: inv.unit_cost || 0, unidade: inv.unit || "un" };
+    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: inv.unit_cost || 0 };
     setBomForm({ ...bomForm, items });
   };
 
