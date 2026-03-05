@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, FileDown, List, Route, Play, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react";
 import { BomEditor } from "./BomEditor";
 import { ProcessStepsEditor } from "./ProcessStepsEditor";
@@ -39,6 +42,16 @@ interface ShortageItem {
   available: number;
 }
 
+interface DeactivateShortageItem {
+  inventory_item_id: string;
+  item_nome: string;
+  bom_qty: number;
+  actual_deducted: number;
+  shortage: number;
+  purchased: boolean;
+  purchased_qty: number;
+}
+
 export function ProductionSheetDetail({ sheet, onBack }: Props) {
   const [tab, setTab] = useState("bom");
   const { tables } = useModule();
@@ -52,10 +65,15 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   const [shortages, setShortages] = useState<ShortageItem[]>([]);
   const [activatedAt, setActivatedAt] = useState(sheet.activated_at || null);
 
+  // Deactivation shortage state
+  const [deactivateShortages, setDeactivateShortages] = useState<DeactivateShortageItem[]>([]);
+  const [deactivateNormalItems, setDeactivateNormalItems] = useState<{ inventory_item_id: string; qty: number }[]>([]);
+
+  // ── ACTIVATION ──
+
   const checkAndActivate = async () => {
     setActivating(true);
     try {
-      // Fetch BOM items with inventory link
       const { data: bomItems } = await supabase
         .from(tables.productionBomItems as any)
         .select("*")
@@ -68,7 +86,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         return;
       }
 
-      // Fetch current inventory quantities
       const invIds = linked.map((i: any) => i.inventory_item_id);
       const { data: invItems } = await supabase
         .from(tables.inventoryItems as any)
@@ -103,19 +120,20 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   const executeActivation = async (linkedItems: any[], invMap: Map<string, any>) => {
     setActivating(true);
     try {
-      // 1. Deduct inventory
       for (const bom of linkedItems) {
         const inv = invMap.get(bom.inventory_item_id);
         if (!inv) continue;
+        const actualDeducted = Math.min(inv.current_quantity, bom.quantidade);
         const newQty = Math.max(0, inv.current_quantity - bom.quantidade);
 
         await supabase.from(tables.inventoryMovements as any).insert({
           item_id: bom.inventory_item_id,
           movement_type: "saida",
-          quantity: bom.quantidade,
+          quantity: actualDeducted,
           reason: "producao",
+          notes: actualDeducted < bom.quantidade ? `Faltou ${bom.quantidade - actualDeducted} un` : "",
           linked_project: sheet.nome_projeto,
-          performed_by: session?.user.id,
+          created_by: session?.user.id,
         } as any);
 
         await supabase.from(tables.inventoryItems as any)
@@ -125,7 +143,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         inv.current_quantity = newQty;
       }
 
-      // 2. Create tasks from process steps
+      // Create tasks from process steps
       const { data: processSteps } = await supabase
         .from(tables.productionProcessSteps as any)
         .select("*")
@@ -166,7 +184,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         }
       }
 
-      // 3. Mark sheet as activated
       await supabase.from(tables.productionSheets as any)
         .update({ activated_at: new Date().toISOString(), status: "em_producao" } as any)
         .eq("id", sheet.id);
@@ -195,51 +212,142 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
     await executeActivation(linked, invMap);
   };
 
-  const handleDeactivatePasswordSuccess = () => {
+  // ── DEACTIVATION ──
+
+  const handleDeactivatePasswordSuccess = async () => {
+    // Fetch BOM items and check movements to detect shortages
+    const { data: bomItems } = await supabase
+      .from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id);
+    const linked = ((bomItems as any[]) || []).filter((i: any) => i.inventory_item_id);
+
+    if (linked.length === 0) {
+      setDeactivateNormalItems([]);
+      setDeactivateShortages([]);
+      setShowDeactivateConfirmDialog(true);
+      return;
+    }
+
+    // Find saida movements for this project
+    const { data: movements } = await supabase
+      .from(tables.inventoryMovements as any)
+      .select("*")
+      .eq("movement_type", "saida")
+      .eq("reason", "producao")
+      .eq("linked_project", sheet.nome_projeto);
+
+    const movementMap = new Map<string, number>();
+    for (const m of (movements as any[] || [])) {
+      movementMap.set(m.item_id, (movementMap.get(m.item_id) || 0) + m.quantity);
+    }
+
+    const shortageItems: DeactivateShortageItem[] = [];
+    const normalItems: { inventory_item_id: string; qty: number }[] = [];
+
+    for (const bom of linked) {
+      const actualDeducted = movementMap.get(bom.inventory_item_id) || 0;
+      if (actualDeducted < bom.quantidade) {
+        // This was a shortage item
+        shortageItems.push({
+          inventory_item_id: bom.inventory_item_id,
+          item_nome: bom.item_nome,
+          bom_qty: bom.quantidade,
+          actual_deducted: actualDeducted,
+          shortage: bom.quantidade - actualDeducted,
+          purchased: false,
+          purchased_qty: 0,
+        });
+      } else {
+        normalItems.push({ inventory_item_id: bom.inventory_item_id, qty: actualDeducted });
+      }
+    }
+
+    setDeactivateShortages(shortageItems);
+    setDeactivateNormalItems(normalItems);
     setShowDeactivateConfirmDialog(true);
+  };
+
+  const updateDeactivateShortage = (index: number, field: string, value: any) => {
+    setDeactivateShortages(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      if (field === "purchased" && !value) {
+        updated[index].purchased_qty = 0;
+      }
+      return updated;
+    });
   };
 
   const executeDeactivation = async () => {
     setDeactivating(true);
     try {
-      // Fetch BOM items linked to inventory
-      const { data: bomItems } = await supabase
-        .from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id);
-      const linked = ((bomItems as any[]) || []).filter((i: any) => i.inventory_item_id);
-
-      // Return inventory quantities
-      for (const bom of linked) {
+      // 1. Return normal items (full deducted quantity)
+      for (const item of deactivateNormalItems) {
         const { data: invItem } = await supabase
           .from(tables.inventoryItems as any)
           .select("id, current_quantity")
-          .eq("id", bom.inventory_item_id)
+          .eq("id", item.inventory_item_id)
           .single();
-
         if (!invItem) continue;
-        const newQty = (invItem as any).current_quantity + bom.quantidade;
+
+        const returnQty = item.qty;
+        const newQty = (invItem as any).current_quantity + returnQty;
 
         await supabase.from(tables.inventoryMovements as any).insert({
-          item_id: bom.inventory_item_id,
+          item_id: item.inventory_item_id,
           movement_type: "entrada",
-          quantity: bom.quantidade,
+          quantity: returnQty,
           reason: "devolucao",
           linked_project: `Desistência: ${sheet.nome_projeto}`,
-          performed_by: session?.user.id,
+          created_by: session?.user.id,
         } as any);
 
         await supabase.from(tables.inventoryItems as any)
           .update({ current_quantity: newQty } as any)
-          .eq("id", bom.inventory_item_id);
+          .eq("id", item.inventory_item_id);
       }
 
-      // Mark sheet as deactivated
+      // 2. Handle shortage items
+      for (const item of deactivateShortages) {
+        const { data: invItem } = await supabase
+          .from(tables.inventoryItems as any)
+          .select("id, current_quantity")
+          .eq("id", item.inventory_item_id)
+          .single();
+        if (!invItem) continue;
+
+        // Return what was ACTUALLY deducted from stock
+        const baseReturn = item.actual_deducted;
+        // Plus purchased quantity if applicable
+        const purchasedReturn = item.purchased ? item.purchased_qty : 0;
+        const totalReturn = baseReturn + purchasedReturn;
+
+        if (totalReturn > 0) {
+          const newQty = (invItem as any).current_quantity + totalReturn;
+
+          await supabase.from(tables.inventoryMovements as any).insert({
+            item_id: item.inventory_item_id,
+            movement_type: "entrada",
+            quantity: totalReturn,
+            reason: "devolucao",
+            notes: item.purchased ? `Comprado: ${purchasedReturn} un` : "Item em falta - não comprado",
+            linked_project: `Desistência: ${sheet.nome_projeto}`,
+            created_by: session?.user.id,
+          } as any);
+
+          await supabase.from(tables.inventoryItems as any)
+            .update({ current_quantity: newQty } as any)
+            .eq("id", item.inventory_item_id);
+        }
+      }
+
+      // 3. Mark sheet as deactivated
       await supabase.from(tables.productionSheets as any)
         .update({ activated_at: null, status: "planejamento" } as any)
         .eq("id", sheet.id);
 
       setActivatedAt(null);
       setShowDeactivateConfirmDialog(false);
-      toast.success("Ficha desativada! Estoque devolvido com sucesso.");
+      toast.success("Ficha desativada! Estoque ajustado com sucesso.");
     } catch {
       toast.error("Erro ao desativar ficha.");
     }
@@ -247,6 +355,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   };
 
   const isActivated = !!activatedAt;
+  const hasDeactivateShortages = deactivateShortages.length > 0;
 
   return (
     <div className="space-y-4">
@@ -292,7 +401,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         <TabsContent value="pdf"><ProductionPdfExport sheet={sheet} /></TabsContent>
       </Tabs>
 
-      {/* Password prompt */}
+      {/* Password prompts */}
       <InventoryPasswordPrompt
         open={showPasswordPrompt}
         onOpenChange={setShowPasswordPrompt}
@@ -300,8 +409,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         title="Autenticação para Ativação"
         description="Digite a senha do estoque para confirmar a baixa de materiais."
       />
-
-      {/* Deactivate password prompt */}
       <InventoryPasswordPrompt
         open={showDeactivatePasswordPrompt}
         onOpenChange={setShowDeactivatePasswordPrompt}
@@ -312,16 +419,72 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
 
       {/* Deactivate confirmation dialog */}
       <Dialog open={showDeactivateConfirmDialog} onOpenChange={setShowDeactivateConfirmDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Undo2 className="h-5 w-5" />
               Desativar Ficha de Produção
             </DialogTitle>
             <DialogDescription>
-              Ao desativar, todos os materiais da BOM serão devolvidos ao estoque como entrada de devolução. Deseja continuar?
+              {hasDeactivateShortages
+                ? "Os itens abaixo estavam em falta na ativação. Informe se foram comprados para ajuste correto do estoque."
+                : "Ao desativar, todos os materiais serão devolvidos ao estoque. Deseja continuar?"
+              }
             </DialogDescription>
           </DialogHeader>
+
+          {hasDeactivateShortages && (
+            <div className="space-y-3 max-h-72 overflow-y-auto">
+              {deactivateShortages.map((item, i) => (
+                <div key={i} className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{item.item_nome}</span>
+                    <span className="text-xs text-muted-foreground">
+                      BOM: {item.bom_qty} | Baixado: {item.actual_deducted} | Faltou: {item.shortage}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`purchased-${i}`}
+                        checked={item.purchased}
+                        onCheckedChange={(v) => updateDeactivateShortage(i, "purchased", v)}
+                      />
+                      <Label htmlFor={`purchased-${i}`} className="text-sm cursor-pointer">
+                        Comprou?
+                      </Label>
+                    </div>
+                    {item.purchased && (
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Qtd comprada:</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.purchased_qty || ""}
+                          onChange={(e) => updateDeactivateShortage(i, "purchased_qty", Number(e.target.value) || 0)}
+                          className="w-20 h-8 text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {item.purchased
+                      ? `→ Retorna ao estoque: ${item.actual_deducted + item.purchased_qty} un`
+                      : `→ Retorna ao estoque: ${item.actual_deducted > 0 ? item.actual_deducted + " un (só o que foi baixado)" : "0 un (nada foi baixado)"}`
+                    }
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {deactivateNormalItems.length > 0 && hasDeactivateShortages && (
+            <p className="text-xs text-muted-foreground">
+              + {deactivateNormalItems.length} item(ns) sem falta serão devolvidos normalmente.
+            </p>
+          )}
+
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowDeactivateConfirmDialog(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={executeDeactivation} disabled={deactivating}>
@@ -331,7 +494,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Shortage confirmation dialog */}
+      {/* Shortage confirmation dialog (activation) */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
