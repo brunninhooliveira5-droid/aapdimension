@@ -25,7 +25,7 @@ const itemTypeLabels: Record<string, string> = {
 
 export function ProductionTemplatesManager() {
   const { session } = useAuth();
-  const { tables } = useModule();
+  const { tables, storage } = useModule();
   const [tab, setTab] = useState("bom");
   const [bomTemplates, setBomTemplates] = useState<any[]>([]);
   const [processTemplates, setProcessTemplates] = useState<any[]>([]);
@@ -36,6 +36,8 @@ export function ProductionTemplatesManager() {
   const [bomForm, setBomForm] = useState({ nome: "", produto_modelo: "", items: [] as any[] });
   const [processForm, setProcessForm] = useState({ nome: "", produto_modelo: "", steps: [] as any[] });
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [stepFiles, setStepFiles] = useState<Record<number, any[]>>({});
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; mime: string } | null>(null);
 
   const fetchAll = async () => {
     const [b, p] = await Promise.all([
