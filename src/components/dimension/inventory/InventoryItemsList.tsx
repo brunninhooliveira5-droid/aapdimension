@@ -41,6 +41,7 @@ export function InventoryItemsList() {
   const { tables } = useModule();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedType, setSelectedType] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -208,10 +209,12 @@ export function InventoryItemsList() {
     setPasswordPromptOpen(true);
   };
 
-  const filtered = (items as any[]).filter((i) =>
-    i.name.toLowerCase().includes(search.toLowerCase()) ||
-    (i.internal_code || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = (items as any[]).filter((i) => {
+    const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) ||
+      (i.internal_code || "").toLowerCase().includes(search.toLowerCase());
+    const matchesType = !selectedType || i.item_type === selectedType;
+    return matchesSearch && matchesType;
+  });
 
   const getStockBadge = (item: any) => {
     const qty = Number(item.current_quantity);
@@ -410,11 +413,18 @@ export function InventoryItemsList() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-3">
-            <div className="relative">
+          <div className="mb-3 flex gap-2">
+            <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar por nome ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
+            <Select value={selectedType || "__none__"} onValueChange={(v) => setSelectedType(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Todos os Tipos</SelectItem>
+                {ITEM_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           {isLoading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
