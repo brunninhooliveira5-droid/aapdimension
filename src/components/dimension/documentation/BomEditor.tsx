@@ -64,6 +64,19 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
     }]);
   };
 
+  const handleInventorySelect = (index: number, inventoryId: string) => {
+    const inv = inventoryItems.find(i => i.id === inventoryId);
+    if (!inv) return;
+    const updated = [...items];
+    updated[index] = {
+      ...updated[index],
+      inventory_item_id: inventoryId,
+      item_nome: inv.name,
+      valor_unitario: inv.avg_cost || inv.unit_cost || 0,
+    };
+    setItems(updated);
+  };
+
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...items];
     (updated[index] as any)[field] = value;
