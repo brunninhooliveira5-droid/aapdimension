@@ -1,14 +1,14 @@
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Package, ArrowLeft, TrendingDown, TrendingUp, AlertTriangle, Clock, MapPin, Truck, Tag, Wrench, BarChart3 } from "lucide-react";
+import { Package, TrendingDown, TrendingUp, AlertTriangle, Clock, MapPin, Truck, Tag, Wrench, BarChart3, X, GripHorizontal } from "lucide-react";
 import { InventoryItemFiles } from "./InventoryItemFiles";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const ITEM_TYPES: Record<string, string> = {
