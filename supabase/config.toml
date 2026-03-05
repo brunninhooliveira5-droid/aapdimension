@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.verify-admin-password]
 verify_jwt = false
+
+[functions.inventory-password]
+verify_jwt = false
