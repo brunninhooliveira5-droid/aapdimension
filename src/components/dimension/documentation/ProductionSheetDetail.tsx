@@ -124,6 +124,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         const inv = invMap.get(bom.inventory_item_id);
         if (!inv) continue;
         const actualDeducted = Math.min(inv.current_quantity, bom.quantidade);
+        const shortage = Math.max(0, bom.quantidade - inv.current_quantity);
         const newQty = Math.max(0, inv.current_quantity - bom.quantidade);
 
         await supabase.from(tables.inventoryMovements as any).insert({
@@ -131,7 +132,7 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
           movement_type: "saida",
           quantity: actualDeducted,
           reason: "producao",
-          notes: actualDeducted < bom.quantidade ? `Faltou ${bom.quantidade - actualDeducted} un` : "",
+          notes: shortage > 0 ? `Faltou ${shortage} un` : "",
           linked_project: sheet.nome_projeto,
           created_by: session?.user.id,
         } as any);
@@ -139,6 +140,11 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         await supabase.from(tables.inventoryItems as any)
           .update({ current_quantity: newQty } as any)
           .eq("id", bom.inventory_item_id);
+
+        // Save deducted and shortage info on BOM item
+        await supabase.from(tables.productionBomItems as any)
+          .update({ deducted_quantity: actualDeducted, shortage_quantity: shortage } as any)
+          .eq("id", bom.id);
 
         inv.current_quantity = newQty;
       }
