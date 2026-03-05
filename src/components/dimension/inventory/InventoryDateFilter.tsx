@@ -32,6 +32,7 @@ export function InventoryDateFilter({ month, year, onMonthChange, onYearChange, 
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
           {MONTHS.map((m) => (
             <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
           ))}
