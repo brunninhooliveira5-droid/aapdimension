@@ -79,6 +79,8 @@ export function ProductionTemplatesManager() {
   };
   const saveBom = async () => {
     if (!bomForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
+    const unlinked = bomForm.items.filter((i: any) => !i.inventory_item_id);
+    if (unlinked.length > 0) { toast.error(`${unlinked.length} item(ns) sem vínculo ao estoque.`); return; }
     if (editingBom) {
       await supabase.from(tables.productionBomTemplates as any).update({ nome: bomForm.nome, produto_modelo: bomForm.produto_modelo, items: bomForm.items } as any).eq("id", editingBom.id);
     } else {

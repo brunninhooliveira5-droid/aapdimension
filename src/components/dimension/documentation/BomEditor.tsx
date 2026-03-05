@@ -83,22 +83,8 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
     setItems(updated);
   };
 
-  const linkInventoryItem = (index: number, inventoryId: string) => {
-    if (inventoryId === "none") {
-      updateItem(index, "inventory_item_id", null);
-      return;
-    }
-    const inv = inventoryItems.find(i => i.id === inventoryId);
-    if (!inv) return;
-    const updated = [...items];
-    updated[index] = {
-      ...updated[index],
-      inventory_item_id: inventoryId,
-      item_nome: inv.name,
-      valor_unitario: inv.avg_cost || inv.unit_cost || 0,
-    };
-    setItems(updated);
-  };
+
+
 
   const removeItem = async (index: number) => {
     const item = items[index];
