@@ -46,9 +46,10 @@ export function InventoryMovements() {
     exportInventoryPdf({
       title: "Movimentações de Estoque",
       filterLabel,
-      columns: ["Data", "Item", "Tipo", "Qtd", "Motivo", "Projeto/Máquina"],
+      columns: ["Data", "Código", "Item", "Tipo", "Qtd", "Motivo", "Projeto/Máquina"],
       rows: filtered.map((m: any) => [
         format(new Date(m.created_at), "dd/MM/yy HH:mm"),
+        m[tables.inventoryItems]?.internal_code || "-",
         m[tables.inventoryItems]?.name || "-",
         TYPE_MAP[m.movement_type]?.label || m.movement_type,
         String(Number(m.quantity)),

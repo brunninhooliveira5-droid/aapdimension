@@ -130,13 +130,15 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text("Lista de Materiais (BOM)", 14, y);
         y += 2;
 
-        const bomHead = ["Item", "Categoria", "Unid.", "Qtd."];
+        const bomHead = ["Código", "Item", "Categoria", "Unid.", "Qtd."];
         if (cfg.mostrar_valores) bomHead.push("Vlr. Unit.", "Subtotal");
         if (cfg.mostrar_fornecedor) bomHead.push("Fornecedor");
         bomHead.push("Estoque", "Status");
 
         const bomBody = bomItems.map(i => {
-          const row = [i.item_nome, categoriaLabels[i.categoria] || i.categoria, i.unidade, String(i.quantidade)];
+          const inv0 = i.inventory_item_id ? invMap.get(i.inventory_item_id) : null;
+          const code = inv0?.internal_code || "-";
+          const row = [code, i.item_nome, categoriaLabels[i.categoria] || i.categoria, i.unidade, String(i.quantidade)];
           if (cfg.mostrar_valores) row.push(`R$ ${Number(i.valor_unitario).toFixed(2)}`, `R$ ${(i.quantidade * i.valor_unitario).toFixed(2)}`);
           if (cfg.mostrar_fornecedor) row.push(i.fornecedor || "-");
 
@@ -207,17 +209,17 @@ export function ProductionPdfExport({ sheet }: Props) {
           y += 8;
           doc.setTextColor(0, 0, 0);
 
-          const comprasHead = ["Item", "Qtd. Necessária", "Estoque Atual", "Comprar"];
+          const comprasHead = ["Código", "Item", "Qtd. Necessária", "Estoque Atual", "Comprar"];
           const comprasBody = shortages.map(i => {
             const inv = invMap.get(i.inventory_item_id);
+            const itemCode = inv?.internal_code || "-";
             const hasActivationData = i.deducted_quantity > 0 || i.shortage_quantity > 0;
             if (hasActivationData) {
-              // Reconstruct pre-activation stock
               const preStock = (inv?.current_quantity || 0) + Number(i.deducted_quantity);
-              return [i.item_nome, String(i.quantidade), String(preStock), String(i.shortage_quantity)];
+              return [itemCode, i.item_nome, String(i.quantidade), String(preStock), String(i.shortage_quantity)];
             }
             const available = inv?.current_quantity || 0;
-            return [i.item_nome, String(i.quantidade), String(available), String(Math.max(0, i.quantidade - available))];
+            return [itemCode, i.item_nome, String(i.quantidade), String(available), String(Math.max(0, i.quantidade - available))];
           });
 
           autoTable(doc, {

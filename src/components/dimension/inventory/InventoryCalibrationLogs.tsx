@@ -60,9 +60,10 @@ export function InventoryCalibrationLogs() {
     exportInventoryPdf({
       title: "Logs de Calibração",
       filterLabel,
-      columns: ["Data", "Item", "Qtd Anterior", "Qtd Nova", "Diferença", "Motivo", "Responsável"],
+      columns: ["Data", "Código", "Item", "Qtd Anterior", "Qtd Nova", "Diferença", "Motivo", "Responsável"],
       rows: filtered.map((l: any) => [
         format(new Date(l.created_at), "dd/MM/yy HH:mm"),
+        l[tables.inventoryItems]?.internal_code || "-",
         l[tables.inventoryItems]?.name || "-",
         String(Number(l.old_quantity)),
         String(Number(l.new_quantity)),
