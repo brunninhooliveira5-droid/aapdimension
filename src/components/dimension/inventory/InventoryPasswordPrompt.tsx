@@ -74,6 +74,9 @@ export function InventoryPasswordPrompt({
                 placeholder="Digite a senha..."
                 onKeyDown={(e) => e.key === "Enter" && handleVerify()}
                 autoFocus
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
                 className="pr-10"
               />
               <button
