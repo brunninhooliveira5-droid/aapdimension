@@ -3802,6 +3802,7 @@ export type Database = {
         Row: {
           categoria: string
           created_at: string
+          deducted_quantity: number
           ficha_id: string
           fornecedor: string | null
           id: string
@@ -3810,6 +3811,7 @@ export type Database = {
           lead_time_dias: number | null
           observacao: string | null
           quantidade: number
+          shortage_quantity: number
           unidade: string
           updated_at: string
           valor_unitario: number
@@ -3817,6 +3819,7 @@ export type Database = {
         Insert: {
           categoria?: string
           created_at?: string
+          deducted_quantity?: number
           ficha_id: string
           fornecedor?: string | null
           id?: string
@@ -3825,6 +3828,7 @@ export type Database = {
           lead_time_dias?: number | null
           observacao?: string | null
           quantidade?: number
+          shortage_quantity?: number
           unidade?: string
           updated_at?: string
           valor_unitario?: number
@@ -3832,6 +3836,7 @@ export type Database = {
         Update: {
           categoria?: string
           created_at?: string
+          deducted_quantity?: number
           ficha_id?: string
           fornecedor?: string | null
           id?: string
@@ -3840,6 +3845,7 @@ export type Database = {
           lead_time_dias?: number | null
           observacao?: string | null
           quantidade?: number
+          shortage_quantity?: number
           unidade?: string
           updated_at?: string
           valor_unitario?: number
@@ -4593,6 +4599,7 @@ export type Database = {
         Row: {
           categoria: string
           created_at: string
+          deducted_quantity: number
           ficha_id: string
           fornecedor: string | null
           id: string
@@ -4601,6 +4608,7 @@ export type Database = {
           lead_time_dias: number | null
           observacao: string | null
           quantidade: number
+          shortage_quantity: number
           unidade: string
           updated_at: string
           valor_unitario: number
@@ -4608,6 +4616,7 @@ export type Database = {
         Insert: {
           categoria?: string
           created_at?: string
+          deducted_quantity?: number
           ficha_id: string
           fornecedor?: string | null
           id?: string
@@ -4616,6 +4625,7 @@ export type Database = {
           lead_time_dias?: number | null
           observacao?: string | null
           quantidade?: number
+          shortage_quantity?: number
           unidade?: string
           updated_at?: string
           valor_unitario?: number
@@ -4623,6 +4633,7 @@ export type Database = {
         Update: {
           categoria?: string
           created_at?: string
+          deducted_quantity?: number
           ficha_id?: string
           fornecedor?: string | null
           id?: string
@@ -4631,6 +4642,7 @@ export type Database = {
           lead_time_dias?: number | null
           observacao?: string | null
           quantidade?: number
+          shortage_quantity?: number
           unidade?: string
           updated_at?: string
           valor_unitario?: number

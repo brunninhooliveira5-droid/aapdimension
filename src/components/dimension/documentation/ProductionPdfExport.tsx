@@ -142,8 +142,13 @@ export function ProductionPdfExport({ sheet }: Props) {
 
           const inv = i.inventory_item_id ? invMap.get(i.inventory_item_id) : null;
           if (inv) {
-            row.push(String(inv.current_quantity));
-            row.push(inv.current_quantity >= i.quantidade ? "OK" : "EM FALTA");
+            // If activation already happened, use deducted info to reconstruct pre-activation stock
+            const hasActivationData = i.deducted_quantity > 0 || i.shortage_quantity > 0;
+            const preActivationStock = hasActivationData
+              ? inv.current_quantity + Number(i.deducted_quantity)
+              : inv.current_quantity;
+            row.push(String(preActivationStock));
+            row.push(preActivationStock >= i.quantidade ? "OK" : "EM FALTA");
           } else {
             row.push("-");
             row.push("Manual");
@@ -180,9 +185,12 @@ export function ProductionPdfExport({ sheet }: Props) {
           y += 6;
         }
 
-        // Shopping list section
+        // Shopping list section — use saved shortage data when available
         const shortages = bomItems.filter(i => {
           if (!i.inventory_item_id) return false;
+          // If activation data exists, use it
+          if (i.shortage_quantity > 0) return true;
+          // Otherwise fall back to live stock check (pre-activation)
           const inv = invMap.get(i.inventory_item_id);
           return !inv || inv.current_quantity < i.quantidade;
         });
@@ -202,6 +210,12 @@ export function ProductionPdfExport({ sheet }: Props) {
           const comprasHead = ["Item", "Qtd. Necessária", "Estoque Atual", "Comprar"];
           const comprasBody = shortages.map(i => {
             const inv = invMap.get(i.inventory_item_id);
+            const hasActivationData = i.deducted_quantity > 0 || i.shortage_quantity > 0;
+            if (hasActivationData) {
+              // Reconstruct pre-activation stock
+              const preStock = (inv?.current_quantity || 0) + Number(i.deducted_quantity);
+              return [i.item_nome, String(i.quantidade), String(preStock), String(i.shortage_quantity)];
+            }
             const available = inv?.current_quantity || 0;
             return [i.item_nome, String(i.quantidade), String(available), String(Math.max(0, i.quantidade - available))];
           });
