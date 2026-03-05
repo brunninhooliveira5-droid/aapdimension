@@ -56,7 +56,7 @@ export function InventoryPasswordPrompt({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) setPassword(""); onOpenChange(v); }}>
       <DialogContent className="max-w-sm">
-        <form onSubmit={(e) => { e.preventDefault(); handleVerify(); }} autoComplete="off">
+        <form onSubmit={(e) => { e.preventDefault(); handleVerify(); }} autoComplete="off" data-form-type="other">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-primary" />
@@ -69,15 +69,21 @@ export function InventoryPasswordPrompt({
               <Label>Senha do Estoque</Label>
               <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite a senha..."
                   autoFocus
-                  autoComplete="new-password"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   data-lpignore="true"
                   data-1p-ignore="true"
                   data-form-type="other"
+                  name="inventory_pin_field"
+                  id="inventory_pin_field"
+                  style={!showPassword ? { WebkitTextSecurity: "disc", textSecurity: "disc" } as React.CSSProperties : undefined}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-10"
                 />
                 <button
