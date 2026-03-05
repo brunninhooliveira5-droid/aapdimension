@@ -36,7 +36,7 @@ export function InventoryPasswordPrompt({
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("inventory-password", {
-        body: { action: "verify", password, table: modulePrefix === "pc_" ? "pc" : "dimension" },
+        body: { action: "verify", password, table: table || "dimension" },
       });
       if (error) throw error;
       if (data.valid) {
