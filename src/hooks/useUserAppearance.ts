@@ -108,17 +108,16 @@ export function applyAllAppearanceEffects() {
  */
 export function useUserAppearance(userId: string | null) {
   const savingRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load from DB when user changes
   useEffect(() => {
     if (!userId) {
-      // User logged out — reset to defaults
       APPEARANCE_KEYS.forEach(key => localStorage.removeItem(key));
       applyAllAppearanceEffects();
       globalLoadedUserId = null;
       return;
     }
-    // If already loaded for this user in this browser session, skip
     if (globalLoadedUserId === userId) return;
 
     const load = async () => {
@@ -131,7 +130,6 @@ export function useUserAppearance(userId: string | null) {
       if (data && (data as any).settings) {
         setAppearanceToLocalStorage((data as any).settings as Record<string, string>);
       } else {
-        // No saved settings: reset localStorage to defaults (clear all appearance keys)
         APPEARANCE_KEYS.forEach(key => localStorage.removeItem(key));
       }
       applyAllAppearanceEffects();
@@ -140,7 +138,7 @@ export function useUserAppearance(userId: string | null) {
     load();
   }, [userId]);
 
-  // Save current appearance to DB (explicit)
+  // Save current appearance to DB
   const saveAppearance = useCallback(async () => {
     if (!userId || savingRef.current) return;
 
@@ -148,7 +146,6 @@ export function useUserAppearance(userId: string | null) {
     try {
       const settings = getAppearanceFromLocalStorage();
 
-      // Check if row exists
       const { data: existing } = await supabase
         .from("user_appearance_settings" as any)
         .select("id")
@@ -169,6 +166,21 @@ export function useUserAppearance(userId: string | null) {
       savingRef.current = false;
     }
   }, [userId]);
+
+  // Debounced auto-save: listens to localStorage changes from same window
+  const debouncedSave = useCallback(() => {
+    if (!userId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      saveAppearance();
+    }, 1500);
+  }, [userId, saveAppearance]);
+
+  // Expose globally so ThemeToggle and other components can trigger auto-save
+  useEffect(() => {
+    (window as any).__saveAppearance = debouncedSave;
+    return () => { delete (window as any).__saveAppearance; };
+  }, [debouncedSave]);
 
   return { saveAppearance };
 }
