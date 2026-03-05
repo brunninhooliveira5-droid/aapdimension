@@ -440,11 +440,9 @@ export function InventoryItemsList() {
     </div>
   );
 
-  return (
-    <>
-      {selectedItem && (
-        <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />
-      )}
+  if (selectedItem) {
+    return <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />;
+  }
 
   return (
     <>
