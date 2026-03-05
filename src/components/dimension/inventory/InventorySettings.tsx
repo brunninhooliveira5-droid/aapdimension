@@ -36,7 +36,7 @@ function PasswordManagement({ table }: { table: "dimension" | "pc" }) {
     setLoading(false);
   };
 
-  useState(() => { checkPassword(); });
+  useEffect(() => { checkPassword(); }, []);
 
   const handleCreate = async () => {
     if (!password || password.length < 4) {
