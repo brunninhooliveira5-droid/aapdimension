@@ -50,7 +50,7 @@ export function ProductionTemplatesManager() {
 
   useEffect(() => {
     const fetchInventory = async () => {
-      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost").order("name");
+      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, avg_cost, last_cost").order("name");
       if (error) console.error("Erro ao buscar itens do estoque:", error);
       setInventoryItems((data as any) || []);
     };
@@ -59,7 +59,22 @@ export function ProductionTemplatesManager() {
 
   // BOM Template CRUD
   const openNewBom = () => { setEditingBom(null); setBomForm({ nome: "", produto_modelo: "", items: [] }); setShowBomDialog(true); };
-  const openEditBom = (t: any) => { setEditingBom(t); setBomForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", items: t.items || [] }); setShowBomDialog(true); };
+  const openEditBom = (t: any) => {
+    setEditingBom(t);
+    // Refresh costs from inventory
+    const updatedItems = (t.items || []).map((item: any) => {
+      if (item.inventory_item_id) {
+        const inv = inventoryItems.find((it: any) => it.id === item.inventory_item_id);
+        if (inv) {
+          const bestCost = inv.unit_cost || inv.avg_cost || inv.last_cost || 0;
+          return { ...item, valor_unitario: bestCost, item_nome: inv.name };
+        }
+      }
+      return item;
+    });
+    setBomForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", items: updatedItems });
+    setShowBomDialog(true);
+  };
   const saveBom = async () => {
     if (!bomForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingBom) {
@@ -81,11 +96,13 @@ export function ProductionTemplatesManager() {
     setBomForm({ ...bomForm, items });
   };
 
+  const getBestCost = (inv: any) => inv.unit_cost || inv.avg_cost || inv.last_cost || 0;
+
   const handleBomInventorySelect = (i: number, itemId: string) => {
     const inv = inventoryItems.find((it: any) => it.id === itemId);
     if (!inv) return;
     const items = [...bomForm.items];
-    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: inv.unit_cost || 0 };
+    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: getBestCost(inv) };
     setBomForm({ ...bomForm, items });
   };
 
