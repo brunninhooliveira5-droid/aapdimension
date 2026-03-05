@@ -382,9 +382,11 @@ export function InventoryItemsList() {
     </div>
   );
 
-  if (selectedItem) {
-    return <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />;
-  }
+  return (
+    <>
+      {selectedItem && (
+        <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />
+      )}
 
   return (
     <>
@@ -487,6 +489,7 @@ export function InventoryItemsList() {
         title={deleteTarget ? "Confirmar Exclusão" : "Autenticação de Estoque"}
         description={deleteTarget ? `Digite a senha do estoque para excluir "${deleteTarget?.name}".` : "Digite a senha do estoque para cadastrar um novo item."}
       />
+    </>
     </>
   );
 }
