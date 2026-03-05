@@ -32,6 +32,7 @@ export function InventoryDateFilter({ month, year, onMonthChange, onYearChange, 
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
           {MONTHS.map((m) => (
             <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
           ))}
@@ -64,10 +65,11 @@ export function getMonthLabel(month: string) {
 }
 
 export function filterByMonthYear<T extends { created_at?: string }>(items: T[], month: string, year: string): T[] {
-  if (!month && !year) return items;
+  const effectiveMonth = month === "all" ? "" : month;
+  if (!effectiveMonth && !year) return items;
   return items.filter((item) => {
     const d = new Date((item as any).created_at);
-    if (month && d.getMonth() !== Number(month)) return false;
+    if (effectiveMonth && d.getMonth() !== Number(effectiveMonth)) return false;
     if (year && d.getFullYear() !== Number(year)) return false;
     return true;
   });
