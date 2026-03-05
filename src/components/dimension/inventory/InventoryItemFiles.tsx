@@ -262,6 +262,13 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <InventoryPasswordPrompt
+        open={passwordOpen}
+        onOpenChange={(v) => { if (!v) { setPasswordOpen(false); setDeleteTarget(null); } }}
+        onConfirmed={handlePasswordConfirmed}
+        description="Digite a senha do controle de estoque para excluir este arquivo."
+      />
     </>
   );
 }
