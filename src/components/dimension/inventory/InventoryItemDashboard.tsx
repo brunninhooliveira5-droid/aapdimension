@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Package, ArrowLeft, TrendingDown, TrendingUp, AlertTriangle, Clock, MapPin, Truck, Tag, Wrench, BarChart3 } from "lucide-react";
+import { InventoryItemFiles } from "./InventoryItemFiles";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -235,6 +236,9 @@ export function InventoryItemDashboard({ item, onBack }: InventoryItemDashboardP
           )}
         </CardContent>
       </Card>
+
+      {/* Attached files */}
+      <InventoryItemFiles itemId={item.id} />
     </div>
   );
 }
