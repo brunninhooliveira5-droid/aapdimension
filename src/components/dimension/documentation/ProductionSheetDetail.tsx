@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ArrowLeft, FileDown, List, Route, Play, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, FileDown, List, Route, Play, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react";
 import { BomEditor } from "./BomEditor";
 import { ProcessStepsEditor } from "./ProcessStepsEditor";
 import { ProductionPdfExport } from "./ProductionPdfExport";
@@ -44,8 +44,11 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   const { tables } = useModule();
   const { session } = useAuth();
   const [activating, setActivating] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [showDeactivatePasswordPrompt, setShowDeactivatePasswordPrompt] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showDeactivateConfirmDialog, setShowDeactivateConfirmDialog] = useState(false);
   const [shortages, setShortages] = useState<ShortageItem[]>([]);
   const [activatedAt, setActivatedAt] = useState(sheet.activated_at || null);
 
@@ -182,7 +185,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   };
 
   const handleForceActivation = async () => {
-    // Fetch BOM and inventory again for partial deduction
     const { data: bomItems } = await supabase
       .from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id);
     const linked = ((bomItems as any[]) || []).filter((i: any) => i.inventory_item_id);
@@ -191,6 +193,57 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
       .from(tables.inventoryItems as any).select("id, name, current_quantity").in("id", invIds);
     const invMap = new Map((invItems as any[] || []).map((i: any) => [i.id, i]));
     await executeActivation(linked, invMap);
+  };
+
+  const handleDeactivatePasswordSuccess = () => {
+    setShowDeactivateConfirmDialog(true);
+  };
+
+  const executeDeactivation = async () => {
+    setDeactivating(true);
+    try {
+      // Fetch BOM items linked to inventory
+      const { data: bomItems } = await supabase
+        .from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id);
+      const linked = ((bomItems as any[]) || []).filter((i: any) => i.inventory_item_id);
+
+      // Return inventory quantities
+      for (const bom of linked) {
+        const { data: invItem } = await supabase
+          .from(tables.inventoryItems as any)
+          .select("id, current_quantity")
+          .eq("id", bom.inventory_item_id)
+          .single();
+
+        if (!invItem) continue;
+        const newQty = (invItem as any).current_quantity + bom.quantidade;
+
+        await supabase.from(tables.inventoryMovements as any).insert({
+          item_id: bom.inventory_item_id,
+          movement_type: "entrada",
+          quantity: bom.quantidade,
+          reason: "devolucao",
+          linked_project: `Desistência: ${sheet.nome_projeto}`,
+          performed_by: session?.user.id,
+        } as any);
+
+        await supabase.from(tables.inventoryItems as any)
+          .update({ current_quantity: newQty } as any)
+          .eq("id", bom.inventory_item_id);
+      }
+
+      // Mark sheet as deactivated
+      await supabase.from(tables.productionSheets as any)
+        .update({ activated_at: null, status: "planejamento" } as any)
+        .eq("id", sheet.id);
+
+      setActivatedAt(null);
+      setShowDeactivateConfirmDialog(false);
+      toast.success("Ficha desativada! Estoque devolvido com sucesso.");
+    } catch {
+      toast.error("Erro ao desativar ficha.");
+    }
+    setDeactivating(false);
   };
 
   const isActivated = !!activatedAt;
@@ -209,10 +262,15 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
             {sheet.produto_modelo && <span className="text-xs text-muted-foreground">• {sheet.produto_modelo}</span>}
           </div>
         </div>
-        {!isActivated && (
+        {!isActivated ? (
           <Button size="sm" onClick={() => setShowPasswordPrompt(true)} disabled={activating} className="gap-1.5">
             <Play className="h-3.5 w-3.5" />
             {activating ? "Ativando..." : "Ativar Ficha"}
+          </Button>
+        ) : (
+          <Button size="sm" variant="destructive" onClick={() => setShowDeactivatePasswordPrompt(true)} disabled={deactivating} className="gap-1.5">
+            <Undo2 className="h-3.5 w-3.5" />
+            {deactivating ? "Desativando..." : "Desativar Ficha"}
           </Button>
         )}
       </div>
@@ -242,6 +300,36 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         title="Autenticação para Ativação"
         description="Digite a senha do estoque para confirmar a baixa de materiais."
       />
+
+      {/* Deactivate password prompt */}
+      <InventoryPasswordPrompt
+        open={showDeactivatePasswordPrompt}
+        onOpenChange={setShowDeactivatePasswordPrompt}
+        onSuccess={handleDeactivatePasswordSuccess}
+        title="Autenticação para Desativação"
+        description="Digite a senha do estoque para confirmar a devolução dos materiais."
+      />
+
+      {/* Deactivate confirmation dialog */}
+      <Dialog open={showDeactivateConfirmDialog} onOpenChange={setShowDeactivateConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Undo2 className="h-5 w-5" />
+              Desativar Ficha de Produção
+            </DialogTitle>
+            <DialogDescription>
+              Ao desativar, todos os materiais da BOM serão devolvidos ao estoque como entrada de devolução. Deseja continuar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDeactivateConfirmDialog(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={executeDeactivation} disabled={deactivating}>
+              {deactivating ? "Desativando..." : "Confirmar Desativação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Shortage confirmation dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
