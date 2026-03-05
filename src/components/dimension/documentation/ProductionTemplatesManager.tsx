@@ -215,8 +215,8 @@ export function ProductionTemplatesManager() {
                       </SelectContent>
                     </Select>
                     <Input className="h-8 text-xs w-16" type="number" value={item.quantidade} onChange={e => updateBomItem(i, "quantidade", parseFloat(e.target.value) || 0)} placeholder="Qtd" />
-                    {item.valor_unitario > 0 && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">R$ {(Number(item.valor_unitario) * Number(item.quantidade || 1)).toFixed(2)}</span>
+                    {item.inventory_item_id && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">R$ {(Number(item.valor_unitario || 0) * Number(item.quantidade || 1)).toFixed(2)}</span>
                     )}
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeBomItem(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
