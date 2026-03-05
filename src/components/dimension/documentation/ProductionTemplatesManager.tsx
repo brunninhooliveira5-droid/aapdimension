@@ -15,6 +15,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 const categoriaLabels: Record<string, string> = { mecanica: "Mecânica", eletrica: "Elétrica", eletronica: "Eletrônica", acabamento: "Acabamento", outro: "Outro" };
 const setorLabels: Record<string, string> = { cnc: "CNC", laser: "Laser", torno: "Torno", "3d": "3D", montagem: "Montagem", eletrica: "Elétrica", adm: "Adm" };
 const unidadeOptions = ["un", "m", "kg", "mm", "cm", "L", "pç", "conj"];
+const itemTypeLabels: Record<string, string> = {
+  materia_prima: "Matéria-prima",
+  componente: "Componente",
+  consumivel: "Consumível",
+  ferramenta: "Ferramenta",
+  produto_acabado: "Produto Acabado",
+};
 
 export function ProductionTemplatesManager() {
   const { session } = useAuth();
