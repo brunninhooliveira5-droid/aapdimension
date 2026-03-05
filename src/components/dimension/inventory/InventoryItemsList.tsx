@@ -440,11 +440,9 @@ export function InventoryItemsList() {
     </div>
   );
 
-  return (
-    <>
-      {selectedItem && (
-        <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />
-      )}
+  if (selectedItem) {
+    return <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />;
+  }
 
   return (
     <>
@@ -546,7 +544,7 @@ export function InventoryItemsList() {
 
       <InventoryPasswordPrompt
         open={passwordPromptOpen}
-        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) { setDeleteTarget(null); setCalibrateTarget(null); } } }}
+        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) { setDeleteTarget(null); } } }}
         onSuccess={() => {
           if (pendingAction) {
             pendingAction();
@@ -612,7 +610,6 @@ export function InventoryItemsList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
     </>
   );
 }
