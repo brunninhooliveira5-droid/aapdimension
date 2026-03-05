@@ -130,8 +130,18 @@ export function ProductionSheetsList() {
       if (selectedBomTemplate) {
         const tpl = bomTemplates.find(t => t.id === selectedBomTemplate);
         if (tpl && tpl.items.length > 0) {
-          const items = tpl.items.map((item: any) => ({ ...item, ficha_id: sheetId }));
-          await supabase.from(tables.productionBomItems as any).insert(items as any);
+          const items = tpl.items.map((item: any) => ({
+            ficha_id: sheetId,
+            item_nome: item.item_nome || "",
+            categoria: item.categoria || "outro",
+            unidade: item.unidade || "un",
+            quantidade: item.quantidade || 1,
+            valor_unitario: item.valor_unitario || 0,
+            fornecedor: item.fornecedor || "",
+            inventory_item_id: item.inventory_item_id || null,
+          }));
+          const { error: bomError } = await supabase.from(tables.productionBomItems as any).insert(items as any);
+          if (bomError) console.error("Erro ao inserir BOM:", bomError);
         }
       }
       if (selectedProcessTemplate) {
