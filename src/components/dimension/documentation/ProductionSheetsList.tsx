@@ -37,6 +37,7 @@ interface ProductionSheet {
   prazo_final: string | null;
   observacoes: string;
   created_at: string;
+  activated_at: string | null;
 }
 
 interface BomTemplate {
