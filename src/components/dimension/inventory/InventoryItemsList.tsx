@@ -257,8 +257,9 @@ export function InventoryItemsList() {
       qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setShowCalibrateDialog(false);
       setCalibrateTarget(null);
-    } catch {
-      toast.error("Erro ao calibrar estoque.");
+    } catch (err: any) {
+      console.error("Calibration error:", err);
+      toast.error(err?.message || "Erro ao calibrar estoque.");
     }
     setCalibrating(false);
   };
