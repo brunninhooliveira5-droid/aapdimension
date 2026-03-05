@@ -23,7 +23,6 @@ export function InventoryPasswordPrompt({
   title = "Autenticação de Estoque",
   description = "Digite a senha do controle de estoque para continuar.",
 }: InventoryPasswordPromptProps) {
-  const { modulePrefix } = useModule();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
