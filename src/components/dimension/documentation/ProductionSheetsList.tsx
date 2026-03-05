@@ -130,18 +130,33 @@ export function ProductionSheetsList() {
       if (selectedBomTemplate) {
         const tpl = bomTemplates.find(t => t.id === selectedBomTemplate);
         if (tpl && tpl.items.length > 0) {
-          const items = tpl.items.map((item: any) => ({
-            ficha_id: sheetId,
-            item_nome: item.item_nome || "",
-            categoria: item.categoria || "outro",
-            unidade: item.unidade || "un",
-            quantidade: item.quantidade || 1,
-            valor_unitario: item.valor_unitario || 0,
-            fornecedor: item.fornecedor || "",
-            inventory_item_id: item.inventory_item_id || null,
-          }));
-          const { error: bomError } = await supabase.from(tables.productionBomItems as any).insert(items as any);
-          if (bomError) console.error("Erro ao inserir BOM:", bomError);
+          // Fetch active inventory items to validate references
+          const invIds = tpl.items.filter((i: any) => i.inventory_item_id).map((i: any) => i.inventory_item_id);
+          let activeInvIds = new Set<string>();
+          if (invIds.length > 0) {
+            const { data: activeItems } = await supabase.from(tables.inventoryItems as any)
+              .select("id").eq("is_active", true).in("id", invIds);
+            activeInvIds = new Set((activeItems as any[] || []).map((i: any) => i.id));
+          }
+          const items = tpl.items
+            .filter((item: any) => !item.inventory_item_id || activeInvIds.has(item.inventory_item_id))
+            .map((item: any) => ({
+              ficha_id: sheetId,
+              item_nome: item.item_nome || "",
+              categoria: item.categoria || "outro",
+              unidade: item.unidade || "un",
+              quantidade: item.quantidade || 1,
+              valor_unitario: item.valor_unitario || 0,
+              fornecedor: item.fornecedor || "",
+              inventory_item_id: item.inventory_item_id && activeInvIds.has(item.inventory_item_id) ? item.inventory_item_id : null,
+            }));
+          if (items.length > 0) {
+            const { error: bomError } = await supabase.from(tables.productionBomItems as any).insert(items as any);
+            if (bomError) console.error("Erro ao inserir BOM:", bomError);
+          }
+          if (items.length < tpl.items.length) {
+            toast.info(`${tpl.items.length - items.length} item(ns) do template foram ignorados (removidos do estoque)`);
+          }
         }
       }
       if (selectedProcessTemplate) {
