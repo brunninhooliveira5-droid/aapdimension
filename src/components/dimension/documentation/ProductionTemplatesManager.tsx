@@ -353,23 +353,85 @@ export function ProductionTemplatesManager() {
               <div><label className="text-xs font-medium text-muted-foreground">Produto/Modelo</label><Input value={processForm.produto_modelo} onChange={e => setProcessForm({ ...processForm, produto_modelo: e.target.value })} /></div>
             </div>
             <div className="flex justify-between items-center"><p className="text-xs font-semibold">Etapas</p><Button size="sm" variant="outline" onClick={addProcessStep}><Plus className="h-3.5 w-3.5 mr-1" />Etapa</Button></div>
-            {processForm.steps.map((step: any, i: number) => (
-              <div key={i} className="flex gap-2 items-center border rounded p-2">
-                <span className="text-xs font-mono text-muted-foreground w-5">{i + 1}.</span>
-                <Input className="h-8 text-xs flex-1" value={step.etapa_nome} onChange={e => updateProcessStep(i, "etapa_nome", e.target.value)} placeholder="Nome da etapa" />
-                <Select value={step.setor_responsavel} onValueChange={v => updateProcessStep(i, "setor_responsavel", v)}>
-                  <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(setorLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input className="h-8 text-xs w-20" type="number" value={step.prazo_dias || ""} onChange={e => updateProcessStep(i, "prazo_dias", parseInt(e.target.value) || null)} placeholder="Dias" />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProcessStep(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
-            ))}
+            {processForm.steps.map((step: any, i: number) => {
+              const files = stepFiles[i] || [];
+              return (
+                <div key={i} className="border rounded p-2 space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-xs font-mono text-muted-foreground w-5">{i + 1}.</span>
+                    <Input className="h-8 text-xs flex-1" value={step.etapa_nome} onChange={e => updateProcessStep(i, "etapa_nome", e.target.value)} placeholder="Nome da etapa" />
+                    <Select value={step.setor_responsavel} onValueChange={v => updateProcessStep(i, "setor_responsavel", v)}>
+                      <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(setorLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input className="h-8 text-xs w-20" type="number" value={step.prazo_dias || ""} onChange={e => updateProcessStep(i, "prazo_dias", parseInt(e.target.value) || null)} placeholder="Dias" />
+                    <label className="cursor-pointer">
+                      <input type="file" multiple className="hidden" onChange={e => handleStepFileUpload(i, e)} />
+                      <div className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </div>
+                    </label>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProcessStep(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  {files.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 ml-7">
+                      {files.map((f: any) => {
+                        const isImage = f.mime_type?.startsWith("image/");
+                        const url = f.file_path ? getFileUrl(f.file_path) : null;
+                        return (
+                          <div key={f.id} className="flex items-center gap-1 bg-muted/50 border rounded px-2 py-1 text-xs group">
+                            {isImage && url ? (
+                              <img src={url} alt={f.file_name} className="h-5 w-5 rounded object-cover" />
+                            ) : (
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <span className="max-w-[100px] truncate">{f.file_name}</span>
+                            {url && (
+                              <button onClick={() => setPreviewFile({ url, name: f.file_name, mime: f.mime_type })} className="text-muted-foreground hover:text-foreground">
+                                <Eye className="h-3 w-3" />
+                              </button>
+                            )}
+                            <button onClick={() => deleteStepFile(i, f)} className="text-muted-foreground hover:text-destructive">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowProcessDialog(false)}>Cancelar</Button>
             <Button onClick={saveProcess}><Save className="h-3.5 w-3.5 mr-1" />Salvar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-sm truncate">{previewFile?.name}</DialogTitle>
+            <DialogDescription>Pré-visualização do arquivo</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center min-h-[300px]">
+            {previewFile?.mime?.startsWith("image/") ? (
+              <img src={previewFile.url} alt={previewFile.name} className="max-w-full max-h-[70vh] object-contain rounded" />
+            ) : previewFile?.mime === "application/pdf" ? (
+              <iframe src={previewFile.url} className="w-full h-[70vh] rounded border" />
+            ) : (
+              <div className="text-center space-y-3">
+                <FileText className="h-16 w-16 mx-auto text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">{previewFile?.name}</p>
+                <a href={previewFile?.url} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline">Baixar arquivo</Button>
+                </a>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
