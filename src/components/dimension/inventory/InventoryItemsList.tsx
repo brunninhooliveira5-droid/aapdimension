@@ -177,20 +177,10 @@ export function InventoryItemsList() {
     setOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget || !deletePassword.trim()) return;
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     setDeleteVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-admin-password", {
-        body: { password: deletePassword },
-      });
-      if (error) throw error;
-      if (!data?.valid) {
-        toast.error("Senha incorreta!");
-        return;
-      }
-
-      // Soft delete (set is_active = false)
       const { error: delErr } = await supabase.from(tables.inventoryItems as any)
         .update({ is_active: false }).eq("id", deleteTarget.id);
       if (delErr) throw delErr;
@@ -198,12 +188,22 @@ export function InventoryItemsList() {
       toast.success("Item excluído!");
       qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setDeleteTarget(null);
-      setDeletePassword("");
     } catch (e: any) {
       toast.error(e.message || "Erro ao excluir");
     } finally {
       setDeleteVerifying(false);
     }
+  };
+
+  const requestAdd = () => {
+    setPendingAction(() => () => setOpen(true));
+    setPasswordPromptOpen(true);
+  };
+
+  const requestDelete = (item: any) => {
+    setDeleteTarget(item);
+    setPendingAction(() => () => executeDelete());
+    setPasswordPromptOpen(true);
   };
 
   const filtered = (items as any[]).filter((i) =>
