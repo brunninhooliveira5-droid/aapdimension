@@ -56,6 +56,7 @@ export function InventoryPasswordPrompt({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) setPassword(""); onOpenChange(v); }}>
       <DialogContent className="max-w-sm">
+        <form onSubmit={(e) => { e.preventDefault(); handleVerify(); }} autoComplete="off">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5 text-primary" />
