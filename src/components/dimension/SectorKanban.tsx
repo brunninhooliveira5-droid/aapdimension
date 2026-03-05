@@ -18,7 +18,7 @@ const statusLabels: Record<string, string> = { a_fazer: "A fazer", em_andamento:
 const statusColors: Record<string, string> = { a_fazer: "bg-muted text-muted-foreground", em_andamento: "bg-blue-500/10 text-blue-600", aguardando: "bg-amber-500/10 text-amber-600", atrasada: "bg-red-500/10 text-red-600", concluida: "bg-green-500/10 text-green-600" };
 const priorityColors: Record<string, string> = { alta: "bg-destructive/10 text-destructive", media: "bg-amber-500/10 text-amber-600", baixa: "bg-muted text-muted-foreground" };
 
-const emptyTask = { title: "", description: "", priority: "media", responsible: "", due_date: "", status: "a_fazer" };
+const emptyTask = { title: "", description: "", priority: "media", responsible: "", start_date: "", due_date: "", status: "a_fazer" };
 
 interface SectorKanbanProps {
   sectorKey: string;
@@ -137,12 +137,12 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
   };
 
   const openCreate = () => { setEditingTask(null); setForm(emptyTask); setTaskFiles([]); setDialogOpen(true); };
-  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, responsible: t.responsible, due_date: t.due_date ?? "", status: t.status }); loadTaskFiles(t.id); setDialogOpen(true); };
+  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, responsible: t.responsible, start_date: t.start_date ?? "", due_date: t.due_date ?? "", status: t.status }); loadTaskFiles(t.id); setDialogOpen(true); };
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
-    const payload: any = { ...form, due_date: form.due_date || null, sector: sectorKey, category: "producao" };
+    const payload: any = { ...form, start_date: form.start_date || null, due_date: form.due_date || null, sector: sectorKey, category: "producao" };
     if (editingTask) {
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
       await supabase.from(tables.tasks as any).update(payload).eq("id", editingTask.id);
@@ -160,7 +160,7 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
       await fetchTasks();
       // Reopen in edit mode to allow file uploads
       setEditingTask(newTask as any);
-      setForm({ title: (newTask as any).title, description: (newTask as any).description, priority: (newTask as any).priority, responsible: (newTask as any).responsible, due_date: (newTask as any).due_date ?? "", status: (newTask as any).status });
+      setForm({ title: (newTask as any).title, description: (newTask as any).description, priority: (newTask as any).priority, responsible: (newTask as any).responsible, start_date: (newTask as any).start_date ?? "", due_date: (newTask as any).due_date ?? "", status: (newTask as any).status });
       setTaskFiles([]);
       setSaving(false);
     }
@@ -298,7 +298,11 @@ export function SectorKanban({ sectorKey, sectorTitle, onBack }: SectorKanbanPro
               </Select>
               <Input placeholder="Responsável" value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Início</label>
+                <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+              </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Prazo</label>
                 <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />

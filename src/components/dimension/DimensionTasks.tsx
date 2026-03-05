@@ -29,7 +29,7 @@ const statusGradients: Record<string, string> = {
   concluida: "from-emerald-500 to-emerald-700",
 };
 
-const emptyTask = { title: "", description: "", priority: "media", category: "producao", responsible: "", due_date: "", status: "a_fazer" };
+const emptyTask = { title: "", description: "", priority: "media", category: "producao", responsible: "", start_date: "", due_date: "", status: "a_fazer" };
 
 export function DimensionTasks() {
   const { tables, storage } = useModule();
@@ -197,12 +197,12 @@ export function DimensionTasks() {
   });
 
   const openCreate = () => { setEditingTask(null); setForm(emptyTask); setDialogOpen(true); };
-  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, category: t.category, responsible: t.responsible, due_date: t.due_date ?? "", status: t.status }); loadTaskFiles(t.id); setDialogOpen(true); };
+  const openEdit = (t: any) => { setEditingTask(t); setForm({ title: t.title, description: t.description, priority: t.priority, category: t.category, responsible: t.responsible, start_date: t.start_date ?? "", due_date: t.due_date ?? "", status: t.status }); loadTaskFiles(t.id); setDialogOpen(true); };
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
-    const payload: any = { ...form, due_date: form.due_date || null };
+    const payload: any = { ...form, start_date: form.start_date || null, due_date: form.due_date || null };
     if (editingTask) {
       if (form.status === "concluida" && editingTask.status !== "concluida") payload.completed_at = new Date().toISOString();
       if (form.status !== "concluida" && editingTask.status === "concluida") payload.completed_at = null;
@@ -421,9 +421,16 @@ export function DimensionTasks() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Input placeholder="Responsável" value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} />
-              <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Início</label>
+                <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Prazo</label>
+                <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+              </div>
             </div>
             {editingTask && (
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
