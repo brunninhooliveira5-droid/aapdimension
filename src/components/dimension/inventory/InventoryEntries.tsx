@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowDownToLine, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
+import { InventoryDateFilter, filterByMonthYear, getMonthLabel } from "./InventoryDateFilter";
+import { exportInventoryPdf } from "@/lib/inventory-pdf";
 
 export function InventoryEntries() {
   const { session } = useAuth();
@@ -22,6 +26,8 @@ export function InventoryEntries() {
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", quantity: "", unit_cost: "", supplier_id: "", notes: "" });
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
 
   const table = tables.inventoryItems.startsWith("pc_") ? "pc" as const : "dimension" as const;
 
@@ -41,6 +47,41 @@ export function InventoryEntries() {
     },
   });
 
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: [tables.inventoryMovements, "entradas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from(tables.inventoryMovements as any)
+        .select(`*, ${tables.inventoryItems}(name, internal_code)`)
+        .eq("movement_type", "entrada")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const filtered = filterByMonthYear(entries as any[], month, year);
+  const hasFilter = !!month || !!year;
+  const filterLabel = hasFilter
+    ? `${month ? getMonthLabel(month) : "Todos os meses"} / ${year || "Todos os anos"}`
+    : "";
+
+  const handleExport = () => {
+    exportInventoryPdf({
+      title: "Entradas de Estoque",
+      filterLabel,
+      columns: ["Data", "Item", "Qtd", "Motivo", "Projeto"],
+      rows: filtered.map((m: any) => [
+        format(new Date(m.created_at), "dd/MM/yy HH:mm"),
+        m[tables.inventoryItems]?.name || "-",
+        String(Number(m.quantity)),
+        m.reason || "-",
+        m.linked_project || "-",
+      ]),
+    });
+  };
+
   const createEntry = useMutation({
     mutationFn: async () => {
       if (!form.item_id || !form.quantity) throw new Error("Item e quantidade obrigatórios");
@@ -48,15 +89,9 @@ export function InventoryEntries() {
       const cost = Number(form.unit_cost) || 0;
 
       const { error: moveErr } = await supabase.from(tables.inventoryMovements as any).insert({
-        item_id: form.item_id,
-        movement_type: "entrada",
-        quantity: qty,
-        unit_cost: cost,
-        total_cost: qty * cost,
-        supplier_id: form.supplier_id || null,
-        notes: form.notes,
-        reason: "Entrada manual",
-        created_by: session?.user.id!,
+        item_id: form.item_id, movement_type: "entrada", quantity: qty,
+        unit_cost: cost, total_cost: qty * cost, supplier_id: form.supplier_id || null,
+        notes: form.notes, reason: "Entrada manual", created_by: session?.user.id!,
       });
       if (moveErr) throw moveErr;
 
@@ -66,11 +101,8 @@ export function InventoryEntries() {
         const oldAvg = Number((item as any).avg_cost);
         const newQty = oldQty + qty;
         const newAvg = cost > 0 ? ((oldAvg * oldQty) + (cost * qty)) / newQty : oldAvg;
-
         await supabase.from(tables.inventoryItems as any).update({
-          current_quantity: newQty,
-          last_cost: cost > 0 ? cost : undefined,
-          avg_cost: newAvg,
+          current_quantity: newQty, last_cost: cost > 0 ? cost : undefined, avg_cost: newAvg,
         }).eq("id", form.item_id);
       }
     },
@@ -87,24 +119,54 @@ export function InventoryEntries() {
   return (
     <>
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 space-y-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2"><ArrowDownToLine className="h-4 w-4" />Entradas</CardTitle>
             <Button size="sm" onClick={() => setPasswordOpen(true)}><Plus className="h-4 w-4 mr-1" />Nova Entrada</Button>
           </div>
+          <InventoryDateFilter
+            month={month} year={year}
+            onMonthChange={setMonth} onYearChange={setYear}
+            onClear={() => { setMonth(""); setYear(""); }}
+            onExportPdf={handleExport}
+            hasFilter={hasFilter}
+          />
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">As entradas registradas aparecem na aba Movimentações com tipo "Entrada".</p>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrada encontrada.</p>
+          ) : (
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead className="text-right">Qtd</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Projeto</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((m: any) => (
+                    <TableRow key={m.id}>
+                      <TableCell className="text-xs">{format(new Date(m.created_at), "dd/MM/yy HH:mm")}</TableCell>
+                      <TableCell className="font-medium">{m[tables.inventoryItems]?.name || "-"}</TableCell>
+                      <TableCell className="text-right">{Number(m.quantity)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{m.reason || "-"}</TableCell>
+                      <TableCell className="text-xs">{m.linked_project || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <InventoryPasswordPrompt
-        open={passwordOpen}
-        onOpenChange={setPasswordOpen}
-        onSuccess={() => setOpen(true)}
-        table={table}
-        description="Digite a senha do estoque para registrar uma entrada."
-      />
+      <InventoryPasswordPrompt open={passwordOpen} onOpenChange={setPasswordOpen} onSuccess={() => setOpen(true)} table={table} description="Digite a senha do estoque para registrar uma entrada." />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
