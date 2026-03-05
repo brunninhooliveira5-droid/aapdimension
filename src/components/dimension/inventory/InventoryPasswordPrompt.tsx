@@ -13,6 +13,7 @@ interface InventoryPasswordPromptProps {
   onSuccess: () => void;
   title?: string;
   description?: string;
+  table?: "dimension" | "pc";
 }
 
 export function InventoryPasswordPrompt({
