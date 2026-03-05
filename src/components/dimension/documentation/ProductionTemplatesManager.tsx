@@ -109,22 +109,112 @@ export function ProductionTemplatesManager() {
   };
 
   // Process Template CRUD
-  const openNewProcess = () => { setEditingProcess(null); setProcessForm({ nome: "", produto_modelo: "", steps: [] }); setShowProcessDialog(true); };
-  const openEditProcess = (t: any) => { setEditingProcess(t); setProcessForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", steps: t.steps || [] }); setShowProcessDialog(true); };
+  const openNewProcess = () => { setEditingProcess(null); setProcessForm({ nome: "", produto_modelo: "", steps: [] }); setStepFiles({}); setShowProcessDialog(true); };
+  const openEditProcess = async (t: any) => {
+    setEditingProcess(t);
+    setProcessForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", steps: t.steps || [] });
+    // Load existing files for this template
+    const { data } = await supabase.from(tables.processTemplateFiles as any).select("*").eq("template_id", t.id).order("step_index");
+    const grouped: Record<number, any[]> = {};
+    ((data as any[]) || []).forEach((f: any) => {
+      if (!grouped[f.step_index]) grouped[f.step_index] = [];
+      grouped[f.step_index].push(f);
+    });
+    setStepFiles(grouped);
+    setShowProcessDialog(true);
+  };
   const saveProcess = async () => {
     if (!processForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingProcess) {
       await supabase.from(tables.productionProcessTemplates as any).update({ nome: processForm.nome, produto_modelo: processForm.produto_modelo, steps: processForm.steps } as any).eq("id", editingProcess.id);
     } else {
-      await supabase.from(tables.productionProcessTemplates as any).insert({ ...processForm, created_by: session?.user.id } as any);
+      const { data } = await supabase.from(tables.productionProcessTemplates as any).insert({ ...processForm, created_by: session?.user.id } as any).select().single();
+      if (data) {
+        // Upload pending files for new template
+        const templateId = (data as any).id;
+        for (const [stepIdx, files] of Object.entries(stepFiles)) {
+          for (const f of files) {
+            if (f._pendingFile) {
+              await uploadStepFile(templateId, parseInt(stepIdx), f._pendingFile);
+            }
+          }
+        }
+      }
     }
     toast.success("Template processos salvo"); setShowProcessDialog(false); fetchAll();
   };
-  const deleteProcess = async (id: string) => { await supabase.from(tables.productionProcessTemplates as any).delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
+  const deleteProcess = async (id: string) => {
+    // Delete files from storage
+    const { data: files } = await supabase.from(tables.processTemplateFiles as any).select("file_path").eq("template_id", id);
+    if (files && (files as any[]).length > 0) {
+      await supabase.storage.from(storage.processTemplateFiles).remove((files as any[]).map((f: any) => f.file_path));
+    }
+    await supabase.from(tables.productionProcessTemplates as any).delete().eq("id", id);
+    toast.success("Template removido"); fetchAll();
+  };
 
   const addProcessStep = () => setProcessForm({ ...processForm, steps: [...processForm.steps, { etapa_nome: "", setor_responsavel: "montagem", tempo_estimado_horas: null, prazo_dias: null, status: "todo" }] });
   const updateProcessStep = (i: number, field: string, val: any) => { const steps = [...processForm.steps]; steps[i][field] = val; setProcessForm({ ...processForm, steps }); };
-  const removeProcessStep = (i: number) => setProcessForm({ ...processForm, steps: processForm.steps.filter((_, idx) => idx !== i) });
+  const removeProcessStep = (i: number) => {
+    setProcessForm({ ...processForm, steps: processForm.steps.filter((_, idx) => idx !== i) });
+    // Also remove files for this step
+    const newFiles = { ...stepFiles };
+    delete newFiles[i];
+    // Re-index files for steps after the removed one
+    const reindexed: Record<number, any[]> = {};
+    Object.entries(newFiles).forEach(([k, v]) => {
+      const idx = parseInt(k);
+      reindexed[idx > i ? idx - 1 : idx] = v;
+    });
+    setStepFiles(reindexed);
+  };
+
+  const uploadStepFile = async (templateId: string, stepIndex: number, file: File) => {
+    const filePath = `${templateId}/${stepIndex}-${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from(storage.processTemplateFiles).upload(filePath, file);
+    if (uploadError) { toast.error("Erro ao enviar arquivo"); return; }
+    const { data: { publicUrl } } = supabase.storage.from(storage.processTemplateFiles).getPublicUrl(filePath);
+    await supabase.from(tables.processTemplateFiles as any).insert({
+      template_id: templateId, step_index: stepIndex, file_name: file.name,
+      file_path: filePath, file_size: file.size, mime_type: file.type, uploaded_by: session?.user.id,
+    } as any);
+    return { file_name: file.name, file_path: filePath, mime_type: file.type, id: crypto.randomUUID() };
+  };
+
+  const handleStepFileUpload = async (stepIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (editingProcess) {
+      // Upload immediately for existing template
+      for (const file of Array.from(files)) {
+        const result = await uploadStepFile(editingProcess.id, stepIndex, file);
+        if (result) {
+          setStepFiles(prev => ({ ...prev, [stepIndex]: [...(prev[stepIndex] || []), result] }));
+        }
+      }
+      toast.success("Arquivo(s) enviado(s)");
+    } else {
+      // Queue for upload after template creation
+      const pending = Array.from(files).map(f => ({ file_name: f.name, mime_type: f.type, _pendingFile: f, id: crypto.randomUUID() }));
+      setStepFiles(prev => ({ ...prev, [stepIndex]: [...(prev[stepIndex] || []), ...pending] }));
+    }
+    e.target.value = "";
+  };
+
+  const deleteStepFile = async (stepIndex: number, fileRecord: any) => {
+    if (fileRecord.file_path) {
+      await supabase.storage.from(storage.processTemplateFiles).remove([fileRecord.file_path]);
+      await supabase.from(tables.processTemplateFiles as any).delete().eq("id", fileRecord.id);
+    }
+    setStepFiles(prev => ({
+      ...prev, [stepIndex]: (prev[stepIndex] || []).filter((f: any) => f.id !== fileRecord.id)
+    }));
+    toast.success("Arquivo removido");
+  };
+
+  const getFileUrl = (filePath: string) => {
+    return supabase.storage.from(storage.processTemplateFiles).getPublicUrl(filePath).data.publicUrl;
+  };
 
   return (
     <div className="space-y-4">
