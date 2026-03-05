@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryImageUpload } from "./InventoryImageUpload";
 import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
+import { InventoryItemDashboard } from "./InventoryItemDashboard";
 
 const ITEM_TYPES = [
   { value: "materia_prima", label: "Matéria-prima" },
@@ -40,6 +41,7 @@ export function InventoryItemsList() {
   const { tables } = useModule();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -380,6 +382,10 @@ export function InventoryItemsList() {
     </div>
   );
 
+  if (selectedItem) {
+    return <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />;
+  }
+
   return (
     <>
       <Card>
@@ -431,7 +437,7 @@ export function InventoryItemsList() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedItem(item)}>
                       <TableCell className="w-12 pr-0">
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="h-8 w-8 rounded object-cover" />
@@ -449,7 +455,7 @@ export function InventoryItemsList() {
                       <TableCell className="text-right font-medium">{Number(item.current_quantity) - Number(item.reserved_quantity)}</TableCell>
                       <TableCell className="text-right">R$ {Number(item.avg_cost || item.unit_cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>{getStockBadge(item)}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
                             <Pencil className="h-3.5 w-3.5" />
