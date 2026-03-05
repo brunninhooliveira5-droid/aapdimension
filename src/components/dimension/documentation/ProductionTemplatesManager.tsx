@@ -50,7 +50,8 @@ export function ProductionTemplatesManager() {
 
   useEffect(() => {
     const fetchInventory = async () => {
-      const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, unit").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, unit").order("name");
+      if (error) console.error("Erro ao buscar itens do estoque:", error);
       setInventoryItems((data as any) || []);
     };
     fetchInventory();
@@ -213,8 +214,10 @@ export function ProductionTemplatesManager() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input className="h-8 text-xs w-14" type="number" value={item.quantidade} onChange={e => updateBomItem(i, "quantidade", parseFloat(e.target.value) || 0)} placeholder="Qtd" />
-                    <Input className="h-8 text-xs w-20" type="number" step="0.01" value={item.valor_unitario} onChange={e => updateBomItem(i, "valor_unitario", parseFloat(e.target.value) || 0)} placeholder="R$" />
+                    <Input className="h-8 text-xs w-16" type="number" value={item.quantidade} onChange={e => updateBomItem(i, "quantidade", parseFloat(e.target.value) || 0)} placeholder="Qtd" />
+                    {item.valor_unitario > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">R$ {Number(item.valor_unitario).toFixed(2)}</span>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeBomItem(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
