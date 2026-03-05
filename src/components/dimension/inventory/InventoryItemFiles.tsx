@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Paperclip, Plus, Trash2, FileText, Image, Download, X, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
 
 interface InventoryItemFilesProps {
   itemId: string;
@@ -15,11 +16,13 @@ interface InventoryItemFilesProps {
 
 export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
   const { session } = useAuth();
-  const { tables } = useModule();
+  const { tables, modulePrefix } = useModule();
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const { data: files = [], isLoading } = useQuery({
     queryKey: [tables.inventoryItemFiles, itemId],
