@@ -25,6 +25,7 @@ export interface ModuleConfig {
     inventorySettings: string;
     inventorySessions: string;
     inventorySessionItems: string;
+    inventoryItemFiles: string;
     // Production documentation tables
     productionSheets: string;
     productionBomItems: string;
@@ -63,6 +64,7 @@ export const dimensionConfig: ModuleConfig = {
     inventorySettings: "inventory_settings",
     inventorySessions: "inventory_sessions",
     inventorySessionItems: "inventory_session_items",
+    inventoryItemFiles: "inventory_item_files",
     productionSheets: "production_sheets",
     productionBomItems: "production_bom_items",
     productionProcessSteps: "production_process_steps",
@@ -100,6 +102,7 @@ export const productionControlConfig: ModuleConfig = {
     inventorySettings: "pc_inventory_settings",
     inventorySessions: "pc_inventory_sessions",
     inventorySessionItems: "pc_inventory_session_items",
+    inventoryItemFiles: "pc_inventory_item_files",
     productionSheets: "pc_production_sheets",
     productionBomItems: "pc_production_bom_items",
     productionProcessSteps: "pc_production_process_steps",
