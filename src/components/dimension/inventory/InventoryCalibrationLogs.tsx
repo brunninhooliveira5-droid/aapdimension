@@ -8,10 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Search } from "lucide-react";
 import { format } from "date-fns";
+import { InventoryDateFilter, filterByMonthYear, getMonthLabel } from "./InventoryDateFilter";
+import { exportInventoryPdf } from "@/lib/inventory-pdf";
 
 export function InventoryCalibrationLogs() {
   const { tables } = useModule();
   const [search, setSearch] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: [tables.inventoryCalibrationLogs],
@@ -20,7 +24,7 @@ export function InventoryCalibrationLogs() {
         .from(tables.inventoryCalibrationLogs as any)
         .select(`*, ${tables.inventoryItems}(name, internal_code)`)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(500);
       if (error) throw error;
       return data || [];
     },
@@ -36,7 +40,9 @@ export function InventoryCalibrationLogs() {
 
   const profileMap = Object.fromEntries((profiles as any[]).map((p: any) => [p.id, p.name]));
 
-  const filtered = (logs as any[]).filter((l) => {
+  const dateFiltered = filterByMonthYear(logs as any[], month, year);
+
+  const filtered = dateFiltered.filter((l: any) => {
     if (!search) return true;
     const s = search.toLowerCase();
     const itemName = l[tables.inventoryItems]?.name || "";
@@ -45,9 +51,31 @@ export function InventoryCalibrationLogs() {
     return itemName.toLowerCase().includes(s) || itemCode.toLowerCase().includes(s) || reason.toLowerCase().includes(s);
   });
 
+  const hasFilter = !!month || !!year;
+  const filterLabel = hasFilter
+    ? `${month ? getMonthLabel(month) : "Todos os meses"} / ${year || "Todos os anos"}`
+    : "";
+
+  const handleExport = () => {
+    exportInventoryPdf({
+      title: "Logs de Calibração",
+      filterLabel,
+      columns: ["Data", "Item", "Qtd Anterior", "Qtd Nova", "Diferença", "Motivo", "Responsável"],
+      rows: filtered.map((l: any) => [
+        format(new Date(l.created_at), "dd/MM/yy HH:mm"),
+        l[tables.inventoryItems]?.name || "-",
+        String(Number(l.old_quantity)),
+        String(Number(l.new_quantity)),
+        String(Number(l.difference)),
+        l.reason || "-",
+        profileMap[l.calibrated_by] || "-",
+      ]),
+    });
+  };
+
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -63,6 +91,13 @@ export function InventoryCalibrationLogs() {
             />
           </div>
         </div>
+        <InventoryDateFilter
+          month={month} year={year}
+          onMonthChange={setMonth} onYearChange={setYear}
+          onClear={() => { setMonth(""); setYear(""); }}
+          onExportPdf={handleExport}
+          hasFilter={hasFilter}
+        />
       </CardHeader>
       <CardContent>
         {isLoading ? (
