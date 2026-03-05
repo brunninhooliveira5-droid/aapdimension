@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
@@ -25,6 +25,16 @@ interface BomItem {
   fornecedor: string;
   lead_time_dias: number | null;
   observacao: string;
+  inventory_item_id?: string | null;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  internal_code: string;
+  current_quantity: number;
+  unit_cost: number;
+  avg_cost: number;
 }
 
 export function BomEditor({ fichaId }: { fichaId: string }) {
@@ -32,6 +42,7 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
   const [items, setItems] = useState<BomItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState("all");
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   const fetchItems = async () => {
     const { data } = await supabase.from(tables.productionBomItems as any).select("*").eq("ficha_id", fichaId).order("created_at");
@@ -39,18 +50,40 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [fichaId, tables]);
+  const fetchInventory = async () => {
+    const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, current_quantity, unit_cost, avg_cost").eq("is_active", true).order("name");
+    setInventoryItems((data as any) || []);
+  };
+
+  useEffect(() => { fetchItems(); fetchInventory(); }, [fichaId, tables]);
 
   const addItem = () => {
     setItems([...items, {
       ficha_id: fichaId, item_nome: "", categoria: "outro", unidade: "un",
-      quantidade: 1, valor_unitario: 0, fornecedor: "", lead_time_dias: null, observacao: ""
+      quantidade: 1, valor_unitario: 0, fornecedor: "", lead_time_dias: null, observacao: "", inventory_item_id: null
     }]);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...items];
     (updated[index] as any)[field] = value;
+    setItems(updated);
+  };
+
+  const linkInventoryItem = (index: number, inventoryId: string) => {
+    if (inventoryId === "none") {
+      updateItem(index, "inventory_item_id", null);
+      return;
+    }
+    const inv = inventoryItems.find(i => i.id === inventoryId);
+    if (!inv) return;
+    const updated = [...items];
+    updated[index] = {
+      ...updated[index],
+      inventory_item_id: inventoryId,
+      item_nome: inv.name,
+      valor_unitario: inv.avg_cost || inv.unit_cost || 0,
+    };
     setItems(updated);
   };
 
@@ -107,7 +140,8 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[180px]">Item</TableHead>
+                    <TableHead className="min-w-[140px]">Estoque</TableHead>
+                    <TableHead className="min-w-[160px]">Item</TableHead>
                     <TableHead className="w-[120px]">Categoria</TableHead>
                     <TableHead className="w-[70px]">Unid.</TableHead>
                     <TableHead className="w-[80px]">Qtd.</TableHead>
@@ -120,8 +154,30 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
                 <TableBody>
                   {displayed.map((item, idx) => {
                     const realIdx = items.indexOf(item);
+                    const linkedInv = item.inventory_item_id ? inventoryItems.find(i => i.id === item.inventory_item_id) : null;
                     return (
                       <TableRow key={idx}>
+                        <TableCell className="p-1">
+                          <Select value={item.inventory_item_id || "none"} onValueChange={v => linkInventoryItem(realIdx, v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Manual" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Manual</SelectItem>
+                              {inventoryItems.map(inv => (
+                                <SelectItem key={inv.id} value={inv.id}>
+                                  <span className="flex items-center gap-1">
+                                    <Link2 className="h-3 w-3 shrink-0" />
+                                    {inv.name} {inv.internal_code ? `(${inv.internal_code})` : ""}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {linkedInv && (
+                            <span className="text-[10px] text-muted-foreground">Estoque: {linkedInv.current_quantity}</span>
+                          )}
+                        </TableCell>
                         <TableCell className="p-1">
                           <Input className="h-8 text-xs" value={item.item_nome} onChange={e => updateItem(realIdx, "item_nome", e.target.value)} placeholder="Nome do item" />
                         </TableCell>
