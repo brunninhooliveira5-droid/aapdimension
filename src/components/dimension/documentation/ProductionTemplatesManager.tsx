@@ -50,7 +50,7 @@ export function ProductionTemplatesManager() {
 
   useEffect(() => {
     const fetchInventory = async () => {
-      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost").order("name");
+      const { data, error } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, avg_cost, last_cost").order("name");
       if (error) console.error("Erro ao buscar itens do estoque:", error);
       setInventoryItems((data as any) || []);
     };
