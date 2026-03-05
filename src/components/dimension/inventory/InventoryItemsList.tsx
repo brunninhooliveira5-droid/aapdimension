@@ -233,7 +233,7 @@ export function InventoryItemsList() {
       const diff = newQty - oldQty;
 
       if (diff !== 0) {
-        await supabase.from(tables.inventoryMovements as any).insert({
+        const { error: movErr } = await supabase.from(tables.inventoryMovements as any).insert({
           item_id: calibrateTarget.id,
           movement_type: diff > 0 ? "entrada" : "saida",
           quantity: Math.abs(diff),
@@ -241,10 +241,16 @@ export function InventoryItemsList() {
           notes: calibrateNote || `Ajuste: ${oldQty} → ${newQty}`,
           created_by: session?.user.id,
         } as any);
+        if (movErr) throw movErr;
 
-        await supabase.from(tables.inventoryItems as any)
+        const { error: updErr } = await supabase.from(tables.inventoryItems as any)
           .update({ current_quantity: newQty } as any)
           .eq("id", calibrateTarget.id);
+        if (updErr) throw updErr;
+      } else {
+        toast.info("Quantidade não alterada.");
+        setCalibrating(false);
+        return;
       }
 
       toast.success(`Estoque calibrado: ${oldQty} → ${newQty}`);
