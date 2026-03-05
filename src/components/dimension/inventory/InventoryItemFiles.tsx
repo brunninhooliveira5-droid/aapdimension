@@ -101,10 +101,24 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
     },
     onSuccess: () => {
       toast.success("Arquivo removido!");
+      setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: [tables.inventoryItemFiles, itemId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleDeleteClick = (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation();
+    setDeleteTarget(fileId);
+    setPasswordOpen(true);
+  };
+
+  const handlePasswordConfirmed = () => {
+    setPasswordOpen(false);
+    if (deleteTarget) {
+      deleteFile.mutate(deleteTarget);
+    }
+  };
 
   const isImage = (mime: string) => mime.startsWith("image/");
   const formatSize = (bytes: number) => {
