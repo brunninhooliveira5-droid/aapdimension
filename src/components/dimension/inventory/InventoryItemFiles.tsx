@@ -16,7 +16,7 @@ interface InventoryItemFilesProps {
 
 export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
   const { session } = useAuth();
-  const { tables, modulePrefix } = useModule();
+  const { tables } = useModule();
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
