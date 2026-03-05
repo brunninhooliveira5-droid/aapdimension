@@ -81,11 +81,13 @@ export function ProductionTemplatesManager() {
     setBomForm({ ...bomForm, items });
   };
 
+  const getBestCost = (inv: any) => inv.unit_cost || inv.avg_cost || inv.last_cost || 0;
+
   const handleBomInventorySelect = (i: number, itemId: string) => {
     const inv = inventoryItems.find((it: any) => it.id === itemId);
     if (!inv) return;
     const items = [...bomForm.items];
-    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: inv.unit_cost || 0 };
+    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: getBestCost(inv) };
     setBomForm({ ...bomForm, items });
   };
 
