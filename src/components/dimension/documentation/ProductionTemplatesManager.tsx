@@ -59,7 +59,22 @@ export function ProductionTemplatesManager() {
 
   // BOM Template CRUD
   const openNewBom = () => { setEditingBom(null); setBomForm({ nome: "", produto_modelo: "", items: [] }); setShowBomDialog(true); };
-  const openEditBom = (t: any) => { setEditingBom(t); setBomForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", items: t.items || [] }); setShowBomDialog(true); };
+  const openEditBom = (t: any) => {
+    setEditingBom(t);
+    // Refresh costs from inventory
+    const updatedItems = (t.items || []).map((item: any) => {
+      if (item.inventory_item_id) {
+        const inv = inventoryItems.find((it: any) => it.id === item.inventory_item_id);
+        if (inv) {
+          const bestCost = inv.unit_cost || inv.avg_cost || inv.last_cost || 0;
+          return { ...item, valor_unitario: bestCost, item_nome: inv.name };
+        }
+      }
+      return item;
+    });
+    setBomForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", items: updatedItems });
+    setShowBomDialog(true);
+  };
   const saveBom = async () => {
     if (!bomForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingBom) {
