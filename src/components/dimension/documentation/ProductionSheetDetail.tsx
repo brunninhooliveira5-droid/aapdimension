@@ -221,7 +221,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   // ── DEACTIVATION ──
 
   const handleDeactivatePasswordSuccess = async () => {
-    // Fetch BOM items and check movements to detect shortages
     const { data: bomItems } = await supabase
       .from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id);
     const linked = ((bomItems as any[]) || []).filter((i: any) => i.inventory_item_id);
@@ -233,32 +232,20 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
       return;
     }
 
-    // Find saida movements for this project
-    const { data: movements } = await supabase
-      .from(tables.inventoryMovements as any)
-      .select("*")
-      .eq("movement_type", "saida")
-      .eq("reason", "producao")
-      .eq("linked_project", sheet.nome_projeto);
-
-    const movementMap = new Map<string, number>();
-    for (const m of (movements as any[] || [])) {
-      movementMap.set(m.item_id, (movementMap.get(m.item_id) || 0) + m.quantity);
-    }
-
     const shortageItems: DeactivateShortageItem[] = [];
     const normalItems: { inventory_item_id: string; qty: number }[] = [];
 
     for (const bom of linked) {
-      const actualDeducted = movementMap.get(bom.inventory_item_id) || 0;
-      if (actualDeducted < bom.quantidade) {
-        // This was a shortage item
+      const actualDeducted = Number(bom.deducted_quantity) || 0;
+      const shortage = Number(bom.shortage_quantity) || 0;
+
+      if (shortage > 0) {
         shortageItems.push({
           inventory_item_id: bom.inventory_item_id,
           item_nome: bom.item_nome,
           bom_qty: bom.quantidade,
           actual_deducted: actualDeducted,
-          shortage: bom.quantidade - actualDeducted,
+          shortage,
           purchased: false,
           purchased_qty: 0,
         });
