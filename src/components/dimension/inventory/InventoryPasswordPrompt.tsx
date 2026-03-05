@@ -56,45 +56,47 @@ export function InventoryPasswordPrompt({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) setPassword(""); onOpenChange(v); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-primary" />
-            {title}
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        <div className="space-y-3">
-          <div>
-            <Label>Senha do Estoque</Label>
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Digite a senha..."
-                onKeyDown={(e) => e.key === "Enter" && handleVerify()}
-                autoFocus
-                autoComplete="off"
-                data-lpignore="true"
-                data-1p-ignore="true"
-                className="pr-10"
-              />
-              <button
-                type="button"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+        <form onSubmit={(e) => { e.preventDefault(); handleVerify(); }} autoComplete="off">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-primary" />
+              {title}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="space-y-3">
+            <div>
+              <Label>Senha do Estoque</Label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Digite a senha..."
+                  autoFocus
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleVerify} disabled={submitting || !password.trim()}>
-            {submitting ? "Verificando..." : "Confirmar"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="gap-2 mt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={submitting || !password.trim()}>
+              {submitting ? "Verificando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
