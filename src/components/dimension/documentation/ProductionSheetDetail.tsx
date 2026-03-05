@@ -100,12 +100,12 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
   const executeActivation = async (linkedItems: any[], invMap: Map<string, any>) => {
     setActivating(true);
     try {
+      // 1. Deduct inventory
       for (const bom of linkedItems) {
         const inv = invMap.get(bom.inventory_item_id);
         if (!inv) continue;
         const newQty = Math.max(0, inv.current_quantity - bom.quantidade);
 
-        // Register movement
         await supabase.from(tables.inventoryMovements as any).insert({
           item_id: bom.inventory_item_id,
           movement_type: "saida",
@@ -115,7 +115,6 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
           performed_by: session?.user.id,
         } as any);
 
-        // Update quantity
         await supabase.from(tables.inventoryItems as any)
           .update({ current_quantity: newQty } as any)
           .eq("id", bom.inventory_item_id);
@@ -123,7 +122,40 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         inv.current_quantity = newQty;
       }
 
-      // Mark sheet as activated
+      // 2. Create tasks from process steps
+      const { data: processSteps } = await supabase
+        .from(tables.productionProcessSteps as any)
+        .select("*")
+        .eq("ficha_id", sheet.id)
+        .order("ordem");
+
+      if (processSteps && (processSteps as any[]).length > 0) {
+        const today = new Date();
+        const tasks = (processSteps as any[]).map((step: any) => {
+          const dueDate = step.prazo_dias
+            ? new Date(today.getTime() + step.prazo_dias * 86400000).toISOString().split("T")[0]
+            : sheet.prazo_final || null;
+          return {
+            title: `${step.etapa_nome} — ${sheet.nome_projeto}`,
+            description: `Etapa de produção da ficha "${sheet.nome_projeto}"${sheet.cliente ? ` • Cliente: ${sheet.cliente}` : ""}${sheet.produto_modelo ? ` • Modelo: ${sheet.produto_modelo}` : ""}`,
+            priority: "media",
+            category: "producao",
+            sector: step.setor_responsavel || null,
+            due_date: dueDate,
+            status: "a_fazer",
+            created_by: session?.user.id,
+          };
+        });
+        const { error: taskError } = await supabase.from(tables.tasks as any).insert(tasks as any);
+        if (taskError) {
+          console.error("Erro ao criar tarefas:", taskError);
+          toast.error("Baixa no estoque OK, mas erro ao criar tarefas nos setores");
+        } else {
+          toast.success(`${tasks.length} tarefa(s) criada(s) nos setores`);
+        }
+      }
+
+      // 3. Mark sheet as activated
       await supabase.from(tables.productionSheets as any)
         .update({ activated_at: new Date().toISOString(), status: "em_producao" } as any)
         .eq("id", sheet.id);
