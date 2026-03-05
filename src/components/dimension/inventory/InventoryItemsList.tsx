@@ -455,7 +455,7 @@ export function InventoryItemsList() {
                       <TableCell className="text-right font-medium">{Number(item.current_quantity) - Number(item.reserved_quantity)}</TableCell>
                       <TableCell className="text-right">R$ {Number(item.avg_cost || item.unit_cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>{getStockBadge(item)}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
                             <Pencil className="h-3.5 w-3.5" />
