@@ -3939,6 +3939,7 @@ export type Database = {
         Row: {
           created_at: string
           data_alvo: string | null
+          data_inicio: string | null
           etapa_nome: string
           ficha_id: string
           id: string
@@ -3953,6 +3954,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data_alvo?: string | null
+          data_inicio?: string | null
           etapa_nome?: string
           ficha_id: string
           id?: string
@@ -3967,6 +3969,7 @@ export type Database = {
         Update: {
           created_at?: string
           data_alvo?: string | null
+          data_inicio?: string | null
           etapa_nome?: string
           ficha_id?: string
           id?: string
@@ -4273,6 +4276,7 @@ export type Database = {
           priority: string | null
           responsible: string | null
           sector: string | null
+          start_date: string | null
           status: string | null
           title: string
           updated_at: string | null
@@ -4288,6 +4292,7 @@ export type Database = {
           priority?: string | null
           responsible?: string | null
           sector?: string | null
+          start_date?: string | null
           status?: string | null
           title: string
           updated_at?: string | null
@@ -4303,6 +4308,7 @@ export type Database = {
           priority?: string | null
           responsible?: string | null
           sector?: string | null
+          start_date?: string | null
           status?: string | null
           title?: string
           updated_at?: string | null
