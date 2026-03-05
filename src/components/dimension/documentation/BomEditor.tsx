@@ -110,6 +110,11 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
   };
 
   const saveAll = async () => {
+    const unlinked = items.filter(i => !i.inventory_item_id);
+    if (unlinked.length > 0) {
+      toast.error(`${unlinked.length} item(ns) sem vínculo ao estoque. Selecione um item do estoque para cada linha.`);
+      return;
+    }
     const toInsert = items.filter(i => !i.id).map(({ id, ...rest }) => rest);
     const toUpdate = items.filter(i => i.id);
 
@@ -153,8 +158,7 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[140px]">Estoque</TableHead>
-                    <TableHead className="min-w-[160px]">Item</TableHead>
+                    <TableHead className="min-w-[200px]">Item do Estoque</TableHead>
                     <TableHead className="w-[120px]">Categoria</TableHead>
                     <TableHead className="w-[70px]">Unid.</TableHead>
                     <TableHead className="w-[80px]">Qtd.</TableHead>
@@ -169,14 +173,14 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
                     const realIdx = items.indexOf(item);
                     const linkedInv = item.inventory_item_id ? inventoryItems.find(i => i.id === item.inventory_item_id) : null;
                     return (
-                      <TableRow key={idx}>
+                      <TableRow key={idx} className={!item.inventory_item_id ? "bg-destructive/5" : ""}>
                         <TableCell className="p-1">
-                          <Select value={item.inventory_item_id || "none"} onValueChange={v => linkInventoryItem(realIdx, v)}>
+                          <Select value={item.inventory_item_id || "__none__"} onValueChange={v => { if (v !== "__none__") handleInventorySelect(realIdx, v); }}>
                             <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Manual" />
+                              <SelectValue placeholder="Selecionar item..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">Manual</SelectItem>
+                              <SelectItem value="__none__" disabled>Selecionar item...</SelectItem>
                               {inventoryItems.map(inv => (
                                 <SelectItem key={inv.id} value={inv.id}>
                                   <span className="flex items-center gap-1">
@@ -190,9 +194,6 @@ export function BomEditor({ fichaId }: { fichaId: string }) {
                           {linkedInv && (
                             <span className="text-[10px] text-muted-foreground">Estoque: {linkedInv.current_quantity}</span>
                           )}
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input className="h-8 text-xs" value={item.item_nome} onChange={e => updateItem(realIdx, "item_nome", e.target.value)} placeholder="Nome do item" />
                         </TableCell>
                         <TableCell className="p-1">
                           <Select value={item.categoria} onValueChange={v => updateItem(realIdx, "categoria", v)}>
