@@ -132,15 +132,23 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
       if (processSteps && (processSteps as any[]).length > 0) {
         const today = new Date();
         const tasks = (processSteps as any[]).map((step: any) => {
-          const dueDate = step.prazo_dias
-            ? new Date(today.getTime() + step.prazo_dias * 86400000).toISOString().split("T")[0]
-            : sheet.prazo_final || null;
+          const startDate = step.data_inicio
+            ? step.data_inicio
+            : step.prazo_dias
+              ? new Date(today.getTime()).toISOString().split("T")[0]
+              : null;
+          const dueDate = step.data_alvo
+            ? step.data_alvo
+            : step.prazo_dias
+              ? new Date(today.getTime() + step.prazo_dias * 86400000).toISOString().split("T")[0]
+              : sheet.prazo_final || null;
           return {
             title: `${step.etapa_nome} — ${sheet.nome_projeto}`,
             description: `Etapa de produção da ficha "${sheet.nome_projeto}"${sheet.cliente ? ` • Cliente: ${sheet.cliente}` : ""}${sheet.produto_modelo ? ` • Modelo: ${sheet.produto_modelo}` : ""}`,
             priority: "media",
             category: "producao",
             sector: step.setor_responsavel || null,
+            start_date: startDate,
             due_date: dueDate,
             status: "a_fazer",
             created_by: session?.user.id,

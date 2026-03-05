@@ -23,6 +23,7 @@ interface ProcessStep {
   setor_responsavel: string;
   tempo_estimado_horas: number | null;
   prazo_dias: number | null;
+  data_inicio: string | null;
   data_alvo: string | null;
   status: string;
   ordem: number;
@@ -45,7 +46,7 @@ export function ProcessStepsEditor({ fichaId }: { fichaId: string }) {
   const addStep = () => {
     setSteps([...steps, {
       ficha_id: fichaId, etapa_nome: "", setor_responsavel: "montagem",
-      tempo_estimado_horas: null, prazo_dias: null, data_alvo: null,
+      tempo_estimado_horas: null, prazo_dias: null, data_inicio: null, data_alvo: null,
       status: "todo", ordem: steps.length, observacao: ""
     }]);
   };
@@ -146,7 +147,11 @@ export function ProcessStepsEditor({ fichaId }: { fichaId: string }) {
                       <Input className="h-7 w-16 text-xs" type="number" value={step.prazo_dias || ""} onChange={e => updateStep(idx, "prazo_dias", parseInt(e.target.value) || null)} />
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground">Data alvo:</span>
+                      <span className="text-xs text-muted-foreground">Início:</span>
+                      <Input className="h-7 text-xs" type="date" value={step.data_inicio || ""} onChange={e => updateStep(idx, "data_inicio", e.target.value || null)} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Fim/Alvo:</span>
                       <Input className="h-7 text-xs" type="date" value={step.data_alvo || ""} onChange={e => updateStep(idx, "data_alvo", e.target.value || null)} />
                     </div>
                     {isLate && <Badge className="bg-destructive/10 text-destructive text-xs">Atrasada</Badge>}
