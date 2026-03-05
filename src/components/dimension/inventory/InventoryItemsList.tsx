@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryImageUpload } from "./InventoryImageUpload";
 import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
+import { InventoryItemDashboard } from "./InventoryItemDashboard";
 
 const ITEM_TYPES = [
   { value: "materia_prima", label: "Matéria-prima" },
