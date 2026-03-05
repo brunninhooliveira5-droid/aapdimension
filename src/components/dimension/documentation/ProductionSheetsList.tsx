@@ -37,6 +37,7 @@ interface ProductionSheet {
   prazo_final: string | null;
   observacoes: string;
   created_at: string;
+  activated_at: string | null;
 }
 
 interface BomTemplate {
@@ -206,6 +207,7 @@ export function ProductionSheetsList() {
                 <div className="flex gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">{tipoLabels[s.tipo] || s.tipo}</Badge>
                   <Badge className={`text-xs ${statusColors[s.status] || ""}`}>{statusLabels[s.status] || s.status}</Badge>
+                  {s.activated_at && <Badge className="text-xs bg-green-500/10 text-green-600">Ativada</Badge>}
                 </div>
                 {s.cliente && <p className="text-xs text-muted-foreground">Cliente: {s.cliente}</p>}
                 {s.produto_modelo && <p className="text-xs text-muted-foreground">Modelo: {s.produto_modelo}</p>}

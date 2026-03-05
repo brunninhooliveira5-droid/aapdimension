@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown } from "lucide-react";
+import { FileDown, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useModule } from "@/contexts/ModuleContext";
 import { toast } from "sonner";
@@ -33,10 +33,16 @@ interface Props {
   };
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
+}
+
 export function ProductionPdfExport({ sheet }: Props) {
   const { tables } = useModule();
   const [config, setConfig] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [generatingType, setGeneratingType] = useState<"full" | "compras" | null>(null);
 
   useEffect(() => {
     supabase.from(tables.productionPdfConfig as any).select("*").limit(1).single().then(({ data }) => {
@@ -44,17 +50,34 @@ export function ProductionPdfExport({ sheet }: Props) {
     });
   }, [tables]);
 
-  const generatePdf = async () => {
-    setGenerating(true);
-    try {
-      const [bomRes, stepsRes] = await Promise.all([
-        supabase.from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id).order("created_at"),
-        supabase.from(tables.productionProcessSteps as any).select("*").eq("ficha_id", sheet.id).order("ordem"),
-      ]);
-      const bomItems = (bomRes.data as any[]) || [];
-      const processSteps = (stepsRes.data as any[]) || [];
-      const cfg = config || {};
+  const fetchData = async () => {
+    const [bomRes, stepsRes] = await Promise.all([
+      supabase.from(tables.productionBomItems as any).select("*").eq("ficha_id", sheet.id).order("created_at"),
+      supabase.from(tables.productionProcessSteps as any).select("*").eq("ficha_id", sheet.id).order("ordem"),
+    ]);
+    const bomItems = (bomRes.data as any[]) || [];
+    const processSteps = (stepsRes.data as any[]) || [];
 
+    // Fetch inventory data for linked items
+    const linkedIds = bomItems.filter(i => i.inventory_item_id).map(i => i.inventory_item_id);
+    let invMap = new Map<string, any>();
+    if (linkedIds.length > 0) {
+      const { data: invData } = await supabase
+        .from(tables.inventoryItems as any)
+        .select("id, name, current_quantity, internal_code")
+        .in("id", linkedIds);
+      invMap = new Map((invData as any[] || []).map((i: any) => [i.id, i]));
+    }
+
+    return { bomItems, processSteps, invMap };
+  };
+
+  const generatePdf = async (type: "full" | "compras") => {
+    setGenerating(true);
+    setGeneratingType(type);
+    try {
+      const { bomItems, processSteps, invMap } = await fetchData();
+      const cfg = config || {};
       const doc = new jsPDF();
       const mainColor = cfg.cor_principal || "#1e40af";
       const [r, g, b] = hexToRgb(mainColor);
@@ -76,11 +99,13 @@ export function ProductionPdfExport({ sheet }: Props) {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(13);
       doc.setFont("helvetica", "bold");
-      doc.text("Ficha de Produção", 14, y);
+      doc.text(type === "compras" ? "Lista de Compras - Produção" : "Ficha de Produção", 14, y);
       y += 8;
+
+      // Info section
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      const info = [
+      const info: string[][] = [
         ["Projeto:", sheet.nome_projeto],
         ["Tipo:", tipoLabels[sheet.tipo] || sheet.tipo],
         ["Status:", statusLabels[sheet.status] || sheet.status],
@@ -106,18 +131,44 @@ export function ProductionPdfExport({ sheet }: Props) {
         y += 2;
 
         const bomHead = ["Item", "Categoria", "Unid.", "Qtd."];
+        if (cfg.mostrar_valores) bomHead.push("Vlr. Unit.", "Subtotal");
+        if (cfg.mostrar_fornecedor) bomHead.push("Fornecedor");
+        bomHead.push("Estoque", "Status");
+
         const bomBody = bomItems.map(i => {
           const row = [i.item_nome, categoriaLabels[i.categoria] || i.categoria, i.unidade, String(i.quantidade)];
           if (cfg.mostrar_valores) row.push(`R$ ${Number(i.valor_unitario).toFixed(2)}`, `R$ ${(i.quantidade * i.valor_unitario).toFixed(2)}`);
           if (cfg.mostrar_fornecedor) row.push(i.fornecedor || "-");
+
+          const inv = i.inventory_item_id ? invMap.get(i.inventory_item_id) : null;
+          if (inv) {
+            row.push(String(inv.current_quantity));
+            row.push(inv.current_quantity >= i.quantidade ? "OK" : "EM FALTA");
+          } else {
+            row.push("-");
+            row.push("Manual");
+          }
           return row;
         });
-        if (cfg.mostrar_valores) bomHead.push("Vlr. Unit.", "Subtotal");
-        if (cfg.mostrar_fornecedor) bomHead.push("Fornecedor");
+
+        const statusColIndex = bomHead.length - 1;
 
         autoTable(doc, {
           head: [bomHead], body: bomBody, startY: y,
-          styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [r, g, b] },
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [r, g, b] },
+          didParseCell: (data) => {
+            if (data.section === "body" && data.column.index === statusColIndex) {
+              const val = data.cell.raw as string;
+              if (val === "EM FALTA") {
+                data.cell.styles.textColor = [220, 38, 38];
+                data.cell.styles.fontStyle = "bold";
+              } else if (val === "OK") {
+                data.cell.styles.textColor = [22, 163, 74];
+                data.cell.styles.fontStyle = "bold";
+              }
+            }
+          }
         });
 
         y = (doc as any).lastAutoTable.finalY + 3;
@@ -128,13 +179,49 @@ export function ProductionPdfExport({ sheet }: Props) {
           doc.text(`Total BOM: R$ ${total.toFixed(2)}`, 14, y);
           y += 6;
         }
+
+        // Shopping list section
+        const shortages = bomItems.filter(i => {
+          if (!i.inventory_item_id) return false;
+          const inv = invMap.get(i.inventory_item_id);
+          return !inv || inv.current_quantity < i.quantidade;
+        });
+
+        if (shortages.length > 0) {
+          y += 4;
+          if (y > 240) { doc.addPage(); y = 20; }
+          doc.setFillColor(254, 226, 226);
+          doc.roundedRect(12, y - 4, 186, 8, 2, 2, "F");
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(220, 38, 38);
+          doc.text("🛒 Lista de Compras (Itens em Falta)", 14, y + 2);
+          y += 8;
+          doc.setTextColor(0, 0, 0);
+
+          const comprasHead = ["Item", "Qtd. Necessária", "Estoque Atual", "Comprar"];
+          const comprasBody = shortages.map(i => {
+            const inv = invMap.get(i.inventory_item_id);
+            const available = inv?.current_quantity || 0;
+            return [i.item_nome, String(i.quantidade), String(available), String(Math.max(0, i.quantidade - available))];
+          });
+
+          autoTable(doc, {
+            head: [comprasHead], body: comprasBody, startY: y,
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [220, 38, 38] },
+          });
+          y = (doc as any).lastAutoTable.finalY + 3;
+        }
       }
 
-      if (processSteps.length > 0) {
+      // Process steps (only for full PDF)
+      if (type === "full" && processSteps.length > 0) {
         y += 4;
         if (y > 250) { doc.addPage(); y = 20; }
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
         doc.text("Mapeamento de Processos", 14, y);
         y += 2;
 
@@ -157,11 +244,12 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text(`Prazo total estimado: ${totalDias} dias`, 14, y);
       }
 
-      if (sheet.observacoes) {
+      if (type === "full" && sheet.observacoes) {
         y += 8;
         if (y > 260) { doc.addPage(); y = 20; }
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
         doc.text("Observações", 14, y);
         y += 5;
         doc.setFontSize(8);
@@ -170,6 +258,7 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text(lines, 14, y);
       }
 
+      // Footer
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -179,13 +268,15 @@ export function ProductionPdfExport({ sheet }: Props) {
         doc.text(`Página ${i} de ${pageCount}`, 180, 290);
       }
 
-      doc.save(`ficha-${sheet.nome_projeto.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+      const suffix = type === "compras" ? "compras" : "ficha";
+      doc.save(`${suffix}-${sheet.nome_projeto.replace(/\s+/g, "-").toLowerCase()}.pdf`);
       toast.success("PDF gerado com sucesso!");
     } catch (err) {
       console.error(err);
       toast.error("Erro ao gerar PDF");
     }
     setGenerating(false);
+    setGeneratingType(null);
   };
 
   return (
@@ -195,18 +286,19 @@ export function ProductionPdfExport({ sheet }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          O PDF incluirá: dados do projeto, lista de materiais (BOM) e mapeamento de processos com prazos e status.
+          O PDF incluirá: dados do projeto, lista de materiais (BOM) com status de estoque, e mapeamento de processos.
         </p>
-        <Button onClick={generatePdf} disabled={generating}>
-          <FileDown className="h-4 w-4 mr-2" />
-          {generating ? "Gerando..." : "Gerar PDF"}
-        </Button>
+        <div className="flex gap-3 flex-wrap">
+          <Button onClick={() => generatePdf("full")} disabled={generating}>
+            <FileDown className="h-4 w-4 mr-2" />
+            {generatingType === "full" ? "Gerando..." : "Ficha Completa"}
+          </Button>
+          <Button variant="outline" onClick={() => generatePdf("compras")} disabled={generating}>
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            {generatingType === "compras" ? "Gerando..." : "Lista de Compras"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace("#", "");
-  return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
 }

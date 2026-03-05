@@ -1,56 +1,44 @@
-## Integração Fichas de Produção com Estoque
 
-O objetivo é transformar as fichas de produção em um sistema que vincula itens BOM diretamente ao estoque, permite "ativar" uma ficha para dar baixa automática, e gerar PDF com sinalização de itens em falta, e os itens que ja tem.
 
-### 1. Adicionar coluna `inventory_item_id` na tabela de BOM items
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-Migração SQL para adicionar um campo opcional `inventory_item_id` (uuid, nullable, FK para inventory items) nas tabelas `production_bom_items` e `pc_production_bom_items`. Isso vincula cada item da BOM a um item real do estoque.
+### Resumo
 
-### 2. Adicionar campo de controle de ativação na ficha
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-Migração para adicionar `activated_at` (timestamp, nullable) nas tabelas `production_sheets` e `pc_production_sheets`. Quando preenchido, indica que a ficha já foi ativada e o estoque foi baixado.
+### Alteracoes
 
-### 3. Modificar BomEditor para selecionar itens do estoque
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-- Carregar a lista de itens do estoque (`inventoryItems`) via Supabase
-- Adicionar um Select/Combobox "Vincular ao Estoque" em cada linha da BOM
-- Ao selecionar um item do estoque, preencher automaticamente nome, custo unitário e unidade
-- Salvar o `inventory_item_id` junto com o BOM item
-- Manter a opção de item manual (sem vínculo)
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-### 4. Botão "Ativar Ficha / Dar Baixa no Estoque" no ProductionSheetDetail
+#### 2. Editar limite de sub-usuarios (max_members)
 
-- Novo botão na barra superior da ficha (visível apenas se `activated_at` é null)
-- Ao clicar, exige confirmação (e opcionalmente a senha do estoque)
-- Para cada BOM item com `inventory_item_id`:
-  - Verifica se há quantidade suficiente no estoque
-  - Registra uma movimentação de saída (`movement_type: 'saida'`, `reason: 'producao'`) na tabela de movimentos do estoque
-  - Atualiza `current_quantity` do item no estoque
-- Se algum item não tiver estoque suficiente, sinaliza quais estão em falta e pergunta se quer continuar (baixa parcial) ou cancelar
-- Atualiza `activated_at` na ficha e muda status para `em_producao`
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-### 5. PDF com sinalização de itens em falta
+#### 3. Personificar sub-usuarios
 
-Modificar `ProductionPdfExport` para:
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
 
-- Buscar os dados de estoque atual para cada BOM item vinculado (`inventory_item_id`)
-- Na tabela BOM do PDF, adicionar coluna "Estoque Atual"
-- Itens com estoque insuficiente: linha em vermelho com texto "EM FALTA" e quantidade faltante
-- Seção resumo no final: "Lista de Compras" com todos os itens em falta, quantidades necessárias vs disponíveis, e a diferença a ser comprada
-- Título do PDF indica se é para uso interno ou para envio ao setor de compras
+### Arquivos Modificados
 
-### Arquivos a modificar
+| Arquivo | Mudanca |
+|---|---|
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
 
-- **Migração SQL**: adicionar `inventory_item_id` e `activated_at`
-- `src/components/dimension/documentation/BomEditor.tsx`: Select de itens do estoque
-- `src/components/dimension/documentation/ProductionSheetDetail.tsx`: botão ativar ficha
-- `src/components/dimension/documentation/ProductionPdfExport.tsx`: sinalização de faltas e lista de compras
-- `src/components/dimension/documentation/ProductionSheetsList.tsx`: exibir badge "Ativada" nos cards
+### Fluxo
 
-### Fluxo do usuário
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 
-1. Cria ficha de produção para um produto (ex: "Máquina Orion")
-2. Na aba BOM, seleciona itens do estoque (motor nema, parafusos, etc.) com quantidades
-3. Gera PDF para verificar o que está em falta → envia para compras
-4. Quando tudo estiver disponível, clica "Ativar Ficha" → baixa automática no estoque
-5. Ficha muda para status "Em Produção"
