@@ -16,6 +16,7 @@ import { Plus, Search, Package, Pencil, Trash2, ShieldAlert } from "lucide-react
 import { toast } from "sonner";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryImageUpload } from "./InventoryImageUpload";
+import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
 
 const ITEM_TYPES = [
   { value: "materia_prima", label: "Matéria-prima" },
@@ -45,10 +46,16 @@ export function InventoryItemsList() {
   const [customCompatible, setCustomCompatible] = useState<string[]>([]);
   const [newCompatibleInput, setNewCompatibleInput] = useState("");
 
+  // Password prompt state for add/delete
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteVerifying, setDeleteVerifying] = useState(false);
+
+  const table = tables.inventoryItems.startsWith("pc_") ? "pc" as const : "dimension" as const;
 
   // Load compatible options from settings
   const { data: settings } = useQuery({
