@@ -33,10 +33,12 @@ export interface ModuleConfig {
     productionBomTemplates: string;
     productionProcessTemplates: string;
     productionPdfConfig: string;
+    processTemplateFiles: string;
   };
   storage: {
     taskFiles: string;
     productionImages: string;
+    processTemplateFiles: string;
   };
 }
 
@@ -71,10 +73,12 @@ export const dimensionConfig: ModuleConfig = {
     productionBomTemplates: "production_bom_templates",
     productionProcessTemplates: "production_process_templates",
     productionPdfConfig: "production_pdf_config",
+    processTemplateFiles: "process_template_files",
   },
   storage: {
     taskFiles: "dimension-task-files",
     productionImages: "dimension-production-images",
+    processTemplateFiles: "pc-process-template-files",
   },
 };
 
@@ -109,10 +113,12 @@ export const productionControlConfig: ModuleConfig = {
     productionBomTemplates: "pc_production_bom_templates",
     productionProcessTemplates: "pc_production_process_templates",
     productionPdfConfig: "pc_production_pdf_config",
+    processTemplateFiles: "pc_process_template_files",
   },
   storage: {
     taskFiles: "pc-task-files",
     productionImages: "dimension-production-images",
+    processTemplateFiles: "pc-process-template-files",
   },
 };
 
