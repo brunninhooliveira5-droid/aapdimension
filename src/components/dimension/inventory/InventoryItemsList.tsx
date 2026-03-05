@@ -12,7 +12,7 @@ import { SelectWithAdd } from "./SelectWithAdd";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, Pencil, Trash2, ShieldAlert } from "lucide-react";
+import { Plus, Search, Package, Pencil, Trash2, ShieldAlert, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryImageUpload } from "./InventoryImageUpload";
@@ -57,6 +57,13 @@ export function InventoryItemsList() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteVerifying, setDeleteVerifying] = useState(false);
+
+  // Calibration state
+  const [calibrateTarget, setCalibrateTarget] = useState<any>(null);
+  const [calibrateQty, setCalibrateQty] = useState("");
+  const [calibrateNote, setCalibrateNote] = useState("");
+  const [calibrating, setCalibrating] = useState(false);
+  const [showCalibrateDialog, setShowCalibrateDialog] = useState(false);
 
   const table = tables.inventoryItems.startsWith("pc_") ? "pc" as const : "dimension" as const;
 
@@ -207,6 +214,47 @@ export function InventoryItemsList() {
     setDeleteTarget(item);
     setPendingAction(() => () => executeDelete());
     setPasswordPromptOpen(true);
+  };
+
+  const requestCalibrate = (item: any) => {
+    setCalibrateTarget(item);
+    setCalibrateQty(String(item.current_quantity));
+    setCalibrateNote("");
+    setPendingAction(() => () => setShowCalibrateDialog(true));
+    setPasswordPromptOpen(true);
+  };
+
+  const executeCalibrate = async () => {
+    if (!calibrateTarget) return;
+    setCalibrating(true);
+    try {
+      const oldQty = Number(calibrateTarget.current_quantity);
+      const newQty = Number(calibrateQty);
+      const diff = newQty - oldQty;
+
+      if (diff !== 0) {
+        await supabase.from(tables.inventoryMovements as any).insert({
+          item_id: calibrateTarget.id,
+          movement_type: diff > 0 ? "entrada" : "saida",
+          quantity: Math.abs(diff),
+          reason: "Calibração manual",
+          notes: calibrateNote || `Ajuste: ${oldQty} → ${newQty}`,
+          created_by: session?.user.id,
+        } as any);
+
+        await supabase.from(tables.inventoryItems as any)
+          .update({ current_quantity: newQty } as any)
+          .eq("id", calibrateTarget.id);
+      }
+
+      toast.success(`Estoque calibrado: ${oldQty} → ${newQty}`);
+      qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
+      setShowCalibrateDialog(false);
+      setCalibrateTarget(null);
+    } catch {
+      toast.error("Erro ao calibrar estoque.");
+    }
+    setCalibrating(false);
   };
 
   const filtered = (items as any[]).filter((i) => {
@@ -469,6 +517,9 @@ export function InventoryItemsList() {
                       <TableCell>{getStockBadge(item)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Calibrar estoque" onClick={() => requestCalibrate(item)}>
+                            <Scale className="h-3.5 w-3.5" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -488,7 +539,7 @@ export function InventoryItemsList() {
 
       <InventoryPasswordPrompt
         open={passwordPromptOpen}
-        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) setDeleteTarget(null); } }}
+        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) { setDeleteTarget(null); setCalibrateTarget(null); } } }}
         onSuccess={() => {
           if (pendingAction) {
             pendingAction();
@@ -496,9 +547,64 @@ export function InventoryItemsList() {
           }
         }}
         table={table}
-        title={deleteTarget ? "Confirmar Exclusão" : "Autenticação de Estoque"}
-        description={deleteTarget ? `Digite a senha do estoque para excluir "${deleteTarget?.name}".` : "Digite a senha do estoque para cadastrar um novo item."}
+        title={deleteTarget ? "Confirmar Exclusão" : calibrateTarget ? "Calibrar Estoque" : "Autenticação de Estoque"}
+        description={deleteTarget ? `Digite a senha do estoque para excluir "${deleteTarget?.name}".` : calibrateTarget ? `Digite a senha para calibrar o estoque de "${calibrateTarget?.name}".` : "Digite a senha do estoque para cadastrar um novo item."}
       />
+
+      {/* Calibration dialog */}
+      <Dialog open={showCalibrateDialog} onOpenChange={(v) => { if (!v) { setShowCalibrateDialog(false); setCalibrateTarget(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              Calibrar Estoque
+            </DialogTitle>
+            <DialogDescription>
+              Ajuste manual da quantidade de <strong>{calibrateTarget?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Quantidade Atual</Label>
+              <Input value={calibrateTarget?.current_quantity ?? 0} disabled className="bg-muted" />
+            </div>
+            <div>
+              <Label>Nova Quantidade</Label>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                value={calibrateQty}
+                onChange={(e) => setCalibrateQty(e.target.value)}
+                autoFocus
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <Input
+                value={calibrateNote}
+                onChange={(e) => setCalibrateNote(e.target.value)}
+                placeholder="Ex: Contagem física, ajuste..."
+              />
+            </div>
+            {calibrateTarget && Number(calibrateQty) !== Number(calibrateTarget.current_quantity) && (
+              <p className="text-xs text-muted-foreground">
+                Diferença: <strong className={Number(calibrateQty) > Number(calibrateTarget.current_quantity) ? "text-emerald-600" : "text-destructive"}>
+                  {Number(calibrateQty) > Number(calibrateTarget.current_quantity) ? "+" : ""}
+                  {(Number(calibrateQty) - Number(calibrateTarget.current_quantity)).toLocaleString("pt-BR")}
+                </strong>
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowCalibrateDialog(false); setCalibrateTarget(null); }}>Cancelar</Button>
+            <Button onClick={executeCalibrate} disabled={calibrating}>
+              {calibrating ? "Salvando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
     </>
   );
