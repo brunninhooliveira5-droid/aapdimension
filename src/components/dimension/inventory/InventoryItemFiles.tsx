@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Paperclip, Plus, Trash2, FileText, Image, Download, X, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
 
 interface InventoryItemFilesProps {
   itemId: string;
@@ -20,6 +21,8 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const { data: files = [], isLoading } = useQuery({
     queryKey: [tables.inventoryItemFiles, itemId],
@@ -98,10 +101,24 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
     },
     onSuccess: () => {
       toast.success("Arquivo removido!");
+      setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: [tables.inventoryItemFiles, itemId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleDeleteClick = (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation();
+    setDeleteTarget(fileId);
+    setPasswordOpen(true);
+  };
+
+  const handlePasswordConfirmed = () => {
+    setPasswordOpen(false);
+    if (deleteTarget) {
+      deleteFile.mutate(deleteTarget);
+    }
+  };
 
   const isImage = (mime: string) => mime.startsWith("image/");
   const formatSize = (bytes: number) => {
@@ -198,10 +215,7 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
                       size="icon"
                       variant="destructive"
                       className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteFile.mutate(f.id);
-                      }}
+                      onClick={(e) => handleDeleteClick(e, f.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -248,6 +262,13 @@ export function InventoryItemFiles({ itemId }: InventoryItemFilesProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <InventoryPasswordPrompt
+        open={passwordOpen}
+        onOpenChange={(v) => { if (!v) { setPasswordOpen(false); setDeleteTarget(null); } }}
+        onSuccess={handlePasswordConfirmed}
+        description="Digite a senha do controle de estoque para excluir este arquivo."
+      />
     </>
   );
 }
