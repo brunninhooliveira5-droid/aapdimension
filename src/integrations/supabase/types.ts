@@ -3672,6 +3672,50 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_process_template_files: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          step_index: number
+          template_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          step_index: number
+          template_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          step_index?: number
+          template_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_process_template_files_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pc_production_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pc_production_bom_items: {
         Row: {
           categoria: string
