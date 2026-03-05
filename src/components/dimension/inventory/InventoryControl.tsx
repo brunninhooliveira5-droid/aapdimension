@@ -11,9 +11,14 @@ import { InventoryAlerts } from "./InventoryAlerts";
 import { InventorySuppliers } from "./InventorySuppliers";
 import { InventoryAudit } from "./InventoryAudit";
 import { InventorySettings } from "./InventorySettings";
+import { useModule } from "@/contexts/ModuleContext";
+import { useInventoryAlertCount } from "@/hooks/useInventoryAlertCount";
 
 export function InventoryControl() {
   const [tab, setTab] = useState("dashboard");
+  const { tables } = useModule();
+  const { data: alertCount = 0 } = useInventoryAlertCount(tables.inventoryItems, tables.inventoryMovements);
+  const hasAlerts = alertCount > 0;
 
   const tabs = [
     { value: "dashboard", label: "Visão Geral", icon: BarChart3 },
@@ -32,16 +37,20 @@ export function InventoryControl() {
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-transparent p-0 gap-1 flex-wrap h-auto">
-          {tabs.map((t) => (
-            <TabsTrigger
-              key={t.value}
-              value={t.value}
-              className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs"
-            >
-              <t.icon className="h-3.5 w-3.5" />
-              {t.label}
-            </TabsTrigger>
-          ))}
+          {tabs.map((t) => {
+            const isAlertTab = t.value === "alerts" && hasAlerts;
+            return (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                className={`gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs ${isAlertTab ? "text-destructive" : ""}`}
+              >
+                <t.icon className={`h-3.5 w-3.5 ${isAlertTab ? "text-destructive animate-pulse" : ""}`} />
+                <span className={isAlertTab ? "text-destructive animate-pulse" : ""}>{t.label}</span>
+                {isAlertTab && <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
         <TabsContent value="dashboard"><InventoryDashboard /></TabsContent>
         <TabsContent value="items"><InventoryItemsList /></TabsContent>
