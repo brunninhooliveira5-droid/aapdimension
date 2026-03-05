@@ -148,137 +148,163 @@ export function InventoryItemDashboard({ item, onBack }: InventoryItemDashboardP
   const status = getStatus();
 
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 -ml-2">
-        <ArrowLeft className="h-4 w-4" /> Voltar aos itens
-      </Button>
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onBack} />
 
-      {/* Header with image and basic info */}
-      <div className="flex gap-4 items-start">
-        <div className="shrink-0">
-          {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="h-24 w-24 rounded-lg object-cover border border-border" />
-          ) : (
-            <div className="h-24 w-24 rounded-lg bg-muted flex items-center justify-center border border-border">
-              <Package className="h-10 w-10 text-muted-foreground" />
-            </div>
-          )}
+      {/* Draggable floating card */}
+      <div
+        ref={cardRef}
+        className="fixed z-50 w-[95vw] max-w-[700px] max-h-[85vh] overflow-y-auto rounded-xl border bg-card text-card-foreground shadow-2xl"
+        style={{
+          left: position.x,
+          top: position.y,
+          cursor: isDragging ? "grabbing" : "default",
+        }}
+      >
+        {/* Drag handle + close button */}
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b bg-muted/80 backdrop-blur rounded-t-xl cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={handleMouseDown}
+        >
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <GripHorizontal className="h-4 w-4" />
+            Detalhes do Item
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xl font-bold text-foreground">{item.name}</h2>
-            <Badge variant={status.color} className={currentQty === 0 ? "" : currentQty <= minQty ? "border-amber-500 text-amber-600" : "border-emerald-500 text-emerald-600"}>
-              {status.label}
-            </Badge>
-          </div>
-          {item.internal_code && <p className="text-sm text-muted-foreground mt-0.5">Código: {item.internal_code}</p>}
-          <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-            {item.item_type && (
-              <span className="flex items-center gap-1"><Tag className="h-3 w-3" />{ITEM_TYPES[item.item_type] || item.item_type}</span>
-            )}
-            {category?.name && (
-              <span className="flex items-center gap-1"><Tag className="h-3 w-3" />{category.name}</span>
-            )}
-            {location?.name && (
-              <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{location.name}</span>
-            )}
-            {supplier?.name && (
-              <span className="flex items-center gap-1"><Truck className="h-3 w-3" />{supplier.name}</span>
-            )}
-            {unit && (
-              <span className="flex items-center gap-1">Unidade: {unit.abbreviation}</span>
-            )}
-          </div>
-          {(item.compatible_with?.length > 0) && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {item.compatible_with.map((c: string) => (
-                <Badge key={c} variant="outline" className="text-xs gap-1">
-                  <Wrench className="h-3 w-3" />{c}
+
+        <div className="p-4 space-y-4">
+          {/* Header with image and basic info */}
+          <div className="flex gap-4 items-start">
+            <div className="shrink-0">
+              {item.image_url ? (
+                <img src={item.image_url} alt={item.name} className="h-20 w-20 rounded-lg object-cover border border-border" />
+              ) : (
+                <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center border border-border">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-foreground">{item.name}</h2>
+                <Badge variant={status.color} className={currentQty === 0 ? "" : currentQty <= minQty ? "border-amber-500 text-amber-600" : "border-emerald-500 text-emerald-600"}>
+                  {status.label}
                 </Badge>
-              ))}
+              </div>
+              {item.internal_code && <p className="text-xs text-muted-foreground mt-0.5">Código: {item.internal_code}</p>}
+              <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-muted-foreground">
+                {item.item_type && (
+                  <span className="flex items-center gap-1"><Tag className="h-3 w-3" />{ITEM_TYPES[item.item_type] || item.item_type}</span>
+                )}
+                {category?.name && (
+                  <span className="flex items-center gap-1"><Tag className="h-3 w-3" />{category.name}</span>
+                )}
+                {location?.name && (
+                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{location.name}</span>
+                )}
+                {supplier?.name && (
+                  <span className="flex items-center gap-1"><Truck className="h-3 w-3" />{supplier.name}</span>
+                )}
+                {unit && (
+                  <span className="flex items-center gap-1">Unidade: {unit.abbreviation}</span>
+                )}
+              </div>
+              {(item.compatible_with?.length > 0) && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {item.compatible_with.map((c: string) => (
+                    <Badge key={c} variant="outline" className="text-[10px] gap-0.5 py-0">
+                      <Wrench className="h-2.5 w-2.5" />{c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Indicator cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <IndicatorCard
+              title="Estoque Atual"
+              value={currentQty}
+              subtitle={unit ? unit.abbreviation : "un"}
+              highlight={currentQty === 0 ? "destructive" : currentQty <= minQty ? "warning" : undefined}
+            />
+            <IndicatorCard
+              title="Reservado"
+              value={reservedQty}
+              subtitle={`Disponível: ${availableQty}`}
+            />
+            <IndicatorCard
+              title="Consumo Méd./Mês"
+              value={avgMonthlyConsumption > 0 ? avgMonthlyConsumption.toFixed(1) : "—"}
+              subtitle={daysRemaining !== null ? `~${daysRemaining} dias restantes` : "Sem consumo"}
+              icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+            />
+            <IndicatorCard
+              title="Custo Médio"
+              value={`R$ ${avgCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              subtitle={`Valor em estoque: R$ ${(avgCost * currentQty).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            />
+          </div>
+
+          {/* Min/Ideal thresholds */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <IndicatorCard title="Estoque Mínimo" value={minQty} subtitle="Alerta abaixo deste valor" />
+            <IndicatorCard title="Estoque Ideal" value={idealQty} subtitle="Meta de reposição" />
+            <IndicatorCard title="Entradas (90d)" value={totalEntries} subtitle="Total de entradas" icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-500" />} />
+            <IndicatorCard title="Saídas (90d)" value={totalExits} subtitle="Total de saídas" icon={<TrendingDown className="h-3.5 w-3.5 text-destructive" />} />
+          </div>
+
+          {/* Movement chart */}
+          <Card>
+            <CardHeader className="pb-2 p-3">
+              <CardTitle className="text-xs flex items-center gap-2">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Movimentações (últimos 90 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              {chartData.length > 1 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} className="text-muted-foreground" />
+                    <YAxis tick={{ fontSize: 10 }} className="text-muted-foreground" />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }}
+                      labelStyle={{ color: "hsl(var(--foreground))" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="stock"
+                      stroke="hsl(var(--primary))"
+                      fill="url(#stockGrad)"
+                      strokeWidth={2}
+                      name="Estoque"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-6">Nenhuma movimentação nos últimos 90 dias.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Attached files */}
+          <InventoryItemFiles itemId={item.id} />
         </div>
       </div>
-
-      {/* Indicator cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <IndicatorCard
-          title="Estoque Atual"
-          value={currentQty}
-          subtitle={unit ? unit.abbreviation : "un"}
-          highlight={currentQty === 0 ? "destructive" : currentQty <= minQty ? "warning" : undefined}
-        />
-        <IndicatorCard
-          title="Reservado"
-          value={reservedQty}
-          subtitle={`Disponível: ${availableQty}`}
-        />
-        <IndicatorCard
-          title="Consumo Méd./Mês"
-          value={avgMonthlyConsumption > 0 ? avgMonthlyConsumption.toFixed(1) : "—"}
-          subtitle={daysRemaining !== null ? `~${daysRemaining} dias restantes` : "Sem consumo"}
-          icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-        />
-        <IndicatorCard
-          title="Custo Médio"
-          value={`R$ ${avgCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          subtitle={`Valor em estoque: R$ ${(avgCost * currentQty).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-        />
-      </div>
-
-      {/* Min/Ideal thresholds */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <IndicatorCard title="Estoque Mínimo" value={minQty} subtitle="Alerta abaixo deste valor" />
-        <IndicatorCard title="Estoque Ideal" value={idealQty} subtitle="Meta de reposição" />
-        <IndicatorCard title="Entradas (90d)" value={totalEntries} subtitle="Total de entradas" icon={<TrendingUp className="h-4 w-4 text-emerald-500" />} />
-        <IndicatorCard title="Saídas (90d)" value={totalExits} subtitle="Total de saídas" icon={<TrendingDown className="h-4 w-4 text-destructive" />} />
-      </div>
-
-      {/* Movement chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Movimentações (últimos 90 dias)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {chartData.length > 1 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} className="text-muted-foreground" />
-                <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "hsl(var(--foreground))" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="stock"
-                  stroke="hsl(var(--primary))"
-                  fill="url(#stockGrad)"
-                  strokeWidth={2}
-                  name="Estoque"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma movimentação nos últimos 90 dias.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Attached files */}
-      <InventoryItemFiles itemId={item.id} />
-    </div>
+    </>
   );
 }
 
