@@ -35,6 +35,7 @@ export function ProductionTemplatesManager() {
   const [editingProcess, setEditingProcess] = useState<any>(null);
   const [bomForm, setBomForm] = useState({ nome: "", produto_modelo: "", items: [] as any[] });
   const [processForm, setProcessForm] = useState({ nome: "", produto_modelo: "", steps: [] as any[] });
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
 
   const fetchAll = async () => {
     const [b, p] = await Promise.all([
@@ -46,6 +47,14 @@ export function ProductionTemplatesManager() {
   };
 
   useEffect(() => { fetchAll(); }, [tables]);
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      const { data } = await supabase.from(tables.inventoryItems as any).select("id, name, internal_code, item_type, unit_cost, unit").eq("is_active", true).order("name");
+      setInventoryItems((data as any) || []);
+    };
+    fetchInventory();
+  }, [tables]);
 
   // BOM Template CRUD
   const openNewBom = () => { setEditingBom(null); setBomForm({ nome: "", produto_modelo: "", items: [] }); setShowBomDialog(true); };
@@ -61,9 +70,23 @@ export function ProductionTemplatesManager() {
   };
   const deleteBom = async (id: string) => { await supabase.from(tables.productionBomTemplates as any).delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
 
-  const addBomItem = () => setBomForm({ ...bomForm, items: [...bomForm.items, { item_nome: "", categoria: "outro", unidade: "un", quantidade: 1, valor_unitario: 0, fornecedor: "" }] });
+  const addBomItem = () => setBomForm({ ...bomForm, items: [...bomForm.items, { item_nome: "", categoria: "outro", unidade: "un", quantidade: 1, valor_unitario: 0, fornecedor: "", item_type: "", inventory_item_id: "" }] });
   const updateBomItem = (i: number, field: string, val: any) => { const items = [...bomForm.items]; items[i][field] = val; setBomForm({ ...bomForm, items }); };
   const removeBomItem = (i: number) => setBomForm({ ...bomForm, items: bomForm.items.filter((_, idx) => idx !== i) });
+
+  const handleBomTypeChange = (i: number, type: string) => {
+    const items = [...bomForm.items];
+    items[i] = { ...items[i], item_type: type, inventory_item_id: "", item_nome: "", valor_unitario: 0 };
+    setBomForm({ ...bomForm, items });
+  };
+
+  const handleBomInventorySelect = (i: number, itemId: string) => {
+    const inv = inventoryItems.find((it: any) => it.id === itemId);
+    if (!inv) return;
+    const items = [...bomForm.items];
+    items[i] = { ...items[i], inventory_item_id: inv.id, item_nome: inv.name, valor_unitario: inv.unit_cost || 0, unidade: inv.unit || "un" };
+    setBomForm({ ...bomForm, items });
+  };
 
   // Process Template CRUD
   const openNewProcess = () => { setEditingProcess(null); setProcessForm({ nome: "", produto_modelo: "", steps: [] }); setShowProcessDialog(true); };
@@ -163,18 +186,40 @@ export function ProductionTemplatesManager() {
               <div><label className="text-xs font-medium text-muted-foreground">Produto/Modelo</label><Input value={bomForm.produto_modelo} onChange={e => setBomForm({ ...bomForm, produto_modelo: e.target.value })} /></div>
             </div>
             <div className="flex justify-between items-center"><p className="text-xs font-semibold">Itens</p><Button size="sm" variant="outline" onClick={addBomItem}><Plus className="h-3.5 w-3.5 mr-1" />Item</Button></div>
-            {bomForm.items.map((item: any, i: number) => (
-              <div key={i} className="flex gap-2 items-center border rounded p-2">
-                <Input className="h-8 text-xs flex-1" value={item.item_nome} onChange={e => updateBomItem(i, "item_nome", e.target.value)} placeholder="Item" />
-                <Select value={item.categoria} onValueChange={v => updateBomItem(i, "categoria", v)}>
-                  <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(categoriaLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input className="h-8 text-xs w-14" type="number" value={item.quantidade} onChange={e => updateBomItem(i, "quantidade", parseFloat(e.target.value) || 0)} />
-                <Input className="h-8 text-xs w-20" type="number" step="0.01" value={item.valor_unitario} onChange={e => updateBomItem(i, "valor_unitario", parseFloat(e.target.value) || 0)} placeholder="R$" />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeBomItem(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
-            ))}
+            {bomForm.items.map((item: any, i: number) => {
+              const filteredInvItems = item.item_type ? inventoryItems.filter((inv: any) => inv.item_type === item.item_type) : [];
+              return (
+                <div key={i} className="flex flex-col gap-2 border rounded p-2">
+                  <div className="flex gap-2 items-center">
+                    <Select value={item.item_type || "__none__"} onValueChange={v => handleBomTypeChange(i, v === "__none__" ? "" : v)}>
+                      <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Tipo...</SelectItem>
+                        {Object.entries(itemTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={item.inventory_item_id || "__none__"}
+                      onValueChange={v => { if (v !== "__none__") handleBomInventorySelect(i, v); }}
+                      disabled={!item.item_type || filteredInvItems.length === 0}
+                    >
+                      <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder={!item.item_type ? "Selecione o tipo primeiro" : filteredInvItems.length === 0 ? "Nenhum item deste tipo" : "Selecionar item..."} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Selecionar item...</SelectItem>
+                        {filteredInvItems.map((inv: any) => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.internal_code ? `${inv.internal_code} - ` : ""}{inv.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input className="h-8 text-xs w-14" type="number" value={item.quantidade} onChange={e => updateBomItem(i, "quantidade", parseFloat(e.target.value) || 0)} placeholder="Qtd" />
+                    <Input className="h-8 text-xs w-20" type="number" step="0.01" value={item.valor_unitario} onChange={e => updateBomItem(i, "valor_unitario", parseFloat(e.target.value) || 0)} placeholder="R$" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeBomItem(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBomDialog(false)}>Cancelar</Button>
