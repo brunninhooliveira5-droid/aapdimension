@@ -437,7 +437,7 @@ export function InventoryItemsList() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedItem(item)}>
                       <TableCell className="w-12 pr-0">
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="h-8 w-8 rounded object-cover" />
