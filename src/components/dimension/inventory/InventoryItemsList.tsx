@@ -611,6 +611,5 @@ export function InventoryItemsList() {
         </DialogContent>
       </Dialog>
     </>
-    </>
   );
 }
