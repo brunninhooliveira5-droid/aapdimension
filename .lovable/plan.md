@@ -1,44 +1,37 @@
 
 
-## Plano: Controle de Sub-Usuários pelo Admin Master
+## Modificar Template BOM para selecionar itens do estoque com filtro por tipo
 
-### Resumo
+### Objetivo
+No dialog de "Novo/Editar Template BOM", substituir o input de texto "Item" por um fluxo com dois selects:
+1. **Select de Tipo** (filtro): materia_prima, componente, consumivel, ferramenta, produto_acabado
+2. **Select de Item** (do estoque): mostra apenas itens do tipo selecionado
 
-O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
+Quando o usuario selecionar um item do estoque, o nome e o custo unitario sao preenchidos automaticamente.
 
-### Alteracoes
+### Implementacao
 
-#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
+**Arquivo**: `src/components/dimension/documentation/ProductionTemplatesManager.tsx`
 
-Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
-- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
-- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
+1. **Carregar itens do estoque** - useEffect para buscar `inventoryItems` (id, name, internal_code, item_type, unit_cost) da tabela `tables.inventoryItems`
 
-#### 2. Editar limite de sub-usuarios (max_members)
+2. **Adicionar campo `item_type` em cada BOM item** - ao adicionar item, incluir `item_type: ""` e `inventory_item_id: ""`
 
-Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
-- Abrir um dialog simples com um input numerico para alterar `max_members`
-- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
-- Somente visivel/acessivel pelo admin_master
+3. **Substituir o input de texto por dois selects por linha**:
+   - Select "Tipo" com as opcoes: Materia-prima, Componente, Consumivel, Ferramenta, Produto Acabado
+   - Select "Item" que filtra `inventoryItems` pelo `item_type` selecionado
+   - Ao selecionar um item, preencher `item_nome` e `valor_unitario` automaticamente
 
-#### 3. Personificar sub-usuarios
+4. **Manter compatibilidade** - os dados salvos no JSON continuam no mesmo formato, apenas com campos extras (`item_type`, `inventory_item_id`)
 
-O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
-- Buscar os sub-usuarios (account_members) de cada conta
-- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
-- Adicionar botao de personificacao nos sub-usuarios listados
+### Fluxo visual por linha de item
+```text
+[Select Tipo ▼] [Select Item (filtrado) ▼] [Qtd] [R$] [🗑]
+```
 
-### Arquivos Modificados
-
-| Arquivo | Mudanca |
-|---|---|
-| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
-
-### Fluxo
-
-1. Admin Master abre "Gestao de Usuarios"
-2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
-3. Clicando no icone de edicao, abre dialog para alterar o limite
-4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
-5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
+### Detalhes tecnicos
+- Usar `__none__` como valor padrao dos selects (conforme padrao do projeto)
+- Filtro: `inventoryItems.filter(i => i.item_type === selectedType)`
+- Auto-fill ao selecionar item: `item_nome = item.name`, `valor_unitario = item.unit_cost`, `inventory_item_id = item.id`
+- Carregar itens apenas quando o dialog BOM abre (ou no mount)
 
