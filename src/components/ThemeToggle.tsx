@@ -94,6 +94,8 @@ export function ThemeToggle() {
     }
     localStorage.setItem("theme", theme);
     applyCustomBg();
+    // Trigger debounced auto-save to DB
+    (window as any).__saveAppearance?.();
   }, [theme]);
 
   useEffect(() => { applyCustomBg(); }, []);
