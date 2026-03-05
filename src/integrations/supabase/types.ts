@@ -3679,6 +3679,7 @@ export type Database = {
           ficha_id: string
           fornecedor: string | null
           id: string
+          inventory_item_id: string | null
           item_nome: string
           lead_time_dias: number | null
           observacao: string | null
@@ -3693,6 +3694,7 @@ export type Database = {
           ficha_id: string
           fornecedor?: string | null
           id?: string
+          inventory_item_id?: string | null
           item_nome?: string
           lead_time_dias?: number | null
           observacao?: string | null
@@ -3707,6 +3709,7 @@ export type Database = {
           ficha_id?: string
           fornecedor?: string | null
           id?: string
+          inventory_item_id?: string | null
           item_nome?: string
           lead_time_dias?: number | null
           observacao?: string | null
@@ -3721,6 +3724,13 @@ export type Database = {
             columns: ["ficha_id"]
             isOneToOne: false
             referencedRelation: "pc_production_sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_production_bom_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "pc_inventory_items"
             referencedColumns: ["id"]
           },
         ]
@@ -3966,6 +3976,7 @@ export type Database = {
       }
       pc_production_sheets: {
         Row: {
+          activated_at: string | null
           cliente: string | null
           created_at: string
           created_by: string
@@ -3980,6 +3991,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
           cliente?: string | null
           created_at?: string
           created_by: string
@@ -3994,6 +4006,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
           cliente?: string | null
           created_at?: string
           created_by?: string
@@ -4451,6 +4464,7 @@ export type Database = {
           ficha_id: string
           fornecedor: string | null
           id: string
+          inventory_item_id: string | null
           item_nome: string
           lead_time_dias: number | null
           observacao: string | null
@@ -4465,6 +4479,7 @@ export type Database = {
           ficha_id: string
           fornecedor?: string | null
           id?: string
+          inventory_item_id?: string | null
           item_nome?: string
           lead_time_dias?: number | null
           observacao?: string | null
@@ -4479,6 +4494,7 @@ export type Database = {
           ficha_id?: string
           fornecedor?: string | null
           id?: string
+          inventory_item_id?: string | null
           item_nome?: string
           lead_time_dias?: number | null
           observacao?: string | null
@@ -4493,6 +4509,13 @@ export type Database = {
             columns: ["ficha_id"]
             isOneToOne: false
             referencedRelation: "production_sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_bom_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
         ]
@@ -4660,6 +4683,7 @@ export type Database = {
       }
       production_sheets: {
         Row: {
+          activated_at: string | null
           cliente: string | null
           created_at: string
           created_by: string
@@ -4674,6 +4698,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
           cliente?: string | null
           created_at?: string
           created_by: string
@@ -4688,6 +4713,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
           cliente?: string | null
           created_at?: string
           created_by?: string
