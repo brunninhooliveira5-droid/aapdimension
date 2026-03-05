@@ -43,16 +43,30 @@ export function useSidebarNotifications(): SidebarNotifications {
         n.usuarios = ((pendingAccess ?? 0) + (pendingPro ?? 0)) > 0;
       }
 
-      // 2. Controle de Produção: overdue tasks (pc_tasks with due_date < today and status != concluída)
+      // 2. Controle de Produção: overdue tasks OR inventory alerts
       {
         const today = new Date().toISOString().split("T")[0];
-        const { count } = await supabase
-          .from("pc_tasks" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("created_by", effectiveUserId)
-          .lt("due_date", today)
-          .neq("status", "concluída");
-        n.controle_producao = (count ?? 0) > 0;
+        const [{ count: overdueTasks }, { data: lowStockItems }] = await Promise.all([
+          supabase
+            .from("pc_tasks" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("created_by", effectiveUserId)
+            .lt("due_date", today)
+            .neq("status", "concluída"),
+          supabase
+            .from("pc_inventory_items" as any)
+            .select("id, current_quantity, min_quantity")
+            .eq("is_active", true),
+        ]);
+        let inventoryAlerts = 0;
+        if (lowStockItems) {
+          for (const item of lowStockItems as any[]) {
+            const qty = Number(item.current_quantity);
+            const min = Number(item.min_quantity);
+            if (qty === 0 || (min > 0 && qty <= min)) { inventoryAlerts++; break; }
+          }
+        }
+        n.controle_producao = (overdueTasks ?? 0) > 0 || inventoryAlerts > 0;
       }
 
       // 3. Gerenciador Financeiro: overdue accounts payable
