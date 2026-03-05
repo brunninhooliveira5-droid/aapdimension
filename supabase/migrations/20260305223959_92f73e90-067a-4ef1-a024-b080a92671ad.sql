@@ -1,0 +1,1 @@
+UPDATE public.pc_inventory_items SET current_quantity = 100 WHERE id = '9db3d218-6714-4b21-b526-b727de42b35f';
