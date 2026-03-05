@@ -259,7 +259,13 @@ export function DimensionTasks() {
             <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">{categoryLabels[task.category] ?? task.category}</Badge>
           </div>
           {task.responsible && <p className="text-[10px] text-white/80 drop-shadow-sm">👤 {task.responsible}</p>}
-          {task.due_date && <p className="text-[10px] text-white/80 drop-shadow-sm">📅 {format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>}
+          {(task.start_date || task.due_date) && (
+            <p className="text-[10px] text-white/80 drop-shadow-sm">
+              📅 {task.start_date ? format(new Date(task.start_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : ""}
+              {task.start_date && task.due_date ? " → " : ""}
+              {task.due_date ? format(new Date(task.due_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : ""}
+            </p>
+          )}
           {(taskFileCounts[task.id] || 0) > 0 && <p className="text-[10px] text-white/80 flex items-center gap-1 drop-shadow-sm"><Paperclip className="w-3 h-3" />{taskFileCounts[task.id]} arquivo(s)</p>}
         </div>
       </div>
