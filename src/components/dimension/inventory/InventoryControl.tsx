@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Package, ArrowDownUp, ArrowDownToLine, ArrowUpFromLine, BookmarkCheck, Bell, Truck, ClipboardCheck, Settings } from "lucide-react";
+import { BarChart3, Package, ArrowDownUp, ArrowDownToLine, ArrowUpFromLine, BookmarkCheck, Bell, Truck, ClipboardCheck, FileText, Settings } from "lucide-react";
 import { InventoryDashboard } from "./InventoryDashboard";
 import { InventoryItemsList } from "./InventoryItemsList";
 import { InventoryMovements } from "./InventoryMovements";
@@ -10,6 +10,7 @@ import { InventoryReservations } from "./InventoryReservations";
 import { InventoryAlerts } from "./InventoryAlerts";
 import { InventorySuppliers } from "./InventorySuppliers";
 import { InventoryAudit } from "./InventoryAudit";
+import { InventoryCalibrationLogs } from "./InventoryCalibrationLogs";
 import { InventorySettings } from "./InventorySettings";
 import { useModule } from "@/contexts/ModuleContext";
 import { useInventoryAlertCount } from "@/hooks/useInventoryAlertCount";
@@ -30,6 +31,7 @@ export function InventoryControl() {
     { value: "alerts", label: "Alertas", icon: Bell },
     { value: "suppliers", label: "Fornecedores", icon: Truck },
     { value: "audit", label: "Inventário", icon: ClipboardCheck },
+    { value: "calibration-logs", label: "Logs", icon: FileText },
     { value: "settings", label: "Configurações", icon: Settings },
   ];
 
@@ -61,6 +63,7 @@ export function InventoryControl() {
         <TabsContent value="alerts"><InventoryAlerts /></TabsContent>
         <TabsContent value="suppliers"><InventorySuppliers /></TabsContent>
         <TabsContent value="audit"><InventoryAudit /></TabsContent>
+        <TabsContent value="calibration-logs"><InventoryCalibrationLogs /></TabsContent>
         <TabsContent value="settings"><InventorySettings /></TabsContent>
       </Tabs>
     </div>

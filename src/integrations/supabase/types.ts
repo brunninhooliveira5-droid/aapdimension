@@ -1899,6 +1899,39 @@ export type Database = {
           },
         ]
       }
+      inventory_calibration_logs: {
+        Row: {
+          calibrated_by: string
+          created_at: string
+          difference: number
+          id: string
+          item_id: string
+          new_quantity: number
+          old_quantity: number
+          reason: string
+        }
+        Insert: {
+          calibrated_by: string
+          created_at?: string
+          difference?: number
+          id?: string
+          item_id: string
+          new_quantity?: number
+          old_quantity?: number
+          reason?: string
+        }
+        Update: {
+          calibrated_by?: string
+          created_at?: string
+          difference?: number
+          id?: string
+          item_id?: string
+          new_quantity?: number
+          old_quantity?: number
+          reason?: string
+        }
+        Relationships: []
+      }
       inventory_categories: {
         Row: {
           created_at: string
@@ -3093,6 +3126,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pc_inventory_calibration_logs: {
+        Row: {
+          calibrated_by: string
+          created_at: string
+          difference: number
+          id: string
+          item_id: string
+          new_quantity: number
+          old_quantity: number
+          reason: string
+        }
+        Insert: {
+          calibrated_by: string
+          created_at?: string
+          difference?: number
+          id?: string
+          item_id: string
+          new_quantity?: number
+          old_quantity?: number
+          reason?: string
+        }
+        Update: {
+          calibrated_by?: string
+          created_at?: string
+          difference?: number
+          id?: string
+          item_id?: string
+          new_quantity?: number
+          old_quantity?: number
+          reason?: string
+        }
+        Relationships: []
       }
       pc_inventory_categories: {
         Row: {

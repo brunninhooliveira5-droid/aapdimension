@@ -253,8 +253,19 @@ export function InventoryItemsList() {
         return;
       }
 
+      // Register calibration log
+      await supabase.from(tables.inventoryCalibrationLogs as any).insert({
+        item_id: calibrateTarget.id,
+        old_quantity: oldQty,
+        new_quantity: newQty,
+        difference: diff,
+        reason: calibrateNote || "Calibração manual",
+        calibrated_by: session?.user.id,
+      } as any);
+
       toast.success(`Estoque calibrado: ${oldQty} → ${newQty}`);
       qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
+      qc.invalidateQueries({ queryKey: [tables.inventoryCalibrationLogs] });
       setShowCalibrateDialog(false);
       setCalibrateTarget(null);
     } catch (err: any) {
