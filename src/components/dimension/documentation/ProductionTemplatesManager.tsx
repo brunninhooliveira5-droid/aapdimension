@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, List, Route, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, List, Route, Save, Paperclip, X, Eye, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModule } from "@/contexts/ModuleContext";
@@ -25,7 +25,7 @@ const itemTypeLabels: Record<string, string> = {
 
 export function ProductionTemplatesManager() {
   const { session } = useAuth();
-  const { tables } = useModule();
+  const { tables, storage } = useModule();
   const [tab, setTab] = useState("bom");
   const [bomTemplates, setBomTemplates] = useState<any[]>([]);
   const [processTemplates, setProcessTemplates] = useState<any[]>([]);
@@ -36,6 +36,8 @@ export function ProductionTemplatesManager() {
   const [bomForm, setBomForm] = useState({ nome: "", produto_modelo: "", items: [] as any[] });
   const [processForm, setProcessForm] = useState({ nome: "", produto_modelo: "", steps: [] as any[] });
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [stepFiles, setStepFiles] = useState<Record<number, any[]>>({});
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; mime: string } | null>(null);
 
   const fetchAll = async () => {
     const [b, p] = await Promise.all([
@@ -107,22 +109,112 @@ export function ProductionTemplatesManager() {
   };
 
   // Process Template CRUD
-  const openNewProcess = () => { setEditingProcess(null); setProcessForm({ nome: "", produto_modelo: "", steps: [] }); setShowProcessDialog(true); };
-  const openEditProcess = (t: any) => { setEditingProcess(t); setProcessForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", steps: t.steps || [] }); setShowProcessDialog(true); };
+  const openNewProcess = () => { setEditingProcess(null); setProcessForm({ nome: "", produto_modelo: "", steps: [] }); setStepFiles({}); setShowProcessDialog(true); };
+  const openEditProcess = async (t: any) => {
+    setEditingProcess(t);
+    setProcessForm({ nome: t.nome, produto_modelo: t.produto_modelo || "", steps: t.steps || [] });
+    // Load existing files for this template
+    const { data } = await supabase.from(tables.processTemplateFiles as any).select("*").eq("template_id", t.id).order("step_index");
+    const grouped: Record<number, any[]> = {};
+    ((data as any[]) || []).forEach((f: any) => {
+      if (!grouped[f.step_index]) grouped[f.step_index] = [];
+      grouped[f.step_index].push(f);
+    });
+    setStepFiles(grouped);
+    setShowProcessDialog(true);
+  };
   const saveProcess = async () => {
     if (!processForm.nome.trim()) { toast.error("Nome obrigatório"); return; }
     if (editingProcess) {
       await supabase.from(tables.productionProcessTemplates as any).update({ nome: processForm.nome, produto_modelo: processForm.produto_modelo, steps: processForm.steps } as any).eq("id", editingProcess.id);
     } else {
-      await supabase.from(tables.productionProcessTemplates as any).insert({ ...processForm, created_by: session?.user.id } as any);
+      const { data } = await supabase.from(tables.productionProcessTemplates as any).insert({ ...processForm, created_by: session?.user.id } as any).select().single();
+      if (data) {
+        // Upload pending files for new template
+        const templateId = (data as any).id;
+        for (const [stepIdx, files] of Object.entries(stepFiles)) {
+          for (const f of files) {
+            if (f._pendingFile) {
+              await uploadStepFile(templateId, parseInt(stepIdx), f._pendingFile);
+            }
+          }
+        }
+      }
     }
     toast.success("Template processos salvo"); setShowProcessDialog(false); fetchAll();
   };
-  const deleteProcess = async (id: string) => { await supabase.from(tables.productionProcessTemplates as any).delete().eq("id", id); toast.success("Template removido"); fetchAll(); };
+  const deleteProcess = async (id: string) => {
+    // Delete files from storage
+    const { data: files } = await supabase.from(tables.processTemplateFiles as any).select("file_path").eq("template_id", id);
+    if (files && (files as any[]).length > 0) {
+      await supabase.storage.from(storage.processTemplateFiles).remove((files as any[]).map((f: any) => f.file_path));
+    }
+    await supabase.from(tables.productionProcessTemplates as any).delete().eq("id", id);
+    toast.success("Template removido"); fetchAll();
+  };
 
   const addProcessStep = () => setProcessForm({ ...processForm, steps: [...processForm.steps, { etapa_nome: "", setor_responsavel: "montagem", tempo_estimado_horas: null, prazo_dias: null, status: "todo" }] });
   const updateProcessStep = (i: number, field: string, val: any) => { const steps = [...processForm.steps]; steps[i][field] = val; setProcessForm({ ...processForm, steps }); };
-  const removeProcessStep = (i: number) => setProcessForm({ ...processForm, steps: processForm.steps.filter((_, idx) => idx !== i) });
+  const removeProcessStep = (i: number) => {
+    setProcessForm({ ...processForm, steps: processForm.steps.filter((_, idx) => idx !== i) });
+    // Also remove files for this step
+    const newFiles = { ...stepFiles };
+    delete newFiles[i];
+    // Re-index files for steps after the removed one
+    const reindexed: Record<number, any[]> = {};
+    Object.entries(newFiles).forEach(([k, v]) => {
+      const idx = parseInt(k);
+      reindexed[idx > i ? idx - 1 : idx] = v;
+    });
+    setStepFiles(reindexed);
+  };
+
+  const uploadStepFile = async (templateId: string, stepIndex: number, file: File) => {
+    const filePath = `${templateId}/${stepIndex}-${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from(storage.processTemplateFiles).upload(filePath, file);
+    if (uploadError) { toast.error("Erro ao enviar arquivo"); return; }
+    const { data: { publicUrl } } = supabase.storage.from(storage.processTemplateFiles).getPublicUrl(filePath);
+    await supabase.from(tables.processTemplateFiles as any).insert({
+      template_id: templateId, step_index: stepIndex, file_name: file.name,
+      file_path: filePath, file_size: file.size, mime_type: file.type, uploaded_by: session?.user.id,
+    } as any);
+    return { file_name: file.name, file_path: filePath, mime_type: file.type, id: crypto.randomUUID() };
+  };
+
+  const handleStepFileUpload = async (stepIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (editingProcess) {
+      // Upload immediately for existing template
+      for (const file of Array.from(files)) {
+        const result = await uploadStepFile(editingProcess.id, stepIndex, file);
+        if (result) {
+          setStepFiles(prev => ({ ...prev, [stepIndex]: [...(prev[stepIndex] || []), result] }));
+        }
+      }
+      toast.success("Arquivo(s) enviado(s)");
+    } else {
+      // Queue for upload after template creation
+      const pending = Array.from(files).map(f => ({ file_name: f.name, mime_type: f.type, _pendingFile: f, id: crypto.randomUUID() }));
+      setStepFiles(prev => ({ ...prev, [stepIndex]: [...(prev[stepIndex] || []), ...pending] }));
+    }
+    e.target.value = "";
+  };
+
+  const deleteStepFile = async (stepIndex: number, fileRecord: any) => {
+    if (fileRecord.file_path) {
+      await supabase.storage.from(storage.processTemplateFiles).remove([fileRecord.file_path]);
+      await supabase.from(tables.processTemplateFiles as any).delete().eq("id", fileRecord.id);
+    }
+    setStepFiles(prev => ({
+      ...prev, [stepIndex]: (prev[stepIndex] || []).filter((f: any) => f.id !== fileRecord.id)
+    }));
+    toast.success("Arquivo removido");
+  };
+
+  const getFileUrl = (filePath: string) => {
+    return supabase.storage.from(storage.processTemplateFiles).getPublicUrl(filePath).data.publicUrl;
+  };
 
   return (
     <div className="space-y-4">
@@ -261,23 +353,85 @@ export function ProductionTemplatesManager() {
               <div><label className="text-xs font-medium text-muted-foreground">Produto/Modelo</label><Input value={processForm.produto_modelo} onChange={e => setProcessForm({ ...processForm, produto_modelo: e.target.value })} /></div>
             </div>
             <div className="flex justify-between items-center"><p className="text-xs font-semibold">Etapas</p><Button size="sm" variant="outline" onClick={addProcessStep}><Plus className="h-3.5 w-3.5 mr-1" />Etapa</Button></div>
-            {processForm.steps.map((step: any, i: number) => (
-              <div key={i} className="flex gap-2 items-center border rounded p-2">
-                <span className="text-xs font-mono text-muted-foreground w-5">{i + 1}.</span>
-                <Input className="h-8 text-xs flex-1" value={step.etapa_nome} onChange={e => updateProcessStep(i, "etapa_nome", e.target.value)} placeholder="Nome da etapa" />
-                <Select value={step.setor_responsavel} onValueChange={v => updateProcessStep(i, "setor_responsavel", v)}>
-                  <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(setorLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input className="h-8 text-xs w-20" type="number" value={step.prazo_dias || ""} onChange={e => updateProcessStep(i, "prazo_dias", parseInt(e.target.value) || null)} placeholder="Dias" />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProcessStep(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
-            ))}
+            {processForm.steps.map((step: any, i: number) => {
+              const files = stepFiles[i] || [];
+              return (
+                <div key={i} className="border rounded p-2 space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-xs font-mono text-muted-foreground w-5">{i + 1}.</span>
+                    <Input className="h-8 text-xs flex-1" value={step.etapa_nome} onChange={e => updateProcessStep(i, "etapa_nome", e.target.value)} placeholder="Nome da etapa" />
+                    <Select value={step.setor_responsavel} onValueChange={v => updateProcessStep(i, "setor_responsavel", v)}>
+                      <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(setorLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input className="h-8 text-xs w-20" type="number" value={step.prazo_dias || ""} onChange={e => updateProcessStep(i, "prazo_dias", parseInt(e.target.value) || null)} placeholder="Dias" />
+                    <label className="cursor-pointer">
+                      <input type="file" multiple className="hidden" onChange={e => handleStepFileUpload(i, e)} />
+                      <div className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </div>
+                    </label>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProcessStep(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  {files.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 ml-7">
+                      {files.map((f: any) => {
+                        const isImage = f.mime_type?.startsWith("image/");
+                        const url = f.file_path ? getFileUrl(f.file_path) : null;
+                        return (
+                          <div key={f.id} className="flex items-center gap-1 bg-muted/50 border rounded px-2 py-1 text-xs group">
+                            {isImage && url ? (
+                              <img src={url} alt={f.file_name} className="h-5 w-5 rounded object-cover" />
+                            ) : (
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <span className="max-w-[100px] truncate">{f.file_name}</span>
+                            {url && (
+                              <button onClick={() => setPreviewFile({ url, name: f.file_name, mime: f.mime_type })} className="text-muted-foreground hover:text-foreground">
+                                <Eye className="h-3 w-3" />
+                              </button>
+                            )}
+                            <button onClick={() => deleteStepFile(i, f)} className="text-muted-foreground hover:text-destructive">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowProcessDialog(false)}>Cancelar</Button>
             <Button onClick={saveProcess}><Save className="h-3.5 w-3.5 mr-1" />Salvar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-sm truncate">{previewFile?.name}</DialogTitle>
+            <DialogDescription>Pré-visualização do arquivo</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center min-h-[300px]">
+            {previewFile?.mime?.startsWith("image/") ? (
+              <img src={previewFile.url} alt={previewFile.name} className="max-w-full max-h-[70vh] object-contain rounded" />
+            ) : previewFile?.mime === "application/pdf" ? (
+              <iframe src={previewFile.url} className="w-full h-[70vh] rounded border" />
+            ) : (
+              <div className="text-center space-y-3">
+                <FileText className="h-16 w-16 mx-auto text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">{previewFile?.name}</p>
+                <a href={previewFile?.url} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline">Baixar arquivo</Button>
+                </a>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
