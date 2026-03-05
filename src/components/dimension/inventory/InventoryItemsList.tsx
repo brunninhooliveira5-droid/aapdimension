@@ -16,6 +16,7 @@ import { Plus, Search, Package, Pencil, Trash2, ShieldAlert } from "lucide-react
 import { toast } from "sonner";
 import { CurrencyInput } from "./CurrencyInput";
 import { InventoryImageUpload } from "./InventoryImageUpload";
+import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
 
 const ITEM_TYPES = [
   { value: "materia_prima", label: "Matéria-prima" },
@@ -45,10 +46,16 @@ export function InventoryItemsList() {
   const [customCompatible, setCustomCompatible] = useState<string[]>([]);
   const [newCompatibleInput, setNewCompatibleInput] = useState("");
 
+  // Password prompt state for add/delete
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteVerifying, setDeleteVerifying] = useState(false);
+
+  const table = tables.inventoryItems.startsWith("pc_") ? "pc" as const : "dimension" as const;
 
   // Load compatible options from settings
   const { data: settings } = useQuery({
@@ -170,20 +177,10 @@ export function InventoryItemsList() {
     setOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget || !deletePassword.trim()) return;
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     setDeleteVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-admin-password", {
-        body: { password: deletePassword },
-      });
-      if (error) throw error;
-      if (!data?.valid) {
-        toast.error("Senha incorreta!");
-        return;
-      }
-
-      // Soft delete (set is_active = false)
       const { error: delErr } = await supabase.from(tables.inventoryItems as any)
         .update({ is_active: false }).eq("id", deleteTarget.id);
       if (delErr) throw delErr;
@@ -191,12 +188,22 @@ export function InventoryItemsList() {
       toast.success("Item excluído!");
       qc.invalidateQueries({ queryKey: [tables.inventoryItems] });
       setDeleteTarget(null);
-      setDeletePassword("");
     } catch (e: any) {
       toast.error(e.message || "Erro ao excluir");
     } finally {
       setDeleteVerifying(false);
     }
+  };
+
+  const requestAdd = () => {
+    setPendingAction(() => () => setOpen(true));
+    setPasswordPromptOpen(true);
+  };
+
+  const requestDelete = (item: any) => {
+    setDeleteTarget(item);
+    setPendingAction(() => () => executeDelete());
+    setPasswordPromptOpen(true);
   };
 
   const filtered = (items as any[]).filter((i) =>
@@ -381,14 +388,16 @@ export function InventoryItemsList() {
             <CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" />Itens de Estoque</CardTitle>
             <Dialog open={open} onOpenChange={(v) => { if (!v) closeForm(); else setOpen(true); }}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+                <Button size="sm" onClick={(e) => { e.preventDefault(); requestAdd(); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingItem ? "Editar Item" : "Novo Item de Estoque"}</DialogTitle>
-                </DialogHeader>
-                {renderForm()}
-              </DialogContent>
+              {open && (
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingItem ? "Editar Item" : "Novo Item de Estoque"}</DialogTitle>
+                  </DialogHeader>
+                  {renderForm()}
+                </DialogContent>
+              )}
             </Dialog>
           </div>
         </CardHeader>
@@ -445,7 +454,7 @@ export function InventoryItemsList() {
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => requestDelete(item)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -459,41 +468,19 @@ export function InventoryItemsList() {
         </CardContent>
       </Card>
 
-      {/* Delete confirmation dialog with password */}
-      <Dialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) { setDeleteTarget(null); setDeletePassword(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <ShieldAlert className="h-5 w-5" />
-              Confirmar Exclusão
-            </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir <strong>{deleteTarget?.name}</strong>? 
-              Para confirmar, digite a senha de login do Administrador Master.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Senha do Admin Master</Label>
-              <Input
-                type="password"
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder="Digite a senha..."
-                onKeyDown={(e) => e.key === "Enter" && handleDelete()}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeletePassword(""); }}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteVerifying || !deletePassword.trim()}>
-              {deleteVerifying ? "Verificando..." : "Excluir Item"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InventoryPasswordPrompt
+        open={passwordPromptOpen}
+        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) setDeleteTarget(null); } }}
+        onSuccess={() => {
+          if (pendingAction) {
+            pendingAction();
+            setPendingAction(null);
+          }
+        }}
+        table={table}
+        title={deleteTarget ? "Confirmar Exclusão" : "Autenticação de Estoque"}
+        description={deleteTarget ? `Digite a senha do estoque para excluir "${deleteTarget?.name}".` : "Digite a senha do estoque para cadastrar um novo item."}
+      />
     </>
   );
 }

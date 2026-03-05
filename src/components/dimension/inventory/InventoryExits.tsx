@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowUpFromLine, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { InventoryPasswordPrompt } from "./InventoryPasswordPrompt";
 
 const DESTINATIONS = [
   { value: "producao", label: "Produção" },
@@ -26,7 +27,10 @@ export function InventoryExits() {
   const { tables } = useModule();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [form, setForm] = useState({ item_id: "", quantity: "", destination: "producao", linked_project: "", linked_machine: "", notes: "" });
+
+  const table = tables.inventoryItems.startsWith("pc_") ? "pc" as const : "dimension" as const;
 
   const { data: items = [] } = useQuery({
     queryKey: [tables.inventoryItems],
@@ -72,50 +76,59 @@ export function InventoryExits() {
   });
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2"><ArrowUpFromLine className="h-4 w-4" />Saídas</CardTitle>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm"><Plus className="h-4 w-4 mr-1" />Nova Saída</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Registrar Saída</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div>
-                  <Label>Item *</Label>
-                  <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar item" /></SelectTrigger>
-                    <SelectContent>{(items as any[]).map((i) => <SelectItem key={i.id} value={i.id}>{i.name} (Estoque: {Number(i.current_quantity)})</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Quantidade *</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
-                  <div>
-                    <Label>Destino *</Label>
-                    <Select value={form.destination} onValueChange={(v) => setForm({ ...form, destination: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{DESTINATIONS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Projeto</Label><Input value={form.linked_project} onChange={(e) => setForm({ ...form, linked_project: e.target.value })} /></div>
-                  <div><Label>Máquina</Label><Input value={form.linked_machine} onChange={(e) => setForm({ ...form, linked_machine: e.target.value })} /></div>
-                </div>
-                <div><Label>Observação</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-                <Button onClick={() => createExit.mutate()} disabled={createExit.isPending} className="w-full">
-                  {createExit.isPending ? "Registrando..." : "Registrar Saída"}
-                </Button>
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2"><ArrowUpFromLine className="h-4 w-4" />Saídas</CardTitle>
+            <Button size="sm" onClick={() => setPasswordOpen(true)}><Plus className="h-4 w-4 mr-1" />Nova Saída</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">As saídas registradas aparecem na aba Movimentações com tipo "Saída".</p>
+        </CardContent>
+      </Card>
+
+      <InventoryPasswordPrompt
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+        onSuccess={() => setOpen(true)}
+        table={table}
+        description="Digite a senha do estoque para registrar uma saída."
+      />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Registrar Saída</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Item *</Label>
+              <Select value={form.item_id} onValueChange={(v) => setForm({ ...form, item_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecionar item" /></SelectTrigger>
+                <SelectContent>{(items as any[]).map((i) => <SelectItem key={i.id} value={i.id}>{i.name} (Estoque: {Number(i.current_quantity)})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Quantidade *</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
+              <div>
+                <Label>Destino *</Label>
+                <Select value={form.destination} onValueChange={(v) => setForm({ ...form, destination: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{DESTINATIONS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">As saídas registradas aparecem na aba Movimentações com tipo "Saída".</p>
-      </CardContent>
-    </Card>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Projeto</Label><Input value={form.linked_project} onChange={(e) => setForm({ ...form, linked_project: e.target.value })} /></div>
+              <div><Label>Máquina</Label><Input value={form.linked_machine} onChange={(e) => setForm({ ...form, linked_machine: e.target.value })} /></div>
+            </div>
+            <div><Label>Observação</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <Button onClick={() => createExit.mutate()} disabled={createExit.isPending} className="w-full">
+              {createExit.isPending ? "Registrando..." : "Registrar Saída"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
