@@ -25,6 +25,7 @@ export interface ModuleConfig {
     inventorySettings: string;
     inventorySessions: string;
     inventorySessionItems: string;
+    inventoryItemFiles: string;
     // Production documentation tables
     productionSheets: string;
     productionBomItems: string;
