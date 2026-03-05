@@ -382,9 +382,11 @@ export function InventoryItemsList() {
     </div>
   );
 
-  if (selectedItem) {
-    return <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />;
-  }
+  return (
+    <>
+      {selectedItem && (
+        <InventoryItemDashboard item={selectedItem} onBack={() => setSelectedItem(null)} />
+      )}
 
   return (
     <>
