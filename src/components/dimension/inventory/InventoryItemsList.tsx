@@ -490,5 +490,6 @@ export function InventoryItemsList() {
         description={deleteTarget ? `Digite a senha do estoque para excluir "${deleteTarget?.name}".` : "Digite a senha do estoque para cadastrar um novo item."}
       />
     </>
+    </>
   );
 }
