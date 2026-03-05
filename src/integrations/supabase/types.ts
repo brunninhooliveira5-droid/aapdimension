@@ -1937,6 +1937,39 @@ export type Database = {
           },
         ]
       }
+      inventory_item_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          item_id: string
+          mime_type: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          item_id: string
+          mime_type?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          item_id?: string
+          mime_type?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           avg_cost: number
@@ -3098,6 +3131,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pc_inventory_item_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          item_id: string
+          mime_type: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          item_id: string
+          mime_type?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          item_id?: string
+          mime_type?: string
+          uploaded_by?: string
+        }
+        Relationships: []
       }
       pc_inventory_items: {
         Row: {
