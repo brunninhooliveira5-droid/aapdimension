@@ -41,6 +41,7 @@ export function InventoryItemsList() {
   const { tables } = useModule();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
