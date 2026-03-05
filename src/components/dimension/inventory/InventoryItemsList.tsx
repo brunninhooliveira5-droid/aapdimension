@@ -388,14 +388,16 @@ export function InventoryItemsList() {
             <CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" />Itens de Estoque</CardTitle>
             <Dialog open={open} onOpenChange={(v) => { if (!v) closeForm(); else setOpen(true); }}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+                <Button size="sm" onClick={(e) => { e.preventDefault(); requestAdd(); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingItem ? "Editar Item" : "Novo Item de Estoque"}</DialogTitle>
-                </DialogHeader>
-                {renderForm()}
-              </DialogContent>
+              {open && (
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingItem ? "Editar Item" : "Novo Item de Estoque"}</DialogTitle>
+                  </DialogHeader>
+                  {renderForm()}
+                </DialogContent>
+              )}
             </Dialog>
           </div>
         </CardHeader>
