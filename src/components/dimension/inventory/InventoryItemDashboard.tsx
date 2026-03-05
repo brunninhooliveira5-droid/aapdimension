@@ -27,6 +27,45 @@ interface InventoryItemDashboardProps {
 export function InventoryItemDashboard({ item, onBack }: InventoryItemDashboardProps) {
   const { tables } = useModule();
 
+  // Draggable state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Center the card on mount
+  useEffect(() => {
+    const centerX = Math.max(0, (window.innerWidth - 700) / 2);
+    const centerY = Math.max(20, (window.innerHeight - 600) / 2);
+    setPosition({ x: centerX, y: centerY });
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    setIsDragging(true);
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  }, [position]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setPosition({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y,
+      });
+    };
+    const handleMouseUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
   // Fetch movements for this item (last 90 days)
   const { data: movements = [] } = useQuery({
     queryKey: [tables.inventoryMovements, "item-dashboard", item.id],
