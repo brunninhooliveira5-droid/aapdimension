@@ -68,6 +68,7 @@ export const dimensionConfig: ModuleConfig = {
     inventorySessions: "inventory_sessions",
     inventorySessionItems: "inventory_session_items",
     inventoryItemFiles: "inventory_item_files",
+    inventoryCalibrationLogs: "inventory_calibration_logs",
     productionSheets: "production_sheets",
     productionBomItems: "production_bom_items",
     productionProcessSteps: "production_process_steps",
