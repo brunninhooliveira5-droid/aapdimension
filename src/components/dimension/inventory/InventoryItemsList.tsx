@@ -546,7 +546,7 @@ export function InventoryItemsList() {
 
       <InventoryPasswordPrompt
         open={passwordPromptOpen}
-        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open) { setDeleteTarget(null); setCalibrateTarget(null); } } }}
+        onOpenChange={(v) => { if (!v) { setPasswordPromptOpen(false); if (!open && !showCalibrateDialog) { setDeleteTarget(null); setCalibrateTarget(null); } } }}
         onSuccess={() => {
           if (pendingAction) {
             pendingAction();
