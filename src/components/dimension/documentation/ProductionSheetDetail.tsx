@@ -333,7 +333,20 @@ export function ProductionSheetDetail({ sheet, onBack }: Props) {
         }
       }
 
-      // 3. Mark sheet as deactivated
+      // 3. Delete tasks created during activation
+      const { error: deleteTasksErr } = await supabase
+        .from(tables.tasks as any)
+        .delete()
+        .like("title", `% — ${sheet.nome_projeto}` as any)
+        .eq("category", "producao" as any);
+      if (deleteTasksErr) {
+        console.error("Erro ao excluir tarefas:", deleteTasksErr);
+        toast.error("Estoque ajustado, mas erro ao remover tarefas dos setores");
+      } else {
+        toast.success("Tarefas dos setores removidas");
+      }
+
+      // 4. Mark sheet as deactivated
       await supabase.from(tables.productionSheets as any)
         .update({ activated_at: null, status: "planejamento" } as any)
         .eq("id", sheet.id);
