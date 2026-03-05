@@ -71,9 +71,10 @@ export function InventoryEntries() {
     exportInventoryPdf({
       title: "Entradas de Estoque",
       filterLabel,
-      columns: ["Data", "Item", "Qtd", "Motivo", "Projeto"],
+      columns: ["Data", "Código", "Item", "Qtd", "Motivo", "Projeto"],
       rows: filtered.map((m: any) => [
         format(new Date(m.created_at), "dd/MM/yy HH:mm"),
+        m[tables.inventoryItems]?.internal_code || "-",
         m[tables.inventoryItems]?.name || "-",
         String(Number(m.quantity)),
         m.reason || "-",
