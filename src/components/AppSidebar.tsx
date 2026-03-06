@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell, Wrench } from "lucide-react";
+import { OperationsPanel } from "@/components/OperationsPanel";
 import { useSidebarNotifications } from "@/hooks/useSidebarNotifications";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
@@ -66,6 +67,7 @@ export function AppSidebar() {
   const { toggleCalculator } = useCalculator();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [operationsOpen, setOperationsOpen] = useState(false);
   const sidebarNotifications = useSidebarNotifications();
 
   const handleLogout = async () => {
@@ -183,6 +185,13 @@ export function AppSidebar() {
                 <SidebarMenuButton tooltip="Calculadora" onClick={toggleCalculator} className="hover:bg-sidebar-accent cursor-pointer">
                   <CalculatorIcon className="h-4 w-4" />
                   <span>Calculadora</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Operações */}
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Operações" onClick={() => setOperationsOpen(true)} className="hover:bg-sidebar-accent cursor-pointer">
+                  <Wrench className="h-4 w-4" />
+                  <span>Operações</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -360,6 +369,7 @@ export function AppSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OperationsPanel open={operationsOpen} onOpenChange={setOperationsOpen} />
     </Sidebar>
   );
 }
