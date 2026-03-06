@@ -369,6 +369,7 @@ export function AppSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OperationsPanel open={operationsOpen} onOpenChange={setOperationsOpen} />
     </Sidebar>
   );
 }
