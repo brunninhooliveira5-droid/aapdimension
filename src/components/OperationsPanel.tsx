@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Wrench, ChevronRight } from "lucide-react";
+import { Wrench, ChevronRight, Package, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface OperationsPanelProps {
   open: boolean;
@@ -9,11 +9,18 @@ interface OperationsPanelProps {
 }
 
 const operationTabs = [
-  // Placeholder tabs — will be filled in future iterations
-  { id: "op1", label: "Em breve…", icon: Wrench, disabled: true },
+  { id: "estoque", label: "Controle de Estoque", icon: Package, route: "/operacoes/estoque", disabled: false },
+  { id: "fichas", label: "Fichas de Operação", icon: FileText, route: "/operacoes/fichas", disabled: false },
 ];
 
 export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
+  const navigate = useNavigate();
+
+  const handleClick = (route: string) => {
+    navigate(route);
+    onOpenChange(false);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 sm:w-80 p-0 border-r border-border">
@@ -30,6 +37,7 @@ export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
               key={tab.id}
               variant="ghost"
               disabled={tab.disabled}
+              onClick={() => handleClick(tab.route)}
               className="justify-between h-10 text-sm font-normal hover:bg-accent"
             >
               <span className="flex items-center gap-2">
@@ -39,10 +47,6 @@ export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
               {!tab.disabled && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
             </Button>
           ))}
-
-          <p className="text-[11px] text-muted-foreground text-center mt-4 px-2">
-            Novas operações serão adicionadas aqui.
-          </p>
         </div>
       </SheetContent>
     </Sheet>

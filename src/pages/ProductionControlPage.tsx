@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target, Package, Bell } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
@@ -8,10 +8,8 @@ import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
-import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
 import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useInventoryAlertCount } from "@/hooks/useInventoryAlertCount";
 
 const allTabs = [
   { value: "overview", label: "Visão Geral", icon: LayoutDashboard, permKey: null },
@@ -21,7 +19,6 @@ const allTabs = [
   { value: "production", label: "Produção", icon: Factory, permKey: "pc_producao" },
   { value: "routines", label: "Rotinas", icon: RotateCcw, permKey: "pc_rotinas" },
   { value: "metas", label: "Metas", icon: Target, permKey: "pc_metas" },
-  { value: "estoque", label: "Estoque/Produção", icon: Package, permKey: "pc_estoque" },
 ];
 
 export default function ProductionControlPage() {
