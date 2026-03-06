@@ -31,6 +31,8 @@ import DimensionPortal from "./pages/DimensionPortal";
 import ProductionControlPage from "./pages/ProductionControlPage";
 import CompanyUsersPage from "./pages/CompanyUsersPage";
 import AdminUserDetailPage from "./pages/AdminUserDetailPage";
+import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
+import OperacoesFichasPage from "./pages/OperacoesFichasPage";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +85,8 @@ const AppRoutes = () => {
         <Route path="/cadastro-equipamentos/:equipmentId" element={<RoleGate section="maquinas"><EquipmentDashboard /></RoleGate>} />
         <Route path="/dimension" element={<RoleGate section="dimension"><DimensionPortal /></RoleGate>} />
         <Route path="/controle-producao" element={<RoleGate section="controle_producao"><ProductionControlPage /></RoleGate>} />
+        <Route path="/operacoes/estoque" element={<RoleGate section="controle_producao"><OperacoesEstoquePage /></RoleGate>} />
+        <Route path="/operacoes/fichas" element={<RoleGate section="controle_producao"><OperacoesFichasPage /></RoleGate>} />
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
