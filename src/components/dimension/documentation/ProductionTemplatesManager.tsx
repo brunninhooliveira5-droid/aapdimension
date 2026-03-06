@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const categoriaLabels: Record<string, string> = { mecanica: "Mecânica", eletrica: "Elétrica", eletronica: "Eletrônica", acabamento: "Acabamento", outro: "Outro" };
-const setorLabels: Record<string, string> = { cnc: "CNC", laser: "Laser", torno: "Torno", "3d": "3D", montagem: "Montagem", eletrica: "Elétrica", adm: "Adm" };
+// Sectors are now fetched dynamically from production cards
 const unidadeOptions = ["un", "m", "kg", "mm", "cm", "L", "pç", "conj"];
 const itemTypeLabels: Record<string, string> = {
   materia_prima: "Matéria-prima",
