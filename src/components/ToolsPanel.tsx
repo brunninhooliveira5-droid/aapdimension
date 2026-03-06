@@ -1,6 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Hammer, ChevronRight } from "lucide-react";
+import { Hammer, ChevronRight, Calculator } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ToolsPanelProps {
   open: boolean;
@@ -8,10 +9,17 @@ interface ToolsPanelProps {
 }
 
 const toolTabs = [
-  { id: "tool1", label: "Em breve…", icon: Hammer, disabled: true },
+  { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", disabled: false },
 ];
 
 export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
+  const navigate = useNavigate();
+
+  const handleClick = (route: string) => {
+    navigate(route);
+    onOpenChange(false);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 sm:w-80 p-0 border-r border-border">
@@ -28,19 +36,16 @@ export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
               key={tab.id}
               variant="ghost"
               disabled={tab.disabled}
+              onClick={() => !tab.disabled && handleClick(tab.route)}
               className="justify-between h-10 text-sm font-normal hover:bg-accent"
             >
               <span className="flex items-center gap-2">
                 <tab.icon className="h-4 w-4 text-muted-foreground" />
                 {tab.label}
               </span>
-              {!tab.disabled && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           ))}
-
-          <p className="text-[11px] text-muted-foreground text-center mt-4 px-2">
-            Novas ferramentas serão adicionadas aqui.
-          </p>
         </div>
       </SheetContent>
     </Sheet>
