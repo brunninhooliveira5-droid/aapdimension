@@ -45,7 +45,7 @@ const basicMenuItems = [
   { title: "Equipamentos Dimension", url: "/equipamentos", icon: Package, section: "equipamentos" },
   { title: "Peças e Acessórios", url: "/pecas", icon: ShoppingBag, section: "pecas" },
   { title: "Faturas", url: "/boletos", icon: Receipt, section: "financeiro" },
-  { title: "Orçamento de Corte", url: "/orcamento", icon: Calculator, section: "orcamento" },
+  // "Orçamento de Corte" moved to ToolsPanel
   { title: "Controle de Produção", url: "/controle-producao", icon: Factory, section: "controle_producao" },
   { title: "Colaboradores", url: "/empresa/usuarios", icon: Users, section: "empresa" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, section: "configuracoes" },
