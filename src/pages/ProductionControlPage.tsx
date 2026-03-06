@@ -66,7 +66,6 @@ export default function ProductionControlPage() {
           <TabsContent value="production"><DimensionProduction /></TabsContent>
           <TabsContent value="routines"><DimensionRoutines /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
-          <TabsContent value="metas"><DimensionGoals /></TabsContent>
         </Tabs>
       </div>
     </ModuleProvider>
