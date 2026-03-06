@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Package, ArrowDownUp, ArrowDownToLine, ArrowUpFromLine, BookmarkCheck, Bell, Truck, ClipboardCheck, FileText, Settings } from "lucide-react";
+import { BarChart3, Package, ArrowDownUp, BookmarkCheck, Bell, Truck, ClipboardCheck, FileText, Settings } from "lucide-react";
 import { InventoryDashboard } from "./InventoryDashboard";
 import { InventoryItemsList } from "./InventoryItemsList";
 import { InventoryMovements } from "./InventoryMovements";
-import { InventoryEntries } from "./InventoryEntries";
-import { InventoryExits } from "./InventoryExits";
+import { InventoryEntriesExits } from "./InventoryEntriesExits";
 import { InventoryReservations } from "./InventoryReservations";
 import { InventoryAlerts } from "./InventoryAlerts";
 import { InventorySuppliers } from "./InventorySuppliers";
@@ -25,8 +24,7 @@ export function InventoryControl() {
     { value: "dashboard", label: "Visão Geral", icon: BarChart3 },
     { value: "items", label: "Itens", icon: Package },
     { value: "movements", label: "Movimentações", icon: ArrowDownUp },
-    { value: "entries", label: "Entradas", icon: ArrowDownToLine },
-    { value: "exits", label: "Saídas", icon: ArrowUpFromLine },
+    { value: "entries-exits", label: "Entradas/Saídas", icon: ArrowDownUp },
     { value: "reservations", label: "Reservas", icon: BookmarkCheck },
     { value: "alerts", label: "Alertas", icon: Bell },
     { value: "suppliers", label: "Fornecedores", icon: Truck },
@@ -57,8 +55,7 @@ export function InventoryControl() {
         <TabsContent value="dashboard"><InventoryDashboard /></TabsContent>
         <TabsContent value="items"><InventoryItemsList /></TabsContent>
         <TabsContent value="movements"><InventoryMovements /></TabsContent>
-        <TabsContent value="entries"><InventoryEntries /></TabsContent>
-        <TabsContent value="exits"><InventoryExits /></TabsContent>
+        <TabsContent value="entries-exits"><InventoryEntriesExits /></TabsContent>
         <TabsContent value="reservations"><InventoryReservations /></TabsContent>
         <TabsContent value="alerts"><InventoryAlerts /></TabsContent>
         <TabsContent value="suppliers"><InventorySuppliers /></TabsContent>
