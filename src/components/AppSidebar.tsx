@@ -69,6 +69,7 @@ export function AppSidebar() {
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [operationsOpen, setOperationsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const sidebarNotifications = useSidebarNotifications();
 
   const handleLogout = async () => {
@@ -193,6 +194,13 @@ export function AppSidebar() {
                 <SidebarMenuButton tooltip="Operações" onClick={() => setOperationsOpen(true)} className="hover:bg-sidebar-accent cursor-pointer">
                   <Wrench className="h-4 w-4" />
                   <span>Operações</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Ferramentas */}
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Ferramentas" onClick={() => setToolsOpen(true)} className="hover:bg-sidebar-accent cursor-pointer">
+                  <Hammer className="h-4 w-4" />
+                  <span>Ferramentas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -371,6 +379,7 @@ export function AppSidebar() {
         </DialogContent>
       </Dialog>
       <OperationsPanel open={operationsOpen} onOpenChange={setOperationsOpen} />
+      <ToolsPanel open={toolsOpen} onOpenChange={setToolsOpen} />
     </Sidebar>
   );
 }
