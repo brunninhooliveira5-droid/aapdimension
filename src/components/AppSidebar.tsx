@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell, Wrench } from "lucide-react";
+import { OperationsPanel } from "@/components/OperationsPanel";
 import { useSidebarNotifications } from "@/hooks/useSidebarNotifications";
 import { useCalculator } from "@/contexts/CalculatorContext";
 import { NavLink } from "@/components/NavLink";
