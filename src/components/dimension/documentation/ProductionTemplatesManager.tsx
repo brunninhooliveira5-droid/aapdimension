@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const categoriaLabels: Record<string, string> = { mecanica: "Mecânica", eletrica: "Elétrica", eletronica: "Eletrônica", acabamento: "Acabamento", outro: "Outro" };
-const setorLabels: Record<string, string> = { cnc: "CNC", laser: "Laser", torno: "Torno", "3d": "3D", montagem: "Montagem", eletrica: "Elétrica", adm: "Adm" };
+// Sectors are now fetched dynamically from production cards
 const unidadeOptions = ["un", "m", "kg", "mm", "cm", "L", "pç", "conj"];
 const itemTypeLabels: Record<string, string> = {
   materia_prima: "Matéria-prima",
@@ -38,6 +38,7 @@ export function ProductionTemplatesManager() {
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [stepFiles, setStepFiles] = useState<Record<number, any[]>>({});
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; mime: string } | null>(null);
+  const [sectorOptions, setSectorOptions] = useState<{ key: string; title: string }[]>([]);
 
   const fetchAll = async () => {
     const [b, p] = await Promise.all([
@@ -49,6 +50,14 @@ export function ProductionTemplatesManager() {
   };
 
   useEffect(() => { fetchAll(); }, [tables]);
+
+  useEffect(() => {
+    const fetchSectors = async () => {
+      const { data } = await supabase.from(tables.productionCards as any).select("key, title").order("title");
+      setSectorOptions((data as any[]) || []);
+    };
+    fetchSectors();
+  }, [tables]);
 
   useEffect(() => {
     const fetchInventory = async () => {
@@ -155,7 +164,7 @@ export function ProductionTemplatesManager() {
     toast.success("Template removido"); fetchAll();
   };
 
-  const addProcessStep = () => setProcessForm({ ...processForm, steps: [...processForm.steps, { etapa_nome: "", setor_responsavel: "montagem", tempo_estimado_horas: null, prazo_dias: null, status: "todo" }] });
+  const addProcessStep = () => setProcessForm({ ...processForm, steps: [...processForm.steps, { etapa_nome: "", setor_responsavel: sectorOptions[0]?.key || "", tempo_estimado_horas: null, prazo_dias: null, status: "todo" }] });
   const updateProcessStep = (i: number, field: string, val: any) => { const steps = [...processForm.steps]; steps[i][field] = val; setProcessForm({ ...processForm, steps }); };
   const removeProcessStep = (i: number) => {
     setProcessForm({ ...processForm, steps: processForm.steps.filter((_, idx) => idx !== i) });
@@ -364,7 +373,7 @@ export function ProductionTemplatesManager() {
                     <Input className="h-8 text-xs flex-1" value={step.etapa_nome} onChange={e => updateProcessStep(i, "etapa_nome", e.target.value)} placeholder="Nome da etapa" />
                     <Select value={step.setor_responsavel} onValueChange={v => updateProcessStep(i, "setor_responsavel", v)}>
                       <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(setorLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                      <SelectContent>{sectorOptions.map(s => <SelectItem key={s.key} value={s.key}>{s.title}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input className="h-8 text-xs w-20" type="number" value={step.prazo_dias || ""} onChange={e => updateProcessStep(i, "prazo_dias", parseInt(e.target.value) || null)} placeholder="Dias" />
                     <label className="cursor-pointer">
