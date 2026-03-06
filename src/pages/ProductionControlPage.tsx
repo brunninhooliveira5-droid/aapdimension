@@ -24,8 +24,6 @@ const allTabs = [
 export default function ProductionControlPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const { user } = useAuth();
-  const { data: alertCount = 0 } = useInventoryAlertCount(productionControlConfig.tables.inventoryItems, productionControlConfig.tables.inventoryMovements);
-  const hasInventoryAlerts = alertCount > 0;
 
   // Admin and admin_master see all tabs; sub-users respect pc_* permissions
   const isAdmin = user?.role === "admin_master" || user?.accountMembership?.memberRole === "client_admin";
@@ -49,20 +47,16 @@ export default function ProductionControlPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
-            {visibleTabs.map((tab) => {
-              const isEstoqueAlert = tab.value === "estoque" && hasInventoryAlerts;
-              return (
+            {visibleTabs.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className={`gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${isEstoqueAlert ? "text-destructive" : ""}`}
+                  className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  <tab.icon className={`h-3.5 w-3.5 ${isEstoqueAlert ? "text-destructive animate-pulse" : ""}`} />
-                  <span className={isEstoqueAlert ? "text-destructive animate-pulse" : ""}>{tab.label}</span>
-                  {isEstoqueAlert && <Bell className="h-3 w-3 text-destructive animate-pulse -ml-1" />}
+                  <tab.icon className="h-3.5 w-3.5" />
+                  <span>{tab.label}</span>
                 </TabsTrigger>
-              );
-            })}
+              ))}
           </TabsList>
 
           <TabsContent value="overview"><DimensionOverview onNavigateToTasks={() => setActiveTab("tasks")} /></TabsContent>
@@ -72,7 +66,7 @@ export default function ProductionControlPage() {
           <TabsContent value="production"><DimensionProduction /></TabsContent>
           <TabsContent value="routines"><DimensionRoutines /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
-          <TabsContent value="estoque"><DimensionDocumentation /></TabsContent>
+          <TabsContent value="metas"><DimensionGoals /></TabsContent>
         </Tabs>
       </div>
     </ModuleProvider>
