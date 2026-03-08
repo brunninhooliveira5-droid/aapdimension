@@ -397,7 +397,7 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
   });
 }
 
-
+async function exportSheetRealScale(data: CuttingPlanPdfData) {
   const dims = data.dimensions.replace(/\s/g, "").split("x");
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
