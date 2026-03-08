@@ -75,7 +75,7 @@ const modeTabs = [
   { value: "stacked", label: "Stacked Slices", icon: Layers },
   { value: "interlocked", label: "Interlocked", icon: Grid3x3 },
   { value: "radial", label: "Radial / Curve", icon: Sun },
-  { value: "unfold", label: "Planificação", icon: Unfold },
+  { value: "unfold", label: "Planificação", icon: Ungroup },
 ];
 
 export default function Slicer3DPage() {
