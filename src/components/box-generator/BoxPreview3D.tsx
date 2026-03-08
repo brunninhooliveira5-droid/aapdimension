@@ -156,27 +156,89 @@ export function BoxPreview3D({ params, className }: Props) {
     const isOpen = params.boxType === "open";
     const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
     const hw = W / 2, hh = H / 2, hd = D / 2;
+    const t = materialT; // shorthand for thickness
 
     // Wood/MDF-like colors with warm tones
-    const woodMain = "#d4a553";
-    const woodSide = "#c49340";
-    const woodDark = "#b07e30";
+    const woodOuter = "#d4a553";
+    const woodInner = "#c49340";
+    const woodEdge = "#b07e30";
     const woodLight = "#e2b96a";
-    const woodTop = "#dbb05c";
+    const woodEdgeDark = "#a06e28";
 
-    const faces: Face3D[] = [
-      { pts: [[-hw, -hh, -hd], [hw, -hh, -hd], [hw, -hh, hd], [-hw, -hh, hd]], fill: woodDark, opacity: 0.95, label: "Fundo" },
-      { pts: [[-hw, -hh, -hd], [hw, -hh, -hd], [hw, hh, -hd], [-hw, hh, -hd]], fill: woodSide, opacity: 0.90, label: "Traseira" },
-      { pts: [[-hw, -hh, -hd], [-hw, -hh, hd], [-hw, hh, hd], [-hw, hh, -hd]], fill: woodDark, opacity: 0.85, label: "Esquerda" },
-      { pts: [[hw, -hh, -hd], [hw, -hh, hd], [hw, hh, hd], [hw, hh, -hd]], fill: woodSide, opacity: 0.90, label: "Direita" },
-      { pts: [[-hw, -hh, hd], [hw, -hh, hd], [hw, hh, hd], [-hw, hh, hd]], fill: woodMain, opacity: 0.95, label: "Frente" },
-    ];
+    const faces: Face3D[] = [];
 
+    // Helper: add a thick wall slab (outer face, inner face, 4 edge faces)
+    const addThickWall = (
+      outerCorners: number[][], // 4 corners of outer face
+      inwardDir: number[],      // direction toward inside of box
+      label: string,
+      outerColor: string,
+      innerColor: string,
+      edgeColor: string,
+    ) => {
+      const inner = outerCorners.map(p => [
+        p[0] + inwardDir[0] * t,
+        p[1] + inwardDir[1] * t,
+        p[2] + inwardDir[2] * t,
+      ]);
+      // Outer face
+      faces.push({ pts: outerCorners, fill: outerColor, opacity: 0.95, label });
+      // Inner face (reversed winding)
+      faces.push({ pts: [inner[3], inner[2], inner[1], inner[0]], fill: innerColor, opacity: 0.85, label: "" });
+      // 4 edge strips connecting outer to inner
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        faces.push({
+          pts: [outerCorners[i], outerCorners[j], inner[j], inner[i]],
+          fill: edgeColor, opacity: 0.90, label: "",
+        });
+      }
+    };
+
+    // ── Bottom wall (Y = -hh, inward = +Y) ──
+    addThickWall(
+      [[-hw, -hh, -hd], [hw, -hh, -hd], [hw, -hh, hd], [-hw, -hh, hd]],
+      [0, 1, 0], "Fundo", woodEdge, woodInner, woodEdgeDark,
+    );
+
+    // ── Back wall (Z = -hd, inward = +Z) ──
+    addThickWall(
+      [[-hw, -hh, -hd], [hw, -hh, -hd], [hw, hh, -hd], [-hw, hh, -hd]],
+      [0, 0, 1], "Traseira", woodInner, woodOuter, woodEdge,
+    );
+
+    // ── Front wall (Z = +hd, inward = -Z) ──
+    addThickWall(
+      [[hw, -hh, hd], [-hw, -hh, hd], [-hw, hh, hd], [hw, hh, hd]],
+      [0, 0, -1], "Frente", woodOuter, woodInner, woodEdge,
+    );
+
+    // ── Left wall (X = -hw, inward = +X) ──
+    addThickWall(
+      [[-hw, -hh, hd], [-hw, -hh, -hd], [-hw, hh, -hd], [-hw, hh, hd]],
+      [1, 0, 0], "Esquerda", woodEdge, woodInner, woodEdgeDark,
+    );
+
+    // ── Right wall (X = +hw, inward = -X) ──
+    addThickWall(
+      [[hw, -hh, -hd], [hw, -hh, hd], [hw, hh, hd], [hw, hh, -hd]],
+      [-1, 0, 0], "Direita", woodInner, woodOuter, woodEdgeDark,
+    );
+
+    // ── Top wall ──
     if (!isOpen && !hasLid) {
-      faces.push({ pts: [[-hw, hh, -hd], [hw, hh, -hd], [hw, hh, hd], [-hw, hh, hd]], fill: woodTop, opacity: 0.95, label: "Topo" });
+      addThickWall(
+        [[-hw, hh, -hd], [hw, hh, -hd], [hw, hh, hd], [-hw, hh, hd]],
+        [0, -1, 0], "Topo", woodLight, woodInner, woodEdge,
+      );
     }
     if (hasLid) {
-      faces.push({ pts: [[-hw, hh, -hd], [hw, hh, -hd], [hw, hh + materialT, -hd - 5], [-hw, hh + materialT, -hd - 5]], fill: "#e8c06a", opacity: 0.90, label: "Tampa" });
+      const lidOverhang = 3;
+      addThickWall(
+        [[-hw - lidOverhang, hh, -hd - lidOverhang], [hw + lidOverhang, hh, -hd - lidOverhang],
+         [hw + lidOverhang, hh, hd + lidOverhang], [-hw - lidOverhang, hh, hd + lidOverhang]],
+        [0, 1, 0], "Tampa", "#e8c06a", woodInner, woodEdge,
+      );
     }
 
     // ── Joint geometry ──
