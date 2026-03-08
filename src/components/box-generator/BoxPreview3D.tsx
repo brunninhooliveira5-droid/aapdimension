@@ -24,31 +24,60 @@ function computeFingerCount(edgeLen: number, minSize: number, maxSize: number): 
   return best;
 }
 
-function fingerTabsAlongEdge(
-  p0: number[], p1: number[], outDir: number[],
-  thickness: number, fingerCount: number, isTabs: boolean,
-): number[][][] {
-  const quads: number[][][] = [];
+/**
+ * Generate 3D finger tab blocks along an edge.
+ * Each tab is a 3D box with 6 faces for proper visualization.
+ */
+function fingerTab3DBlocks(
+  p0: number[], p1: number[], outDir: number[], upDir: number[],
+  thickness: number, tabDepth: number, fingerCount: number, isTabs: boolean,
+): Face3D[] {
+  const faces: Face3D[] = [];
+  const tabFront = "#d4982a";
+  const tabSide = "#b8841e";
+  const tabTop = "#e0a830";
+
   for (let i = 0; i < fingerCount; i++) {
     const isTab = (i % 2 === 0) === isTabs;
     if (!isTab) continue;
     const t0 = i / fingerCount;
     const t1 = (i + 1) / fingerCount;
+
+    // 4 base corners on the wall surface
     const a = [p0[0] + (p1[0] - p0[0]) * t0, p0[1] + (p1[1] - p0[1]) * t0, p0[2] + (p1[2] - p0[2]) * t0];
     const b = [p0[0] + (p1[0] - p0[0]) * t1, p0[1] + (p1[1] - p0[1]) * t1, p0[2] + (p1[2] - p0[2]) * t1];
-    const c = [b[0] + outDir[0] * thickness, b[1] + outDir[1] * thickness, b[2] + outDir[2] * thickness];
-    const d = [a[0] + outDir[0] * thickness, a[1] + outDir[1] * thickness, a[2] + outDir[2] * thickness];
-    quads.push([a, b, c, d]);
+
+    // Extrude along outDir by tabDepth
+    const ext = (pt: number[]) => [pt[0] + outDir[0] * tabDepth, pt[1] + outDir[1] * tabDepth, pt[2] + outDir[2] * tabDepth];
+    // Extrude along upDir by thickness (tab height = material thickness)
+    const up = (pt: number[]) => [pt[0] + upDir[0] * thickness, pt[1] + upDir[1] * thickness, pt[2] + upDir[2] * thickness];
+
+    const A = a, B = b;
+    const C = up(b), D = up(a);
+    const Ae = ext(A), Be = ext(B), Ce = ext(C), De = ext(D);
+
+    // Front face (extruded face)
+    faces.push({ pts: [Ae, Be, Ce, De], fill: tabFront, opacity: 0.95, label: "", isJoint: true });
+    // Back face (on wall)
+    faces.push({ pts: [B, A, D, C], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
+    // Top
+    faces.push({ pts: [D, C, Ce, De], fill: tabTop, opacity: 0.90, label: "", isJoint: true });
+    // Bottom
+    faces.push({ pts: [A, B, Be, Ae], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
+    // Left side
+    faces.push({ pts: [A, Ae, De, D], fill: tabSide, opacity: 0.80, label: "", isJoint: true });
+    // Right side
+    faces.push({ pts: [B, Be, Ce, C], fill: tabSide, opacity: 0.80, label: "", isJoint: true });
   }
-  return quads;
+  return faces;
 }
 
 function slotCutsAlongEdge(
   p0: number[], p1: number[], inwardDir: number[],
   thickness: number, fingerCount: number,
-): number[][][] {
-  const quads: number[][][] = [];
-  const slotDepth = thickness * 0.6;
+): Face3D[] {
+  const faces: Face3D[] = [];
+  const slotDepth = thickness * 0.5;
   for (let i = 0; i < fingerCount; i++) {
     if (i % 2 !== 0) continue;
     const t0 = i / fingerCount;
@@ -57,9 +86,9 @@ function slotCutsAlongEdge(
     const b = [p0[0] + (p1[0] - p0[0]) * t1, p0[1] + (p1[1] - p0[1]) * t1, p0[2] + (p1[2] - p0[2]) * t1];
     const c = [b[0] + inwardDir[0] * slotDepth, b[1] + inwardDir[1] * slotDepth, b[2] + inwardDir[2] * slotDepth];
     const d = [a[0] + inwardDir[0] * slotDepth, a[1] + inwardDir[1] * slotDepth, a[2] + inwardDir[2] * slotDepth];
-    quads.push([a, b, c, d]);
+    faces.push({ pts: [a, b, c, d], fill: "#3d2a10", opacity: 0.90, label: "", isJoint: true });
   }
-  return quads;
+  return faces;
 }
 
 export function BoxPreview3D({ params, className }: Props) {
