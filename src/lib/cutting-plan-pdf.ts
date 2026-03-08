@@ -16,6 +16,22 @@ interface CuttingPlanPdfData {
   clientName?: string;
   projectName?: string;
   scale?: PdfScale;
+  folderName?: string;
+}
+
+export interface ExportOptions {
+  exportA4: boolean;
+  exportRealScale: boolean;
+  folderName: string;
+}
+
+export function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData, "scale">, options: ExportOptions) {
+  if (options.exportA4) {
+    exportCuttingPlanPdf({ ...data, scale: "a4" });
+  }
+  if (options.exportRealScale) {
+    exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName });
+  }
 }
 
 const MM_TO_PT = 2.83465; // 1mm = 2.83465 points
@@ -286,54 +302,40 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
   const r = data.result as SheetCuttingResult;
+  const folderPrefix = data.folderName
+    ? `${data.folderName.replace(/\s+/g, "-").toLowerCase()}/`
+    : "";
 
-  // Page size in mm + small margin
-  const pageMargin = 10; // mm
-  const pageW = matW + pageMargin * 2;
-  const pageH = matH + pageMargin * 2 + 20; // extra for title
-
-  // jsPDF uses mm when orientation+format are set
-  const doc = new jsPDF({
-    orientation: pageW > pageH ? "landscape" : "portrait",
-    unit: "mm",
-    format: [pageW, pageH],
-  });
-
+  // Export each layout as an individual PDF
   r.layouts.forEach((layout, li) => {
-    if (li > 0) doc.addPage([pageW, pageH]);
+    const pageMargin = 5; // mm - minimal margin
+    const pageW = matW + pageMargin * 2;
+    const pageH = matH + pageMargin * 2;
 
-    // Title
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${data.planName || "Plano de Corte"} — Chapa ${li + 1} (Escala 1:1)`, pageW / 2, 8, { align: "center" });
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${data.materialName} — ${matW}x${matH} mm — Aproveit.: ${layout.utilization.toFixed(1)}%`, pageW / 2, 14, { align: "center" });
+    const doc = new jsPDF({
+      orientation: pageW > pageH ? "landscape" : "portrait",
+      unit: "mm",
+      format: [pageW, pageH],
+    });
 
     const ox = pageMargin;
-    const oy = 20;
+    const oy = pageMargin;
 
-    // Material boundary (1:1 scale, 1mm = 1mm in PDF)
-    doc.setDrawColor(100, 100, 100);
+    // Material boundary only - clean rectangle
+    doc.setDrawColor(60, 60, 60);
     doc.setLineWidth(0.5);
     doc.setFillColor(245, 245, 245);
     doc.rect(ox, oy, matW, matH, "FD");
 
-    // Dimension labels
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`${matW} mm`, ox + matW / 2, oy - 2, { align: "center" });
-    doc.text(`${matH} mm`, ox - 2, oy + matH / 2, { align: "center", angle: 90 });
-
-    // Draw pieces at real scale
+    // Draw pieces at real scale - no external labels
     layout.pieces.forEach((p, pi) => {
       const color = getPieceColorPdf(p.pieceIndex ?? pi);
       doc.setFillColor(color[0], color[1], color[2]);
-      doc.setDrawColor(255, 255, 255);
+      doc.setDrawColor(40, 40, 40);
       doc.setLineWidth(0.3);
       doc.rect(ox + p.x, oy + p.y, p.width, p.height, "FD");
 
+      // Internal piece label only
       doc.setTextColor(255, 255, 255);
       const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
       if (fontSize >= 3) {
@@ -345,36 +347,7 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
       }
     });
 
-    // Scrap areas
-    const maxX = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.x + p.width)) : 0;
-    const maxY = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.y + p.height)) : 0;
-
-    doc.setTextColor(200, 100, 0);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setDrawColor(230, 140, 50);
-    doc.setLineWidth(0.3);
-    doc.setLineDashPattern([3, 3], 0);
-
-    if (maxX < matW) {
-      doc.rect(ox + maxX, oy, matW - maxX, matH);
-      const sw = matW - maxX;
-      if (sw > 15) {
-        doc.text(`Sobra ${sw.toFixed(0)}x${matH} mm`, ox + maxX + sw / 2, oy + matH / 2, { align: "center" });
-      }
-    }
-    if (maxY < matH) {
-      const clipW = Math.min(matW, maxX);
-      doc.rect(ox, oy + maxY, clipW, matH - maxY);
-      const sh = matH - maxY;
-      if (sh > 10 && clipW > 15) {
-        doc.text(`Sobra ${clipW.toFixed(0)}x${sh.toFixed(0)} mm`, ox + clipW / 2, oy + maxY + sh / 2, { align: "center" });
-      }
-    }
-
-    doc.setLineDashPattern([], 0);
+    const filename = `${folderPrefix}chapa-${li + 1}.pdf`;
+    doc.save(filename);
   });
-
-  const filename = `plano-corte-1x1-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
-  doc.save(filename);
 }

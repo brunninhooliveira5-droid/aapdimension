@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
 
 interface PieceRow {
   id: string;
@@ -50,7 +50,9 @@ export function TubeCuttingTab() {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportScale, setExportScale] = useState<PdfScale>("a4");
+  const [exportA4, setExportA4] = useState(true);
+  const [exportRealScale, setExportRealScale] = useState(false);
+  const [folderName, setFolderName] = useState("");
 
   useEffect(() => {
     if (source === "estoque") {
@@ -211,9 +213,28 @@ export function TubeCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = (scale: PdfScale) => {
+  const handleExportPdf = () => {
     if (!result || result.errors.length > 0) return;
-    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName, scale });
+    if (!exportA4 && !exportRealScale) {
+      toast.error("Selecione pelo menos um formato.");
+      return;
+    }
+    if (exportRealScale && !folderName.trim()) {
+      toast.error("Informe o nome da pasta para exportação 1:1.");
+      return;
+    }
+    exportCuttingPlanWithOptions({
+      planName: planName || "Plano de Corte - Tubo",
+      planType: "tubo",
+      materialName,
+      dimensions: `${parseFloat(materialLength)} mm`,
+      unitPrice: parseFloat(materialPrice) || 0,
+      kerfWidth: parseFloat(kerfWidth) || 0,
+      pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })),
+      result,
+      clientName,
+      projectName,
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
@@ -374,34 +395,41 @@ export function TubeCuttingTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Export Scale Dialog */}
+      {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Exportar PDF</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
-            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
-              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
-                <RadioGroupItem value="a4" id="tube-scale-a4" className="mt-0.5" />
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Selecione os formatos de exportação:</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportA4(!exportA4)}>
+                <Checkbox checked={exportA4} onCheckedChange={(v) => setExportA4(!!v)} id="tube-a4" className="mt-0.5" />
                 <div>
-                  <Label htmlFor="tube-scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <Label htmlFor="tube-a4" className="cursor-pointer font-medium">Formato A4</Label>
                   <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
-                <RadioGroupItem value="1:1" id="tube-scale-real" className="mt-0.5" />
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportRealScale(!exportRealScale)}>
+                <Checkbox checked={exportRealScale} onCheckedChange={(v) => setExportRealScale(!!v)} id="tube-real" className="mt-0.5" />
                 <div>
-                  <Label htmlFor="tube-scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
-                  <p className="text-xs text-muted-foreground">Tamanho real do material (página personalizada)</p>
+                  <Label htmlFor="tube-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real — cada barra em arquivo separado</p>
                 </div>
               </div>
-            </RadioGroup>
+              {exportRealScale && (
+                <div className="pl-8 space-y-1">
+                  <Label htmlFor="tube-folder-name" className="text-sm">Nome da pasta</Label>
+                  <Input id="tube-folder-name" placeholder="Ex: corte-tubo-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
-            <Button onClick={() => handleExportPdf(exportScale)}>
+            <Button onClick={handleExportPdf} disabled={!exportA4 && !exportRealScale}>
               <FileDown className="h-4 w-4 mr-1" /> Exportar
             </Button>
           </DialogFooter>

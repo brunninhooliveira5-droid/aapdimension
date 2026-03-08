@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanWithOptions, type ExportOptions } from "@/lib/cutting-plan-pdf";
 
 interface PieceRow {
   id: string;
@@ -67,7 +67,9 @@ export function SheetCuttingTab() {
 
   // Export
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportScale, setExportScale] = useState<PdfScale>("a4");
+  const [exportA4, setExportA4] = useState(true);
+  const [exportRealScale, setExportRealScale] = useState(false);
+  const [folderName, setFolderName] = useState("");
 
   // Fetch inventory
   useEffect(() => {
@@ -344,11 +346,19 @@ export function SheetCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = (scale: PdfScale) => {
+  const handleExportPdf = () => {
     if (!result || result.errors.length > 0) return;
+    if (!exportA4 && !exportRealScale) {
+      toast.error("Selecione pelo menos um formato.");
+      return;
+    }
+    if (exportRealScale && !folderName.trim()) {
+      toast.error("Informe o nome da pasta para exportação 1:1.");
+      return;
+    }
     const matW = parseFloat(materialWidth);
     const matH = parseFloat(materialHeight);
-    exportCuttingPlanPdf({
+    exportCuttingPlanWithOptions({
       planName: planName || "Plano de Corte - Chapa",
       planType: "chapa",
       materialName,
@@ -359,8 +369,7 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
-      scale,
-    });
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
@@ -788,34 +797,41 @@ export function SheetCuttingTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Export Scale Dialog */}
+      {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Exportar PDF</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
-            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
-              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
-                <RadioGroupItem value="a4" id="scale-a4" className="mt-0.5" />
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Selecione os formatos de exportação:</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportA4(!exportA4)}>
+                <Checkbox checked={exportA4} onCheckedChange={(v) => setExportA4(!!v)} id="sheet-a4" className="mt-0.5" />
                 <div>
-                  <Label htmlFor="scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <Label htmlFor="sheet-a4" className="cursor-pointer font-medium">Formato A4</Label>
                   <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
-                <RadioGroupItem value="1:1" id="scale-real" className="mt-0.5" />
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportRealScale(!exportRealScale)}>
+                <Checkbox checked={exportRealScale} onCheckedChange={(v) => setExportRealScale(!!v)} id="sheet-real" className="mt-0.5" />
                 <div>
-                  <Label htmlFor="scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
-                  <p className="text-xs text-muted-foreground">Tamanho real da chapa (página personalizada)</p>
+                  <Label htmlFor="sheet-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real — cada chapa em arquivo separado</p>
                 </div>
               </div>
-            </RadioGroup>
+              {exportRealScale && (
+                <div className="pl-8 space-y-1">
+                  <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
+                  <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
-            <Button onClick={() => handleExportPdf(exportScale)}>
+            <Button onClick={handleExportPdf} disabled={!exportA4 && !exportRealScale}>
               <FileDown className="h-4 w-4 mr-1" /> Exportar
             </Button>
           </DialogFooter>
