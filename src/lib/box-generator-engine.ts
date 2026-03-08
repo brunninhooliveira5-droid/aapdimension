@@ -318,101 +318,102 @@ export function generateBox(params: BoxParams): BoxResult {
   // Apply kerf compensation
   const kerfOffset = params.fabMode === "laser" ? params.kerf / 2 : 0;
 
+  const useFinger = params.jointType === "finger" || params.jointType === "tslot";
+
   // ─── Front & Back ─────────────────────────────────
-  // Front/back: Width × Height, with finger joints on all 4 edges
   const frontW = W;
-  const frontH = isOpen || hasLid ? H - t : H; // open top = no top fingers
+  const frontH = isOpen || hasLid ? H - t : H;
+  const frontPath = useFinger
+    ? buildFingerContour(frontW, frontH, {
+        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_W, thickness: t, isTabs: true } : null,
+        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: true },
+        left: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
+        right: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
+      })
+    : rectPath(frontW, frontH);
+
   pieces.push({
-    id: "front",
-    label: "Frente",
-    width: frontW,
-    height: frontH,
-    quantity: 1,
-    paths: [rectPath(frontW, frontH)],
+    id: "front", label: "Frente", width: frontW, height: frontH, quantity: 1,
+    paths: [frontPath],
   });
   pieces.push({
-    id: "back",
-    label: "Traseira",
-    width: frontW,
-    height: frontH,
-    quantity: 1,
-    paths: [rectPath(frontW, frontH)],
+    id: "back", label: "Traseira", width: frontW, height: frontH, quantity: 1,
+    paths: [frontPath],
   });
 
   // ─── Left & Right sides ───────────────────────────
-  // Sides: Depth × Height, fingers interlock with front/back and top/bottom
-  const sideW = D - 2 * t; // internal depth (between front and back)
+  const sideW = D - 2 * t;
   const sideH = frontH;
+  const sidePath = useFinger
+    ? buildFingerContour(sideW, sideH, {
+        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_D, thickness: t, isTabs: false } : null,
+        bottom: { fingerCount: fingerCount_D, thickness: t, isTabs: false },
+        left: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
+        right: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
+      })
+    : rectPath(sideW, sideH);
+
   pieces.push({
-    id: "left",
-    label: "Lateral Esquerda",
-    width: sideW,
-    height: sideH,
-    quantity: 1,
-    paths: [rectPath(sideW, sideH)],
+    id: "left", label: "Lateral Esquerda", width: sideW, height: sideH, quantity: 1,
+    paths: [sidePath],
   });
   pieces.push({
-    id: "right",
-    label: "Lateral Direita",
-    width: sideW,
-    height: sideH,
-    quantity: 1,
-    paths: [rectPath(sideW, sideH)],
+    id: "right", label: "Lateral Direita", width: sideW, height: sideH, quantity: 1,
+    paths: [sidePath],
   });
 
   // ─── Bottom ────────────────────────────────────────
   const bottomW = W;
   const bottomH = D - 2 * t;
+  const bottomPath = useFinger
+    ? buildFingerContour(bottomW, bottomH, {
+        top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+        left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+        right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+      })
+    : rectPath(bottomW, bottomH);
+
   pieces.push({
-    id: "bottom",
-    label: "Fundo",
-    width: bottomW,
-    height: bottomH,
-    quantity: 1,
-    paths: [rectPath(bottomW, bottomH)],
+    id: "bottom", label: "Fundo", width: bottomW, height: bottomH, quantity: 1,
+    paths: [bottomPath],
   });
 
   // ─── Top / Lid ─────────────────────────────────────
   if (!isOpen) {
     if (hasLid) {
       const lidW = params.boxType === "lid_sliding" ? W + params.lidClearance : W;
-      const lidH = params.boxType === "lid_sliding" ? D - 2 * t : D - 2 * t;
+      const lidH = D - 2 * t;
       pieces.push({
         id: "lid",
         label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
-        width: lidW,
-        height: lidH,
-        quantity: 1,
+        width: lidW, height: lidH, quantity: 1,
         paths: [rectPath(lidW, lidH)],
       });
-      // Sliding tracks
       if (params.boxType === "lid_sliding") {
         pieces.push({
-          id: "track_left",
-          label: "Trilho Esquerdo",
-          width: D - 2 * t,
-          height: params.slidingTrackDepth,
-          quantity: 1,
+          id: "track_left", label: "Trilho Esquerdo",
+          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
           paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
         });
         pieces.push({
-          id: "track_right",
-          label: "Trilho Direito",
-          width: D - 2 * t,
-          height: params.slidingTrackDepth,
-          quantity: 1,
+          id: "track_right", label: "Trilho Direito",
+          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
           paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
         });
       }
     } else {
-      // Closed box - top panel
+      const topPath = useFinger
+        ? buildFingerContour(bottomW, bottomH, {
+            top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+            bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+            left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+            right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+          })
+        : rectPath(bottomW, bottomH);
       pieces.push({
-        id: "top",
-        label: "Topo",
-        width: bottomW,
-        height: bottomH,
-        quantity: 1,
-        paths: [rectPath(bottomW, bottomH)],
+        id: "top", label: "Topo", width: bottomW, height: bottomH, quantity: 1,
+        paths: [topPath],
       });
     }
   }
@@ -420,25 +421,17 @@ export function generateBox(params: BoxParams): BoxResult {
   // ─── Dividers ──────────────────────────────────────
   if (hasDividers) {
     const divT = params.dividerThickness || t;
-    // Vertical dividers (along depth)
     for (let i = 0; i < params.dividersV; i++) {
       pieces.push({
-        id: `div_v_${i}`,
-        label: `Divisória Vertical ${i + 1}`,
-        width: D - 2 * t,
-        height: frontH - t, // slightly shorter than walls
-        quantity: 1,
+        id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`,
+        width: D - 2 * t, height: frontH - t, quantity: 1,
         paths: [rectPath(D - 2 * t, frontH - t)],
       });
     }
-    // Horizontal dividers (along width)
     for (let i = 0; i < params.dividersH; i++) {
       pieces.push({
-        id: `div_h_${i}`,
-        label: `Divisória Horizontal ${i + 1}`,
-        width: iW,
-        height: frontH - t,
-        quantity: 1,
+        id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`,
+        width: iW, height: frontH - t, quantity: 1,
         paths: [rectPath(iW, frontH - t)],
       });
     }
