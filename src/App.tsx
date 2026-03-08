@@ -95,6 +95,7 @@ const AppRoutes = () => {
         <Route path="/plano-corte" element={<CuttingPlanPage />} />
         <Route path="/slicer-3d" element={<Slicer3DPage />} />
         <Route path="/gerador-caixas" element={<BoxGeneratorPage />} />
+        <Route path="/planificador-acm" element={<AcmPlannerPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
