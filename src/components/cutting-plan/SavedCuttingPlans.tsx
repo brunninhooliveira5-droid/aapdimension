@@ -147,7 +147,7 @@ export function SavedCuttingPlans() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPlan(plan)} title="Ver detalhes">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExportPdf(plan)} title="Exportar PDF">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openExportDialog(plan)} title="Exportar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
                       <Button
