@@ -257,6 +257,40 @@ export function SavedCuttingPlans() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Export Scale Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
+            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
+                <RadioGroupItem value="a4" id="saved-scale-a4" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="saved-scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
+                <RadioGroupItem value="1:1" id="saved-scale-real" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="saved-scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real do material (página personalizada)</p>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
+            <Button onClick={handleExportPdf}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
