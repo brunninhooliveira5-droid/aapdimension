@@ -392,7 +392,7 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
   saveAs(zipBlob, `${folderName}.zip`);
 }
 
-// ─── Shared Cut Lines Logic ────────────────────────────────
+// ─── Single Cut Geometry Logic ──────────────────────────────
 
 interface CutLine {
   x1: number; y1: number; x2: number; y2: number;
@@ -403,165 +403,235 @@ interface PlacedPiece {
   pieceIndex?: number;
 }
 
+interface Segment {
+  pos: number;
+  start: number;
+  end: number;
+}
+
+interface SingleCutGeometry {
+  contourLines: CutLine[];
+  cutLines: CutLine[];
+}
+
 /**
- * Finds unique shared cut lines between adjacent pieces.
- * A shared cut is a line at the center of the kerf gap between two pieces
- * that share a parallel edge.
- * Also adds border cuts along the material edge where pieces touch.
+ * Computes the unified outer contour and internal cut lines for single-cut mode.
+ * Adjacent pieces separated by exactly the kerf width share a single cut line
+ * centered in the kerf gap. Their outer edges are merged into continuous contour lines.
  */
-function computeSharedCutLines(
+function computeSingleCutGeometry(
   pieces: PlacedPiece[],
   kerf: number,
-  matW: number,
-  matH: number
-): CutLine[] {
-  const TOLERANCE = 0.5; // mm tolerance for adjacency detection
-  const lines: CutLine[] = [];
-  const lineSet = new Set<string>();
+  _matW: number,
+  _matH: number
+): SingleCutGeometry {
+  const TOL = 0.5;
+  const hContourSegs: Segment[] = [];
+  const vContourSegs: Segment[] = [];
+  const cutLines: CutLine[] = [];
+  const cutSet = new Set<string>();
 
-  const addLine = (x1: number, y1: number, x2: number, y2: number) => {
-    // Normalize line direction for dedup
-    const key = x1 < x2 || (x1 === x2 && y1 < y2)
-      ? `${x1.toFixed(2)},${y1.toFixed(2)}-${x2.toFixed(2)},${y2.toFixed(2)}`
-      : `${x2.toFixed(2)},${y2.toFixed(2)}-${x1.toFixed(2)},${y1.toFixed(2)}`;
-    if (!lineSet.has(key)) {
-      lineSet.add(key);
-      lines.push({ x1, y1, x2, y2 });
+  const addCut = (x1: number, y1: number, x2: number, y2: number) => {
+    const key = [x1, y1, x2, y2].map(v => v.toFixed(2)).join(",");
+    if (!cutSet.has(key)) {
+      cutSet.add(key);
+      cutLines.push({ x1, y1, x2, y2 });
     }
   };
 
   for (let i = 0; i < pieces.length; i++) {
     const a = pieces[i];
-    const aRight = a.x + a.width;
-    const aBottom = a.y + a.height;
+    const aR = a.x + a.width;
+    const aB = a.y + a.height;
 
-    for (let j = i + 1; j < pieces.length; j++) {
-      const b = pieces[j];
-      const bRight = b.x + b.width;
-      const bBottom = b.y + b.height;
-
-      // Check vertical shared edge (A's right edge meets B's left edge)
-      const gapH = b.x - aRight;
-      if (Math.abs(gapH - kerf) < TOLERANCE) {
-        const overlapTop = Math.max(a.y, b.y);
-        const overlapBot = Math.min(aBottom, bBottom);
-        if (overlapBot - overlapTop > TOLERANCE) {
-          const cx = aRight + kerf / 2;
-          addLine(cx, overlapTop, cx, overlapBot);
-        }
+    // --- RIGHT EDGE ---
+    const rightShared = getSharedRanges(pieces, i, "right", kerf, TOL);
+    if (rightShared.length > 0) {
+      for (const range of rightShared) {
+        addCut(aR + kerf / 2, range.start, aR + kerf / 2, range.end);
       }
-
-      // Check vertical shared edge (B's right edge meets A's left edge)
-      const gapH2 = a.x - bRight;
-      if (Math.abs(gapH2 - kerf) < TOLERANCE) {
-        const overlapTop = Math.max(a.y, b.y);
-        const overlapBot = Math.min(aBottom, bBottom);
-        if (overlapBot - overlapTop > TOLERANCE) {
-          const cx = bRight + kerf / 2;
-          addLine(cx, overlapTop, cx, overlapBot);
-        }
+      // Non-shared portions of right edge → contour
+      const unshared = subtractRanges(a.y, aB, rightShared);
+      for (const u of unshared) {
+        vContourSegs.push({ pos: aR, start: u.start, end: u.end });
       }
-
-      // Check horizontal shared edge (A's bottom edge meets B's top edge)
-      const gapV = b.y - aBottom;
-      if (Math.abs(gapV - kerf) < TOLERANCE) {
-        const overlapLeft = Math.max(a.x, b.x);
-        const overlapRight = Math.min(aRight, bRight);
-        if (overlapRight - overlapLeft > TOLERANCE) {
-          const cy = aBottom + kerf / 2;
-          addLine(overlapLeft, cy, overlapRight, cy);
-        }
-      }
-
-      // Check horizontal shared edge (B's bottom edge meets A's top edge)
-      const gapV2 = a.y - bBottom;
-      if (Math.abs(gapV2 - kerf) < TOLERANCE) {
-        const overlapLeft = Math.max(a.x, b.x);
-        const overlapRight = Math.min(aRight, bRight);
-        if (overlapRight - overlapLeft > TOLERANCE) {
-          const cy = bBottom + kerf / 2;
-          addLine(overlapLeft, cy, overlapRight, cy);
-        }
-      }
+    } else {
+      vContourSegs.push({ pos: aR, start: a.y, end: aB });
     }
 
-    // Border cuts — outer edges of pieces that touch material boundary
-    // Left border
-    if (a.x < TOLERANCE) {
-      addLine(0, a.y, 0, aBottom);
-    }
-    // Top border
-    if (a.y < TOLERANCE) {
-      addLine(a.x, 0, aRight, 0);
-    }
-    // Right border (piece edge, not shared)
-    // Only add if no neighbor to the right
-    // Bottom border (piece edge, not shared)
-    // These are handled by shared cuts or are individual piece outlines
-  }
-
-  // Add outer contour cuts for piece edges that are NOT shared with another piece
-  for (let i = 0; i < pieces.length; i++) {
-    const a = pieces[i];
-    const aRight = a.x + a.width;
-    const aBottom = a.y + a.height;
-
-    // Right edge — check if shared
-    const hasRightNeighbor = pieces.some((b, j) => {
-      if (j === i) return false;
-      const gap = b.x - aRight;
-      if (Math.abs(gap - kerf) >= TOLERANCE) return false;
-      const overlapTop = Math.max(a.y, b.y);
-      const overlapBot = Math.min(aBottom, b.y + b.height);
-      return overlapBot - overlapTop > TOLERANCE;
-    });
-    if (!hasRightNeighbor) {
-      addLine(aRight, a.y, aRight, aBottom);
-    }
-
-    // Bottom edge — check if shared
-    const hasBottomNeighbor = pieces.some((b, j) => {
-      if (j === i) return false;
-      const gap = b.y - aBottom;
-      if (Math.abs(gap - kerf) >= TOLERANCE) return false;
-      const overlapLeft = Math.max(a.x, b.x);
-      const overlapRight = Math.min(aRight, b.x + b.width);
-      return overlapRight - overlapLeft > TOLERANCE;
-    });
-    if (!hasBottomNeighbor) {
-      addLine(a.x, aBottom, aRight, aBottom);
-    }
-
-    // Left edge if not at material border and not shared
-    if (a.x >= TOLERANCE) {
-      const hasLeftNeighbor = pieces.some((b, j) => {
-        if (j === i) return false;
-        const gap = a.x - (b.x + b.width);
-        if (Math.abs(gap - kerf) >= TOLERANCE) return false;
-        const overlapTop = Math.max(a.y, b.y);
-        const overlapBot = Math.min(aBottom, b.y + b.height);
-        return overlapBot - overlapTop > TOLERANCE;
-      });
-      if (!hasLeftNeighbor) {
-        addLine(a.x, a.y, a.x, aBottom);
+    // --- BOTTOM EDGE ---
+    const bottomShared = getSharedRanges(pieces, i, "bottom", kerf, TOL);
+    if (bottomShared.length > 0) {
+      for (const range of bottomShared) {
+        addCut(range.start, aB + kerf / 2, range.end, aB + kerf / 2);
       }
+      const unshared = subtractRanges(a.x, aR, bottomShared);
+      for (const u of unshared) {
+        hContourSegs.push({ pos: aB, start: u.start, end: u.end });
+      }
+    } else {
+      hContourSegs.push({ pos: aB, start: a.x, end: aR });
     }
 
-    // Top edge if not at material border and not shared
-    if (a.y >= TOLERANCE) {
-      const hasTopNeighbor = pieces.some((b, j) => {
-        if (j === i) return false;
-        const gap = a.y - (b.y + b.height);
-        if (Math.abs(gap - kerf) >= TOLERANCE) return false;
-        const overlapLeft = Math.max(a.x, b.x);
-        const overlapRight = Math.min(aRight, b.x + b.width);
-        return overlapRight - overlapLeft > TOLERANCE;
-      });
-      if (!hasTopNeighbor) {
-        addLine(a.x, a.y, aRight, a.y);
+    // --- LEFT EDGE ---
+    const leftShared = getSharedRanges(pieces, i, "left", kerf, TOL);
+    if (leftShared.length > 0) {
+      // Shared cuts are already handled by the neighbor's right edge processing
+      const unshared = subtractRanges(a.y, aB, leftShared);
+      for (const u of unshared) {
+        vContourSegs.push({ pos: a.x, start: u.start, end: u.end });
       }
+    } else {
+      vContourSegs.push({ pos: a.x, start: a.y, end: aB });
+    }
+
+    // --- TOP EDGE ---
+    const topShared = getSharedRanges(pieces, i, "top", kerf, TOL);
+    if (topShared.length > 0) {
+      // Shared cuts are already handled by the neighbor's bottom edge processing
+      const unshared = subtractRanges(a.x, aR, topShared);
+      for (const u of unshared) {
+        hContourSegs.push({ pos: a.y, start: u.start, end: u.end });
+      }
+    } else {
+      hContourSegs.push({ pos: a.y, start: a.x, end: aR });
     }
   }
 
-  return lines;
+  // Merge collinear contour segments that are close together (across kerf gaps)
+  const mergedH = mergeCollinearSegments(hContourSegs, kerf + TOL);
+  const mergedV = mergeCollinearSegments(vContourSegs, kerf + TOL);
+
+  const contourLines: CutLine[] = [];
+  for (const s of mergedH) {
+    contourLines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos });
+  }
+  for (const s of mergedV) {
+    contourLines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end });
+  }
+
+  return { contourLines, cutLines };
+}
+
+/**
+ * For a given piece edge direction, find all overlapping ranges with adjacent pieces
+ * that are separated by exactly the kerf width.
+ */
+function getSharedRanges(
+  pieces: PlacedPiece[],
+  pieceIdx: number,
+  direction: "right" | "bottom" | "left" | "top",
+  kerf: number,
+  tol: number
+): { start: number; end: number }[] {
+  const a = pieces[pieceIdx];
+  const aR = a.x + a.width;
+  const aB = a.y + a.height;
+  const ranges: { start: number; end: number }[] = [];
+
+  for (let j = 0; j < pieces.length; j++) {
+    if (j === pieceIdx) continue;
+    const b = pieces[j];
+    const bR = b.x + b.width;
+    const bB = b.y + b.height;
+
+    if (direction === "right") {
+      const gap = b.x - aR;
+      if (Math.abs(gap - kerf) < tol) {
+        const overlapStart = Math.max(a.y, b.y);
+        const overlapEnd = Math.min(aB, bB);
+        if (overlapEnd - overlapStart > tol) {
+          ranges.push({ start: overlapStart, end: overlapEnd });
+        }
+      }
+    } else if (direction === "bottom") {
+      const gap = b.y - aB;
+      if (Math.abs(gap - kerf) < tol) {
+        const overlapStart = Math.max(a.x, b.x);
+        const overlapEnd = Math.min(aR, bR);
+        if (overlapEnd - overlapStart > tol) {
+          ranges.push({ start: overlapStart, end: overlapEnd });
+        }
+      }
+    } else if (direction === "left") {
+      const gap = a.x - bR;
+      if (Math.abs(gap - kerf) < tol) {
+        const overlapStart = Math.max(a.y, b.y);
+        const overlapEnd = Math.min(aB, bB);
+        if (overlapEnd - overlapStart > tol) {
+          ranges.push({ start: overlapStart, end: overlapEnd });
+        }
+      }
+    } else if (direction === "top") {
+      const gap = a.y - bB;
+      if (Math.abs(gap - kerf) < tol) {
+        const overlapStart = Math.max(a.x, b.x);
+        const overlapEnd = Math.min(aR, bR);
+        if (overlapEnd - overlapStart > tol) {
+          ranges.push({ start: overlapStart, end: overlapEnd });
+        }
+      }
+    }
+  }
+
+  return ranges;
+}
+
+/**
+ * Subtract shared ranges from a full edge range, returning the unshared portions.
+ */
+function subtractRanges(
+  fullStart: number,
+  fullEnd: number,
+  shared: { start: number; end: number }[]
+): { start: number; end: number }[] {
+  if (shared.length === 0) return [{ start: fullStart, end: fullEnd }];
+
+  const sorted = [...shared].sort((a, b) => a.start - b.start);
+  const result: { start: number; end: number }[] = [];
+  let cursor = fullStart;
+
+  for (const s of sorted) {
+    if (s.start > cursor) {
+      result.push({ start: cursor, end: s.start });
+    }
+    cursor = Math.max(cursor, s.end);
+  }
+  if (cursor < fullEnd) {
+    result.push({ start: cursor, end: fullEnd });
+  }
+
+  return result;
+}
+
+/**
+ * Merge collinear segments on the same position that are within gapTolerance of each other.
+ * This connects edges of adjacent pieces across kerf gaps into single continuous lines.
+ */
+function mergeCollinearSegments(segments: Segment[], gapTolerance: number): Segment[] {
+  // Group by rounded position
+  const groups = new Map<string, Segment[]>();
+  for (const s of segments) {
+    const key = s.pos.toFixed(1);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(s);
+  }
+
+  const result: Segment[] = [];
+  for (const [, segs] of groups) {
+    segs.sort((a, b) => a.start - b.start);
+    let current = { pos: segs[0].pos, start: segs[0].start, end: segs[0].end };
+
+    for (let i = 1; i < segs.length; i++) {
+      if (segs[i].start <= current.end + gapTolerance) {
+        current.end = Math.max(current.end, segs[i].end);
+      } else {
+        result.push({ ...current });
+        current = { pos: segs[i].pos, start: segs[i].start, end: segs[i].end };
+      }
+    }
+    result.push({ ...current });
+  }
+
+  return result;
 }
