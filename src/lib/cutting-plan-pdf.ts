@@ -204,7 +204,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
       const py = oy + p.y * s;
       const pW = p.width * s;
       const pH = p.height * s;
-      const color = getPieceColorPdf(p.originalIndex ?? pi);
+      const color = getPieceColorPdf(p.pieceIndex ?? pi);
 
       doc.setFillColor(color[0], color[1], color[2]);
       doc.setDrawColor(255, 255, 255);
@@ -215,7 +215,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
       doc.setFont("helvetica", "bold");
-      const label = `P${(p.originalIndex ?? pi) + 1}`;
+      const label = `P${(p.pieceIndex ?? pi) + 1}`;
       const dimLabel = `${p.width}x${p.height}`;
       if (pW > 12 && pH > 8) {
         doc.text(label, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
