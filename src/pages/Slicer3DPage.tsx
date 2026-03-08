@@ -135,22 +135,24 @@ export default function Slicer3DPage() {
     }
     setLoading(true);
     try {
+      // Override material thickness from selected material
+      const overrideThickness = (p: any) => ({ ...p, materialThickness: selectedMaterial.thickness });
       let res: SlicerResult;
       switch (mode) {
         case "stacked":
-          res = stackedSlice(geometry, stackedParams);
+          res = stackedSlice(geometry, overrideThickness(stackedParams));
           break;
         case "interlocked":
-          res = interlockedSlice(geometry, interlockParams);
+          res = interlockedSlice(geometry, overrideThickness(interlockParams));
           break;
         case "radial":
-          res = radialSlice(geometry, radialParams);
+          res = radialSlice(geometry, overrideThickness(radialParams));
           break;
         case "unfold":
-          res = unfoldMesh(geometry, unfoldParams);
+          res = unfoldMesh(geometry, overrideThickness(unfoldParams));
           break;
         default:
-          res = stackedSlice(geometry, stackedParams);
+          res = stackedSlice(geometry, overrideThickness(stackedParams));
       }
       setResult(res);
       setViewTab("2d");
@@ -160,7 +162,7 @@ export default function Slicer3DPage() {
     } finally {
       setLoading(false);
     }
-  }, [geometry, mode, stackedParams, interlockParams, radialParams, unfoldParams]);
+  }, [geometry, mode, stackedParams, interlockParams, radialParams, unfoldParams, selectedMaterial]);
 
   // Export handlers
   const downloadFile = (content: string, filename: string, mime: string) => {
