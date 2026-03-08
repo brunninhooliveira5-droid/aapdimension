@@ -38,11 +38,11 @@ export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData
 
 const MM_TO_PT = 2.83465; // 1mm = 2.83465 points
 
-export function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
+export async function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
   const scale = data.scale || "a4";
   const isRealScale = scale === "1:1";
 
-  // For 1:1 sheet cutting, create custom-sized pages per layout
+  // For 1:1 sheet cutting, create ZIP with individual PDFs
   if (isRealScale && data.planType === "chapa" && "layouts" in data.result) {
     return exportSheetRealScale(data);
   }
