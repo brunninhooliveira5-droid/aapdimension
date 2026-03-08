@@ -56,23 +56,63 @@ export interface BoxParams {
   dividerThickness: number;
 }
 
+export interface Path2D_Segment {
+  type: "L" | "A";
+  x: number;
+  y: number;
+  cx?: number;
+  cy?: number;
+  r?: number;
+}
+
+export interface EdgeJointConfig {
+  isTabs: boolean;
+  fingerCount: number;
+  edgeLength: number;
+}
+
+export interface PieceEdgeMap {
+  top: EdgeJointConfig | null;
+  bottom: EdgeJointConfig | null;
+  left: EdgeJointConfig | null;
+  right: EdgeJointConfig | null;
+}
+
 export interface BoxPiece {
   id: string;
   label: string;
   width: number;
   height: number;
   quantity: number;
-  paths: Path2D_Segment[][];  // array of contours, each contour is array of segments
+  paths: Path2D_Segment[][];
+  edges: PieceEdgeMap;
 }
 
-export interface Path2D_Segment {
-  type: "L" | "A"; // line or arc
-  x: number;
-  y: number;
-  // arc extras
-  cx?: number;
-  cy?: number;
-  r?: number;
+export interface JointDef {
+  pieceA: string;
+  edgeA: string;
+  pieceB: string;
+  edgeB: string;
+  fingerCount: number;
+  pieceA_isTabs: boolean;
+}
+
+export interface BoxJointConfig {
+  fcW: number;
+  fcWallH: number;
+  fcSideW: number;
+  wallH: number;
+  sideW: number;
+  W: number;
+  H: number;
+  D: number;
+  joints: JointDef[];
+  pieceEdges: Record<string, PieceEdgeMap>;
+}
+
+export interface JointConflict {
+  joint: JointDef;
+  message: string;
 }
 
 export interface BoxResult {
@@ -82,6 +122,8 @@ export interface BoxResult {
     totalArea: number;
     materialSheets: number;
   };
+  jointConfig: BoxJointConfig;
+  conflicts: JointConflict[];
 }
 
 // ─── Defaults ────────────────────────────────────────────────────
