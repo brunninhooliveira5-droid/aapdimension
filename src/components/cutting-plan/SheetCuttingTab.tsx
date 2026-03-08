@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanPdf } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
 
 interface PieceRow {
   id: string;
@@ -64,6 +64,10 @@ export function SheetCuttingTab() {
   const [clientName, setClientName] = useState("");
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Export
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportScale, setExportScale] = useState<PdfScale>("a4");
 
   // Fetch inventory
   useEffect(() => {
@@ -340,7 +344,7 @@ export function SheetCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = (scale: PdfScale) => {
     if (!result || result.errors.length > 0) return;
     const matW = parseFloat(materialWidth);
     const matH = parseFloat(materialHeight);
@@ -355,7 +359,9 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
+      scale,
     });
+    setShowExportDialog(false);
   };
 
   const matW = parseFloat(materialWidth) || 0;
@@ -746,7 +752,7 @@ export function SheetCuttingTab() {
             <Button onClick={() => setShowSave(true)}>
               <Save className="h-4 w-4 mr-1" /> Salvar Plano
             </Button>
-            <Button variant="outline" onClick={handleExportPdf}>
+            <Button variant="outline" onClick={() => setShowExportDialog(true)}>
               <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
             </Button>
           </div>
@@ -777,6 +783,40 @@ export function SheetCuttingTab() {
             <Button variant="outline" onClick={() => setShowSave(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !planName.trim()}>
               {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Scale Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
+            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
+                <RadioGroupItem value="a4" id="scale-a4" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
+                <RadioGroupItem value="1:1" id="scale-real" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real da chapa (página personalizada)</p>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
+            <Button onClick={() => handleExportPdf(exportScale)}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar
             </Button>
           </DialogFooter>
         </DialogContent>

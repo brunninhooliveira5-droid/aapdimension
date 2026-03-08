@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanPdf } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
 
 interface PieceRow {
   id: string;
@@ -49,6 +49,8 @@ export function TubeCuttingTab() {
   const [clientName, setClientName] = useState("");
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportScale, setExportScale] = useState<PdfScale>("a4");
 
   useEffect(() => {
     if (source === "estoque") {
@@ -209,9 +211,10 @@ export function TubeCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = (scale: PdfScale) => {
     if (!result || result.errors.length > 0) return;
-    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName });
+    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName, scale });
+    setShowExportDialog(false);
   };
 
   const barLen = parseFloat(materialLength) || 0;
@@ -351,7 +354,7 @@ export function TubeCuttingTab() {
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowSave(true)}><Save className="h-4 w-4 mr-1" /> Salvar Plano</Button>
-            <Button variant="outline" onClick={handleExportPdf}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
+            <Button variant="outline" onClick={() => setShowExportDialog(true)}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
           </div>
         </Card>
       )}
@@ -367,6 +370,40 @@ export function TubeCuttingTab() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowSave(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !planName.trim()}>{saving ? "Salvando..." : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Scale Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
+            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
+                <RadioGroupItem value="a4" id="tube-scale-a4" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="tube-scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
+                <RadioGroupItem value="1:1" id="tube-scale-real" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="tube-scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real do material (página personalizada)</p>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
+            <Button onClick={() => handleExportPdf(exportScale)}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

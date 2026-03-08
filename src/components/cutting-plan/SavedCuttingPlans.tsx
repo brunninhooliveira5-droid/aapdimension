@@ -3,11 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Save, Trash2, FileDown, Eye, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { exportCuttingPlanPdf } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface SavedPlan {
   id: string;
@@ -34,6 +36,9 @@ export function SavedCuttingPlans() {
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<SavedPlan | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportScale, setExportScale] = useState<PdfScale>("a4");
+  const [exportPlan, setExportPlan] = useState<SavedPlan | null>(null);
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -55,7 +60,15 @@ export function SavedCuttingPlans() {
     fetchPlans();
   };
 
-  const handleExportPdf = (plan: SavedPlan) => {
+  const openExportDialog = (plan: SavedPlan) => {
+    setExportPlan(plan);
+    setExportScale("a4");
+    setShowExportDialog(true);
+  };
+
+  const handleExportPdf = () => {
+    if (!exportPlan) return;
+    const plan = exportPlan;
     const dims = plan.material_dimensions;
     const dimensionsStr = plan.plan_type === "chapa"
       ? `${dims.width} x ${dims.height} mm`
@@ -72,7 +85,9 @@ export function SavedCuttingPlans() {
       result: plan.result_json,
       clientName: plan.client_name,
       projectName: plan.project_name,
+      scale: exportScale,
     });
+    setShowExportDialog(false);
   };
 
   const sourceLabel = (s: string) => {
@@ -132,7 +147,7 @@ export function SavedCuttingPlans() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPlan(plan)} title="Ver detalhes">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExportPdf(plan)} title="Exportar PDF">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openExportDialog(plan)} title="Exportar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
                       <Button
@@ -235,11 +250,45 @@ export function SavedCuttingPlans() {
                 </div>
               </div>
 
-              <Button className="w-full" variant="outline" onClick={() => handleExportPdf(selectedPlan)}>
+              <Button className="w-full" variant="outline" onClick={() => openExportDialog(selectedPlan)}>
                 <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Scale Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Selecione o formato de exportação:</p>
+            <RadioGroup value={exportScale} onValueChange={(v) => setExportScale(v as PdfScale)} className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("a4")}>
+                <RadioGroupItem value="a4" id="saved-scale-a4" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="saved-scale-a4" className="cursor-pointer font-medium">Formato A4</Label>
+                  <p className="text-xs text-muted-foreground">Reduzido para caber em uma folha A4</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setExportScale("1:1")}>
+                <RadioGroupItem value="1:1" id="saved-scale-real" className="mt-0.5" />
+                <div>
+                  <Label htmlFor="saved-scale-real" className="cursor-pointer font-medium">Escala 1:1</Label>
+                  <p className="text-xs text-muted-foreground">Tamanho real do material (página personalizada)</p>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
+            <Button onClick={handleExportPdf}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

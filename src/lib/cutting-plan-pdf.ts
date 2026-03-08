@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetCuttingResult, TubeCuttingResult } from "./cutting-plan-engine";
 
+export type PdfScale = "a4" | "1:1";
+
 interface CuttingPlanPdfData {
   planName: string;
   planType: "chapa" | "tubo";
@@ -13,9 +15,21 @@ interface CuttingPlanPdfData {
   result: SheetCuttingResult | TubeCuttingResult;
   clientName?: string;
   projectName?: string;
+  scale?: PdfScale;
 }
 
+const MM_TO_PT = 2.83465; // 1mm = 2.83465 points
+
 export function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
+  const scale = data.scale || "a4";
+  const isRealScale = scale === "1:1";
+
+  // For 1:1 sheet cutting, create custom-sized pages per layout
+  if (isRealScale && data.planType === "chapa" && "layouts" in data.result) {
+    return exportSheetRealScale(data);
+  }
+
+  // Default A4 export
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
 
@@ -108,6 +122,9 @@ export function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
       theme: "grid",
       headStyles: { fillColor: [34, 197, 94] },
     });
+
+    // Draw A4-scaled layouts
+    drawSheetLayoutsA4(doc, r, data);
   } else if ("bars" in r && r.bars.length > 0) {
     autoTable(doc, {
       startY: y,
@@ -124,5 +141,240 @@ export function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
   }
 
   const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+  doc.save(filename);
+}
+
+// Colors for pieces
+const PIECE_COLORS: [number, number, number][] = [
+  [59, 130, 246],   // blue
+  [34, 197, 94],    // green
+  [249, 115, 22],   // orange
+  [168, 85, 247],   // purple
+  [236, 72, 153],   // pink
+  [14, 165, 233],   // sky
+  [234, 179, 8],    // yellow
+  [239, 68, 68],    // red
+];
+
+function getPieceColorPdf(index: number): [number, number, number] {
+  return PIECE_COLORS[index % PIECE_COLORS.length];
+}
+
+function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlanPdfData) {
+  const dims = data.dimensions.replace(/\s/g, "").split("x");
+  const matW = parseFloat(dims[0]) || 1000;
+  const matH = parseFloat(dims[1]) || 1000;
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const maxDrawW = pw - margin * 2;
+  const maxDrawH = ph - margin * 2 - 30; // leave space for title
+
+  r.layouts.forEach((layout, li) => {
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Chapa ${li + 1} — Aproveitamento: ${layout.utilization.toFixed(1)}%`, pw / 2, 15, { align: "center" });
+
+    // Calculate scale to fit A4
+    const scaleX = maxDrawW / matW;
+    const scaleY = maxDrawH / matH;
+    const s = Math.min(scaleX, scaleY);
+    const drawW = matW * s;
+    const drawH = matH * s;
+    const ox = (pw - drawW) / 2;
+    const oy = 25;
+
+    // Material boundary
+    doc.setDrawColor(100, 100, 100);
+    doc.setLineWidth(0.5);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(ox, oy, drawW, drawH, "FD");
+
+    // Dimension labels
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${matW} mm`, ox + drawW / 2, oy - 3, { align: "center" });
+    doc.text(`${matH} mm`, ox - 3, oy + drawH / 2, { align: "center", angle: 90 });
+
+    // Draw pieces
+    layout.pieces.forEach((p, pi) => {
+      const px = ox + p.x * s;
+      const py = oy + p.y * s;
+      const pW = p.width * s;
+      const pH = p.height * s;
+      const color = getPieceColorPdf(p.pieceIndex ?? pi);
+
+      doc.setFillColor(color[0], color[1], color[2]);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.3);
+      doc.rect(px, py, pW, pH, "FD");
+
+      // Piece label
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
+      doc.setFont("helvetica", "bold");
+      const label = `P${(p.pieceIndex ?? pi) + 1}`;
+      const dimLabel = `${p.width}x${p.height}`;
+      if (pW > 12 && pH > 8) {
+        doc.text(label, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
+        doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
+        doc.text(dimLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
+      }
+    });
+
+    // Scrap areas
+    const maxX = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.x + p.width)) : 0;
+    const maxY = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.y + p.height)) : 0;
+
+    doc.setTextColor(200, 100, 0);
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
+
+    if (maxX < matW) {
+      const sx = ox + maxX * s;
+      const sw = (matW - maxX) * s;
+      doc.setDrawColor(230, 140, 50);
+      doc.setLineWidth(0.3);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.rect(sx, oy, sw, drawH);
+      if (sw > 10) {
+        doc.text(`Sobra ${(matW - maxX).toFixed(0)}x${matH} mm`, sx + sw / 2, oy + drawH / 2, { align: "center" });
+      }
+    }
+    if (maxY < matH) {
+      const sy = oy + maxY * s;
+      const sh = (matH - maxY) * s;
+      const clipW = Math.min(matW, maxX) * s;
+      doc.setDrawColor(230, 140, 50);
+      doc.setLineWidth(0.3);
+      doc.rect(ox, sy, clipW, sh);
+      if (sh > 6 && clipW > 10) {
+        doc.text(`Sobra ${Math.min(matW, maxX).toFixed(0)}x${(matH - maxY).toFixed(0)} mm`, ox + clipW / 2, sy + sh / 2, { align: "center" });
+      }
+    }
+
+    doc.setLineDashPattern([], 0);
+
+    // Legend
+    const legendY = oy + drawH + 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.text("Legenda:", margin, legendY);
+    doc.setFont("helvetica", "normal");
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin + 25, legendY - 3, 6, 4, "F");
+    doc.text("Material", margin + 33, legendY);
+
+    doc.setFillColor(59, 130, 246);
+    doc.rect(margin + 55, legendY - 3, 6, 4, "F");
+    doc.text("Peça", margin + 63, legendY);
+
+    doc.setDrawColor(230, 140, 50);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.rect(margin + 80, legendY - 3, 6, 4);
+    doc.setLineDashPattern([], 0);
+    doc.text("Sobra/Retalho", margin + 88, legendY);
+  });
+}
+
+function exportSheetRealScale(data: CuttingPlanPdfData) {
+  const dims = data.dimensions.replace(/\s/g, "").split("x");
+  const matW = parseFloat(dims[0]) || 1000;
+  const matH = parseFloat(dims[1]) || 1000;
+  const r = data.result as SheetCuttingResult;
+
+  // Page size in mm + small margin
+  const pageMargin = 10; // mm
+  const pageW = matW + pageMargin * 2;
+  const pageH = matH + pageMargin * 2 + 20; // extra for title
+
+  // jsPDF uses mm when orientation+format are set
+  const doc = new jsPDF({
+    orientation: pageW > pageH ? "landscape" : "portrait",
+    unit: "mm",
+    format: [pageW, pageH],
+  });
+
+  r.layouts.forEach((layout, li) => {
+    if (li > 0) doc.addPage([pageW, pageH]);
+
+    // Title
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${data.planName || "Plano de Corte"} — Chapa ${li + 1} (Escala 1:1)`, pageW / 2, 8, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${data.materialName} — ${matW}x${matH} mm — Aproveit.: ${layout.utilization.toFixed(1)}%`, pageW / 2, 14, { align: "center" });
+
+    const ox = pageMargin;
+    const oy = 20;
+
+    // Material boundary (1:1 scale, 1mm = 1mm in PDF)
+    doc.setDrawColor(100, 100, 100);
+    doc.setLineWidth(0.5);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(ox, oy, matW, matH, "FD");
+
+    // Dimension labels
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${matW} mm`, ox + matW / 2, oy - 2, { align: "center" });
+    doc.text(`${matH} mm`, ox - 2, oy + matH / 2, { align: "center", angle: 90 });
+
+    // Draw pieces at real scale
+    layout.pieces.forEach((p, pi) => {
+      const color = getPieceColorPdf(p.pieceIndex ?? pi);
+      doc.setFillColor(color[0], color[1], color[2]);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.3);
+      doc.rect(ox + p.x, oy + p.y, p.width, p.height, "FD");
+
+      doc.setTextColor(255, 255, 255);
+      const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
+      if (fontSize >= 3) {
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", "bold");
+        doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+        doc.setFontSize(Math.max(3, fontSize * 0.7));
+        doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+      }
+    });
+
+    // Scrap areas
+    const maxX = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.x + p.width)) : 0;
+    const maxY = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.y + p.height)) : 0;
+
+    doc.setTextColor(200, 100, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setDrawColor(230, 140, 50);
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([3, 3], 0);
+
+    if (maxX < matW) {
+      doc.rect(ox + maxX, oy, matW - maxX, matH);
+      const sw = matW - maxX;
+      if (sw > 15) {
+        doc.text(`Sobra ${sw.toFixed(0)}x${matH} mm`, ox + maxX + sw / 2, oy + matH / 2, { align: "center" });
+      }
+    }
+    if (maxY < matH) {
+      const clipW = Math.min(matW, maxX);
+      doc.rect(ox, oy + maxY, clipW, matH - maxY);
+      const sh = matH - maxY;
+      if (sh > 10 && clipW > 15) {
+        doc.text(`Sobra ${clipW.toFixed(0)}x${sh.toFixed(0)} mm`, ox + clipW / 2, oy + maxY + sh / 2, { align: "center" });
+      }
+    }
+
+    doc.setLineDashPattern([], 0);
+  });
+
+  const filename = `plano-corte-1x1-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
   doc.save(filename);
 }
