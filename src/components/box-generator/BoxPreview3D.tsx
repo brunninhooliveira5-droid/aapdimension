@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { BoxParams } from "@/lib/box-generator-engine";
+import type { BoxParams, PieceEdgeMap } from "@/lib/box-generator-engine";
+import { computeBoxJoints } from "@/lib/box-generator-engine";
 
 interface Props {
   params: BoxParams;
