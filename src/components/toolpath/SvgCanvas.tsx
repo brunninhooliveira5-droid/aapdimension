@@ -1,5 +1,6 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import type { SvgVector, MaterialConfig, ToolpathOperation, CncTool } from "@/lib/toolpath-engine";
+import { extractPointsFromPath } from "@/lib/toolpath-engine";
 
 interface SvgCanvasProps {
   vectors: SvgVector[];
@@ -30,6 +31,7 @@ export function SvgCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [showGrid, setShowGrid] = useState(true);
+  const [showDirectionArrows, setShowDirectionArrows] = useState(true);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -62,13 +64,25 @@ export function SvgCanvas({
     setPan({ x: 0, y: 0 });
   }, []);
 
-  // Parse viewBox
   const vbParts = viewBox.split(/\s+/).map(Number);
   const vbW = vbParts[2] || material.width;
   const vbH = vbParts[3] || material.height;
-
-  // Grid spacing
   const gridSpacing = material.unit === "mm" ? 10 : 25.4;
+
+  // Get direction arrow points for a path
+  const getArrowPoints = (pathData: string, offset: number) => {
+    const points = extractPointsFromPath(pathData);
+    if (points.length < 2) return [];
+    const arrows: { x: number; y: number; angle: number }[] = [];
+    const step = Math.max(1, Math.floor(points.length / 6));
+    for (let i = step; i < points.length - 1; i += step) {
+      const dx = points[i + 1 < points.length ? i + 1 : i][0] - points[i - 1][0];
+      const dy = points[i + 1 < points.length ? i + 1 : i][1] - points[i - 1][1];
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      arrows.push({ x: points[i][0] + offset, y: points[i][1], angle });
+    }
+    return arrows;
+  };
 
   return (
     <div className="relative h-full w-full bg-muted/30 overflow-hidden select-none rounded-md border border-border">
@@ -81,6 +95,10 @@ export function SvgCanvas({
         <label className="flex items-center gap-1 ml-2 cursor-pointer">
           <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="w-3 h-3" />
           Grid
+        </label>
+        <label className="flex items-center gap-1 ml-1 cursor-pointer">
+          <input type="checkbox" checked={showDirectionArrows} onChange={(e) => setShowDirectionArrows(e.target.checked)} className="w-3 h-3" />
+          Setas
         </label>
       </div>
 
@@ -111,6 +129,16 @@ export function SvgCanvas({
         onMouseLeave={handleMouseUp}
         onClick={() => onSelectVector("", false)}
       >
+        {/* Arrow marker def */}
+        <defs>
+          <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#22c55e" />
+          </marker>
+          <marker id="arrowYellow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#f59e0b" />
+          </marker>
+        </defs>
+
         {/* Material boundary */}
         <rect
           x={0} y={0}
@@ -149,21 +177,44 @@ export function SvgCanvas({
               <circle cx={material.width / 2} cy={material.height / 2} r={3 / zoom} fill="#f59e0b" />
             </>
           )}
+          {material.zeroOrigin === "top-left" && (
+            <>
+              <line x1={0} y1={0} x2={15 / zoom} y2={0} stroke="#ef4444" strokeWidth={2 / zoom} />
+              <line x1={0} y1={0} x2={0} y2={15 / zoom} stroke="#22c55e" strokeWidth={2 / zoom} />
+              <circle cx={0} cy={0} r={3 / zoom} fill="#f59e0b" />
+            </>
+          )}
         </g>
 
         {/* Vectors */}
         {vectors.map((v) => {
           const isSelected = selectedVectorIds.includes(v.id);
           return (
-            <path
-              key={v.id}
-              d={v.pathData}
-              fill="none"
-              stroke={isSelected ? "hsl(var(--primary))" : v.color}
-              strokeWidth={(isSelected ? 2.5 : 1.5) / zoom}
-              className="cursor-pointer hover:opacity-80"
-              onClick={(e) => handleClickVector(e, v.id)}
-            />
+            <g key={v.id}>
+              <path
+                d={v.pathData}
+                fill="none"
+                stroke={isSelected ? "hsl(var(--primary))" : v.color}
+                strokeWidth={(isSelected ? 2.5 : 1.5) / zoom}
+                className="cursor-pointer hover:opacity-80"
+                onClick={(e) => handleClickVector(e, v.id)}
+              />
+              {/* Start point indicator */}
+              {isSelected && (() => {
+                const pts = extractPointsFromPath(v.pathData);
+                if (pts.length === 0) return null;
+                return (
+                  <circle
+                    cx={pts[0][0]}
+                    cy={pts[0][1]}
+                    r={4 / zoom}
+                    fill="#22c55e"
+                    stroke="white"
+                    strokeWidth={1 / zoom}
+                  />
+                );
+              })()}
+            </g>
           );
         })}
 
@@ -179,17 +230,48 @@ export function SvgCanvas({
                 const v = vectors.find((vv) => vv.id === vid);
                 if (!v) return null;
                 return (
-                  <path
-                    key={`tp-${op.id}-${vid}`}
-                    d={v.pathData}
-                    fill="none"
-                    stroke={isActive ? "#f59e0b" : "#94a3b8"}
-                    strokeWidth={(tool.diameter * 0.8) / zoom}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={0.3}
-                    transform={`translate(${offset}, 0)`}
-                  />
+                  <g key={`tp-${op.id}-${vid}`}>
+                    {/* Toolpath width */}
+                    <path
+                      d={v.pathData}
+                      fill="none"
+                      stroke={isActive ? "#f59e0b" : "#94a3b8"}
+                      strokeWidth={(tool.diameter * 0.8) / zoom}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.3}
+                      transform={`translate(${offset}, 0)`}
+                    />
+                    {/* Toolpath center line */}
+                    <path
+                      d={v.pathData}
+                      fill="none"
+                      stroke={isActive ? "#f59e0b" : "#64748b"}
+                      strokeWidth={1 / zoom}
+                      strokeDasharray={`${3 / zoom}`}
+                      transform={`translate(${offset}, 0)`}
+                    />
+                    {/* Direction arrows */}
+                    {showDirectionArrows && isActive && getArrowPoints(v.pathData, offset).map((arrow, ai) => (
+                      <g key={`arrow-${ai}`} transform={`translate(${arrow.x},${arrow.y}) rotate(${arrow.angle})`}>
+                        <polygon
+                          points={`0,${-3 / zoom} ${6 / zoom},0 0,${3 / zoom}`}
+                          fill="#f59e0b"
+                        />
+                      </g>
+                    ))}
+                    {/* Start point on toolpath */}
+                    {isActive && (() => {
+                      const pts = extractPointsFromPath(v.pathData);
+                      if (pts.length === 0) return null;
+                      return (
+                        <g>
+                          <circle cx={pts[0][0] + offset} cy={pts[0][1]} r={5 / zoom} fill="none" stroke="#22c55e" strokeWidth={2 / zoom} />
+                          <circle cx={pts[0][0] + offset} cy={pts[0][1]} r={2 / zoom} fill="#22c55e" />
+                        </g>
+                      );
+                    })()}
+                  </g>
                 );
               })}
             </g>

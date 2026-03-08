@@ -5,8 +5,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Route, Plus } from "lucide-react";
-import type { ToolpathOperation, OperationType, CutSide, CutDirection, CncTool, SvgVector } from "@/lib/toolpath-engine";
+import type {
+  ToolpathOperation,
+  OperationType,
+  CutSide,
+  CutDirection,
+  CncTool,
+  SvgVector,
+  EntryMode,
+  LeadType,
+} from "@/lib/toolpath-engine";
 import { OPERATION_LABELS, createDefaultOperation } from "@/lib/toolpath-engine";
 
 interface OperationPanelProps {
@@ -41,6 +51,21 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
     onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, tabs: { ...o.tabs, [key]: val } } : o)));
   };
 
+  const updateEntry = (key: string, val: any) => {
+    if (!activeOp) return;
+    onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, entry: { ...o.entry, [key]: val } } : o)));
+  };
+
+  const updateLeadIn = (key: string, val: any) => {
+    if (!activeOp) return;
+    onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, leadIn: { ...o.leadIn, [key]: val } } : o)));
+  };
+
+  const updateLeadOut = (key: string, val: any) => {
+    if (!activeOp) return;
+    onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, leadOut: { ...o.leadOut, [key]: val } } : o)));
+  };
+
   const assignSelectedVectors = () => {
     if (!activeOp) return;
     updateOp("vectorIds", [...selectedVectorIds]);
@@ -60,7 +85,7 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
             Selecione vetores e clique + para criar uma operação.
           </p>
         ) : (
-          <ScrollArea className="max-h-[400px] pr-1">
+          <ScrollArea className="max-h-[500px] pr-1">
             <div className="space-y-2.5">
               <div><Label className="text-xs">Nome</Label><Input value={activeOp.name} onChange={(e) => updateOp("name", e.target.value)} className="h-8 text-xs" /></div>
 
@@ -87,12 +112,14 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                 </Button>
               </div>
 
+              {/* Depth */}
               <div className="grid grid-cols-3 gap-2">
                 <div><Label className="text-xs">Prof. Inicial</Label><Input type="number" step={0.1} value={activeOp.startDepth} onChange={(e) => updateOp("startDepth", +e.target.value)} className="h-8 text-xs" /></div>
                 <div><Label className="text-xs">Prof. Final</Label><Input type="number" step={0.1} value={activeOp.finalDepth} onChange={(e) => updateOp("finalDepth", +e.target.value)} className="h-8 text-xs" /></div>
                 <div><Label className="text-xs">Prof./Passada</Label><Input type="number" step={0.1} value={activeOp.depthPerPass} onChange={(e) => updateOp("depthPerPass", +e.target.value)} className="h-8 text-xs" /></div>
               </div>
 
+              {/* Cut side & direction */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs">Lado do Corte</Label>
@@ -117,10 +144,70 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-xs">Lead In</Label><Input type="number" step={0.1} value={activeOp.leadIn} onChange={(e) => updateOp("leadIn", +e.target.value)} className="h-8 text-xs" /></div>
-                <div><Label className="text-xs">Lead Out</Label><Input type="number" step={0.1} value={activeOp.leadOut} onChange={(e) => updateOp("leadOut", +e.target.value)} className="h-8 text-xs" /></div>
+              <Separator className="my-1" />
+
+              {/* Entry Mode */}
+              <div className="space-y-1.5 p-2 bg-muted/30 rounded-md">
+                <Label className="text-xs font-medium">Entrada da Ferramenta</Label>
+                <Select value={activeOp.entry.mode} onValueChange={(v: EntryMode) => updateEntry("mode", v)}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="plunge">Plunge Direto</SelectItem>
+                    <SelectItem value="ramp-linear">Rampa Linear</SelectItem>
+                    <SelectItem value="ramp-helicoidal">Rampa Helicoidal</SelectItem>
+                  </SelectContent>
+                </Select>
+                {activeOp.entry.mode !== "plunge" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-[10px]">Comprimento</Label><Input type="number" step={0.5} value={activeOp.entry.rampLength} onChange={(e) => updateEntry("rampLength", +e.target.value)} className="h-7 text-xs" /></div>
+                    <div><Label className="text-[10px]">Ângulo (°)</Label><Input type="number" step={1} value={activeOp.entry.rampAngle} onChange={(e) => updateEntry("rampAngle", +e.target.value)} className="h-7 text-xs" /></div>
+                  </div>
+                )}
               </div>
+
+              {/* Lead In */}
+              <div className="space-y-1.5 p-2 bg-muted/30 rounded-md">
+                <Label className="text-xs font-medium">Lead In</Label>
+                <Select value={activeOp.leadIn.type} onValueChange={(v: LeadType) => updateLeadIn("type", v)}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="line">Linha Reta</SelectItem>
+                    <SelectItem value="arc">Arco</SelectItem>
+                  </SelectContent>
+                </Select>
+                {activeOp.leadIn.type !== "none" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {activeOp.leadIn.type === "arc" && (
+                      <div><Label className="text-[10px]">Raio</Label><Input type="number" step={0.5} value={activeOp.leadIn.radius} onChange={(e) => updateLeadIn("radius", +e.target.value)} className="h-7 text-xs" /></div>
+                    )}
+                    <div><Label className="text-[10px]">Comprimento</Label><Input type="number" step={0.5} value={activeOp.leadIn.length} onChange={(e) => updateLeadIn("length", +e.target.value)} className="h-7 text-xs" /></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Lead Out */}
+              <div className="space-y-1.5 p-2 bg-muted/30 rounded-md">
+                <Label className="text-xs font-medium">Lead Out</Label>
+                <Select value={activeOp.leadOut.type} onValueChange={(v: LeadType) => updateLeadOut("type", v)}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="line">Linha Reta</SelectItem>
+                    <SelectItem value="arc">Arco</SelectItem>
+                  </SelectContent>
+                </Select>
+                {activeOp.leadOut.type !== "none" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {activeOp.leadOut.type === "arc" && (
+                      <div><Label className="text-[10px]">Raio</Label><Input type="number" step={0.5} value={activeOp.leadOut.radius} onChange={(e) => updateLeadOut("radius", +e.target.value)} className="h-7 text-xs" /></div>
+                    )}
+                    <div><Label className="text-[10px]">Comprimento</Label><Input type="number" step={0.5} value={activeOp.leadOut.length} onChange={(e) => updateLeadOut("length", +e.target.value)} className="h-7 text-xs" /></div>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-1" />
 
               {/* Tabs */}
               <div className="space-y-1.5 p-2 bg-muted/30 rounded-md">
@@ -129,17 +216,15 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                   <Switch checked={activeOp.tabs.enabled} onCheckedChange={(v) => updateTabs("enabled", v)} />
                 </div>
                 {activeOp.tabs.enabled && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <div><Label className="text-[10px]">Qtd</Label><Input type="number" min={1} value={activeOp.tabs.count} onChange={(e) => updateTabs("count", +e.target.value)} className="h-7 text-xs" /></div>
-                    <div><Label className="text-[10px]">Largura</Label><Input type="number" step={0.5} value={activeOp.tabs.width} onChange={(e) => updateTabs("width", +e.target.value)} className="h-7 text-xs" /></div>
-                    <div><Label className="text-[10px]">Altura</Label><Input type="number" step={0.5} value={activeOp.tabs.height} onChange={(e) => updateTabs("height", +e.target.value)} className="h-7 text-xs" /></div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><Label className="text-[10px]">Qtd</Label><Input type="number" min={1} value={activeOp.tabs.count} onChange={(e) => updateTabs("count", +e.target.value)} className="h-7 text-xs" /></div>
+                      <div><Label className="text-[10px]">Largura</Label><Input type="number" step={0.5} value={activeOp.tabs.width} onChange={(e) => updateTabs("width", +e.target.value)} className="h-7 text-xs" /></div>
+                      <div><Label className="text-[10px]">Altura</Label><Input type="number" step={0.5} value={activeOp.tabs.height} onChange={(e) => updateTabs("height", +e.target.value)} className="h-7 text-xs" /></div>
+                    </div>
+                    <div><Label className="text-[10px]">Dist. Mínima</Label><Input type="number" step={1} value={activeOp.tabs.minDistance} onChange={(e) => updateTabs("minDistance", +e.target.value)} className="h-7 text-xs" /></div>
                   </div>
                 )}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Ramp Entry</Label>
-                <Switch checked={activeOp.rampEntry} onCheckedChange={(v) => updateOp("rampEntry", v)} />
               </div>
             </div>
           </ScrollArea>
