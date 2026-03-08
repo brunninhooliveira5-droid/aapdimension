@@ -269,12 +269,15 @@ export default function Slicer3DPage() {
               {fileName && (
                 <p className="text-xs text-muted-foreground truncate">📁 {fileName}</p>
               )}
-              <div>
-                <Label className="text-xs">Material</Label>
-                <Input value={materialName} onChange={(e) => setMaterialName(e.target.value)} placeholder="Ex: MDF, Acrílico..." />
-              </div>
             </CardContent>
           </Card>
+
+          {/* Material Selection */}
+          <SlicerMaterialManager
+            selectedMaterial={selectedMaterial}
+            onSelectMaterial={setSelectedMaterial}
+            modelBounds={modelBounds}
+          />
 
           {/* Mode Selection */}
           <Card>
