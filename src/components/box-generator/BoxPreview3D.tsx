@@ -473,10 +473,10 @@ export function BoxPreview3D({ params, className }: Props) {
       [[-hw, yBot, zF], [-hw, yBot, zB], [-hw, yTop, zB], [-hw, yTop, zF]],
       [-1, 0, 0], woodEdge, woodSide, woodDark, "Esquerda",
       [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] }] : []),
-        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] },
+        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
+        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
+        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
+        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },
       ],
     );
 
