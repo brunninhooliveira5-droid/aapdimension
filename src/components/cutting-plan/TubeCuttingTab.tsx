@@ -282,7 +282,7 @@ export function TubeCuttingTab() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div><Label className="text-xs">Nome</Label><Input value={materialName} onChange={(e) => setMaterialName(e.target.value)} readOnly={source !== "manual"} placeholder="Ex: Tubo 50x50" /></div>
           <div><Label className="text-xs">Comprimento (mm)</Label><Input type="number" value={materialLength} onChange={(e) => setMaterialLength(e.target.value)} placeholder="6000" /></div>
-          <div><Label className="text-xs">Valor unitário (R$)</Label><Input type="number" value={materialPrice} onChange={(e) => setMaterialPrice(e.target.value)} placeholder="0.00" /></div>
+          <div><Label className="text-xs">Valor unitário (R$)</Label><Input type="text" inputMode="decimal" value={materialPrice} onChange={(e) => { let v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", "."); const parts = v.split("."); if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join(""); if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].slice(0, 2); setMaterialPrice(v); }} placeholder="0.00" /></div>
           <div><Label className="text-xs">Largura da serra (mm)</Label><Input type="number" value={kerfWidth} onChange={(e) => setKerfWidth(e.target.value)} placeholder="3" /></div>
           <div><Label className="text-xs">Margem segurança (mm)</Label><Input type="number" value={safetyMargin} onChange={(e) => setSafetyMargin(e.target.value)} placeholder="0" /></div>
         </div>

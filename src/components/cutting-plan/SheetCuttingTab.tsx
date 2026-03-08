@@ -463,7 +463,7 @@ export function SheetCuttingTab() {
           </div>
           <div>
             <Label className="text-xs">Valor unitário (R$)</Label>
-            <Input type="number" value={materialPrice} onChange={(e) => setMaterialPrice(e.target.value)} placeholder="0.00" />
+            <Input type="text" inputMode="decimal" value={materialPrice} onChange={(e) => { let v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", "."); const parts = v.split("."); if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join(""); if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].slice(0, 2); setMaterialPrice(v); }} placeholder="0.00" />
           </div>
           <div>
             <Label className="text-xs">Largura da serra (mm)</Label>
