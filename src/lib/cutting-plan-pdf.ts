@@ -299,18 +299,18 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
   });
 }
 
-function exportSheetRealScale(data: CuttingPlanPdfData) {
+async function exportSheetRealScale(data: CuttingPlanPdfData) {
   const dims = data.dimensions.replace(/\s/g, "").split("x");
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
   const r = data.result as SheetCuttingResult;
-  const folderPrefix = data.folderName
-    ? `${data.folderName.replace(/\s+/g, "-").toLowerCase()}/`
-    : "";
+  const folderName = data.folderName || "plano-corte-1x1";
 
-  // Export each layout as an individual PDF
+  const zip = new JSZip();
+  const folder = zip.folder(folderName)!;
+
   r.layouts.forEach((layout, li) => {
-    const pageMargin = 5; // mm - minimal margin
+    const pageMargin = 5;
     const pageW = matW + pageMargin * 2;
     const pageH = matH + pageMargin * 2;
 
@@ -323,13 +323,13 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
     const ox = pageMargin;
     const oy = pageMargin;
 
-    // Material boundary only - clean rectangle
+    // Material boundary only
     doc.setDrawColor(60, 60, 60);
     doc.setLineWidth(0.5);
     doc.setFillColor(245, 245, 245);
     doc.rect(ox, oy, matW, matH, "FD");
 
-    // Draw pieces at real scale - no external labels
+    // Draw pieces at real scale
     layout.pieces.forEach((p, pi) => {
       const color = getPieceColorPdf(p.pieceIndex ?? pi);
       doc.setFillColor(color[0], color[1], color[2]);
@@ -349,7 +349,10 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
       }
     });
 
-    const filename = `${folderPrefix}chapa-${li + 1}.pdf`;
-    doc.save(filename);
+    const pdfBlob = doc.output("blob");
+    folder.file(`chapa-${li + 1}.pdf`, pdfBlob);
   });
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  saveAs(zipBlob, `${folderName}.zip`);
 }
