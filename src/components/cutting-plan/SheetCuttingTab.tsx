@@ -705,50 +705,68 @@ export function SheetCuttingTab() {
                           </div>
                         ))}
 
-                        {/* Kerf lines between pieces (singleCut mode) */}
+                        {/* Kerf lines between pieces (singleCut mode) — merged continuously */}
                         {singleCut && (() => {
                           const kerf = parseFloat(kerfWidth) || 0;
                           if (kerf <= 0) return null;
-                          const kerfLines: { x1: number; y1: number; x2: number; y2: number; vertical: boolean }[] = [];
+                          // Collect raw segments
+                          type Seg = { pos: number; start: number; end: number };
+                          const hSegs: Seg[] = [];
+                          const vSegs: Seg[] = [];
                           const pcs = layout.pieces;
                           for (let a = 0; a < pcs.length; a++) {
                             for (let b = a + 1; b < pcs.length; b++) {
                               const pa = pcs[a], pb = pcs[b];
                               const aR = pa.x + pa.width, bR = pb.x + pb.width;
                               const aB = pa.y + pa.height, bB = pb.y + pb.height;
-                              // Vertical shared edge (right of a = left of b with kerf gap)
                               if (Math.abs(aR + kerf - pb.x) < 1) {
-                                const overlapY1 = Math.max(pa.y, pb.y);
-                                const overlapY2 = Math.min(aB, bB);
-                                if (overlapY2 > overlapY1) {
-                                  kerfLines.push({ x1: aR + kerf / 2, y1: overlapY1, x2: aR + kerf / 2, y2: overlapY2, vertical: true });
-                                }
+                                const s = Math.max(pa.y, pb.y), e = Math.min(aB, bB);
+                                if (e > s) vSegs.push({ pos: aR + kerf / 2, start: s, end: e });
                               }
                               if (Math.abs(bR + kerf - pa.x) < 1) {
-                                const overlapY1 = Math.max(pa.y, pb.y);
-                                const overlapY2 = Math.min(aB, bB);
-                                if (overlapY2 > overlapY1) {
-                                  kerfLines.push({ x1: bR + kerf / 2, y1: overlapY1, x2: bR + kerf / 2, y2: overlapY2, vertical: true });
-                                }
+                                const s = Math.max(pa.y, pb.y), e = Math.min(aB, bB);
+                                if (e > s) vSegs.push({ pos: bR + kerf / 2, start: s, end: e });
                               }
-                              // Horizontal shared edge
                               if (Math.abs(aB + kerf - pb.y) < 1) {
-                                const overlapX1 = Math.max(pa.x, pb.x);
-                                const overlapX2 = Math.min(aR, bR);
-                                if (overlapX2 > overlapX1) {
-                                  kerfLines.push({ x1: overlapX1, y1: aB + kerf / 2, x2: overlapX2, y2: aB + kerf / 2, vertical: false });
-                                }
+                                const s = Math.max(pa.x, pb.x), e = Math.min(aR, bR);
+                                if (e > s) hSegs.push({ pos: aB + kerf / 2, start: s, end: e });
                               }
                               if (Math.abs(bB + kerf - pa.y) < 1) {
-                                const overlapX1 = Math.max(pa.x, pb.x);
-                                const overlapX2 = Math.min(aR, bR);
-                                if (overlapX2 > overlapX1) {
-                                  kerfLines.push({ x1: overlapX1, y1: bB + kerf / 2, x2: overlapX2, y2: bB + kerf / 2, vertical: false });
-                                }
+                                const s = Math.max(pa.x, pb.x), e = Math.min(aR, bR);
+                                if (e > s) hSegs.push({ pos: bB + kerf / 2, start: s, end: e });
                               }
                             }
                           }
-                          return kerfLines.map((line, idx) => (
+                          // Merge collinear segments
+                          const merge = (segs: Seg[], gap: number): Seg[] => {
+                            const groups = new Map<string, Seg[]>();
+                            for (const s of segs) {
+                              const key = s.pos.toFixed(1);
+                              if (!groups.has(key)) groups.set(key, []);
+                              groups.get(key)!.push(s);
+                            }
+                            const result: Seg[] = [];
+                            for (const [, g] of groups) {
+                              g.sort((a, b) => a.start - b.start);
+                              let cur = { ...g[0] };
+                              for (let i = 1; i < g.length; i++) {
+                                if (g[i].start <= cur.end + gap) {
+                                  cur.end = Math.max(cur.end, g[i].end);
+                                } else {
+                                  result.push(cur);
+                                  cur = { ...g[i] };
+                                }
+                              }
+                              result.push(cur);
+                            }
+                            return result;
+                          };
+                          const mergedH = merge(hSegs, kerf + 1);
+                          const mergedV = merge(vSegs, kerf + 1);
+                          const lines: { x1: number; y1: number; x2: number; y2: number; vertical: boolean }[] = [];
+                          for (const s of mergedV) lines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end, vertical: true });
+                          for (const s of mergedH) lines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos, vertical: false });
+                          return lines.map((line, idx) => (
                             <div
                               key={`kerf-${idx}`}
                               className="absolute bg-destructive"

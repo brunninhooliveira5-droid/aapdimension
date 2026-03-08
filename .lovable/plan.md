@@ -1,40 +1,44 @@
 
 
-## Plano: Geometria Unificada e Linhas Internas Contínuas no Corte Único
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-### Problema Atual
+### Resumo
 
-1. **Contorno externo** — as linhas do perímetro são segmentos individuais por peça/aresta, não formam uma geometria fechada e contínua.
-2. **Linhas internas (corte compartilhado)** — quando duas linhas de corte se cruzam, elas se quebram no ponto de interseção ao invés de passar direto como linhas contínuas.
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-### Solução
+### Alteracoes
 
-Duas mudanças na função `computeSingleCutGeometry` em `src/lib/cutting-plan-pdf.ts`:
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-**A) Contorno externo como geometria fechada**
-- Após o merge dos segmentos collineares, construir um **polígono fechado** a partir dos segmentos horizontais e verticais.
-- Algoritmo: encontrar o canto superior-esquerdo, percorrer os segmentos conectando-os em ordem (sentido horário), gerando um path contínuo.
-- O resultado será um conjunto de linhas que formam um retângulo unificado (ou forma em L/T se houver layout irregular), sem linhas soltas.
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-**B) Linhas internas contínuas (não quebrar em cruzamentos)**
-- Atualmente, as linhas internas são geradas como segmentos curtos entre pares de peças adjacentes (limitadas ao overlap entre elas).
-- Mudança: após coletar todas as linhas internas, **mergear segmentos collineares na mesma posição** — exatamente como já é feito para o contorno, mas aplicado às `cutLines`.
-- Linhas verticais na mesma posição X serão unidas em uma só linha contínua que vai do topo ao fundo do grupo de peças.
-- Linhas horizontais na mesma posição Y serão unidas da mesma forma.
-- Isso faz com que uma linha de corte passe direto mesmo quando cruza com outra perpendicular — sem quebras.
+#### 2. Editar limite de sub-usuarios (max_members)
 
-### Mudanças Técnicas
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-**Arquivo:** `src/lib/cutting-plan-pdf.ts`
+#### 3. Personificar sub-usuarios
 
-1. Na função `computeSingleCutGeometry`:
-   - Separar as `cutLines` em horizontais e verticais (como `Segment[]`).
-   - Aplicar `mergeCollinearSegments` nelas com tolerância generosa.
-   - Converter de volta para `CutLine[]`.
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
 
-2. Para o contorno externo:
-   - Após o merge, ordenar os segmentos para formar um path conectado (polígono).
-   - Alternativamente, calcular o **bounding box** do grupo de peças (com offset de halfKerf) e desenhar como um retângulo único quando todas as peças formam um bloco retangular contínuo. Para layouts não-retangulares, manter os segmentos merged mas garantir que se conectem nos cantos.
+### Arquivos Modificados
 
-3. Preview no `SheetCuttingTab.tsx` — aplicar a mesma lógica de merge nas linhas vermelhas do preview para consistência visual.
+| Arquivo | Mudanca |
+|---|---|
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
+
+### Fluxo
+
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 
