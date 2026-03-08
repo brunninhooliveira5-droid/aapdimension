@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import type { SvgVector, MaterialConfig, ToolpathOperation, CncTool } from "@/lib/toolpath-engine";
-import { extractPointsFromPath } from "@/lib/toolpath-engine";
+import { extractPointsFromPath, GEOMETRY_CLASS_COLORS, type ValidationIssue } from "@/lib/toolpath-engine";
 
 interface SvgCanvasProps {
   vectors: SvgVector[];
@@ -12,6 +12,8 @@ interface SvgCanvasProps {
   showToolpath: Record<string, boolean>;
   onSelectVector: (id: string, multi: boolean) => void;
   viewBox: string;
+  issues?: ValidationIssue[];
+  activePassLayer?: number | null;
 }
 
 export function SvgCanvas({
@@ -24,6 +26,8 @@ export function SvgCanvas({
   showToolpath,
   onSelectVector,
   viewBox,
+  issues = [],
+  activePassLayer = null,
 }: SvgCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -32,6 +36,9 @@ export function SvgCanvas({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [showGrid, setShowGrid] = useState(true);
   const [showDirectionArrows, setShowDirectionArrows] = useState(true);
+  const [showGeoColors, setShowGeoColors] = useState(true);
+
+  const errorVectorIds = new Set(issues.filter((i) => i.severity === "error" && i.vectorId).map((i) => i.vectorId));
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -59,17 +66,13 @@ export function SvgCanvas({
     onSelectVector(id, e.ctrlKey || e.metaKey);
   }, [onSelectVector]);
 
-  const resetView = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, []);
+  const resetView = useCallback(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, []);
 
   const vbParts = viewBox.split(/\s+/).map(Number);
   const vbW = vbParts[2] || material.width;
   const vbH = vbParts[3] || material.height;
   const gridSpacing = material.unit === "mm" ? 10 : 25.4;
 
-  // Get direction arrow points for a path
   const getArrowPoints = (pathData: string, offset: number) => {
     const points = extractPointsFromPath(pathData);
     if (points.length < 2) return [];
@@ -78,8 +81,7 @@ export function SvgCanvas({
     for (let i = step; i < points.length - 1; i += step) {
       const dx = points[i + 1 < points.length ? i + 1 : i][0] - points[i - 1][0];
       const dy = points[i + 1 < points.length ? i + 1 : i][1] - points[i - 1][1];
-      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-      arrows.push({ x: points[i][0] + offset, y: points[i][1], angle });
+      arrows.push({ x: points[i][0] + offset, y: points[i][1], angle: Math.atan2(dy, dx) * (180 / Math.PI) });
     }
     return arrows;
   };
@@ -93,28 +95,32 @@ export function SvgCanvas({
         <button onClick={() => setZoom((z) => Math.max(0.1, z * 0.8))} className="px-1.5 py-0.5 hover:bg-accent rounded">−</button>
         <button onClick={resetView} className="px-1.5 py-0.5 hover:bg-accent rounded ml-1">⟳</button>
         <label className="flex items-center gap-1 ml-2 cursor-pointer">
-          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="w-3 h-3" />
-          Grid
+          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="w-3 h-3" />Grid
         </label>
         <label className="flex items-center gap-1 ml-1 cursor-pointer">
-          <input type="checkbox" checked={showDirectionArrows} onChange={(e) => setShowDirectionArrows(e.target.checked)} className="w-3 h-3" />
-          Setas
+          <input type="checkbox" checked={showDirectionArrows} onChange={(e) => setShowDirectionArrows(e.target.checked)} className="w-3 h-3" />Setas
+        </label>
+        <label className="flex items-center gap-1 ml-1 cursor-pointer">
+          <input type="checkbox" checked={showGeoColors} onChange={(e) => setShowGeoColors(e.target.checked)} className="w-3 h-3" />Tipo
         </label>
       </div>
+
+      {/* Pass layer indicator */}
+      {activePassLayer !== null && (
+        <div className="absolute top-2 right-2 z-10 bg-background/90 backdrop-blur rounded-md px-2 py-1 border border-border text-xs text-muted-foreground">
+          Camada: {activePassLayer + 1}
+        </div>
+      )}
 
       {/* Rulers */}
       <div className="absolute top-0 left-8 right-0 h-5 bg-muted/80 border-b border-border flex items-end overflow-hidden z-[5]">
         {Array.from({ length: Math.ceil(vbW / gridSpacing) + 1 }).map((_, i) => (
-          <span key={i} className="absolute text-[8px] text-muted-foreground" style={{ left: `${(i * gridSpacing / vbW) * 100}%` }}>
-            {i * gridSpacing}
-          </span>
+          <span key={i} className="absolute text-[8px] text-muted-foreground" style={{ left: `${(i * gridSpacing / vbW) * 100}%` }}>{i * gridSpacing}</span>
         ))}
       </div>
       <div className="absolute top-5 left-0 bottom-0 w-5 bg-muted/80 border-r border-border overflow-hidden z-[5]">
         {Array.from({ length: Math.ceil(vbH / gridSpacing) + 1 }).map((_, i) => (
-          <span key={i} className="absolute text-[8px] text-muted-foreground origin-top-left" style={{ top: `${(i * gridSpacing / vbH) * 100}%`, left: 2 }}>
-            {i * gridSpacing}
-          </span>
+          <span key={i} className="absolute text-[8px] text-muted-foreground origin-top-left" style={{ top: `${(i * gridSpacing / vbH) * 100}%`, left: 2 }}>{i * gridSpacing}</span>
         ))}
       </div>
 
@@ -129,25 +135,9 @@ export function SvgCanvas({
         onMouseLeave={handleMouseUp}
         onClick={() => onSelectVector("", false)}
       >
-        {/* Arrow marker def */}
-        <defs>
-          <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" fill="#22c55e" />
-          </marker>
-          <marker id="arrowYellow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" fill="#f59e0b" />
-          </marker>
-        </defs>
-
         {/* Material boundary */}
-        <rect
-          x={0} y={0}
-          width={material.width} height={material.height}
-          fill="hsl(var(--card))"
-          stroke="hsl(var(--border))"
-          strokeWidth={1 / zoom}
-          strokeDasharray={`${4 / zoom}`}
-        />
+        <rect x={0} y={0} width={material.width} height={material.height}
+          fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth={1 / zoom} strokeDasharray={`${4 / zoom}`} />
 
         {/* Grid */}
         {showGrid && (
@@ -161,7 +151,7 @@ export function SvgCanvas({
           </g>
         )}
 
-        {/* Zero origin marker */}
+        {/* Zero origin */}
         <g>
           {material.zeroOrigin === "bottom-left" && (
             <>
@@ -189,30 +179,30 @@ export function SvgCanvas({
         {/* Vectors */}
         {vectors.map((v) => {
           const isSelected = selectedVectorIds.includes(v.id);
+          const hasError = errorVectorIds.has(v.id);
+          const geoColor = showGeoColors ? GEOMETRY_CLASS_COLORS[v.geometryClass] : v.color;
+          const strokeColor = hasError ? "#ef4444" : isSelected ? "hsl(var(--primary))" : geoColor;
+
           return (
             <g key={v.id}>
+              {/* Error highlight glow */}
+              {hasError && (
+                <path d={v.pathData} fill="none" stroke="#ef4444" strokeWidth={6 / zoom} opacity={0.3} />
+              )}
               <path
                 d={v.pathData}
                 fill="none"
-                stroke={isSelected ? "hsl(var(--primary))" : v.color}
-                strokeWidth={(isSelected ? 2.5 : 1.5) / zoom}
+                stroke={strokeColor}
+                strokeWidth={(isSelected ? 2.5 : hasError ? 2 : 1.5) / zoom}
+                strokeDasharray={!v.closed ? `${4 / zoom}` : undefined}
                 className="cursor-pointer hover:opacity-80"
                 onClick={(e) => handleClickVector(e, v.id)}
               />
-              {/* Start point indicator */}
+              {/* Start point */}
               {isSelected && (() => {
                 const pts = extractPointsFromPath(v.pathData);
                 if (pts.length === 0) return null;
-                return (
-                  <circle
-                    cx={pts[0][0]}
-                    cy={pts[0][1]}
-                    r={4 / zoom}
-                    fill="#22c55e"
-                    stroke="white"
-                    strokeWidth={1 / zoom}
-                  />
-                );
+                return <circle cx={pts[0][0]} cy={pts[0][1]} r={4 / zoom} fill="#22c55e" stroke="white" strokeWidth={1 / zoom} />;
               })()}
             </g>
           );
@@ -224,43 +214,31 @@ export function SvgCanvas({
           const isActive = op.id === activeOperationId;
           if (!tool) return null;
           const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
+
+          // If layer filter active, compute passes and only show relevant
+          const totalDepth = Math.abs(op.finalDepth - op.startDepth);
+          const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
+          if (activePassLayer !== null && activePassLayer >= passes) return null;
+
+          const layerOpacity = activePassLayer !== null ? (isActive ? 1 : 0.15) : (isActive ? 1 : 0.4);
+
           return (
-            <g key={`tp-${op.id}`} opacity={isActive ? 1 : 0.4}>
+            <g key={`tp-${op.id}`} opacity={layerOpacity}>
               {op.vectorIds.map((vid) => {
                 const v = vectors.find((vv) => vv.id === vid);
                 if (!v) return null;
                 return (
                   <g key={`tp-${op.id}-${vid}`}>
-                    {/* Toolpath width */}
-                    <path
-                      d={v.pathData}
-                      fill="none"
-                      stroke={isActive ? "#f59e0b" : "#94a3b8"}
-                      strokeWidth={(tool.diameter * 0.8) / zoom}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity={0.3}
-                      transform={`translate(${offset}, 0)`}
-                    />
-                    {/* Toolpath center line */}
-                    <path
-                      d={v.pathData}
-                      fill="none"
-                      stroke={isActive ? "#f59e0b" : "#64748b"}
-                      strokeWidth={1 / zoom}
-                      strokeDasharray={`${3 / zoom}`}
-                      transform={`translate(${offset}, 0)`}
-                    />
-                    {/* Direction arrows */}
+                    <path d={v.pathData} fill="none" stroke={isActive ? "#f59e0b" : "#94a3b8"}
+                      strokeWidth={(tool.diameter * 0.8) / zoom} strokeLinecap="round" strokeLinejoin="round" opacity={0.3}
+                      transform={`translate(${offset}, 0)`} />
+                    <path d={v.pathData} fill="none" stroke={isActive ? "#f59e0b" : "#64748b"}
+                      strokeWidth={1 / zoom} strokeDasharray={`${3 / zoom}`} transform={`translate(${offset}, 0)`} />
                     {showDirectionArrows && isActive && getArrowPoints(v.pathData, offset).map((arrow, ai) => (
                       <g key={`arrow-${ai}`} transform={`translate(${arrow.x},${arrow.y}) rotate(${arrow.angle})`}>
-                        <polygon
-                          points={`0,${-3 / zoom} ${6 / zoom},0 0,${3 / zoom}`}
-                          fill="#f59e0b"
-                        />
+                        <polygon points={`0,${-3 / zoom} ${6 / zoom},0 0,${3 / zoom}`} fill="#f59e0b" />
                       </g>
                     ))}
-                    {/* Start point on toolpath */}
                     {isActive && (() => {
                       const pts = extractPointsFromPath(v.pathData);
                       if (pts.length === 0) return null;

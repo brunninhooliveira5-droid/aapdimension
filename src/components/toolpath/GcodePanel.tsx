@@ -3,19 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Code, Play } from "lucide-react";
+import { Download, Code } from "lucide-react";
 import type { ToolpathProject, PostProcessor } from "@/lib/toolpath-engine";
-import { generateGcode } from "@/lib/toolpath-engine";
+import { generateGcode, FILE_EXTENSIONS } from "@/lib/toolpath-engine";
 
 interface GcodePanelProps {
   project: ToolpathProject;
 }
-
-const FILE_EXTENSIONS: Record<PostProcessor, string> = {
-  mach3: ".tap",
-  grbl: ".gcode",
-  ddcs: ".nc",
-};
 
 export function GcodePanel({ project }: GcodePanelProps) {
   const [postProcessor, setPostProcessor] = useState<PostProcessor>("grbl");
@@ -49,6 +43,7 @@ export function GcodePanel({ project }: GcodePanelProps) {
               <SelectItem value="grbl">GRBL</SelectItem>
               <SelectItem value="mach3">Mach3</SelectItem>
               <SelectItem value="ddcs">DDCS</SelectItem>
+              <SelectItem value="linuxcnc">LinuxCNC</SelectItem>
             </SelectContent>
           </Select>
         </div>
