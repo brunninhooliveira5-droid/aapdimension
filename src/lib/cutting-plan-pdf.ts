@@ -335,7 +335,21 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
 
     if (singleCut && kerf > 0) {
       // === CORTE ÚNICO MODE ===
-      // Only draw cut lines — no filled piece rectangles
+      const geometry = computeSingleCutGeometry(layout.pieces, kerf, matW, matH);
+
+      // Draw outer contour — solid dark lines
+      doc.setDrawColor(40, 40, 40);
+      doc.setLineWidth(0.4);
+      geometry.contourLines.forEach(line => {
+        doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2);
+      });
+
+      // Draw internal cut lines — solid red lines
+      doc.setDrawColor(220, 30, 30);
+      doc.setLineWidth(0.3);
+      geometry.cutLines.forEach(line => {
+        doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2);
+      });
 
       // Piece labels (dark text, no background)
       layout.pieces.forEach((p, pi) => {
@@ -348,17 +362,6 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
           doc.setFontSize(Math.max(3, fontSize * 0.7));
           doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
         }
-      });
-
-      // Collect unique shared cut lines between adjacent pieces
-      const cutLines = computeSharedCutLines(layout.pieces, kerf, matW, matH);
-
-      // Draw cut lines — solid red lines
-      doc.setDrawColor(220, 30, 30);
-      doc.setLineWidth(0.3);
-
-      cutLines.forEach(line => {
-        doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2);
       });
     } else {
       // === NORMAL MODE — independent contours ===
