@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen } from "lucide-react";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ToolsPanelProps {
