@@ -90,7 +90,29 @@ export function TubeCuttingTab() {
     setSource(val); setSelectedItemId(""); setMaterialName(""); setMaterialLength(""); setMaterialPrice(""); setAvailableQty(null); setReserveStock(false);
   };
 
-  const addPiece = () => setPieces((prev) => [...prev, { id: String(Date.now()), length: "", quantity: "1" }]);
+  const addPiece = () => {
+    const newId = String(Date.now());
+    setPieces((prev) => [...prev, { id: newId, length: "", quantity: "1" }]);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-piece-id="${newId}"][data-field="length"]`) as HTMLInputElement;
+      el?.focus();
+    }, 50);
+  };
+
+  const handlePieceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: keyof PieceRow) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addPiece();
+    }
+    if (e.key === " " && (e.target as HTMLInputElement).value === "") {
+      e.preventDefault();
+      if (index > 0) {
+        const prev = pieces[index - 1];
+        const val = String(prev[field] ?? "");
+        if (val) updatePiece(pieces[index].id, field, val);
+      }
+    }
+  };
   const duplicatePiece = (id: string) => { const p = pieces.find(x => x.id === id); if (p) setPieces(prev => [...prev, { ...p, id: String(Date.now()) }]); };
   const removePiece = (id: string) => { if (pieces.length <= 1) return; setPieces((prev) => prev.filter((p) => p.id !== id)); };
   const clearPieces = () => { setPieces([{ id: String(Date.now()), length: "", quantity: "1" }]); setResult(null); };
