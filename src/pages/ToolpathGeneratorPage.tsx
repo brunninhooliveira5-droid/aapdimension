@@ -1,7 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Save, FolderOpen } from "lucide-react";
@@ -14,6 +13,7 @@ import { ToolLibrary } from "@/components/toolpath/ToolLibrary";
 import { OperationPanel } from "@/components/toolpath/OperationPanel";
 import { OperationsList } from "@/components/toolpath/OperationsList";
 import { GcodePanel } from "@/components/toolpath/GcodePanel";
+import { Simulation3D } from "@/components/toolpath/Simulation3D";
 
 import {
   parseSvgContent,
@@ -112,7 +112,6 @@ export default function ToolpathGeneratorPage() {
           setSelectedVectorIds([]);
           setActiveOperationId(null);
 
-          // Re-parse viewBox
           const parser = new DOMParser();
           const doc = parser.parseFromString(project.svgContent, "image/svg+xml");
           const svg = doc.querySelector("svg");
@@ -164,7 +163,7 @@ export default function ToolpathGeneratorPage() {
         <ResizablePanel defaultSize={50}>
           <ResizablePanelGroup direction="vertical">
             {/* Canvas */}
-            <ResizablePanel defaultSize={65} minSize={40}>
+            <ResizablePanel defaultSize={60} minSize={35}>
               <SvgCanvas
                 vectors={vectors}
                 material={material}
@@ -181,14 +180,15 @@ export default function ToolpathGeneratorPage() {
             <ResizableHandle withHandle />
 
             {/* Bottom panel */}
-            <ResizablePanel defaultSize={35} minSize={20}>
-              <div className="h-full overflow-auto p-2">
-                <Tabs value={bottomTab} onValueChange={setBottomTab}>
-                  <TabsList className="h-7 mb-2">
+            <ResizablePanel defaultSize={40} minSize={20}>
+              <div className="h-full overflow-hidden flex flex-col">
+                <Tabs value={bottomTab} onValueChange={setBottomTab} className="flex flex-col h-full">
+                  <TabsList className="h-8 mx-2 mt-1 shrink-0">
                     <TabsTrigger value="operations" className="text-xs h-6">Operações</TabsTrigger>
+                    <TabsTrigger value="simulation" className="text-xs h-6">Simulação 3D</TabsTrigger>
                     <TabsTrigger value="gcode" className="text-xs h-6">G-Code</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="operations">
+                  <TabsContent value="operations" className="flex-1 overflow-auto px-2 pb-2">
                     <OperationsList
                       operations={operations}
                       tools={tools}
@@ -200,7 +200,15 @@ export default function ToolpathGeneratorPage() {
                       onToggleToolpath={toggleToolpath}
                     />
                   </TabsContent>
-                  <TabsContent value="gcode">
+                  <TabsContent value="simulation" className="flex-1 min-h-0">
+                    <Simulation3D
+                      material={material}
+                      operations={operations}
+                      tools={tools}
+                      vectors={vectors}
+                    />
+                  </TabsContent>
+                  <TabsContent value="gcode" className="flex-1 overflow-auto px-2 pb-2">
                     <GcodePanel project={buildProject()} />
                   </TabsContent>
                 </Tabs>
