@@ -65,12 +65,14 @@ export function SheetCuttingTab() {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Single cut mode (optimization)
+  const [singleCut, setSingleCut] = useState(false);
+
   // Export
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportA4, setExportA4] = useState(true);
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
-  const [singleCut, setSingleCut] = useState(false);
 
   // Fetch inventory
   useEffect(() => {
@@ -504,6 +506,17 @@ export function SheetCuttingTab() {
             <Label htmlFor="global-rotation" className="cursor-pointer text-sm">Rotação automática</Label>
           </div>
         </div>
+        <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
+          <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="opt-single-cut" className="mt-0.5" />
+          <div>
+            <Label htmlFor="opt-single-cut" className="cursor-pointer font-medium flex items-center gap-1.5">
+              <Scissors className="h-4 w-4 text-primary" /> Corte Único
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Peças adjacentes compartilham um único corte, reduzindo percurso. O kerf é aplicado já no cálculo para garantir que as peças caibam no material.
+            </p>
+          </div>
+        </div>
       </Card>
 
       {/* Pieces */}
@@ -692,6 +705,69 @@ export function SheetCuttingTab() {
                           </div>
                         ))}
 
+                        {/* Kerf lines between pieces (singleCut mode) */}
+                        {singleCut && (() => {
+                          const kerf = parseFloat(kerfWidth) || 0;
+                          if (kerf <= 0) return null;
+                          const kerfLines: { x1: number; y1: number; x2: number; y2: number; vertical: boolean }[] = [];
+                          const pcs = layout.pieces;
+                          for (let a = 0; a < pcs.length; a++) {
+                            for (let b = a + 1; b < pcs.length; b++) {
+                              const pa = pcs[a], pb = pcs[b];
+                              const aR = pa.x + pa.width, bR = pb.x + pb.width;
+                              const aB = pa.y + pa.height, bB = pb.y + pb.height;
+                              // Vertical shared edge (right of a = left of b with kerf gap)
+                              if (Math.abs(aR + kerf - pb.x) < 1) {
+                                const overlapY1 = Math.max(pa.y, pb.y);
+                                const overlapY2 = Math.min(aB, bB);
+                                if (overlapY2 > overlapY1) {
+                                  kerfLines.push({ x1: aR + kerf / 2, y1: overlapY1, x2: aR + kerf / 2, y2: overlapY2, vertical: true });
+                                }
+                              }
+                              if (Math.abs(bR + kerf - pa.x) < 1) {
+                                const overlapY1 = Math.max(pa.y, pb.y);
+                                const overlapY2 = Math.min(aB, bB);
+                                if (overlapY2 > overlapY1) {
+                                  kerfLines.push({ x1: bR + kerf / 2, y1: overlapY1, x2: bR + kerf / 2, y2: overlapY2, vertical: true });
+                                }
+                              }
+                              // Horizontal shared edge
+                              if (Math.abs(aB + kerf - pb.y) < 1) {
+                                const overlapX1 = Math.max(pa.x, pb.x);
+                                const overlapX2 = Math.min(aR, bR);
+                                if (overlapX2 > overlapX1) {
+                                  kerfLines.push({ x1: overlapX1, y1: aB + kerf / 2, x2: overlapX2, y2: aB + kerf / 2, vertical: false });
+                                }
+                              }
+                              if (Math.abs(bB + kerf - pa.y) < 1) {
+                                const overlapX1 = Math.max(pa.x, pb.x);
+                                const overlapX2 = Math.min(aR, bR);
+                                if (overlapX2 > overlapX1) {
+                                  kerfLines.push({ x1: overlapX1, y1: bB + kerf / 2, x2: overlapX2, y2: bB + kerf / 2, vertical: false });
+                                }
+                              }
+                            }
+                          }
+                          return kerfLines.map((line, idx) => (
+                            <div
+                              key={`kerf-${idx}`}
+                              className="absolute bg-destructive"
+                              style={line.vertical ? {
+                                left: `${(line.x1 / matW) * 100}%`,
+                                top: `${(line.y1 / matH) * 100}%`,
+                                width: '1.5px',
+                                height: `${((line.y2 - line.y1) / matH) * 100}%`,
+                              } : {
+                                left: `${(line.x1 / matW) * 100}%`,
+                                top: `${(line.y1 / matH) * 100}%`,
+                                width: `${((line.x2 - line.x1) / matW) * 100}%`,
+                                height: '1.5px',
+                              }}
+                              title={`Corte compartilhado (kerf: ${kerf}mm)`}
+                            />
+                          ));
+                        })()}
+
                         {/* Scrap area - right */}
                         {hasScrapRight && (
                           <div
@@ -756,6 +832,12 @@ export function SheetCuttingTab() {
               <div className="w-3 h-3 rounded-sm border-2 border-primary/60 bg-muted/30" />
               Chapa (material)
             </div>
+            {singleCut && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-3 h-0.5 bg-destructive" />
+                Corte compartilhado
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -827,13 +909,6 @@ export function SheetCuttingTab() {
                     <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
                     <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
                     <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
-                    <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="sheet-single-cut" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="sheet-single-cut" className="cursor-pointer font-medium">Corte Único</Label>
-                      <p className="text-xs text-muted-foreground">Compartilha um único corte entre peças adjacentes, reduzindo percurso da máquina</p>
-                    </div>
                   </div>
                 </div>
               )}
