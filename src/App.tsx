@@ -37,6 +37,7 @@ import CuttingPlanPage from "./pages/CuttingPlanPage";
 import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
 import AcmPlannerPage from "./pages/AcmPlannerPage";
+import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +97,7 @@ const AppRoutes = () => {
         <Route path="/slicer-3d" element={<Slicer3DPage />} />
         <Route path="/gerador-caixas" element={<BoxGeneratorPage />} />
         <Route path="/planificador-acm" element={<AcmPlannerPage />} />
+        <Route path="/gerador-percurso" element={<ToolpathGeneratorPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

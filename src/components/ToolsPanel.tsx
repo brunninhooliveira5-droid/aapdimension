@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop } from "lucide-react";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ToolsPanelProps {
@@ -14,6 +14,7 @@ const toolTabs = [
   { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d", disabled: false },
   { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", disabled: false },
   { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", disabled: false },
+  { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso", disabled: false },
 ];
 
 export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
