@@ -343,9 +343,9 @@ export function BoxPreview3D({ params, className }: Props) {
       ctx.fill();
 
       if (face.isJoint) {
-        ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = "#5a3000";
-        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#2a1800";
+        ctx.lineWidth = 1.0;
         ctx.stroke();
       } else {
         // Edge lines — dark wood tone
