@@ -426,6 +426,7 @@ function computeSingleCutGeometry(
   _matH: number
 ): SingleCutGeometry {
   const TOL = 0.5;
+  const halfKerf = kerf / 2;
   const hContourSegs: Segment[] = [];
   const vContourSegs: Segment[] = [];
   const cutLines: CutLine[] = [];
@@ -448,53 +449,51 @@ function computeSingleCutGeometry(
     const rightShared = getSharedRanges(pieces, i, "right", kerf, TOL);
     if (rightShared.length > 0) {
       for (const range of rightShared) {
-        addCut(aR + kerf / 2, range.start, aR + kerf / 2, range.end);
+        addCut(aR + halfKerf, range.start - halfKerf, aR + halfKerf, range.end + halfKerf);
       }
-      // Non-shared portions of right edge → contour
       const unshared = subtractRanges(a.y, aB, rightShared);
       for (const u of unshared) {
-        vContourSegs.push({ pos: aR, start: u.start, end: u.end });
+        // External edge → offset outward by halfKerf
+        vContourSegs.push({ pos: aR + halfKerf, start: u.start - halfKerf, end: u.end + halfKerf });
       }
     } else {
-      vContourSegs.push({ pos: aR, start: a.y, end: aB });
+      vContourSegs.push({ pos: aR + halfKerf, start: a.y - halfKerf, end: aB + halfKerf });
     }
 
     // --- BOTTOM EDGE ---
     const bottomShared = getSharedRanges(pieces, i, "bottom", kerf, TOL);
     if (bottomShared.length > 0) {
       for (const range of bottomShared) {
-        addCut(range.start, aB + kerf / 2, range.end, aB + kerf / 2);
+        addCut(range.start - halfKerf, aB + halfKerf, range.end + halfKerf, aB + halfKerf);
       }
       const unshared = subtractRanges(a.x, aR, bottomShared);
       for (const u of unshared) {
-        hContourSegs.push({ pos: aB, start: u.start, end: u.end });
+        hContourSegs.push({ pos: aB + halfKerf, start: u.start - halfKerf, end: u.end + halfKerf });
       }
     } else {
-      hContourSegs.push({ pos: aB, start: a.x, end: aR });
+      hContourSegs.push({ pos: aB + halfKerf, start: a.x - halfKerf, end: aR + halfKerf });
     }
 
     // --- LEFT EDGE ---
     const leftShared = getSharedRanges(pieces, i, "left", kerf, TOL);
     if (leftShared.length > 0) {
-      // Shared cuts are already handled by the neighbor's right edge processing
       const unshared = subtractRanges(a.y, aB, leftShared);
       for (const u of unshared) {
-        vContourSegs.push({ pos: a.x, start: u.start, end: u.end });
+        vContourSegs.push({ pos: a.x - halfKerf, start: u.start - halfKerf, end: u.end + halfKerf });
       }
     } else {
-      vContourSegs.push({ pos: a.x, start: a.y, end: aB });
+      vContourSegs.push({ pos: a.x - halfKerf, start: a.y - halfKerf, end: aB + halfKerf });
     }
 
     // --- TOP EDGE ---
     const topShared = getSharedRanges(pieces, i, "top", kerf, TOL);
     if (topShared.length > 0) {
-      // Shared cuts are already handled by the neighbor's bottom edge processing
       const unshared = subtractRanges(a.x, aR, topShared);
       for (const u of unshared) {
-        hContourSegs.push({ pos: a.y, start: u.start, end: u.end });
+        hContourSegs.push({ pos: a.y - halfKerf, start: u.start - halfKerf, end: u.end + halfKerf });
       }
     } else {
-      hContourSegs.push({ pos: a.y, start: a.x, end: aR });
+      hContourSegs.push({ pos: a.y - halfKerf, start: a.x - halfKerf, end: aR + halfKerf });
     }
   }
 
