@@ -36,6 +36,7 @@ import OperacoesFichasPage from "./pages/OperacoesFichasPage";
 import CuttingPlanPage from "./pages/CuttingPlanPage";
 import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
+import AcmPlannerPage from "./pages/AcmPlannerPage";
 
 const queryClient = new QueryClient();
 
