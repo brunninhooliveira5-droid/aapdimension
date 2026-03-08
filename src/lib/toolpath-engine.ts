@@ -1,5 +1,5 @@
-// ── Toolpath Generator Engine ──
-// SVG parsing, toolpath computation, G-code generation
+// ── Toolpath Generator Engine V3 ──
+// SVG parsing, Auto-CAM, geometry detection, toolpath computation, G-code generation
 
 export type Unit = "mm" | "in";
 export type ZeroOrigin = "bottom-left" | "center" | "top-left";
@@ -12,17 +12,19 @@ export type ToolType = "flat-end" | "v-bit" | "ball-nose" | "finishing" | "strai
 export type EntryMode = "plunge" | "ramp-linear" | "ramp-helicoidal";
 export type LeadType = "none" | "line" | "arc";
 
+export type GeometryClass = "hole" | "pocket" | "island" | "contour-inner" | "contour-outer" | "groove" | "open-path";
+
 export interface CncTool {
   id: string;
   name: string;
   type: ToolType;
   diameter: number;
-  angle?: number; // v-bit
+  angle?: number;
   feedXY: number;
   feedZ: number;
   spindleRpm: number;
   depthPerPass: number;
-  stepOver: number; // percentage 0-100
+  stepOver: number;
   fluteLength: number;
   notes: string;
 }
@@ -102,13 +104,18 @@ export interface MaterialConfig {
 export interface SvgVector {
   id: string;
   label: string;
-  pathData: string; // d attribute
+  pathData: string;
   layer: string;
   groupId: string;
   selected: boolean;
   color: string;
   closed: boolean;
+  geometryClass: GeometryClass;
+  parentId: string | null; // for island detection
   boundingBox: { x: number; y: number; w: number; h: number };
+  area: number;
+  perimeter: number;
+  isCircular: boolean;
 }
 
 export interface ToolpathProject {
@@ -123,9 +130,70 @@ export interface ToolpathProject {
   updatedAt: string;
 }
 
-export type PostProcessor = "mach3" | "grbl" | "ddcs";
+export type PostProcessor = "mach3" | "grbl" | "ddcs" | "linuxcnc";
+
+export interface MachiningTemplate {
+  id: string;
+  name: string;
+  materialName: string;
+  material: MaterialConfig;
+  tools: CncTool[];
+  defaultOperations: Partial<ToolpathOperation>[];
+  createdAt: string;
+}
+
+export interface ValidationIssue {
+  severity: "error" | "warning";
+  message: string;
+  vectorId?: string;
+  operationId?: string;
+}
 
 // ── SVG Parsing ──
+
+function computeArea(points: [number, number][]): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i][0] * points[j][1];
+    area -= points[j][0] * points[i][1];
+  }
+  return Math.abs(area / 2);
+}
+
+function computePerimeter(points: [number, number][]): number {
+  let len = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1][0] - points[i][0];
+    const dy = points[i + 1][1] - points[i][1];
+    len += Math.sqrt(dx * dx + dy * dy);
+  }
+  return len;
+}
+
+function isCircularPath(points: [number, number][], bb: { w: number; h: number }): boolean {
+  if (points.length < 4) return false;
+  const aspect = bb.w / (bb.h || 1);
+  if (aspect < 0.8 || aspect > 1.25) return false;
+  const cx = points.reduce((s, p) => s + p[0], 0) / points.length;
+  const cy = points.reduce((s, p) => s + p[1], 0) / points.length;
+  const avgR = points.reduce((s, p) => s + Math.sqrt((p[0] - cx) ** 2 + (p[1] - cy) ** 2), 0) / points.length;
+  if (avgR < 0.5) return false;
+  const variance = points.reduce((s, p) => {
+    const r = Math.sqrt((p[0] - cx) ** 2 + (p[1] - cy) ** 2);
+    return s + ((r - avgR) / avgR) ** 2;
+  }, 0) / points.length;
+  return variance < 0.05;
+}
+
+function bbContains(outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }): boolean {
+  return (
+    inner.x >= outer.x - 0.5 &&
+    inner.y >= outer.y - 0.5 &&
+    inner.x + inner.w <= outer.x + outer.w + 0.5 &&
+    inner.y + inner.h <= outer.y + outer.h + 0.5
+  );
+}
 
 export function parseSvgContent(svgString: string): { vectors: SvgVector[]; viewBox: string } {
   const parser = new DOMParser();
@@ -133,7 +201,7 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
   const svgEl = doc.querySelector("svg");
   const viewBox = svgEl?.getAttribute("viewBox") || "0 0 500 500";
 
-  const vectors: SvgVector[] = [];
+  const rawVectors: Omit<SvgVector, "geometryClass" | "parentId" | "area" | "perimeter" | "isCircular">[] = [];
   let idx = 0;
 
   const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
@@ -177,11 +245,7 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
       const ry = parseFloat(el.getAttribute("ry") || "0");
       d = `M${cx - rx},${cy} A${rx},${ry} 0 1,0 ${cx + rx},${cy} A${rx},${ry} 0 1,0 ${cx - rx},${cy} Z`;
     } else if (tag === "line") {
-      const x1 = el.getAttribute("x1") || "0";
-      const y1 = el.getAttribute("y1") || "0";
-      const x2 = el.getAttribute("x2") || "0";
-      const y2 = el.getAttribute("y2") || "0";
-      d = `M${x1},${y1} L${x2},${y2}`;
+      d = `M${el.getAttribute("x1") || "0"},${el.getAttribute("y1") || "0"} L${el.getAttribute("x2") || "0"},${el.getAttribute("y2") || "0"}`;
     } else if (tag === "polygon" || tag === "polyline") {
       const pts = el.getAttribute("points") || "";
       const pairs = pts.trim().split(/[\s,]+/);
@@ -198,8 +262,6 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
     if (!d) return;
 
     const closed = /[Zz]\s*$/.test(d.trim());
-
-    // Compute bounding box from path data (simplified)
     const nums = d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
     const xs = nums.filter((_, i) => i % 2 === 0);
     const ys = nums.filter((_, i) => i % 2 === 1);
@@ -208,7 +270,7 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
     const maxX = Math.max(...(xs.length ? xs : [0]));
     const maxY = Math.max(...(ys.length ? ys : [0]));
 
-    vectors.push({
+    rawVectors.push({
       id: `v-${idx}`,
       label: el.getAttribute("id") || `${tag}-${idx}`,
       pathData: d,
@@ -226,20 +288,82 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
     Array.from(svgEl.children).forEach((child) => processElement(child, "Default", "root"));
   }
 
-  return { vectors, viewBox };
-}
+  // Classify geometry
+  const vectors: SvgVector[] = rawVectors.map((rv) => {
+    const pts = extractPointsFromPath(rv.pathData);
+    const area = rv.closed ? computeArea(pts) : 0;
+    const perimeter = computePerimeter(pts);
+    const circular = rv.closed ? isCircularPath(pts, rv.boundingBox) : false;
+    return {
+      ...rv,
+      area,
+      perimeter,
+      isCircular: circular,
+      geometryClass: "contour-outer" as GeometryClass,
+      parentId: null,
+    };
+  });
 
-// ── Path Length Estimation ──
+  // Classify: containment analysis
+  for (let i = 0; i < vectors.length; i++) {
+    const vi = vectors[i];
+    if (!vi.closed) {
+      vi.geometryClass = "open-path";
+      continue;
+    }
 
-function estimatePathLength(d: string): number {
-  const nums = d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
-  let length = 0;
-  for (let i = 2; i < nums.length - 1; i += 2) {
-    const dx = (nums[i] || 0) - (nums[i - 2] || 0);
-    const dy = (nums[i + 1] || 0) - (nums[i - 1] || 0);
-    length += Math.sqrt(dx * dx + dy * dy);
+    // Find smallest parent (container)
+    let smallestParent: SvgVector | null = null;
+    let smallestArea = Infinity;
+    for (let j = 0; j < vectors.length; j++) {
+      if (i === j) continue;
+      const vj = vectors[j];
+      if (!vj.closed) continue;
+      if (bbContains(vj.boundingBox, vi.boundingBox) && vj.area > vi.area) {
+        if (vj.area < smallestArea) {
+          smallestArea = vj.area;
+          smallestParent = vj;
+        }
+      }
+    }
+
+    if (smallestParent) {
+      vi.parentId = smallestParent.id;
+      // Check if this is an island (has a grandparent — nested inside a pocket)
+      if (smallestParent.parentId) {
+        vi.geometryClass = "island";
+      } else {
+        // Inside another shape
+        if (vi.isCircular && Math.max(vi.boundingBox.w, vi.boundingBox.h) < 15) {
+          vi.geometryClass = "hole";
+        } else {
+          vi.geometryClass = "contour-inner";
+        }
+      }
+    } else {
+      // No parent — outermost
+      if (vi.isCircular && Math.max(vi.boundingBox.w, vi.boundingBox.h) < 15) {
+        vi.geometryClass = "hole";
+      } else {
+        vi.geometryClass = "contour-outer";
+      }
+    }
   }
-  return length;
+
+  // Mark shapes that contain inner shapes as pockets (their children are pockets/islands)
+  for (const v of vectors) {
+    if (v.parentId && v.geometryClass === "contour-inner") {
+      // Check if the parent already has children that are islands
+      const siblings = vectors.filter((s) => s.parentId === v.parentId && s.id !== v.id);
+      // If parent contains this, and this is significantly smaller, mark as pocket candidate
+      const parent = vectors.find((p) => p.id === v.parentId);
+      if (parent && v.area < parent.area * 0.7) {
+        v.geometryClass = "pocket";
+      }
+    }
+  }
+
+  return { vectors, viewBox };
 }
 
 // ── Extract Points from Path ──
@@ -271,58 +395,36 @@ export function extractPointsFromPath(d: string): [number, number][] {
         }
         break;
       case "L":
-        for (let i = 0; i < args.length - 1; i += 2) {
-          cx = args[i]; cy = args[i + 1];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i < args.length - 1; i += 2) { cx = args[i]; cy = args[i + 1]; points.push([cx, cy]); }
         break;
       case "l":
-        for (let i = 0; i < args.length - 1; i += 2) {
-          cx += args[i]; cy += args[i + 1];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i < args.length - 1; i += 2) { cx += args[i]; cy += args[i + 1]; points.push([cx, cy]); }
         break;
-      case "H":
-        cx = args[0]; points.push([cx, cy]);
-        break;
-      case "h":
-        cx += args[0]; points.push([cx, cy]);
-        break;
-      case "V":
-        cy = args[0]; points.push([cx, cy]);
-        break;
-      case "v":
-        cy += args[0]; points.push([cx, cy]);
-        break;
-      case "Z":
-      case "z":
+      case "H": cx = args[0]; points.push([cx, cy]); break;
+      case "h": cx += args[0]; points.push([cx, cy]); break;
+      case "V": cy = args[0]; points.push([cx, cy]); break;
+      case "v": cy += args[0]; points.push([cx, cy]); break;
+      case "Z": case "z":
         if (points.length > 0) points.push([firstX, firstY]);
         break;
-      case "A":
-      case "a": {
+      case "A": case "a": {
         const abs = cmd === "A";
         for (let i = 0; i + 6 < args.length; i += 7) {
-          if (abs) {
-            cx = args[i + 5]; cy = args[i + 6];
-          } else {
-            cx += args[i + 5]; cy += args[i + 6];
-          }
+          if (abs) { cx = args[i + 5]; cy = args[i + 6]; }
+          else { cx += args[i + 5]; cy += args[i + 6]; }
           points.push([cx, cy]);
         }
         break;
       }
       case "C":
         for (let i = 0; i + 5 < args.length; i += 6) {
-          // Add midpoints for smoother representation
           const cp1x = args[i], cp1y = args[i + 1];
           const cp2x = args[i + 2], cp2y = args[i + 3];
           const ex = args[i + 4], ey = args[i + 5];
-          // Subdivide bezier
           const mx = (cx + 3 * cp1x + 3 * cp2x + ex) / 8;
           const my = (cy + 3 * cp1y + 3 * cp2y + ey) / 8;
           points.push([mx, my]);
-          cx = ex; cy = ey;
-          points.push([cx, cy]);
+          cx = ex; cy = ey; points.push([cx, cy]);
         }
         break;
       case "c":
@@ -333,57 +435,309 @@ export function extractPointsFromPath(d: string): [number, number][] {
           const mx = (cx + 3 * cp1x + 3 * cp2x + ex) / 8;
           const my = (cy + 3 * cp1y + 3 * cp2y + ey) / 8;
           points.push([mx, my]);
-          cx = ex; cy = ey;
-          points.push([cx, cy]);
+          cx = ex; cy = ey; points.push([cx, cy]);
         }
         break;
       case "Q":
-        for (let i = 0; i + 3 < args.length; i += 4) {
-          cx = args[i + 2]; cy = args[i + 3];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i + 3 < args.length; i += 4) { cx = args[i + 2]; cy = args[i + 3]; points.push([cx, cy]); }
         break;
       case "q":
-        for (let i = 0; i + 3 < args.length; i += 4) {
-          cx += args[i + 2]; cy += args[i + 3];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i + 3 < args.length; i += 4) { cx += args[i + 2]; cy += args[i + 3]; points.push([cx, cy]); }
         break;
       case "S":
-        for (let i = 0; i + 3 < args.length; i += 4) {
-          cx = args[i + 2]; cy = args[i + 3];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i + 3 < args.length; i += 4) { cx = args[i + 2]; cy = args[i + 3]; points.push([cx, cy]); }
         break;
       case "s":
-        for (let i = 0; i + 3 < args.length; i += 4) {
-          cx += args[i + 2]; cy += args[i + 3];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i + 3 < args.length; i += 4) { cx += args[i + 2]; cy += args[i + 3]; points.push([cx, cy]); }
         break;
       case "T":
-        for (let i = 0; i + 1 < args.length; i += 2) {
-          cx = args[i]; cy = args[i + 1];
-          points.push([cx, cy]);
-        }
+        for (let i = 0; i + 1 < args.length; i += 2) { cx = args[i]; cy = args[i + 1]; points.push([cx, cy]); }
         break;
       case "t":
-        for (let i = 0; i + 1 < args.length; i += 2) {
-          cx += args[i]; cy += args[i + 1];
-          points.push([cx, cy]);
-        }
-        break;
-      default:
+        for (let i = 0; i + 1 < args.length; i += 2) { cx += args[i]; cy += args[i + 1]; points.push([cx, cy]); }
         break;
     }
   }
   return points;
 }
 
-// ── Operation Calculations ──
+// ── Path Length Estimation ──
 
-export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefined, vectors: SvgVector[]) {
-  if (!tool) return { passes: 0, pathLength: 0, estimatedTime: 0 };
+function estimatePathLength(d: string): number {
+  const pts = extractPointsFromPath(d);
+  return computePerimeter(pts);
+}
+
+// ── Auto-CAM: Geometry Analysis & Automatic Operation Generation ──
+
+export interface AutoCamResult {
+  operations: ToolpathOperation[];
+  issues: ValidationIssue[];
+  summary: { holes: number; pockets: number; islands: number; innerContours: number; outerContours: number; openPaths: number };
+}
+
+function selectToolForGeometry(
+  geoClass: GeometryClass,
+  size: number,
+  tools: CncTool[]
+): CncTool | undefined {
+  if (tools.length === 0) return undefined;
+
+  // Sort tools by diameter ascending
+  const sorted = [...tools].sort((a, b) => a.diameter - b.diameter);
+
+  if (geoClass === "hole") {
+    // Pick smallest tool that fits (diameter < hole size)
+    return sorted.find((t) => t.diameter < size) || sorted[0];
+  }
+  if (geoClass === "pocket" || geoClass === "contour-inner") {
+    // Pick tool that fits inside the geometry
+    const fitting = sorted.filter((t) => t.diameter < size * 0.8);
+    // Prefer larger tool for efficiency
+    return fitting.length > 0 ? fitting[fitting.length - 1] : sorted[0];
+  }
+  // Contour outer, grooves — use medium/default tool
+  const mid = Math.floor(sorted.length / 2);
+  return sorted[mid] || sorted[0];
+}
+
+export function generateAutoCam(
+  vectors: SvgVector[],
+  tools: CncTool[],
+  material: MaterialConfig
+): AutoCamResult {
+  const operations: ToolpathOperation[] = [];
+  const issues: ValidationIssue[] = [];
+  let order = 1;
+
+  const holes = vectors.filter((v) => v.geometryClass === "hole");
+  const pockets = vectors.filter((v) => v.geometryClass === "pocket");
+  const islands = vectors.filter((v) => v.geometryClass === "island");
+  const innerContours = vectors.filter((v) => v.geometryClass === "contour-inner");
+  const outerContours = vectors.filter((v) => v.geometryClass === "contour-outer");
+  const openPaths = vectors.filter((v) => v.geometryClass === "open-path");
+
+  const makeOp = (
+    name: string,
+    type: OperationType,
+    vids: string[],
+    cutSide: CutSide,
+    tool: CncTool | undefined,
+    addTabs: boolean
+  ): ToolpathOperation => ({
+    id: `op-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    type,
+    vectorIds: vids,
+    toolId: tool?.id || "",
+    startDepth: 0,
+    finalDepth: material.thickness,
+    depthPerPass: tool?.depthPerPass || 2,
+    cutSide,
+    cutDirection: "climb",
+    leadIn: { type: "none", radius: 3, length: 3 },
+    leadOut: { type: "none", radius: 3, length: 3 },
+    entry: { mode: type === "drill" ? "plunge" : "ramp-linear", rampLength: 10, rampAngle: 5 },
+    tabs: addTabs
+      ? { enabled: true, count: Math.max(3, Math.floor(vids.length > 1 ? 3 : 4)), width: 5, height: 2, minDistance: 30 }
+      : { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
+    rampEntry: type !== "drill",
+    order: order++,
+    enabled: true,
+  });
+
+  // 1. Drilling (holes first — they don't release material)
+  if (holes.length > 0) {
+    const minSize = Math.min(...holes.map((h) => Math.max(h.boundingBox.w, h.boundingBox.h)));
+    const tool = selectToolForGeometry("hole", minSize, tools);
+    operations.push(makeOp(
+      `Furação Auto (${holes.length})`,
+      "drill",
+      holes.map((h) => h.id),
+      "on-line",
+      tool,
+      false
+    ));
+  }
+
+  // 2. Pockets (before internal contours)
+  if (pockets.length > 0) {
+    const avgSize = pockets.reduce((s, p) => s + Math.min(p.boundingBox.w, p.boundingBox.h), 0) / pockets.length;
+    const tool = selectToolForGeometry("pocket", avgSize, tools);
+    operations.push(makeOp(
+      `Pocket Auto (${pockets.length})`,
+      "pocket",
+      pockets.map((p) => p.id),
+      "inside",
+      tool,
+      false
+    ));
+  }
+
+  // 3. Internal contours
+  if (innerContours.length > 0) {
+    const avgSize = innerContours.reduce((s, c) => s + Math.min(c.boundingBox.w, c.boundingBox.h), 0) / innerContours.length;
+    const tool = selectToolForGeometry("contour-inner", avgSize, tools);
+    operations.push(makeOp(
+      `Perfil Interno Auto (${innerContours.length})`,
+      "profile-inside",
+      innerContours.map((c) => c.id),
+      "inside",
+      tool,
+      false
+    ));
+  }
+
+  // 4. External contours (last — this releases the part)
+  if (outerContours.length > 0) {
+    const tool = selectToolForGeometry("contour-outer", 0, tools);
+    operations.push(makeOp(
+      `Perfil Externo Auto (${outerContours.length})`,
+      "profile-outside",
+      outerContours.map((c) => c.id),
+      "outside",
+      tool,
+      true // Smart tabs on external profiles
+    ));
+  }
+
+  // 5. Open paths as grooves
+  if (openPaths.length > 0) {
+    const tool = selectToolForGeometry("groove", 0, tools);
+    operations.push(makeOp(
+      `Gravação/Rasgo Auto (${openPaths.length})`,
+      "on-line",
+      openPaths.map((o) => o.id),
+      "on-line",
+      tool,
+      false
+    ));
+  }
+
+  // Optimize path order within operations (nearest neighbor)
+  for (const op of operations) {
+    if (op.vectorIds.length > 1) {
+      op.vectorIds = optimizeVectorOrder(op.vectorIds, vectors);
+    }
+  }
+
+  // Validation
+  issues.push(...validateProject({
+    id: "", name: "", svgContent: "", material, tools, operations, vectors, createdAt: "", updatedAt: ""
+  }));
+
+  return {
+    operations,
+    issues,
+    summary: {
+      holes: holes.length,
+      pockets: pockets.length,
+      islands: islands.length,
+      innerContours: innerContours.length,
+      outerContours: outerContours.length,
+      openPaths: openPaths.length,
+    },
+  };
+}
+
+// ── Path Optimization (Nearest Neighbor) ──
+
+function getCentroid(v: SvgVector): [number, number] {
+  return [v.boundingBox.x + v.boundingBox.w / 2, v.boundingBox.y + v.boundingBox.h / 2];
+}
+
+function optimizeVectorOrder(vectorIds: string[], vectors: SvgVector[]): string[] {
+  if (vectorIds.length <= 1) return vectorIds;
+
+  const remaining = [...vectorIds];
+  const ordered: string[] = [];
+  let currentPos: [number, number] = [0, 0];
+
+  while (remaining.length > 0) {
+    let nearestIdx = 0;
+    let nearestDist = Infinity;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const v = vectors.find((vv) => vv.id === remaining[i]);
+      if (!v) continue;
+      const c = getCentroid(v);
+      const dist = Math.sqrt((c[0] - currentPos[0]) ** 2 + (c[1] - currentPos[1]) ** 2);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestIdx = i;
+      }
+    }
+
+    const picked = remaining.splice(nearestIdx, 1)[0];
+    ordered.push(picked);
+    const pv = vectors.find((vv) => vv.id === picked);
+    if (pv) currentPos = getCentroid(pv);
+  }
+
+  return ordered;
+}
+
+// ── Validation ──
+
+export function validateProject(project: ToolpathProject): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const op of project.operations) {
+    if (!op.enabled) continue;
+    const tool = project.tools.find((t) => t.id === op.toolId);
+
+    if (!tool) {
+      issues.push({ severity: "error", message: `Operação "${op.name}": ferramenta não encontrada.`, operationId: op.id });
+      continue;
+    }
+
+    // Depth > material thickness
+    if (op.finalDepth > project.material.thickness + 0.5) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": profundidade (${op.finalDepth}mm) > espessura do material (${project.material.thickness}mm).`,
+        operationId: op.id,
+      });
+    }
+
+    // Open path used in profile operation
+    for (const vid of op.vectorIds) {
+      const v = project.vectors.find((vv) => vv.id === vid);
+      if (!v) continue;
+
+      if (!v.closed && (op.type === "profile-inside" || op.type === "profile-outside" || op.type === "pocket")) {
+        issues.push({
+          severity: "error",
+          message: `"${op.name}": vetor "${v.label}" é aberto, incompatível com ${OPERATION_LABELS[op.type]}.`,
+          vectorId: vid,
+          operationId: op.id,
+        });
+      }
+
+      // Tool larger than hole
+      if (v.geometryClass === "hole" && tool.diameter >= Math.max(v.boundingBox.w, v.boundingBox.h)) {
+        issues.push({
+          severity: "error",
+          message: `"${op.name}": ferramenta Ø${tool.diameter}mm é maior que o furo "${v.label}" (${Math.max(v.boundingBox.w, v.boundingBox.h).toFixed(1)}mm).`,
+          vectorId: vid,
+          operationId: op.id,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ── Realistic Time Estimation ──
+
+export function calculateOperationAdvanced(
+  op: ToolpathOperation,
+  tool: CncTool | undefined,
+  vectors: SvgVector[],
+  _material: MaterialConfig
+) {
+  if (!tool) return { passes: 0, pathLength: 0, estimatedTime: 0, rapidTime: 0, cutTime: 0 };
 
   const totalDepth = Math.abs(op.finalDepth - op.startDepth);
   const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
@@ -402,11 +756,39 @@ export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefi
     }
   }
 
-  const totalPath = pathLength * passes;
+  const totalCutPath = pathLength * passes;
   const feedRate = tool.feedXY || 1000;
-  const estimatedTime = totalPath / feedRate;
+  const cutTime = totalCutPath / feedRate;
 
-  return { passes, pathLength: Math.round(pathLength), estimatedTime: Math.round(estimatedTime * 100) / 100 };
+  // Rapid movements estimate
+  const rapidSpeed = 5000; // mm/min typical
+  const rapidDist = op.vectorIds.length * 50; // rough estimate per vector
+  const rapidTime = rapidDist / rapidSpeed;
+
+  // Plunge time
+  const plungeTime = (passes * totalDepth) / (tool.feedZ || 300);
+
+  // Tool change time (~30s per change)
+  const toolChangeTime = 0;
+
+  // Acceleration penalty (~10%)
+  const accelPenalty = cutTime * 0.1;
+
+  const estimatedTime = cutTime + rapidTime + plungeTime + accelPenalty + toolChangeTime;
+
+  return {
+    passes,
+    pathLength: Math.round(pathLength),
+    estimatedTime: Math.round(estimatedTime * 100) / 100,
+    rapidTime: Math.round(rapidTime * 100) / 100,
+    cutTime: Math.round(cutTime * 100) / 100,
+  };
+}
+
+// Keep simple version for backward compat
+export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefined, vectors: SvgVector[]) {
+  const result = calculateOperationAdvanced(op, tool, vectors, DEFAULT_MATERIAL);
+  return { passes: result.passes, pathLength: result.pathLength, estimatedTime: result.estimatedTime };
 }
 
 // ── G-code Generation ──
@@ -415,30 +797,38 @@ const HEADERS: Record<PostProcessor, string[]> = {
   mach3: ["%", "O0001", "G90 G94 G21", "G17"],
   grbl: ["$H", "G90 G21 G17"],
   ddcs: ["%", "G90 G21 G17"],
+  linuxcnc: ["%", "G90 G94 G21 G17", "G40 G49 G80"],
 };
 
 const FOOTERS: Record<PostProcessor, string[]> = {
   mach3: ["M05", "G28 G91 Z0", "G28 X0 Y0", "M30", "%"],
   grbl: ["M05", "G0 Z10", "G0 X0 Y0", "M2"],
   ddcs: ["M05", "G0 Z10", "G0 X0 Y0", "M30", "%"],
+  linuxcnc: ["M05", "G53 G0 Z0", "G53 G0 X0 Y0", "M2", "%"],
 };
 
 const TOOL_CHANGE: Record<PostProcessor, (toolNum: number, toolName: string) => string[]> = {
   mach3: (n, name) => [`M05`, `G0 Z25`, `M06 T${n}`, `(Tool: ${name})`, `G43 H${n}`],
   grbl: (n, name) => [`M05`, `G0 Z25`, `(Tool change: T${n} - ${name})`, `M00 (Pause for tool change)`],
   ddcs: (n, name) => [`M05`, `G0 Z25`, `M06 T${n}`, `(Tool: ${name})`],
+  linuxcnc: (n, name) => [`M05`, `G53 G0 Z0`, `T${n} M06`, `(Tool: ${name})`, `G43 H${n}`],
 };
+
+const FILE_EXT: Record<PostProcessor, string> = {
+  mach3: ".tap",
+  grbl: ".gcode",
+  ddcs: ".nc",
+  linuxcnc: ".ngc",
+};
+
+export { FILE_EXT as FILE_EXTENSIONS };
 
 function applyOffset(pt: [number, number], offset: number): [number, number] {
   return [pt[0] + offset, pt[1]];
 }
 
 function generateRampEntry(
-  entry: EntrySettings,
-  startPt: [number, number],
-  targetZ: number,
-  feedZ: number,
-  offset: number
+  entry: EntrySettings, startPt: [number, number], targetZ: number, feedZ: number, offset: number
 ): string[] {
   const lines: string[] = [];
   const [fx, fy] = applyOffset(startPt, offset);
@@ -468,16 +858,13 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   if (lead.type === "none" || !nextPt) return [];
   const [px, py] = applyOffset(pt, offset);
   const lines: string[] = [];
-
   if (lead.type === "line") {
     const dx = nextPt[0] - pt[0];
     const dy = nextPt[1] - pt[1];
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = -dx / len;
     const ny = -dy / len;
-    const startX = px + nx * (lead.length || 3);
-    const startY = py + ny * (lead.length || 3);
-    lines.push(`G0 X${startX.toFixed(3)} Y${startY.toFixed(3)}`);
+    lines.push(`G0 X${(px + nx * (lead.length || 3)).toFixed(3)} Y${(py + ny * (lead.length || 3)).toFixed(3)}`);
   } else if (lead.type === "arc") {
     const r = lead.radius || 3;
     lines.push(`G2 X${px.toFixed(3)} Y${py.toFixed(3)} R${r.toFixed(3)}`);
@@ -485,18 +872,13 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   return lines;
 }
 
-export function generateGcode(
-  project: ToolpathProject,
-  postProcessor: PostProcessor
-): string {
+export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor): string {
   const lines: string[] = [...HEADERS[postProcessor]];
   lines.push(`(Project: ${project.name})`);
   lines.push(`(Material: ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
   lines.push("");
 
-  const sortedOps = [...project.operations]
-    .filter((o) => o.enabled)
-    .sort((a, b) => a.order - b.order);
+  const sortedOps = [...project.operations].filter((o) => o.enabled).sort((a, b) => a.order - b.order);
 
   let lastToolId = "";
   let toolNumber = 0;
@@ -505,7 +887,6 @@ export function generateGcode(
     const tool = project.tools.find((t) => t.id === op.toolId);
     if (!tool) continue;
 
-    // Tool change
     if (op.toolId !== lastToolId) {
       toolNumber++;
       if (lastToolId !== "") {
@@ -521,13 +902,11 @@ export function generateGcode(
 
     const totalDepth = Math.abs(op.finalDepth - op.startDepth);
     const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
-
     const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
 
     for (const vid of op.vectorIds) {
       const v = project.vectors.find((vv) => vv.id === vid);
       if (!v) continue;
-
       const points = extractPointsFromPath(v.pathData);
       if (points.length < 2) continue;
 
@@ -536,28 +915,22 @@ export function generateGcode(
         const zClamped = Math.max(z, -Math.abs(op.finalDepth));
 
         lines.push(`G0 Z5`);
-
         const [fx, fy] = applyOffset(points[0], offset);
         lines.push(`G0 X${fx.toFixed(3)} Y${fy.toFixed(3)}`);
 
-        // Lead in
         const leadInLines = generateLeadIn(op.leadIn, points[0], points[1], offset);
         lines.push(...leadInLines);
-
-        // Entry
         lines.push(...generateRampEntry(op.entry, points[0], zClamped, tool.feedZ, offset));
 
-        // Cut path
         for (let i = 1; i < points.length; i++) {
           const [px, py] = applyOffset(points[i], offset);
 
-          // Handle tabs
           if (op.tabs.enabled && op.type.startsWith("profile")) {
             const tabZ = zClamped + op.tabs.height;
-            const segmentFraction = i / points.length;
-            const tabInterval = 1 / (op.tabs.count + 1);
-            const isTabZone = op.tabs.count > 0 && Math.abs(segmentFraction % tabInterval - tabInterval / 2) < 0.02;
-            if (isTabZone && pass === passes - 1) {
+            const segFrac = i / points.length;
+            const tabInt = 1 / (op.tabs.count + 1);
+            const isTab = op.tabs.count > 0 && Math.abs(segFrac % tabInt - tabInt / 2) < 0.02;
+            if (isTab && pass === passes - 1) {
               lines.push(`G1 Z${Math.min(tabZ, -0.1).toFixed(3)} F${tool.feedZ}`);
               lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
               lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
@@ -568,20 +941,16 @@ export function generateGcode(
           lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
         }
 
-        // Lead out
         if (op.leadOut.type === "line" && points.length >= 2) {
           const lastPt = points[points.length - 1];
           const prevPt = points[points.length - 2];
           const dx = lastPt[0] - prevPt[0];
           const dy = lastPt[1] - prevPt[1];
           const len = Math.sqrt(dx * dx + dy * dy) || 1;
-          const endX = lastPt[0] + (dx / len) * (op.leadOut.length || 3) + offset;
-          const endY = lastPt[1] + (dy / len) * (op.leadOut.length || 3);
-          lines.push(`G1 X${endX.toFixed(3)} Y${endY.toFixed(3)} F${tool.feedXY}`);
+          lines.push(`G1 X${(lastPt[0] + (dx / len) * (op.leadOut.length || 3) + offset).toFixed(3)} Y${(lastPt[1] + (dy / len) * (op.leadOut.length || 3)).toFixed(3)} F${tool.feedXY}`);
         } else if (op.leadOut.type === "arc") {
-          const lastPt = applyOffset(points[points.length - 1], offset);
-          const r = op.leadOut.radius || 3;
-          lines.push(`G2 X${lastPt[0].toFixed(3)} Y${(lastPt[1] + r).toFixed(3)} R${r.toFixed(3)} F${tool.feedXY}`);
+          const [lx, ly] = applyOffset(points[points.length - 1], offset);
+          lines.push(`G2 X${lx.toFixed(3)} Y${(ly + (op.leadOut.radius || 3)).toFixed(3)} R${(op.leadOut.radius || 3).toFixed(3)} F${tool.feedXY}`);
         }
       }
     }
@@ -594,71 +963,60 @@ export function generateGcode(
   return lines.join("\n");
 }
 
+// ── Templates ──
+
+export function saveTemplate(name: string, materialName: string, material: MaterialConfig, tools: CncTool[], operations: ToolpathOperation[]): MachiningTemplate {
+  return {
+    id: `tpl-${Date.now()}`,
+    name,
+    materialName,
+    material: { ...material },
+    tools: tools.map((t) => ({ ...t })),
+    defaultOperations: operations.map((op) => ({
+      type: op.type,
+      depthPerPass: op.depthPerPass,
+      cutSide: op.cutSide,
+      cutDirection: op.cutDirection,
+      entry: { ...op.entry },
+      leadIn: { ...op.leadIn },
+      leadOut: { ...op.leadOut },
+      tabs: { ...op.tabs },
+    })),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export const GEOMETRY_CLASS_LABELS: Record<GeometryClass, string> = {
+  hole: "Furo",
+  pocket: "Bolso",
+  island: "Ilha",
+  "contour-inner": "Contorno Int.",
+  "contour-outer": "Contorno Ext.",
+  groove: "Rasgo",
+  "open-path": "Aberto",
+};
+
+export const GEOMETRY_CLASS_COLORS: Record<GeometryClass, string> = {
+  hole: "#ef4444",
+  pocket: "#8b5cf6",
+  island: "#f59e0b",
+  "contour-inner": "#06b6d4",
+  "contour-outer": "#22c55e",
+  groove: "#ec4899",
+  "open-path": "#94a3b8",
+};
+
 // ── Default presets ──
 
 export const DEFAULT_TOOLS: CncTool[] = [
-  {
-    id: "tool-1",
-    name: "Fresa Reta 3mm",
-    type: "straight",
-    diameter: 3,
-    feedXY: 1200,
-    feedZ: 300,
-    spindleRpm: 18000,
-    depthPerPass: 1,
-    stepOver: 40,
-    fluteLength: 15,
-    notes: "",
-  },
-  {
-    id: "tool-2",
-    name: "Fresa Reta 6mm",
-    type: "flat-end",
-    diameter: 6,
-    feedXY: 2000,
-    feedZ: 500,
-    spindleRpm: 18000,
-    depthPerPass: 2,
-    stepOver: 45,
-    fluteLength: 20,
-    notes: "",
-  },
-  {
-    id: "tool-3",
-    name: "V-Bit 60°",
-    type: "v-bit",
-    diameter: 6,
-    angle: 60,
-    feedXY: 1000,
-    feedZ: 200,
-    spindleRpm: 18000,
-    depthPerPass: 0.5,
-    stepOver: 30,
-    fluteLength: 10,
-    notes: "",
-  },
-  {
-    id: "tool-4",
-    name: "Fresa Esférica 3mm",
-    type: "ball-nose",
-    diameter: 3,
-    feedXY: 1500,
-    feedZ: 300,
-    spindleRpm: 20000,
-    depthPerPass: 0.5,
-    stepOver: 15,
-    fluteLength: 12,
-    notes: "Para acabamento 3D",
-  },
+  { id: "tool-1", name: "Fresa Reta 3mm", type: "straight", diameter: 3, feedXY: 1200, feedZ: 300, spindleRpm: 18000, depthPerPass: 1, stepOver: 40, fluteLength: 15, notes: "" },
+  { id: "tool-2", name: "Fresa Reta 6mm", type: "flat-end", diameter: 6, feedXY: 2000, feedZ: 500, spindleRpm: 18000, depthPerPass: 2, stepOver: 45, fluteLength: 20, notes: "" },
+  { id: "tool-3", name: "V-Bit 60°", type: "v-bit", diameter: 6, angle: 60, feedXY: 1000, feedZ: 200, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 30, fluteLength: 10, notes: "" },
+  { id: "tool-4", name: "Fresa Esférica 3mm", type: "ball-nose", diameter: 3, feedXY: 1500, feedZ: 300, spindleRpm: 20000, depthPerPass: 0.5, stepOver: 15, fluteLength: 12, notes: "Para acabamento 3D" },
 ];
 
 export const DEFAULT_MATERIAL: MaterialConfig = {
-  width: 300,
-  height: 200,
-  thickness: 18,
-  unit: "mm",
-  zeroOrigin: "bottom-left",
-  zZero: "top",
+  width: 300, height: 200, thickness: 18, unit: "mm", zeroOrigin: "bottom-left", zZero: "top",
 };
 
 export const DEFAULT_LEAD: LeadSettings = { type: "none", radius: 3, length: 3 };
