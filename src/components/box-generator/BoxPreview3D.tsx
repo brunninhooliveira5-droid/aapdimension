@@ -26,186 +26,221 @@ function computeFingerCount(edgeLen: number, minSize: number, maxSize: number): 
   return best;
 }
 
-// Vector helpers
 const v3add = (a: Vec3, b: Vec3): Vec3 => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
 const v3scale = (a: Vec3, s: number): Vec3 => [a[0]*s, a[1]*s, a[2]*s];
 const v3lerp = (a: Vec3, b: Vec3, t: number): Vec3 => [
   a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t
 ];
 
-/**
- * Build faces for a single wall panel with finger joints on its edges.
- * 
- * The wall is defined by 4 outer-face corners (A,B,C,D) going around the panel,
- * plus a `normal` pointing outward (away from box interior) and `thickness`.
- * 
- * Each edge can have finger joint config:
- *   - null = straight edge
- *   - { fingerCount, isTabs } where isTabs=true means this edge has protruding tabs
- * 
- * For tabs (male): the finger protrudes outward along the edge normal of the NEIGHBOR wall.
- *   We model this by extending the panel boundary outward at tab positions.
- * For slots (female): the finger area is cut inward (we skip drawing material there).
- * 
- * In assembled view, we simply build each wall as a flat slab with notches.
- */
-
-interface EdgeJointConfig {
-  fingerCount: number;
-  isTabs: boolean;  // true = this edge has protruding tabs
-}
-
-interface WallDef {
-  // 4 corners of the outer face, wound CCW when viewed from outside
-  corners: Vec3[];
-  normal: Vec3;       // outward normal
-  thickness: number;
-  label: string;
-  outerColor: string;
-  innerColor: string;
-  edgeColor: string;
-  // Edge joints: [edge01, edge12, edge23, edge30]
-  // edge01 = between corners[0] and corners[1], etc.
-  edges: (EdgeJointConfig | null)[];
-}
-
-/**
- * Build the 3D faces for a wall with finger joints properly cut/extended.
- * 
- * Strategy for assembled box:
- * - Tab edges: the material extends outward by `thickness` at tab finger positions
- *   (these tabs will occupy the slot space of the neighbor wall)
- * - Slot edges: the material is notched inward by `thickness` at slot positions
- *   (these notches receive the tabs from the neighbor)
- * - The base wall slab has material thickness along the `normal` direction (inward)
- */
-function buildWallFaces(wall: WallDef): Face3D[] {
+// ── Simple slab builder ──
+// Creates a 6-face box from 4 outer-face corners + inward extrusion
+function buildSlab(
+  corners: Vec3[], // 4 corners of outer face, CCW from outside
+  normal: Vec3,    // outward normal
+  thickness: number,
+  outerColor: string,
+  innerColor: string,
+  edgeColor: string,
+  label: string,
+  opacity: number = 0.92,
+): Face3D[] {
   const faces: Face3D[] = [];
-  const { corners, normal, thickness, label, outerColor, innerColor, edgeColor, edges } = wall;
   const inward = v3scale(normal, -1);
+  const inner = corners.map(c => v3add(c, v3scale(inward, thickness)));
 
-  // Inner corners
-  const innerCorners = corners.map(c => v3add(c, v3scale(inward, thickness)));
-
-  // ── Main outer face ──
-  faces.push({ pts: [...corners], fill: outerColor, opacity: 0.92, label });
-  // Main inner face (reversed winding)
-  faces.push({ pts: [innerCorners[3], innerCorners[2], innerCorners[1], innerCorners[0]], fill: innerColor, opacity: 0.82, label: "" });
-
-  // ── 4 edge strips (thickness sides) ──
+  // Outer face
+  faces.push({ pts: [...corners], fill: outerColor, opacity, label });
+  // Inner face (reversed winding)
+  faces.push({ pts: [inner[3], inner[2], inner[1], inner[0]], fill: innerColor, opacity: opacity * 0.9, label: "" });
+  // 4 edge strips
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
-    faces.push({
-      pts: [corners[i], corners[j], innerCorners[j], innerCorners[i]],
-      fill: edgeColor, opacity: 0.88, label: "",
-    });
+    faces.push({ pts: [corners[i], corners[j], inner[j], inner[i]], fill: edgeColor, opacity: opacity * 0.95, label: "" });
   }
-
-  // ── Finger joint tabs (protruding blocks) ──
-  for (let ei = 0; ei < 4; ei++) {
-    const edgeCfg = edges[ei];
-    if (!edgeCfg) continue;
-
-    const ej = (ei + 1) % 4;
-    const edgeStart = corners[ei];
-    const edgeEnd = corners[ej];
-    const innerStart = innerCorners[ei];
-    const innerEnd = innerCorners[ej];
-
-    const { fingerCount, isTabs } = edgeCfg;
-
-    // Compute edge outward direction (perpendicular to edge, in the wall plane, pointing outward from wall center)
-    // This is the direction the tabs protrude into the neighbor
-    // For a box edge, tabs extend along the direction that goes INTO the neighbor wall
-    // That direction is perpendicular to the edge and lies in the wall outer face plane
-    const edgeDir: Vec3 = [
-      edgeEnd[0] - edgeStart[0],
-      edgeEnd[1] - edgeStart[1],
-      edgeEnd[2] - edgeStart[2],
-    ];
-    const edgeLen = Math.sqrt(edgeDir[0]**2 + edgeDir[1]**2 + edgeDir[2]**2);
-    // Normalized edge direction
-    const eDirN: Vec3 = [edgeDir[0]/edgeLen, edgeDir[1]/edgeLen, edgeDir[2]/edgeLen];
-
-    // Cross product: normal × edgeDir gives the "outward along edge" direction
-    // But we want the direction pointing AWAY from the wall center
-    const wallCenter: Vec3 = [
-      (corners[0][0]+corners[1][0]+corners[2][0]+corners[3][0])/4,
-      (corners[0][1]+corners[1][1]+corners[2][1]+corners[3][1])/4,
-      (corners[0][2]+corners[1][2]+corners[2][2]+corners[3][2])/4,
-    ];
-    const edgeMid: Vec3 = v3lerp(edgeStart, edgeEnd, 0.5);
-    // Direction from wall center to edge midpoint
-    const toEdge: Vec3 = [edgeMid[0]-wallCenter[0], edgeMid[1]-wallCenter[1], edgeMid[2]-wallCenter[2]];
-    const toEdgeLen = Math.sqrt(toEdge[0]**2+toEdge[1]**2+toEdge[2]**2);
-    const tabDir: Vec3 = toEdgeLen > 0.001 
-      ? [toEdge[0]/toEdgeLen, toEdge[1]/toEdgeLen, toEdge[2]/toEdgeLen]
-      : [0, 0, 0];
-
-    for (let fi = 0; fi < fingerCount; fi++) {
-      const isFingerTab = (fi % 2 === 0) === isTabs;
-
-      if (isFingerTab && isTabs) {
-        // Draw protruding tab block
-        const t0 = fi / fingerCount;
-        const t1 = (fi + 1) / fingerCount;
-
-        // 4 corners on outer face edge
-        const a = v3lerp(edgeStart, edgeEnd, t0);
-        const b = v3lerp(edgeStart, edgeEnd, t1);
-        // Corresponding inner face corners
-        const ai = v3lerp(innerStart, innerEnd, t0);
-        const bi = v3lerp(innerStart, innerEnd, t1);
-
-        // Extruded by thickness along tabDir
-        const ae = v3add(a, v3scale(tabDir, thickness));
-        const be = v3add(b, v3scale(tabDir, thickness));
-        const aie = v3add(ai, v3scale(tabDir, thickness));
-        const bie = v3add(bi, v3scale(tabDir, thickness));
-
-        // 6 faces of the tab block
-        const tabColor = "#c48a2a";
-        const tabSide = "#a87420";
-        const tabTop = "#d49a35";
-
-        // Front (outer) face of tab
-        faces.push({ pts: [ae, be, bie, aie], fill: tabColor, opacity: 0.95, label: "", isJoint: true });
-        // Back (connects to wall) face
-        faces.push({ pts: [b, a, ai, bi], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
-        // Top face
-        faces.push({ pts: [a, ae, aie, ai], fill: tabTop, opacity: 0.90, label: "", isJoint: true });
-        // Bottom face
-        faces.push({ pts: [be, b, bi, bie], fill: tabTop, opacity: 0.90, label: "", isJoint: true });
-        // Left side
-        faces.push({ pts: [a, b, be, ae], fill: tabSide, opacity: 0.88, label: "", isJoint: true });
-        // Right side (inner)
-        faces.push({ pts: [aie, bie, bi, ai], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
-      }
-
-      if (isFingerTab && !isTabs) {
-        // This is a slot (female) — draw a dark recess indicator
-        const t0 = fi / fingerCount;
-        const t1 = (fi + 1) / fingerCount;
-
-        const a = v3lerp(edgeStart, edgeEnd, t0);
-        const b = v3lerp(edgeStart, edgeEnd, t1);
-        // Recess inward
-        const slotDepth = thickness * 0.3;
-        const ar = v3add(a, v3scale(tabDir, -slotDepth));
-        const br = v3add(b, v3scale(tabDir, -slotDepth));
-
-        faces.push({ pts: [a, b, br, ar], fill: "#3d2a10", opacity: 0.85, label: "", isJoint: true });
-      }
-    }
-  }
-
   return faces;
 }
+
+// ── Joint indicator bands on an edge strip ──
+// Draws alternating colored bands on the edge face to show finger positions
+function buildJointIndicators(
+  c0: Vec3, c1: Vec3, // outer edge start/end
+  i0: Vec3, i1: Vec3, // inner edge start/end  
+  fingerCount: number,
+  isTabs: boolean,
+): Face3D[] {
+  const faces: Face3D[] = [];
+  const tabColor = "#c48a2a";
+  const slotColor = "#3d2a10";
+
+  for (let fi = 0; fi < fingerCount; fi++) {
+    const isTab = (fi % 2 === 0) === isTabs;
+    const t0 = fi / fingerCount;
+    const t1 = (fi + 1) / fingerCount;
+
+    const a = v3lerp(c0, c1, t0);
+    const b = v3lerp(c0, c1, t1);
+    const ai = v3lerp(i0, i1, t0);
+    const bi = v3lerp(i0, i1, t1);
+
+    faces.push({
+      pts: [a, b, bi, ai],
+      fill: isTab ? tabColor : slotColor,
+      opacity: 0.92,
+      label: "",
+      isJoint: true,
+    });
+  }
+  return faces;
+}
+
+// ── Exploded view: protruding tab blocks ──
+// When walls are separated, draw actual 3D tab blocks on tab edges
+function buildExplodedTabs(
+  edgeStart: Vec3, edgeEnd: Vec3,
+  innerStart: Vec3, innerEnd: Vec3,
+  tabDir: Vec3, // direction tabs protrude (toward neighbor)
+  thickness: number,
+  fingerCount: number,
+  isTabs: boolean,
+): Face3D[] {
+  if (!isTabs) return [];
+  const faces: Face3D[] = [];
+  const tabColor = "#c48a2a";
+  const tabSide = "#a87420";
+  const tabTop = "#d49a35";
+
+  for (let fi = 0; fi < fingerCount; fi++) {
+    const isTab = (fi % 2 === 0);
+    if (!isTab) continue;
+
+    const t0 = fi / fingerCount;
+    const t1 = (fi + 1) / fingerCount;
+
+    const a = v3lerp(edgeStart, edgeEnd, t0);
+    const b = v3lerp(edgeStart, edgeEnd, t1);
+    const ai = v3lerp(innerStart, innerEnd, t0);
+    const bi = v3lerp(innerStart, innerEnd, t1);
+
+    const ae = v3add(a, v3scale(tabDir, thickness));
+    const be = v3add(b, v3scale(tabDir, thickness));
+    const aie = v3add(ai, v3scale(tabDir, thickness));
+    const bie = v3add(bi, v3scale(tabDir, thickness));
+
+    // 6 faces of tab block
+    faces.push({ pts: [ae, be, bie, aie], fill: tabColor, opacity: 0.95, label: "", isJoint: true });
+    faces.push({ pts: [b, a, ai, bi], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
+    faces.push({ pts: [a, ae, aie, ai], fill: tabTop, opacity: 0.90, label: "", isJoint: true });
+    faces.push({ pts: [be, b, bi, bie], fill: tabTop, opacity: 0.90, label: "", isJoint: true });
+    faces.push({ pts: [a, b, be, ae], fill: tabSide, opacity: 0.88, label: "", isJoint: true });
+    faces.push({ pts: [aie, bie, bi, ai], fill: tabSide, opacity: 0.85, label: "", isJoint: true });
+  }
+  return faces;
+}
+
+// ── 2D flattened piece drawing ──
+function draw2DPieces(
+  ctx: CanvasRenderingContext2D, 
+  cw: number, ch: number,
+  params: BoxParams,
+  W: number, H: number, D: number
+) {
+  const t = params.materialThickness;
+  const isOpen = params.boxType === "open";
+  const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
+  const wallH = isOpen || hasLid ? H - t : H;
+  const sideD = D - 2 * t;
+
+  const pieces = [
+    { label: "Frente", w: W, h: wallH },
+    { label: "Traseira", w: W, h: wallH },
+    { label: "Esquerda", w: sideD, h: wallH },
+    { label: "Direita", w: sideD, h: wallH },
+    { label: "Fundo", w: W, h: sideD },
+  ];
+  if (!isOpen && !hasLid) pieces.push({ label: "Topo", w: W, h: sideD });
+  if (hasLid) pieces.push({ label: "Tampa", w: W, h: sideD });
+
+  // Find scale to fit all pieces
+  const totalArea = pieces.reduce((s, p) => s + p.w * p.h, 0);
+  const maxPieceW = Math.max(...pieces.map(p => p.w));
+  const maxPieceH = Math.max(...pieces.map(p => p.h));
+  const sc = Math.min((cw - 60) / (maxPieceW * 2.5), (ch - 60) / (maxPieceH * 2.5), 1.5);
+
+  const gap = 15;
+  let x = gap, y = gap + 20;
+  let maxRowH = 0;
+
+  // Background
+  ctx.fillStyle = "#f5f0e8";
+  ctx.fillRect(0, 0, cw, ch);
+
+  ctx.fillStyle = "#3d2a10";
+  ctx.font = "bold 12px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Peças Planificadas (2D)", 10, 14);
+
+  const colors = ["#d4a553", "#c49340", "#b88a3a", "#c49340", "#a07830", "#e2b96a", "#e8c06a"];
+
+  pieces.forEach((piece, idx) => {
+    const pw = piece.w * sc;
+    const ph = piece.h * sc;
+
+    if (x + pw + gap > cw) {
+      x = gap;
+      y += maxRowH + gap + 20;
+      maxRowH = 0;
+    }
+
+    // Piece rectangle
+    ctx.fillStyle = colors[idx % colors.length];
+    ctx.fillRect(x, y, pw, ph);
+    ctx.strokeStyle = "#5a3d12";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, pw, ph);
+
+    // Draw finger indicators on edges
+    if (params.jointType === "finger" || params.jointType === "tslot") {
+      const fcW2 = computeFingerCount(piece.w, params.fingerMinSize, params.fingerMaxSize);
+      const fcH2 = computeFingerCount(piece.h, params.fingerMinSize, params.fingerMaxSize);
+      ctx.fillStyle = "#3d2a10";
+      // Top/bottom fingers
+      const fSizeW = pw / fcW2;
+      for (let fi = 0; fi < fcW2; fi++) {
+        if (fi % 2 === 0) {
+          ctx.fillRect(x + fi * fSizeW, y - 3, fSizeW, 3);
+          ctx.fillRect(x + fi * fSizeW, y + ph, fSizeW, 3);
+        }
+      }
+      // Left/right fingers
+      const fSizeH = ph / fcH2;
+      for (let fi = 0; fi < fcH2; fi++) {
+        if (fi % 2 === 0) {
+          ctx.fillRect(x - 3, y + fi * fSizeH, 3, fSizeH);
+          ctx.fillRect(x + pw, y + fi * fSizeH, 3, fSizeH);
+        }
+      }
+    }
+
+    // Label
+    ctx.fillStyle = "#3d2a10";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(piece.label, x + pw / 2, y + ph / 2);
+    ctx.font = "8px sans-serif";
+    ctx.fillText(`${piece.w.toFixed(0)}×${piece.h.toFixed(0)}`, x + pw / 2, y + ph / 2 + 11);
+
+    maxRowH = Math.max(maxRowH, ph);
+    x += pw + gap;
+  });
+}
+
+type ViewMode = "assembled" | "exploded" | "flat2d";
 
 export function BoxPreview3D({ params, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rotation, setRotation] = useState({ rx: 0.5, ry: -0.7 });
   const [zoom, setZoom] = useState(1);
+  const [viewMode, setViewMode] = useState<ViewMode>("assembled");
   const dragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
@@ -225,13 +260,10 @@ export function BoxPreview3D({ params, className }: Props) {
     }));
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    dragging.current = false;
-  }, []);
+  const handleMouseUp = useCallback(() => { dragging.current = false; }, []);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.002)));
   }, []);
 
@@ -259,9 +291,15 @@ export function BoxPreview3D({ params, className }: Props) {
       D += 2 * t;
     }
 
+    // ── 2D flat mode ──
+    if (viewMode === "flat2d") {
+      draw2DPieces(ctx, cw, ch, params, W, H, D);
+      return;
+    }
+
+    // ── 3D rendering ──
     const maxDim = Math.max(W, H, D);
     const sc = Math.min(cw, ch) * 0.28 / maxDim * zoom;
-
     const cosRx = Math.cos(rotation.rx), sinRx = Math.sin(rotation.rx);
     const cosRy = Math.cos(rotation.ry), sinRy = Math.sin(rotation.ry);
 
@@ -273,7 +311,7 @@ export function BoxPreview3D({ params, className }: Props) {
       return [cw / 2 + nx * sc, ch / 2 - ny * sc, fz];
     };
 
-    // ── Background ──
+    // Background
     const bgGrad = ctx.createLinearGradient(0, 0, 0, ch);
     bgGrad.addColorStop(0, "#7cb8e8");
     bgGrad.addColorStop(1, "#a8d4f0");
@@ -297,249 +335,239 @@ export function BoxPreview3D({ params, className }: Props) {
     const isOpen = params.boxType === "open";
     const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
     const hw = W / 2, hh = H / 2, hd = D / 2;
+    const isExploded = viewMode === "exploded";
+    const explodeDist = isExploded ? maxDim * 0.2 : 0;
 
-    // Wood colors
+    const useFinger = params.jointType === "finger" || params.jointType === "tslot";
+    const wallH = isOpen || hasLid ? H - t : H;
+    const sideD = D - 2 * t;
+
+    // Wood palette
     const woodFront = "#d4a553";
     const woodSide = "#c49340";
     const woodEdge = "#b07e30";
     const woodLight = "#e2b96a";
     const woodDark = "#a06e28";
 
-    const jt = params.jointType;
-    const useFinger = jt === "finger" || jt === "tslot";
-
-    const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
-    const fcH = computeFingerCount(H, params.fingerMinSize, params.fingerMaxSize);
-    const fcD = computeFingerCount(D, params.fingerMinSize, params.fingerMaxSize);
-
     const faces: Face3D[] = [];
 
-    // ──────────────────────────────────────────────────────────
-    // ASSEMBLED BOX — walls positioned with thickness offsets
-    // 
-    // Convention:
-    //   Front/Back walls: full width W, full height H
-    //   Left/Right walls: depth D-2t (fit between front/back), full height H  
-    //   Bottom/Top: width W, depth D-2t (fit between front/back)
-    //
-    // Joint pairing (male/female):
-    //   Front/Back vertical edges → SLOTS (female), receive side wall tabs
-    //   Side walls vertical edges → TABS (male), go into front/back slots
-    //   Front/Back bottom edge → TABS (male), go into bottom slots  
-    //   Bottom front/back edges → SLOTS (female), receive front/back tabs
-    //   Side bottom edges → TABS (male), go into bottom slots
-    //   Bottom side edges → SLOTS (female), receive side tabs
-    // ──────────────────────────────────────────────────────────
+    // Finger counts
+    const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
+    const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
+    const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
 
-    // Helper to make edge configs
-    const tabEdge = (fc: number): EdgeJointConfig => ({ fingerCount: fc, isTabs: true });
-    const slotEdge = (fc: number): EdgeJointConfig => ({ fingerCount: fc, isTabs: false });
+    // ════════════════════════════════════════════════════════
+    // WALL DEFINITIONS — each wall as a simple slab
+    // In assembled mode: flush slabs + joint indicators on edges
+    // In exploded mode: slabs separated + protruding tab blocks
+    // ════════════════════════════════════════════════════════
 
-    // ── FRONT WALL ── (Z = +hd, facing +Z)
-    // Corners CCW from outside: BL, BR, TR, TL
-    // Edges: bottom(0-1), right(1-2), top(2-3), left(3-0)
+    const yBot = -hh;
+    const yTop = -hh + wallH;
+
+    // ── FRONT (Z = +hd, normal +Z) ──
     {
-      const frontH_actual = isOpen || hasLid ? H - t : H;
-      const y_bottom = -hh;
-      const y_top = -hh + frontH_actual;
-      const wall: WallDef = {
-        corners: [
-          [-hw, y_bottom, hd],  // BL
-          [hw, y_bottom, hd],   // BR
-          [hw, y_top, hd],      // TR
-          [-hw, y_top, hd],     // TL
-        ],
-        normal: [0, 0, 1],
-        thickness: t,
-        label: "Frente",
-        outerColor: woodFront,
-        innerColor: woodSide,
-        edgeColor: woodEdge,
-        edges: useFinger ? [
-          tabEdge(fcW),                                        // bottom → tabs into bottom piece
-          slotEdge(computeFingerCount(frontH_actual, params.fingerMinSize, params.fingerMaxSize)),  // right → slots for right wall tabs
-          (!isOpen && !hasLid) ? tabEdge(fcW) : null,          // top → tabs into top piece
-          slotEdge(computeFingerCount(frontH_actual, params.fingerMinSize, params.fingerMaxSize)),  // left → slots for left wall tabs
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const off: Vec3 = [0, 0, explodeDist];
+      const c: Vec3[] = [
+        v3add([-hw, yBot, hd], off),
+        v3add([hw, yBot, hd], off),
+        v3add([hw, yTop, hd], off),
+        v3add([-hw, yTop, hd], off),
+      ];
+      const n: Vec3 = [0, 0, 1];
+      faces.push(...buildSlab(c, n, t, woodFront, woodSide, woodEdge, "Frente"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        // Edge 0 (bottom): tabs → into bottom
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcW, true));
+        // Edge 1 (right vertical): slots ← receive right wall tabs
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcWallH, false));
+        // Edge 2 (top): tabs → into top (if closed)
+        if (!isOpen && !hasLid) {
+          faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcW, true));
+        }
+        // Edge 3 (left vertical): slots ← receive left wall tabs
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcWallH, false));
+
+        if (isExploded) {
+          // Bottom tabs protrude downward (-Y)
+          faces.push(...buildExplodedTabs(c[0], c[1], inner[0], inner[1], [0, -1, 0], t, fcW, true));
+          // Top tabs protrude upward (+Y)
+          if (!isOpen && !hasLid) {
+            faces.push(...buildExplodedTabs(c[2], c[3], inner[2], inner[3], [0, 1, 0], t, fcW, true));
+          }
+        }
+      }
     }
 
-    // ── BACK WALL ── (Z = -hd, facing -Z)
+    // ── BACK (Z = -hd, normal -Z) ──
     {
-      const backH_actual = isOpen || hasLid ? H - t : H;
-      const y_bottom = -hh;
-      const y_top = -hh + backH_actual;
-      const wall: WallDef = {
-        corners: [
-          [hw, y_bottom, -hd],   // BL (from outside looking at back)
-          [-hw, y_bottom, -hd],  // BR
-          [-hw, y_top, -hd],     // TR
-          [hw, y_top, -hd],      // TL
-        ],
-        normal: [0, 0, -1],
-        thickness: t,
-        label: "Traseira",
-        outerColor: woodSide,
-        innerColor: woodFront,
-        edgeColor: woodEdge,
-        edges: useFinger ? [
-          tabEdge(fcW),
-          slotEdge(computeFingerCount(backH_actual, params.fingerMinSize, params.fingerMaxSize)),
-          (!isOpen && !hasLid) ? tabEdge(fcW) : null,
-          slotEdge(computeFingerCount(backH_actual, params.fingerMinSize, params.fingerMaxSize)),
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const off: Vec3 = [0, 0, -explodeDist];
+      const c: Vec3[] = [
+        v3add([hw, yBot, -hd], off),
+        v3add([-hw, yBot, -hd], off),
+        v3add([-hw, yTop, -hd], off),
+        v3add([hw, yTop, -hd], off),
+      ];
+      const n: Vec3 = [0, 0, -1];
+      faces.push(...buildSlab(c, n, t, woodSide, woodFront, woodEdge, "Traseira"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcW, true));
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcWallH, false));
+        if (!isOpen && !hasLid) {
+          faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcW, true));
+        }
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcWallH, false));
+
+        if (isExploded) {
+          faces.push(...buildExplodedTabs(c[0], c[1], inner[0], inner[1], [0, -1, 0], t, fcW, true));
+          if (!isOpen && !hasLid) {
+            faces.push(...buildExplodedTabs(c[2], c[3], inner[2], inner[3], [0, 1, 0], t, fcW, true));
+          }
+        }
+      }
     }
 
-    // ── LEFT WALL ── (X = -hw, facing -X)
-    // Fits between front and back: depth = D - 2*t
+    // ── LEFT (X = -hw, normal -X) ──
+    // Side walls fit between front/back: Z from (hd-t) to (-hd+t)
     {
-      const sideH_actual = isOpen || hasLid ? H - t : H;
-      const y_bottom = -hh;
-      const y_top = -hh + sideH_actual;
-      const sideD = D - 2 * t;
-      const z_front = hd - t;
-      const z_back = -hd + t;
-      const fcSideH = computeFingerCount(sideH_actual, params.fingerMinSize, params.fingerMaxSize);
-      const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
-      const wall: WallDef = {
-        corners: [
-          [-hw, y_bottom, z_front],  // BL
-          [-hw, y_bottom, z_back],   // BR
-          [-hw, y_top, z_back],      // TR
-          [-hw, y_top, z_front],     // TL
-        ],
-        normal: [-1, 0, 0],
-        thickness: t,
-        label: "Esquerda",
-        outerColor: woodEdge,
-        innerColor: woodSide,
-        edgeColor: woodDark,
-        edges: useFinger ? [
-          tabEdge(fcSideD),                              // bottom → tabs into bottom
-          tabEdge(fcSideH),                              // back-side vertical → tabs into back wall
-          (!isOpen && !hasLid) ? tabEdge(fcSideD) : null, // top → tabs into top
-          tabEdge(fcSideH),                              // front-side vertical → tabs into front wall
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const off: Vec3 = [-explodeDist, 0, 0];
+      const zF = hd - t;
+      const zB = -hd + t;
+      const c: Vec3[] = [
+        v3add([-hw, yBot, zF], off),
+        v3add([-hw, yBot, zB], off),
+        v3add([-hw, yTop, zB], off),
+        v3add([-hw, yTop, zF], off),
+      ];
+      const n: Vec3 = [-1, 0, 0];
+      faces.push(...buildSlab(c, n, t, woodEdge, woodSide, woodDark, "Esquerda"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        // Edge 0 (bottom): tabs → into bottom
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcSideD, true));
+        // Edge 1 (back vertical): tabs → into back wall slots
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcWallH, true));
+        // Edge 2 (top): tabs → into top
+        if (!isOpen && !hasLid) {
+          faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcSideD, true));
+        }
+        // Edge 3 (front vertical): tabs → into front wall slots
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcWallH, true));
+
+        if (isExploded) {
+          // Bottom tabs
+          faces.push(...buildExplodedTabs(c[0], c[1], inner[0], inner[1], [0, -1, 0], t, fcSideD, true));
+          // Back-side tabs protrude toward back (-Z direction relative to edge)
+          faces.push(...buildExplodedTabs(c[1], c[2], inner[1], inner[2], [0, 0, -1], t, fcWallH, true));
+          // Top tabs
+          if (!isOpen && !hasLid) {
+            faces.push(...buildExplodedTabs(c[2], c[3], inner[2], inner[3], [0, 1, 0], t, fcSideD, true));
+          }
+          // Front-side tabs protrude toward front (+Z)
+          faces.push(...buildExplodedTabs(c[3], c[0], inner[3], inner[0], [0, 0, 1], t, fcWallH, true));
+        }
+      }
     }
 
-    // ── RIGHT WALL ── (X = +hw, facing +X)
+    // ── RIGHT (X = +hw, normal +X) ──
     {
-      const sideH_actual = isOpen || hasLid ? H - t : H;
-      const y_bottom = -hh;
-      const y_top = -hh + sideH_actual;
-      const sideD = D - 2 * t;
-      const z_front = hd - t;
-      const z_back = -hd + t;
-      const fcSideH = computeFingerCount(sideH_actual, params.fingerMinSize, params.fingerMaxSize);
-      const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
-      const wall: WallDef = {
-        corners: [
-          [hw, y_bottom, z_back],   // BL (from outside looking at right)
-          [hw, y_bottom, z_front],  // BR
-          [hw, y_top, z_front],     // TR
-          [hw, y_top, z_back],      // TL
-        ],
-        normal: [1, 0, 0],
-        thickness: t,
-        label: "Direita",
-        outerColor: woodSide,
-        innerColor: woodEdge,
-        edgeColor: woodDark,
-        edges: useFinger ? [
-          tabEdge(fcSideD),
-          tabEdge(fcSideH),
-          (!isOpen && !hasLid) ? tabEdge(fcSideD) : null,
-          tabEdge(fcSideH),
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const off: Vec3 = [explodeDist, 0, 0];
+      const zF = hd - t;
+      const zB = -hd + t;
+      const c: Vec3[] = [
+        v3add([hw, yBot, zB], off),
+        v3add([hw, yBot, zF], off),
+        v3add([hw, yTop, zF], off),
+        v3add([hw, yTop, zB], off),
+      ];
+      const n: Vec3 = [1, 0, 0];
+      faces.push(...buildSlab(c, n, t, woodSide, woodEdge, woodDark, "Direita"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcSideD, true));
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcWallH, true));
+        if (!isOpen && !hasLid) {
+          faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcSideD, true));
+        }
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcWallH, true));
+
+        if (isExploded) {
+          faces.push(...buildExplodedTabs(c[0], c[1], inner[0], inner[1], [0, -1, 0], t, fcSideD, true));
+          faces.push(...buildExplodedTabs(c[1], c[2], inner[1], inner[2], [0, 0, 1], t, fcWallH, true));
+          if (!isOpen && !hasLid) {
+            faces.push(...buildExplodedTabs(c[2], c[3], inner[2], inner[3], [0, 1, 0], t, fcSideD, true));
+          }
+          faces.push(...buildExplodedTabs(c[3], c[0], inner[3], inner[0], [0, 0, -1], t, fcWallH, true));
+        }
+      }
     }
 
-    // ── BOTTOM ── (Y = -hh, facing -Y)
-    // Width = W, Depth = D-2t (fits between front/back)
+    // ── BOTTOM (Y = -hh, normal -Y) ──
     {
-      const z_front = hd - t;
-      const z_back = -hd + t;
-      const bottomD = D - 2 * t;
-      const fcBottomD = computeFingerCount(bottomD, params.fingerMinSize, params.fingerMaxSize);
-      const wall: WallDef = {
-        corners: [
-          [-hw, -hh, z_front],  // FL
-          [hw, -hh, z_front],   // FR
-          [hw, -hh, z_back],    // BR
-          [-hw, -hh, z_back],   // BL
-        ],
-        normal: [0, -1, 0],
-        thickness: t,
-        label: "Fundo",
-        outerColor: woodDark,
-        innerColor: woodEdge,
-        edgeColor: woodEdge,
-        edges: useFinger ? [
-          slotEdge(fcW),       // front edge → slots for front wall tabs
-          slotEdge(fcBottomD), // right edge → slots for right wall tabs
-          slotEdge(fcW),       // back edge → slots for back wall tabs
-          slotEdge(fcBottomD), // left edge → slots for left wall tabs
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const off: Vec3 = [0, -explodeDist, 0];
+      const zF = hd - t;
+      const zB = -hd + t;
+      const c: Vec3[] = [
+        v3add([-hw, -hh, zF], off),
+        v3add([hw, -hh, zF], off),
+        v3add([hw, -hh, zB], off),
+        v3add([-hw, -hh, zB], off),
+      ];
+      const n: Vec3 = [0, -1, 0];
+      faces.push(...buildSlab(c, n, t, woodDark, woodEdge, woodEdge, "Fundo"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        // All edges are slots (receive tabs from walls)
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcW, false));
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcSideD, false));
+        faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcW, false));
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcSideD, false));
+      }
     }
 
-    // ── TOP ── (Y = +hh, facing +Y)
+    // ── TOP (Y = +hh, normal +Y) ──
     if (!isOpen && !hasLid) {
-      const z_front = hd - t;
-      const z_back = -hd + t;
-      const topD = D - 2 * t;
-      const fcTopD = computeFingerCount(topD, params.fingerMinSize, params.fingerMaxSize);
-      const wall: WallDef = {
-        corners: [
-          [-hw, hh, z_back],   // BL
-          [hw, hh, z_back],    // BR
-          [hw, hh, z_front],   // FR
-          [-hw, hh, z_front],  // FL
-        ],
-        normal: [0, 1, 0],
-        thickness: t,
-        label: "Topo",
-        outerColor: woodLight,
-        innerColor: woodSide,
-        edgeColor: woodEdge,
-        edges: useFinger ? [
-          slotEdge(fcW),
-          slotEdge(fcTopD),
-          slotEdge(fcW),
-          slotEdge(fcTopD),
-        ] : [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      const topY = -hh + wallH;
+      const off: Vec3 = [0, explodeDist, 0];
+      const zF = hd - t;
+      const zB = -hd + t;
+      const c: Vec3[] = [
+        v3add([-hw, topY, zB], off),
+        v3add([hw, topY, zB], off),
+        v3add([hw, topY, zF], off),
+        v3add([-hw, topY, zF], off),
+      ];
+      const n: Vec3 = [0, 1, 0];
+      faces.push(...buildSlab(c, n, t, woodLight, woodSide, woodEdge, "Topo"));
+
+      if (useFinger) {
+        const inner = c.map(p => v3add(p, v3scale(n, -t)));
+        faces.push(...buildJointIndicators(c[0], c[1], inner[0], inner[1], fcW, false));
+        faces.push(...buildJointIndicators(c[1], c[2], inner[1], inner[2], fcSideD, false));
+        faces.push(...buildJointIndicators(c[2], c[3], inner[2], inner[3], fcW, false));
+        faces.push(...buildJointIndicators(c[3], c[0], inner[3], inner[0], fcSideD, false));
+      }
     }
 
     // ── LID ──
     if (hasLid) {
-      const lidOverhang = 3;
-      const y_top = isOpen || hasLid ? -hh + (H - t) : hh;
-      const innerCornersLid: Vec3[] = [
-        [-hw - lidOverhang, y_top + t * 0.5, -hd - lidOverhang],
-        [hw + lidOverhang, y_top + t * 0.5, -hd - lidOverhang],
-        [hw + lidOverhang, y_top + t * 0.5, hd + lidOverhang],
-        [-hw - lidOverhang, y_top + t * 0.5, hd + lidOverhang],
+      const lidY = yTop;
+      const off: Vec3 = [0, explodeDist, 0];
+      const overhang = 3;
+      const c: Vec3[] = [
+        v3add([-hw - overhang, lidY + t * 0.5, -hd - overhang], off),
+        v3add([hw + overhang, lidY + t * 0.5, -hd - overhang], off),
+        v3add([hw + overhang, lidY + t * 0.5, hd + overhang], off),
+        v3add([-hw - overhang, lidY + t * 0.5, hd + overhang], off),
       ];
-      const wall: WallDef = {
-        corners: innerCornersLid,
-        normal: [0, 1, 0],
-        thickness: t,
-        label: "Tampa",
-        outerColor: "#e8c06a",
-        innerColor: woodSide,
-        edgeColor: woodEdge,
-        edges: [null, null, null, null],
-      };
-      faces.push(...buildWallFaces(wall));
+      faces.push(...buildSlab(c, [0, 1, 0], t, "#e8c06a", woodSide, woodEdge, "Tampa"));
     }
 
     // ── Project & sort (painter's algorithm) ──
@@ -557,20 +585,19 @@ export function BoxPreview3D({ params, className }: Props) {
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
       ctx.closePath();
 
-      // Lighting based on face normal
       const ax = pts[1][0] - pts[0][0], ay = pts[1][1] - pts[0][1];
       const bx = pts[2][0] - pts[0][0], by = pts[2][1] - pts[0][1];
       const nz = ax * by - ay * bx;
-      const lightFactor = 0.4 + 0.6 * Math.abs(nz) / (Math.sqrt(ax * ax + ay * ay) * Math.sqrt(bx * bx + by * by) + 0.001);
+      const lightFactor = 0.4 + 0.6 * Math.abs(nz) / (Math.sqrt(ax*ax+ay*ay) * Math.sqrt(bx*bx+by*by) + 0.001);
 
       ctx.globalAlpha = face.opacity * Math.min(lightFactor + 0.2, 1);
       ctx.fillStyle = face.fill;
       ctx.fill();
 
       if (face.isJoint) {
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = 0.8;
         ctx.strokeStyle = "#2a1800";
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = 0.6;
         ctx.stroke();
       } else {
         ctx.globalAlpha = 0.7;
@@ -578,26 +605,22 @@ export function BoxPreview3D({ params, className }: Props) {
         ctx.lineWidth = 1.2;
         ctx.stroke();
 
-        // Wood grain
-        if (face.label && !face.isJoint) {
+        // Wood grain + label
+        if (face.label) {
           const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
           const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          const faceW = Math.sqrt((pts[1][0] - pts[0][0]) ** 2 + (pts[1][1] - pts[0][1]) ** 2);
-          const faceH = Math.sqrt((pts[2][0] - pts[1][0]) ** 2 + (pts[2][1] - pts[1][1]) ** 2);
-          if (faceW > 30 && faceH > 20) {
+          const fW = Math.sqrt((pts[1][0]-pts[0][0])**2+(pts[1][1]-pts[0][1])**2);
+          const fH = Math.sqrt((pts[2][0]-pts[1][0])**2+(pts[2][1]-pts[1][1])**2);
+          if (fW > 30 && fH > 20) {
             ctx.globalAlpha = 0.08;
             ctx.strokeStyle = "#5a3d12";
             ctx.lineWidth = 0.5;
-            const grainCount = Math.min(8, Math.floor(faceH / 8));
+            const grainCount = Math.min(8, Math.floor(fH / 8));
             for (let g = 1; g <= grainCount; g++) {
               const frac = g / (grainCount + 1);
-              const gx1 = pts[0][0] + (pts[3][0] - pts[0][0]) * frac;
-              const gy1 = pts[0][1] + (pts[3][1] - pts[0][1]) * frac;
-              const gx2 = pts[1][0] + (pts[2][0] - pts[1][0]) * frac;
-              const gy2 = pts[1][1] + (pts[2][1] - pts[1][1]) * frac;
               ctx.beginPath();
-              ctx.moveTo(gx1, gy1);
-              ctx.lineTo(gx2, gy2);
+              ctx.moveTo(pts[0][0]+(pts[3][0]-pts[0][0])*frac, pts[0][1]+(pts[3][1]-pts[0][1])*frac);
+              ctx.lineTo(pts[1][0]+(pts[2][0]-pts[1][0])*frac, pts[1][1]+(pts[2][1]-pts[1][1])*frac);
               ctx.stroke();
             }
           }
@@ -612,7 +635,7 @@ export function BoxPreview3D({ params, className }: Props) {
       ctx.globalAlpha = 1;
     }
 
-    // ── Joint type label ──
+    // ── Info overlay ──
     const jointLabels: Record<string, string> = {
       finger: "Finger Joint", straight: "Junta Reta", slot: "Slot", tslot: "T-Slot",
     };
@@ -624,19 +647,17 @@ export function BoxPreview3D({ params, className }: Props) {
     ctx.fillText(`Encaixe: ${jointLabels[params.jointType] || params.jointType}`, 10, 16);
     ctx.fillText(`Espessura: ${t}${params.unit}`, 10, 30);
 
-    // Dimensions
     ctx.fillStyle = "#2c5e8a";
     ctx.font = "bold 12px sans-serif";
     ctx.textAlign = "center";
     const bPt = project(0, -hh - maxDim * 0.18, hd);
     ctx.fillText(`${W.toFixed(0)} × ${D.toFixed(0)} × ${H.toFixed(0)} ${params.unit}`, bPt[0], bPt[1]);
 
-    // Hint
     ctx.fillStyle = "rgba(44,94,138,0.4)";
     ctx.font = "10px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Clique e arraste para rotacionar · Scroll para zoom", cw / 2, ch - 10);
-  }, [params, rotation, zoom]);
+  }, [params, rotation, zoom, viewMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -646,14 +667,40 @@ export function BoxPreview3D({ params, className }: Props) {
   }, [handleWheel]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{ width: "100%", height: "100%", cursor: dragging.current ? "grabbing" : "grab", touchAction: "none" }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    />
+    <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "100%", cursor: viewMode === "flat2d" ? "default" : (dragging.current ? "grabbing" : "grab"), touchAction: "none" }}
+        onMouseDown={viewMode !== "flat2d" ? handleMouseDown : undefined}
+        onMouseMove={viewMode !== "flat2d" ? handleMouseMove : undefined}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
+      {/* View mode buttons */}
+      <div style={{
+        position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)",
+        display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", borderRadius: 6, padding: "3px 4px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+      }}>
+        {([
+          { key: "assembled" as ViewMode, label: "Montada" },
+          { key: "exploded" as ViewMode, label: "Explodida" },
+          { key: "flat2d" as ViewMode, label: "2D" },
+        ]).map(btn => (
+          <button
+            key={btn.key}
+            onClick={() => setViewMode(btn.key)}
+            style={{
+              padding: "4px 10px", fontSize: 11, fontWeight: viewMode === btn.key ? 700 : 400,
+              border: "none", borderRadius: 4, cursor: "pointer",
+              background: viewMode === btn.key ? "#2c5e8a" : "transparent",
+              color: viewMode === btn.key ? "#fff" : "#2c5e8a",
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

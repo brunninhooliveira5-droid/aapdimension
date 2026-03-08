@@ -1,37 +1,44 @@
 
 
-## Analysis
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-The root cause is in `buildWallFaces` — the `tabDir` vector (direction tabs protrude) is calculated as "wall center → edge midpoint", which often points outward from the box instead of into the neighbor wall. This causes tabs to render outside the box, overlapping material incorrectly.
+### Resumo
 
-Trying to fix the tab direction for every edge/wall combination is fragile. A fundamentally better approach: **render each wall as a simple slab correctly positioned, then draw joint pattern indicators on the edge faces** to show where fingers interlock.
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-## Plan
+### Alteracoes
 
-### Rewrite `BoxPreview3D.tsx` with correct assembly logic
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-**Step 1 — Simple slab rendering (replace `buildWallFaces`)**
-- Each wall = 6-face rectangular slab (outer, inner, 4 edge strips)
-- No protruding tab geometry — in an assembled box, tabs fill slots flush
-- Walls positioned with correct thickness offsets:
-  - Front/Back: full W × H, at Z = ±hd
-  - Sides: (D-2t) wide × H, at X = ±hw, inset by t in Z
-  - Bottom/Top: W × (D-2t), at Y = ±hh
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-**Step 2 — Joint pattern indicators on edges**
-- On each edge strip face, draw alternating colored bands to indicate finger positions
-- Tab positions shown in lighter wood color, slot positions in dark color
-- This clearly communicates the joint pattern without geometry errors
+#### 2. Editar limite de sub-usuarios (max_members)
 
-**Step 3 — Exploded view toggle**
-- Add a small "Explodir" button on the canvas overlay
-- When active, offset each wall outward by ~15-20mm along its normal
-- In exploded mode, finger tabs ARE visible as protruding blocks (since there's space)
-- Correct `tabDir` by computing cross product of edge direction × wall normal
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-**Step 4 — Keep existing interaction (rotate/zoom/grid/labels)**
+#### 3. Personificar sub-usuarios
 
-### Result
-- Default assembled view: clean box with joint pattern lines, no geometry overlap
-- Exploded view: walls separated, tabs visible protruding correctly into gap
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
+
+### Arquivos Modificados
+
+| Arquivo | Mudanca |
+|---|---|
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
+
+### Fluxo
+
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 
