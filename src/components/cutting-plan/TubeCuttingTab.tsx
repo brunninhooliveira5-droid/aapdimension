@@ -211,9 +211,10 @@ export function TubeCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = (scale: PdfScale) => {
     if (!result || result.errors.length > 0) return;
-    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName });
+    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName, scale });
+    setShowExportDialog(false);
   };
 
   const barLen = parseFloat(materialLength) || 0;
