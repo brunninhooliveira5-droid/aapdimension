@@ -429,16 +429,9 @@ function computeSingleCutGeometry(
   const halfKerf = kerf / 2;
   const hContourSegs: Segment[] = [];
   const vContourSegs: Segment[] = [];
-  const cutLines: CutLine[] = [];
-  const cutSet = new Set<string>();
-
-  const addCut = (x1: number, y1: number, x2: number, y2: number) => {
-    const key = [x1, y1, x2, y2].map(v => v.toFixed(2)).join(",");
-    if (!cutSet.has(key)) {
-      cutSet.add(key);
-      cutLines.push({ x1, y1, x2, y2 });
-    }
-  };
+  // Collect internal cuts as segments for merging
+  const hInternalSegs: Segment[] = [];
+  const vInternalSegs: Segment[] = [];
 
   for (let i = 0; i < pieces.length; i++) {
     const a = pieces[i];
@@ -449,11 +442,10 @@ function computeSingleCutGeometry(
     const rightShared = getSharedRanges(pieces, i, "right", kerf, TOL);
     if (rightShared.length > 0) {
       for (const range of rightShared) {
-        addCut(aR + halfKerf, range.start - halfKerf, aR + halfKerf, range.end + halfKerf);
+        vInternalSegs.push({ pos: aR + halfKerf, start: range.start - halfKerf, end: range.end + halfKerf });
       }
       const unshared = subtractRanges(a.y, aB, rightShared);
       for (const u of unshared) {
-        // External edge → offset outward by halfKerf
         vContourSegs.push({ pos: aR + halfKerf, start: u.start - halfKerf, end: u.end + halfKerf });
       }
     } else {
@@ -464,7 +456,7 @@ function computeSingleCutGeometry(
     const bottomShared = getSharedRanges(pieces, i, "bottom", kerf, TOL);
     if (bottomShared.length > 0) {
       for (const range of bottomShared) {
-        addCut(range.start - halfKerf, aB + halfKerf, range.end + halfKerf, aB + halfKerf);
+        hInternalSegs.push({ pos: aB + halfKerf, start: range.start - halfKerf, end: range.end + halfKerf });
       }
       const unshared = subtractRanges(a.x, aR, bottomShared);
       for (const u of unshared) {
@@ -497,19 +489,92 @@ function computeSingleCutGeometry(
     }
   }
 
-  // Merge collinear contour segments that are close together (across kerf gaps)
+  // Merge collinear contour segments
   const mergedH = mergeCollinearSegments(hContourSegs, kerf + TOL);
   const mergedV = mergeCollinearSegments(vContourSegs, kerf + TOL);
 
-  const contourLines: CutLine[] = [];
-  for (const s of mergedH) {
-    contourLines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos });
+  // Build connected contour polygon from merged segments
+  const contourLines = buildConnectedContour(mergedH, mergedV);
+
+  // Merge internal cut segments so they pass through intersections continuously
+  const mergedHInternal = mergeCollinearSegments(hInternalSegs, kerf + TOL);
+  const mergedVInternal = mergeCollinearSegments(vInternalSegs, kerf + TOL);
+
+  const cutLines: CutLine[] = [];
+  for (const s of mergedHInternal) {
+    cutLines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos });
   }
-  for (const s of mergedV) {
-    contourLines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end });
+  for (const s of mergedVInternal) {
+    cutLines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end });
   }
 
   return { contourLines, cutLines };
+}
+
+/**
+ * Builds a connected contour polygon from merged horizontal and vertical segments.
+ * Collects all endpoints, finds intersections, and traces the outline clockwise.
+ */
+function buildConnectedContour(hSegs: Segment[], vSegs: Segment[]): CutLine[] {
+  // Collect all corner points where H and V segments meet
+  const TOL = 0.5;
+  const points: { x: number; y: number }[] = [];
+  const pointSet = new Set<string>();
+
+  const addPoint = (x: number, y: number) => {
+    const key = `${x.toFixed(1)},${y.toFixed(1)}`;
+    if (!pointSet.has(key)) {
+      pointSet.add(key);
+      points.push({ x, y });
+    }
+  };
+
+  // Find intersection points between H and V segments
+  for (const h of hSegs) {
+    for (const v of vSegs) {
+      if (v.pos >= h.start - TOL && v.pos <= h.end + TOL &&
+          h.pos >= v.start - TOL && h.pos <= v.end + TOL) {
+        addPoint(v.pos, h.pos);
+      }
+    }
+    // Also add H segment endpoints
+    addPoint(h.start, h.pos);
+    addPoint(h.end, h.pos);
+  }
+  for (const v of vSegs) {
+    addPoint(v.pos, v.start);
+    addPoint(v.pos, v.end);
+  }
+
+  if (points.length < 3) {
+    // Fallback: just return raw segments as lines
+    const lines: CutLine[] = [];
+    for (const s of hSegs) lines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos });
+    for (const s of vSegs) lines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end });
+    return lines;
+  }
+
+  // Sort points to trace clockwise polygon
+  // Find centroid
+  const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
+  const cy = points.reduce((s, p) => s + p.y, 0) / points.length;
+
+  // Sort by angle from centroid (clockwise)
+  const sorted = [...points].sort((a, b) => {
+    const angleA = Math.atan2(a.y - cy, a.x - cx);
+    const angleB = Math.atan2(b.y - cy, b.x - cx);
+    return angleA - angleB;
+  });
+
+  // Connect consecutive points to form closed polygon
+  const contourLines: CutLine[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const curr = sorted[i];
+    const next = sorted[(i + 1) % sorted.length];
+    contourLines.push({ x1: curr.x, y1: curr.y, x2: next.x, y2: next.y });
+  }
+
+  return contourLines;
 }
 
 /**
