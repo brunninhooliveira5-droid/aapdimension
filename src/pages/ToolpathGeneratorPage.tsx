@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
@@ -32,6 +31,8 @@ import {
   generateAutoCam,
   validateProject,
   saveTemplate,
+  getPresetById,
+  isMetal,
   type SvgVector,
   type MaterialConfig,
   type CncTool,
@@ -40,6 +41,7 @@ import {
   type ValidationIssue,
   type MachiningTemplate,
   type AutoCamResult,
+  type MaterialPreset,
 } from "@/lib/toolpath-engine";
 
 export default function ToolpathGeneratorPage() {
@@ -58,14 +60,20 @@ export default function ToolpathGeneratorPage() {
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [autoCamResult, setAutoCamResult] = useState<AutoCamResult | null>(null);
   const [templates, setTemplates] = useState<MachiningTemplate[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("cam-templates") || "[]");
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem("cam-templates") || "[]"); } catch { return []; }
+  });
+  const [customPresets, setCustomPresets] = useState<MaterialPreset[]>(() => {
+    try { return JSON.parse(localStorage.getItem("cam-material-presets") || "[]"); } catch { return []; }
   });
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateMaterial, setTemplateMaterial] = useState("");
   const [activePassLayer, setActivePassLayer] = useState<number | null>(null);
+
+  const handleCustomPresetsChange = useCallback((presets: MaterialPreset[]) => {
+    setCustomPresets(presets);
+    localStorage.setItem("cam-material-presets", JSON.stringify(presets));
+  }, []);
 
   const handleImportSvg = useCallback((content: string) => {
     const { vectors: parsed, viewBox: vb } = parseSvgContent(content);
@@ -97,7 +105,8 @@ export default function ToolpathGeneratorPage() {
       toast.error("Importe um arquivo SVG primeiro.");
       return;
     }
-    const result = generateAutoCam(vectors, tools, material);
+    const preset = getPresetById(material.presetId, customPresets);
+    const result = generateAutoCam(vectors, tools, material, customPresets);
     setOperations(result.operations);
     setIssues(result.issues);
     setAutoCamResult(result);
@@ -106,22 +115,24 @@ export default function ToolpathGeneratorPage() {
       setActiveOperationId(result.operations[0].id);
     }
     const s = result.summary;
+    const materialInfo = preset ? ` [${preset.name}]` : "";
+    const metalNote = preset && isMetal(preset.category) ? " (entrada helicoidal)" : "";
     toast.success(
-      `Auto-CAM: ${result.operations.length} operações criadas\n` +
+      `Auto-CAM V4${materialInfo}${metalNote}: ${result.operations.length} operações\n` +
       `(${s.holes} furos, ${s.pockets} bolsos, ${s.innerContours} int., ${s.outerContours} ext., ${s.openPaths} abertos)`
     );
-  }, [vectors, tools, material]);
+  }, [vectors, tools, material, customPresets]);
 
   const handleValidate = useCallback(() => {
     const project = buildProject();
-    const validationIssues = validateProject(project);
+    const validationIssues = validateProject(project, customPresets);
     setIssues(validationIssues);
     if (validationIssues.length === 0) {
       toast.success("Nenhum problema encontrado!");
     } else {
       toast.warning(`${validationIssues.length} problema(s) encontrado(s)`);
     }
-  }, []);
+  }, [customPresets]);
 
   const buildProject = (): ToolpathProject => ({
     id: `proj-${Date.now()}`, name: projectName, svgContent, material, tools, operations, vectors,
@@ -193,8 +204,8 @@ export default function ToolpathGeneratorPage() {
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warningCount = issues.filter((i) => i.severity === "warning").length;
+  const activePreset = getPresetById(material.presetId, customPresets);
 
-  // Compute max passes for layer slider
   const maxPasses = operations.reduce((max, op) => {
     const tool = tools.find((t) => t.id === op.toolId);
     if (!tool) return max;
@@ -208,7 +219,13 @@ export default function ToolpathGeneratorPage() {
       <div className="flex items-center justify-between px-1 flex-wrap gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-          <Badge variant="outline" className="text-[9px] h-5">V3</Badge>
+          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 text-amber-600">V4</Badge>
+          {activePreset && (
+            <Badge variant="outline" className="text-[9px] h-5">
+              {activePreset.name}
+              {isMetal(activePreset.category) && " ⚡"}
+            </Badge>
+          )}
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-44 text-xs" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -261,9 +278,10 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 rounded-md border border-amber-500/30 text-xs">
           <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
           <span className="text-amber-700 dark:text-amber-400">
-            Auto-CAM: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
+            Auto-CAM{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
             {autoCamResult.summary.islands} ilhas, {autoCamResult.summary.innerContours} int.,
             {autoCamResult.summary.outerContours} ext., {autoCamResult.summary.openPaths} abertos
+            {activePreset && isMetal(activePreset.category) && " | ⚡ Helicoidal ativo"}
           </span>
           <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={() => setAutoCamResult(null)}>✕</Button>
         </div>
@@ -292,7 +310,6 @@ export default function ToolpathGeneratorPage() {
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={60} minSize={35}>
               <div className="h-full flex flex-col">
-                {/* Layer slider */}
                 {maxPasses > 1 && (
                   <div className="flex items-center gap-2 px-2 py-1 border-b border-border bg-background/80 shrink-0">
                     <LayersIcon className="h-3 w-3 text-muted-foreground" />
@@ -377,7 +394,14 @@ export default function ToolpathGeneratorPage() {
         {/* Right panel */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
           <div className="h-full overflow-auto p-2 space-y-2">
-            <MaterialPanel material={material} onChange={setMaterial} />
+            <MaterialPanel
+              material={material}
+              onChange={setMaterial}
+              customPresets={customPresets}
+              onChangeCustomPresets={handleCustomPresetsChange}
+              tools={tools}
+              onToolsSuggestion={setTools}
+            />
 
             {/* Templates quick access */}
             {templates.length > 0 && (

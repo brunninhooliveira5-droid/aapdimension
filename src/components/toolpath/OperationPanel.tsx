@@ -16,6 +16,7 @@ import type {
   SvgVector,
   EntryMode,
   LeadType,
+  PocketStrategy,
 } from "@/lib/toolpath-engine";
 import { OPERATION_LABELS, createDefaultOperation } from "@/lib/toolpath-engine";
 
@@ -66,6 +67,11 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
     onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, leadOut: { ...o.leadOut, [key]: val } } : o)));
   };
 
+  const updateRoughFinish = (key: string, val: any) => {
+    if (!activeOp) return;
+    onChangeOperations(operations.map((o) => (o.id === activeOp.id ? { ...o, roughFinish: { ...o.roughFinish, [key]: val } } : o)));
+  };
+
   const assignSelectedVectors = () => {
     if (!activeOp) return;
     updateOp("vectorIds", [...selectedVectorIds]);
@@ -85,7 +91,7 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
             Selecione vetores e clique + para criar uma operação.
           </p>
         ) : (
-          <ScrollArea className="max-h-[500px] pr-1">
+          <ScrollArea className="max-h-[600px] pr-1">
             <div className="space-y-2.5">
               <div><Label className="text-xs">Nome</Label><Input value={activeOp.name} onChange={(e) => updateOp("name", e.target.value)} className="h-8 text-xs" /></div>
 
@@ -144,6 +150,21 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                 </div>
               </div>
 
+              {/* Pocket Strategy */}
+              {(activeOp.type === "pocket" || activeOp.type === "roughing") && (
+                <div>
+                  <Label className="text-xs">Estratégia de Pocket</Label>
+                  <Select value={activeOp.pocketStrategy} onValueChange={(v: PocketStrategy) => updateOp("pocketStrategy", v)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Padrão</SelectItem>
+                      <SelectItem value="spiral">Espiral</SelectItem>
+                      <SelectItem value="helical">Helicoidal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <Separator className="my-1" />
 
               {/* Entry Mode */}
@@ -154,13 +175,19 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                   <SelectContent>
                     <SelectItem value="plunge">Plunge Direto</SelectItem>
                     <SelectItem value="ramp-linear">Rampa Linear</SelectItem>
-                    <SelectItem value="ramp-helicoidal">Rampa Helicoidal</SelectItem>
+                    <SelectItem value="ramp-helicoidal">Helicoidal</SelectItem>
                   </SelectContent>
                 </Select>
-                {activeOp.entry.mode !== "plunge" && (
+                {activeOp.entry.mode === "ramp-linear" && (
                   <div className="grid grid-cols-2 gap-2">
                     <div><Label className="text-[10px]">Comprimento</Label><Input type="number" step={0.5} value={activeOp.entry.rampLength} onChange={(e) => updateEntry("rampLength", +e.target.value)} className="h-7 text-xs" /></div>
                     <div><Label className="text-[10px]">Ângulo (°)</Label><Input type="number" step={1} value={activeOp.entry.rampAngle} onChange={(e) => updateEntry("rampAngle", +e.target.value)} className="h-7 text-xs" /></div>
+                  </div>
+                )}
+                {activeOp.entry.mode === "ramp-helicoidal" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-[10px]">Ø Hélice (mm)</Label><Input type="number" step={0.5} value={activeOp.entry.helixDiameter} onChange={(e) => updateEntry("helixDiameter", +e.target.value)} className="h-7 text-xs" /></div>
+                    <div><Label className="text-[10px]">Passo/volta (mm)</Label><Input type="number" step={0.1} value={activeOp.entry.helixPitchPerRev} onChange={(e) => updateEntry("helixPitchPerRev", +e.target.value)} className="h-7 text-xs" /></div>
                   </div>
                 )}
               </div>
@@ -204,6 +231,30 @@ export function OperationPanel({ operations, tools, vectors, selectedVectorIds, 
                     )}
                     <div><Label className="text-[10px]">Comprimento</Label><Input type="number" step={0.5} value={activeOp.leadOut.length} onChange={(e) => updateLeadOut("length", +e.target.value)} className="h-7 text-xs" /></div>
                   </div>
+                )}
+              </div>
+
+              <Separator className="my-1" />
+
+              {/* Roughing / Finishing */}
+              <div className="space-y-1.5 p-2 bg-muted/30 rounded-md">
+                <Label className="text-xs font-medium">Desbaste / Acabamento</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label className="text-[10px]">Sobremetal Lateral</Label><Input type="number" step={0.05} min={0} value={activeOp.roughFinish.stockToLeaveSide} onChange={(e) => updateRoughFinish("stockToLeaveSide", +e.target.value)} className="h-7 text-xs" /></div>
+                  <div><Label className="text-[10px]">Sobremetal Fundo</Label><Input type="number" step={0.05} min={0} value={activeOp.roughFinish.stockToLeaveBottom} onChange={(e) => updateRoughFinish("stockToLeaveBottom", +e.target.value)} className="h-7 text-xs" /></div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1 text-[10px]">
+                    <Switch checked={activeOp.roughFinish.finishPassSide} onCheckedChange={(v) => updateRoughFinish("finishPassSide", v)} className="scale-[0.65]" />
+                    Acabamento Lateral
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px]">
+                    <Switch checked={activeOp.roughFinish.finishPassBottom} onCheckedChange={(v) => updateRoughFinish("finishPassBottom", v)} className="scale-[0.65]" />
+                    Acabamento Fundo
+                  </label>
+                </div>
+                {(activeOp.roughFinish.finishPassSide || activeOp.roughFinish.finishPassBottom) && (
+                  <div><Label className="text-[10px]">Avanço Acabamento</Label><Input type="number" value={activeOp.roughFinish.finishFeedRate} onChange={(e) => updateRoughFinish("finishFeedRate", +e.target.value)} className="h-7 text-xs" /></div>
                 )}
               </div>
 

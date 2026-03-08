@@ -1,5 +1,5 @@
-// ── Toolpath Generator Engine V3 ──
-// SVG parsing, Auto-CAM, geometry detection, toolpath computation, G-code generation
+// ── Toolpath Generator Engine V4 ──
+// Material-intelligent CAM with helical entry, roughing/finishing, material presets
 
 export type Unit = "mm" | "in";
 export type ZeroOrigin = "bottom-left" | "center" | "top-left";
@@ -13,6 +13,10 @@ export type EntryMode = "plunge" | "ramp-linear" | "ramp-helicoidal";
 export type LeadType = "none" | "line" | "arc";
 
 export type GeometryClass = "hole" | "pocket" | "island" | "contour-inner" | "contour-outer" | "groove" | "open-path";
+
+export type MaterialCategory = "wood" | "composite" | "plastic" | "soft-metal" | "hard-metal";
+
+export type PocketStrategy = "standard" | "spiral" | "helical";
 
 export interface CncTool {
   id: string;
@@ -64,12 +68,22 @@ export interface EntrySettings {
   mode: EntryMode;
   rampLength: number;
   rampAngle: number;
+  helixDiameter: number;
+  helixPitchPerRev: number;
 }
 
 export interface LeadSettings {
   type: LeadType;
   radius: number;
   length: number;
+}
+
+export interface RoughFinishSettings {
+  stockToLeaveSide: number;
+  stockToLeaveBottom: number;
+  finishPassSide: boolean;
+  finishPassBottom: boolean;
+  finishFeedRate: number;
 }
 
 export interface ToolpathOperation {
@@ -90,6 +104,8 @@ export interface ToolpathOperation {
   rampEntry: boolean;
   order: number;
   enabled: boolean;
+  pocketStrategy: PocketStrategy;
+  roughFinish: RoughFinishSettings;
 }
 
 export interface MaterialConfig {
@@ -99,6 +115,63 @@ export interface MaterialConfig {
   unit: Unit;
   zeroOrigin: ZeroOrigin;
   zZero: ZZero;
+  presetId: string;
+}
+
+// ── Material Presets ──
+
+export interface MaterialPreset {
+  id: string;
+  name: string;
+  category: MaterialCategory;
+  hardness: string;
+  feedXY: number;
+  feedZ: number;
+  spindleRpm: number;
+  stepDown: number;
+  stepOver: number;
+  entryMode: EntryMode;
+  pocketStrategy: PocketStrategy;
+  notes: string;
+}
+
+export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
+  wood: "Madeira",
+  composite: "Compósito",
+  plastic: "Plástico",
+  "soft-metal": "Metal Macio",
+  "hard-metal": "Metal Duro",
+};
+
+export const DEFAULT_MATERIAL_PRESETS: MaterialPreset[] = [
+  { id: "mdf", name: "MDF", category: "wood", hardness: "média", feedXY: 2500, feedZ: 800, spindleRpm: 18000, stepDown: 4, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Avanço alto, step-down maior. Entrada plunge ou rampa curta." },
+  { id: "compensado", name: "Compensado", category: "wood", hardness: "média", feedXY: 2200, feedZ: 700, spindleRpm: 18000, stepDown: 3.5, stepOver: 50, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Similar ao MDF, porém camadas podem exigir mais cuidado." },
+  { id: "acm", name: "ACM", category: "composite", hardness: "baixa-média", feedXY: 2000, feedZ: 500, spindleRpm: 16000, stepDown: 1.5, stepOver: 45, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Perfil e pocket leve. Acabamento simples." },
+  { id: "acrilico", name: "Acrílico", category: "plastic", hardness: "média", feedXY: 1500, feedZ: 400, spindleRpm: 14000, stepDown: 1.5, stepOver: 40, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Plunge leve, rampa curta. Evitar aquecimento excessivo." },
+  { id: "pvc", name: "PVC Expandido", category: "plastic", hardness: "baixa", feedXY: 2000, feedZ: 600, spindleRpm: 15000, stepDown: 2, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Material macio, aceita avanços moderados." },
+  { id: "aluminio", name: "Alumínio", category: "soft-metal", hardness: "média-alta", feedXY: 800, feedZ: 200, spindleRpm: 12000, stepDown: 0.5, stepOver: 30, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal obrigatória. Step-down reduzido. Acabamento recomendado." },
+  { id: "latao", name: "Latão", category: "soft-metal", hardness: "média-alta", feedXY: 600, feedZ: 150, spindleRpm: 10000, stepDown: 0.4, stepOver: 25, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Avanço moderado-baixo." },
+  { id: "cobre", name: "Cobre", category: "soft-metal", hardness: "média", feedXY: 700, feedZ: 180, spindleRpm: 11000, stepDown: 0.4, stepOver: 28, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Material grudento, use lubrificação." },
+  { id: "aco-carbono", name: "Aço Carbono Leve", category: "hard-metal", hardness: "alta", feedXY: 400, feedZ: 100, spindleRpm: 8000, stepDown: 0.2, stepOver: 20, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal obrigatória. Profundidade reduzida. Acabamento obrigatório." },
+  { id: "inox", name: "Inox Leve", category: "hard-metal", hardness: "muito alta", feedXY: 300, feedZ: 80, spindleRpm: 6000, stepDown: 0.15, stepOver: 15, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Helicoidal obrigatório. Parâmetros conservadores. Refrigeração necessária." },
+];
+
+export function isMetal(category: MaterialCategory): boolean {
+  return category === "soft-metal" || category === "hard-metal";
+}
+
+export function getPresetById(id: string, customPresets: MaterialPreset[] = []): MaterialPreset | undefined {
+  return [...DEFAULT_MATERIAL_PRESETS, ...customPresets].find((p) => p.id === id);
+}
+
+export function suggestToolParamsFromPreset(preset: MaterialPreset, tool: CncTool): Partial<CncTool> {
+  return {
+    feedXY: preset.feedXY,
+    feedZ: preset.feedZ,
+    spindleRpm: preset.spindleRpm,
+    depthPerPass: preset.stepDown,
+    stepOver: preset.stepOver,
+  };
 }
 
 export interface SvgVector {
@@ -111,7 +184,7 @@ export interface SvgVector {
   color: string;
   closed: boolean;
   geometryClass: GeometryClass;
-  parentId: string | null; // for island detection
+  parentId: string | null;
   boundingBox: { x: number; y: number; w: number; h: number };
   area: number;
   perimeter: number;
@@ -147,6 +220,46 @@ export interface ValidationIssue {
   message: string;
   vectorId?: string;
   operationId?: string;
+}
+
+// ── Default material & tools ──
+
+export const DEFAULT_MATERIAL: MaterialConfig = {
+  width: 500, height: 500, thickness: 15, unit: "mm",
+  zeroOrigin: "bottom-left", zZero: "top", presetId: "mdf",
+};
+
+export const DEFAULT_TOOLS: CncTool[] = [
+  { id: "t1", name: "Fresa Reta 3mm", type: "straight", diameter: 3, feedXY: 1200, feedZ: 300, spindleRpm: 18000, depthPerPass: 1, stepOver: 40, fluteLength: 15, notes: "" },
+  { id: "t2", name: "Fresa Reta 6mm", type: "flat-end", diameter: 6, feedXY: 1500, feedZ: 400, spindleRpm: 16000, depthPerPass: 2, stepOver: 45, fluteLength: 20, notes: "" },
+  { id: "t3", name: "V-Bit 90° 6mm", type: "v-bit", diameter: 6, angle: 90, feedXY: 800, feedZ: 200, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 30, fluteLength: 10, notes: "" },
+  { id: "t4", name: "Fresa Esférica 3mm", type: "ball-nose", diameter: 3, feedXY: 1000, feedZ: 250, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 15, fluteLength: 12, notes: "" },
+];
+
+// ── Default operation factory ──
+
+export function createDefaultOperation(order: number): ToolpathOperation {
+  return {
+    id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: `Operação ${order}`,
+    type: "profile-outside",
+    vectorIds: [],
+    toolId: "",
+    startDepth: 0,
+    finalDepth: 5,
+    depthPerPass: 1,
+    cutSide: "outside",
+    cutDirection: "climb",
+    leadIn: { type: "none", radius: 3, length: 3 },
+    leadOut: { type: "none", radius: 3, length: 3 },
+    entry: { mode: "plunge", rampLength: 10, rampAngle: 5, helixDiameter: 5, helixPitchPerRev: 0.5 },
+    tabs: { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
+    rampEntry: false,
+    order,
+    enabled: true,
+    pocketStrategy: "standard",
+    roughFinish: { stockToLeaveSide: 0, stockToLeaveBottom: 0, finishPassSide: false, finishPassBottom: false, finishFeedRate: 800 },
+  };
 }
 
 // ── SVG Parsing ──
@@ -312,7 +425,6 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
       continue;
     }
 
-    // Find smallest parent (container)
     let smallestParent: SvgVector | null = null;
     let smallestArea = Infinity;
     for (let j = 0; j < vectors.length; j++) {
@@ -329,11 +441,9 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
 
     if (smallestParent) {
       vi.parentId = smallestParent.id;
-      // Check if this is an island (has a grandparent — nested inside a pocket)
       if (smallestParent.parentId) {
         vi.geometryClass = "island";
       } else {
-        // Inside another shape
         if (vi.isCircular && Math.max(vi.boundingBox.w, vi.boundingBox.h) < 15) {
           vi.geometryClass = "hole";
         } else {
@@ -341,7 +451,6 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
         }
       }
     } else {
-      // No parent — outermost
       if (vi.isCircular && Math.max(vi.boundingBox.w, vi.boundingBox.h) < 15) {
         vi.geometryClass = "hole";
       } else {
@@ -350,12 +459,8 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
     }
   }
 
-  // Mark shapes that contain inner shapes as pockets (their children are pockets/islands)
   for (const v of vectors) {
     if (v.parentId && v.geometryClass === "contour-inner") {
-      // Check if the parent already has children that are islands
-      const siblings = vectors.filter((s) => s.parentId === v.parentId && s.id !== v.id);
-      // If parent contains this, and this is significantly smaller, mark as pocket candidate
       const parent = vectors.find((p) => p.id === v.parentId);
       if (parent && v.area < parent.area * 0.7) {
         v.geometryClass = "pocket";
@@ -461,14 +566,14 @@ export function extractPointsFromPath(d: string): [number, number][] {
   return points;
 }
 
-// ── Path Length Estimation ──
+// ── Path Length ──
 
 function estimatePathLength(d: string): number {
   const pts = extractPointsFromPath(d);
   return computePerimeter(pts);
 }
 
-// ── Auto-CAM: Geometry Analysis & Automatic Operation Generation ──
+// ── Auto-CAM V4: Material-Intelligent ──
 
 export interface AutoCamResult {
   operations: ToolpathOperation[];
@@ -482,21 +587,15 @@ function selectToolForGeometry(
   tools: CncTool[]
 ): CncTool | undefined {
   if (tools.length === 0) return undefined;
-
-  // Sort tools by diameter ascending
   const sorted = [...tools].sort((a, b) => a.diameter - b.diameter);
 
   if (geoClass === "hole") {
-    // Pick smallest tool that fits (diameter < hole size)
     return sorted.find((t) => t.diameter < size) || sorted[0];
   }
   if (geoClass === "pocket" || geoClass === "contour-inner") {
-    // Pick tool that fits inside the geometry
     const fitting = sorted.filter((t) => t.diameter < size * 0.8);
-    // Prefer larger tool for efficiency
     return fitting.length > 0 ? fitting[fitting.length - 1] : sorted[0];
   }
-  // Contour outer, grooves — use medium/default tool
   const mid = Math.floor(sorted.length / 2);
   return sorted[mid] || sorted[0];
 }
@@ -504,11 +603,17 @@ function selectToolForGeometry(
 export function generateAutoCam(
   vectors: SvgVector[],
   tools: CncTool[],
-  material: MaterialConfig
+  material: MaterialConfig,
+  materialPresets: MaterialPreset[] = []
 ): AutoCamResult {
   const operations: ToolpathOperation[] = [];
   const issues: ValidationIssue[] = [];
   let order = 1;
+
+  const preset = getPresetById(material.presetId, materialPresets);
+  const metalMaterial = preset ? isMetal(preset.category) : false;
+  const entryMode: EntryMode = preset?.entryMode || "ramp-linear";
+  const pocketStrat: PocketStrategy = preset?.pocketStrategy || "standard";
 
   const holes = vectors.filter((v) => v.geometryClass === "hole");
   const pockets = vectors.filter((v) => v.geometryClass === "pocket");
@@ -523,55 +628,86 @@ export function generateAutoCam(
     vids: string[],
     cutSide: CutSide,
     tool: CncTool | undefined,
-    addTabs: boolean
-  ): ToolpathOperation => ({
-    id: `op-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    name,
-    type,
-    vectorIds: vids,
-    toolId: tool?.id || "",
-    startDepth: 0,
-    finalDepth: material.thickness,
-    depthPerPass: tool?.depthPerPass || 2,
-    cutSide,
-    cutDirection: "climb",
-    leadIn: { type: "none", radius: 3, length: 3 },
-    leadOut: { type: "none", radius: 3, length: 3 },
-    entry: { mode: type === "drill" ? "plunge" : "ramp-linear", rampLength: 10, rampAngle: 5 },
-    tabs: addTabs
-      ? { enabled: true, count: Math.max(3, Math.floor(vids.length > 1 ? 3 : 4)), width: 5, height: 2, minDistance: 30 }
-      : { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
-    rampEntry: type !== "drill",
-    order: order++,
-    enabled: true,
-  });
+    addTabs: boolean,
+    overrideEntry?: EntryMode,
+    overridePocketStrat?: PocketStrategy,
+    isFinishing?: boolean,
+  ): ToolpathOperation => {
+    const depthPerPass = preset
+      ? (isFinishing ? Math.min(preset.stepDown, 0.3) : preset.stepDown)
+      : (tool?.depthPerPass || 2);
+    const feedXY = preset
+      ? (isFinishing ? preset.feedXY * 0.6 : preset.feedXY)
+      : (tool?.feedXY || 1200);
 
-  // 1. Drilling (holes first — they don't release material)
+    // Apply preset params to tool if preset exists
+    const effectiveTool = tool ? { ...tool } : undefined;
+    if (effectiveTool && preset) {
+      effectiveTool.feedXY = feedXY;
+      effectiveTool.feedZ = preset.feedZ;
+      effectiveTool.spindleRpm = preset.spindleRpm;
+    }
+
+    const eMode = overrideEntry || entryMode;
+    return {
+      id: `op-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      type,
+      vectorIds: vids,
+      toolId: tool?.id || "",
+      startDepth: 0,
+      finalDepth: isFinishing ? material.thickness : material.thickness,
+      depthPerPass,
+      cutSide,
+      cutDirection: "climb",
+      leadIn: { type: metalMaterial ? "arc" : "none", radius: 3, length: 3 },
+      leadOut: { type: metalMaterial ? "arc" : "none", radius: 3, length: 3 },
+      entry: {
+        mode: type === "drill" ? (metalMaterial ? "ramp-helicoidal" : "plunge") : eMode,
+        rampLength: metalMaterial ? 15 : 10,
+        rampAngle: metalMaterial ? 3 : 5,
+        helixDiameter: tool ? Math.max(tool.diameter * 0.8, 2) : 5,
+        helixPitchPerRev: preset ? preset.stepDown * 0.5 : 0.5,
+      },
+      tabs: addTabs
+        ? { enabled: true, count: Math.max(3, 4), width: metalMaterial ? 3 : 5, height: metalMaterial ? 1 : 2, minDistance: 30 }
+        : { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
+      rampEntry: eMode !== "plunge",
+      order: order++,
+      enabled: true,
+      pocketStrategy: overridePocketStrat || pocketStrat,
+      roughFinish: metalMaterial
+        ? { stockToLeaveSide: 0.2, stockToLeaveBottom: 0.1, finishPassSide: true, finishPassBottom: true, finishFeedRate: preset ? preset.feedXY * 0.5 : 400 }
+        : { stockToLeaveSide: 0, stockToLeaveBottom: 0, finishPassSide: false, finishPassBottom: false, finishFeedRate: 800 },
+    };
+  };
+
+  // 1. Drilling
   if (holes.length > 0) {
     const minSize = Math.min(...holes.map((h) => Math.max(h.boundingBox.w, h.boundingBox.h)));
     const tool = selectToolForGeometry("hole", minSize, tools);
     operations.push(makeOp(
-      `Furação Auto (${holes.length})`,
-      "drill",
-      holes.map((h) => h.id),
-      "on-line",
-      tool,
-      false
+      `Furação Auto (${holes.length})`, "drill", holes.map((h) => h.id), "on-line", tool, false,
+      metalMaterial ? "ramp-helicoidal" : "plunge"
     ));
   }
 
-  // 2. Pockets (before internal contours)
+  // 2. Pockets
   if (pockets.length > 0) {
     const avgSize = pockets.reduce((s, p) => s + Math.min(p.boundingBox.w, p.boundingBox.h), 0) / pockets.length;
     const tool = selectToolForGeometry("pocket", avgSize, tools);
     operations.push(makeOp(
-      `Pocket Auto (${pockets.length})`,
-      "pocket",
-      pockets.map((p) => p.id),
-      "inside",
-      tool,
-      false
+      `Pocket Auto (${pockets.length})`, "pocket", pockets.map((p) => p.id), "inside", tool, false,
+      undefined, pocketStrat
     ));
+
+    // For metals, add finishing pass for pockets
+    if (metalMaterial) {
+      operations.push(makeOp(
+        `Acabamento Pocket (${pockets.length})`, "finishing", pockets.map((p) => p.id), "inside", tool, false,
+        entryMode, "standard", true
+      ));
+    }
   }
 
   // 3. Internal contours
@@ -579,42 +715,35 @@ export function generateAutoCam(
     const avgSize = innerContours.reduce((s, c) => s + Math.min(c.boundingBox.w, c.boundingBox.h), 0) / innerContours.length;
     const tool = selectToolForGeometry("contour-inner", avgSize, tools);
     operations.push(makeOp(
-      `Perfil Interno Auto (${innerContours.length})`,
-      "profile-inside",
-      innerContours.map((c) => c.id),
-      "inside",
-      tool,
-      false
+      `Perfil Interno Auto (${innerContours.length})`, "profile-inside", innerContours.map((c) => c.id), "inside", tool, false
     ));
   }
 
-  // 4. External contours (last — this releases the part)
+  // 4. External contours (last)
   if (outerContours.length > 0) {
     const tool = selectToolForGeometry("contour-outer", 0, tools);
+
+    // For metals, add roughing pass first
+    if (metalMaterial) {
+      operations.push(makeOp(
+        `Desbaste Externo Auto (${outerContours.length})`, "roughing", outerContours.map((c) => c.id), "outside", tool, false
+      ));
+    }
+
     operations.push(makeOp(
-      `Perfil Externo Auto (${outerContours.length})`,
-      "profile-outside",
-      outerContours.map((c) => c.id),
-      "outside",
-      tool,
-      true // Smart tabs on external profiles
+      `Perfil Externo Auto (${outerContours.length})`, "profile-outside", outerContours.map((c) => c.id), "outside", tool, true
     ));
   }
 
-  // 5. Open paths as grooves
+  // 5. Open paths
   if (openPaths.length > 0) {
     const tool = selectToolForGeometry("groove", 0, tools);
     operations.push(makeOp(
-      `Gravação/Rasgo Auto (${openPaths.length})`,
-      "on-line",
-      openPaths.map((o) => o.id),
-      "on-line",
-      tool,
-      false
+      `Gravação/Rasgo Auto (${openPaths.length})`, "on-line", openPaths.map((o) => o.id), "on-line", tool, false
     ));
   }
 
-  // Optimize path order within operations (nearest neighbor)
+  // Optimize path order
   for (const op of operations) {
     if (op.vectorIds.length > 1) {
       op.vectorIds = optimizeVectorOrder(op.vectorIds, vectors);
@@ -624,7 +753,7 @@ export function generateAutoCam(
   // Validation
   issues.push(...validateProject({
     id: "", name: "", svgContent: "", material, tools, operations, vectors, createdAt: "", updatedAt: ""
-  }));
+  }, materialPresets));
 
   return {
     operations,
@@ -648,7 +777,6 @@ function getCentroid(v: SvgVector): [number, number] {
 
 function optimizeVectorOrder(vectorIds: string[], vectors: SvgVector[]): string[] {
   if (vectorIds.length <= 1) return vectorIds;
-
   const remaining = [...vectorIds];
   const ordered: string[] = [];
   let currentPos: [number, number] = [0, 0];
@@ -656,31 +784,27 @@ function optimizeVectorOrder(vectorIds: string[], vectors: SvgVector[]): string[
   while (remaining.length > 0) {
     let nearestIdx = 0;
     let nearestDist = Infinity;
-
     for (let i = 0; i < remaining.length; i++) {
       const v = vectors.find((vv) => vv.id === remaining[i]);
       if (!v) continue;
       const c = getCentroid(v);
       const dist = Math.sqrt((c[0] - currentPos[0]) ** 2 + (c[1] - currentPos[1]) ** 2);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestIdx = i;
-      }
+      if (dist < nearestDist) { nearestDist = dist; nearestIdx = i; }
     }
-
     const picked = remaining.splice(nearestIdx, 1)[0];
     ordered.push(picked);
     const pv = vectors.find((vv) => vv.id === picked);
     if (pv) currentPos = getCentroid(pv);
   }
-
   return ordered;
 }
 
-// ── Validation ──
+// ── Validation V4 ──
 
-export function validateProject(project: ToolpathProject): ValidationIssue[] {
+export function validateProject(project: ToolpathProject, materialPresets: MaterialPreset[] = []): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+  const preset = getPresetById(project.material.presetId, materialPresets);
+  const metalMat = preset ? isMetal(preset.category) : false;
 
   for (const op of project.operations) {
     if (!op.enabled) continue;
@@ -700,7 +824,43 @@ export function validateProject(project: ToolpathProject): ValidationIssue[] {
       });
     }
 
-    // Open path used in profile operation
+    // Metal-specific: plunge entry warning
+    if (metalMat && op.entry.mode === "plunge" && (op.type === "pocket" || op.type === "roughing" || op.type === "drill")) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": para ${preset?.name || "metal"}, entrada helicoidal é mais recomendada que plunge direto.`,
+        operationId: op.id,
+      });
+    }
+
+    // Metal-specific: excessive step-down
+    if (metalMat && op.depthPerPass > (preset?.stepDown || 1) * 2) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": profundidade por passada (${op.depthPerPass}mm) alta para ${preset?.name || "metal"}. Recomendado: ${preset?.stepDown || 0.5}mm.`,
+        operationId: op.id,
+      });
+    }
+
+    // Metal-specific: no finishing pass for pockets
+    if (metalMat && op.type === "pocket" && !op.roughFinish.finishPassSide && !op.roughFinish.finishPassBottom) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": para ${preset?.name || "metal"}, acabamento de pocket é recomendado.`,
+        operationId: op.id,
+      });
+    }
+
+    // Incompatible feed for metal
+    if (metalMat && tool.feedXY > (preset?.feedXY || 1000) * 1.5) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": avanço XY (${tool.feedXY} mm/min) possivelmente alto para ${preset?.name || "metal"}.`,
+        operationId: op.id,
+      });
+    }
+
+    // Open path used in profile/pocket
     for (const vid of op.vectorIds) {
       const v = project.vectors.find((vv) => vv.id === vid);
       if (!v) continue;
@@ -718,7 +878,7 @@ export function validateProject(project: ToolpathProject): ValidationIssue[] {
       if (v.geometryClass === "hole" && tool.diameter >= Math.max(v.boundingBox.w, v.boundingBox.h)) {
         issues.push({
           severity: "error",
-          message: `"${op.name}": ferramenta Ø${tool.diameter}mm é maior que o furo "${v.label}" (${Math.max(v.boundingBox.w, v.boundingBox.h).toFixed(1)}mm).`,
+          message: `"${op.name}": ferramenta Ø${tool.diameter}mm > furo "${v.label}" (${Math.max(v.boundingBox.w, v.boundingBox.h).toFixed(1)}mm).`,
           vectorId: vid,
           operationId: op.id,
         });
@@ -729,7 +889,7 @@ export function validateProject(project: ToolpathProject): ValidationIssue[] {
   return issues;
 }
 
-// ── Realistic Time Estimation ──
+// ── Time Estimation ──
 
 export function calculateOperationAdvanced(
   op: ToolpathOperation,
@@ -759,22 +919,18 @@ export function calculateOperationAdvanced(
   const totalCutPath = pathLength * passes;
   const feedRate = tool.feedXY || 1000;
   const cutTime = totalCutPath / feedRate;
-
-  // Rapid movements estimate
-  const rapidSpeed = 5000; // mm/min typical
-  const rapidDist = op.vectorIds.length * 50; // rough estimate per vector
+  const rapidSpeed = 5000;
+  const rapidDist = op.vectorIds.length * 50;
   const rapidTime = rapidDist / rapidSpeed;
-
-  // Plunge time
   const plungeTime = (passes * totalDepth) / (tool.feedZ || 300);
 
-  // Tool change time (~30s per change)
-  const toolChangeTime = 0;
-
-  // Acceleration penalty (~10%)
+  // Helical entry adds time
+  const helicalPenalty = op.entry.mode === "ramp-helicoidal" ? passes * 0.2 : 0;
   const accelPenalty = cutTime * 0.1;
+  // Finishing pass time
+  const finishPenalty = (op.roughFinish.finishPassSide || op.roughFinish.finishPassBottom) ? pathLength / (op.roughFinish.finishFeedRate || feedRate) : 0;
 
-  const estimatedTime = cutTime + rapidTime + plungeTime + accelPenalty + toolChangeTime;
+  const estimatedTime = cutTime + rapidTime + plungeTime + accelPenalty + helicalPenalty + finishPenalty;
 
   return {
     passes,
@@ -785,13 +941,12 @@ export function calculateOperationAdvanced(
   };
 }
 
-// Keep simple version for backward compat
 export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefined, vectors: SvgVector[]) {
   const result = calculateOperationAdvanced(op, tool, vectors, DEFAULT_MATERIAL);
   return { passes: result.passes, pathLength: result.pathLength, estimatedTime: result.estimatedTime };
 }
 
-// ── G-code Generation ──
+// ── G-code Generation V4 ──
 
 const HEADERS: Record<PostProcessor, string[]> = {
   mach3: ["%", "O0001", "G90 G94 G21", "G17"],
@@ -827,8 +982,37 @@ function applyOffset(pt: [number, number], offset: number): [number, number] {
   return [pt[0] + offset, pt[1]];
 }
 
+function generateHelicalEntry(
+  entry: EntrySettings, startPt: [number, number], targetZ: number, currentZ: number, feedZ: number, offset: number
+): string[] {
+  const lines: string[] = [];
+  const [fx, fy] = applyOffset(startPt, offset);
+  const helixR = (entry.helixDiameter || 5) / 2;
+  const pitchPerRev = entry.helixPitchPerRev || 0.5;
+  const totalDrop = Math.abs(currentZ - targetZ);
+  const revolutions = Math.ceil(totalDrop / pitchPerRev);
+  const segments = 8; // segments per revolution
+
+  lines.push(`(Helical entry: D${(helixR * 2).toFixed(1)}mm, ${revolutions} rev)`);
+
+  for (let rev = 0; rev < revolutions; rev++) {
+    for (let seg = 0; seg < segments; seg++) {
+      const frac = (rev * segments + seg + 1) / (revolutions * segments);
+      const angle = ((seg + 1) / segments) * Math.PI * 2;
+      const rx = fx + Math.cos(angle) * helixR;
+      const ry = fy + Math.sin(angle) * helixR;
+      const rz = currentZ - totalDrop * frac;
+      const zClamped = Math.max(rz, targetZ);
+      lines.push(`G1 X${rx.toFixed(3)} Y${ry.toFixed(3)} Z${zClamped.toFixed(3)} F${feedZ}`);
+    }
+  }
+  // Return to center at target depth
+  lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
+  return lines;
+}
+
 function generateRampEntry(
-  entry: EntrySettings, startPt: [number, number], targetZ: number, feedZ: number, offset: number
+  entry: EntrySettings, startPt: [number, number], targetZ: number, currentZ: number, feedZ: number, offset: number
 ): string[] {
   const lines: string[] = [];
   const [fx, fy] = applyOffset(startPt, offset);
@@ -840,16 +1024,7 @@ function generateRampEntry(
     lines.push(`G1 X${(fx + rampLen).toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
     lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} F${feedZ}`);
   } else if (entry.mode === "ramp-helicoidal") {
-    const steps = 8;
-    const rampRad = entry.rampLength || 5;
-    const zStep = targetZ / steps;
-    for (let s = 1; s <= steps; s++) {
-      const angle = (s / steps) * Math.PI * 2;
-      const rx = fx + Math.cos(angle) * rampRad;
-      const ry = fy + Math.sin(angle) * rampRad;
-      lines.push(`G1 X${rx.toFixed(3)} Y${ry.toFixed(3)} Z${(zStep * s).toFixed(3)} F${feedZ}`);
-    }
-    lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
+    lines.push(...generateHelicalEntry(entry, startPt, targetZ, currentZ, feedZ, offset));
   }
   return lines;
 }
@@ -874,8 +1049,10 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
 
 export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor): string {
   const lines: string[] = [...HEADERS[postProcessor]];
+  const preset = getPresetById(project.material.presetId);
   lines.push(`(Project: ${project.name})`);
-  lines.push(`(Material: ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
+  lines.push(`(Material: ${preset?.name || "Custom"} ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
+  lines.push(`(Generator: Dimension CNC Toolpath V4)`);
   lines.push("");
 
   const sortedOps = [...project.operations].filter((o) => o.enabled).sort((a, b) => a.order - b.order);
@@ -897,12 +1074,20 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
 
     lines.push(`(Operation: ${op.name} - ${OPERATION_LABELS[op.type]})`);
     lines.push(`(Tool: ${tool.name} D${tool.diameter})`);
+    if (op.entry.mode === "ramp-helicoidal") {
+      lines.push(`(Entry: Helical D${op.entry.helixDiameter}mm pitch=${op.entry.helixPitchPerRev}mm/rev)`);
+    }
+    if (op.roughFinish.stockToLeaveSide > 0 || op.roughFinish.stockToLeaveBottom > 0) {
+      lines.push(`(Stock to leave: side=${op.roughFinish.stockToLeaveSide}mm bottom=${op.roughFinish.stockToLeaveBottom}mm)`);
+    }
     lines.push(`M03 S${tool.spindleRpm}`);
     lines.push("G04 P2 (spindle warmup)");
 
     const totalDepth = Math.abs(op.finalDepth - op.startDepth);
     const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
-    const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
+    const sideStock = op.roughFinish.stockToLeaveSide || 0;
+    const baseOffset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
+    const offset = baseOffset + (op.cutSide === "outside" ? sideStock : -sideStock);
 
     for (const vid of op.vectorIds) {
       const v = project.vectors.find((vv) => vv.id === vid);
@@ -912,7 +1097,9 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
 
       for (let pass = 0; pass < passes; pass++) {
         const z = -(op.startDepth + (pass + 1) * (op.depthPerPass || tool.depthPerPass));
-        const zClamped = Math.max(z, -Math.abs(op.finalDepth));
+        const bottomStock = op.roughFinish.stockToLeaveBottom || 0;
+        const zClamped = Math.max(z + bottomStock, -Math.abs(op.finalDepth) + bottomStock);
+        const prevZ = pass === 0 ? 5 : -(op.startDepth + pass * (op.depthPerPass || tool.depthPerPass));
 
         lines.push(`G0 Z5`);
         const [fx, fy] = applyOffset(points[0], offset);
@@ -920,7 +1107,7 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
 
         const leadInLines = generateLeadIn(op.leadIn, points[0], points[1], offset);
         lines.push(...leadInLines);
-        lines.push(...generateRampEntry(op.entry, points[0], zClamped, tool.feedZ, offset));
+        lines.push(...generateRampEntry(op.entry, points[0], zClamped, prevZ > 0 ? 0 : prevZ, tool.feedZ, offset));
 
         for (let i = 1; i < points.length; i++) {
           const [px, py] = applyOffset(points[i], offset);
@@ -953,6 +1140,24 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
           lines.push(`G2 X${lx.toFixed(3)} Y${(ly + (op.leadOut.radius || 3)).toFixed(3)} R${(op.leadOut.radius || 3).toFixed(3)} F${tool.feedXY}`);
         }
       }
+
+      // Finishing pass (if enabled)
+      if (op.roughFinish.finishPassSide || op.roughFinish.finishPassBottom) {
+        lines.push(`(Finishing pass)`);
+        const finishOffset = baseOffset; // No stock offset for finish
+        const finishZ = -Math.abs(op.finalDepth);
+        const finishFeed = op.roughFinish.finishFeedRate || tool.feedXY * 0.6;
+
+        lines.push(`G0 Z5`);
+        const [ffx, ffy] = applyOffset(points[0], finishOffset);
+        lines.push(`G0 X${ffx.toFixed(3)} Y${ffy.toFixed(3)}`);
+        lines.push(`G1 Z${finishZ.toFixed(3)} F${tool.feedZ}`);
+
+        for (let i = 1; i < points.length; i++) {
+          const [px, py] = applyOffset(points[i], finishOffset);
+          lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${finishFeed}`);
+        }
+      }
     }
 
     lines.push(`G0 Z5`);
@@ -981,6 +1186,8 @@ export function saveTemplate(name: string, materialName: string, material: Mater
       leadIn: { ...op.leadIn },
       leadOut: { ...op.leadOut },
       tabs: { ...op.tabs },
+      pocketStrategy: op.pocketStrategy,
+      roughFinish: { ...op.roughFinish },
     })),
     createdAt: new Date().toISOString(),
   };
@@ -1005,41 +1212,3 @@ export const GEOMETRY_CLASS_COLORS: Record<GeometryClass, string> = {
   groove: "#ec4899",
   "open-path": "#94a3b8",
 };
-
-// ── Default presets ──
-
-export const DEFAULT_TOOLS: CncTool[] = [
-  { id: "tool-1", name: "Fresa Reta 3mm", type: "straight", diameter: 3, feedXY: 1200, feedZ: 300, spindleRpm: 18000, depthPerPass: 1, stepOver: 40, fluteLength: 15, notes: "" },
-  { id: "tool-2", name: "Fresa Reta 6mm", type: "flat-end", diameter: 6, feedXY: 2000, feedZ: 500, spindleRpm: 18000, depthPerPass: 2, stepOver: 45, fluteLength: 20, notes: "" },
-  { id: "tool-3", name: "V-Bit 60°", type: "v-bit", diameter: 6, angle: 60, feedXY: 1000, feedZ: 200, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 30, fluteLength: 10, notes: "" },
-  { id: "tool-4", name: "Fresa Esférica 3mm", type: "ball-nose", diameter: 3, feedXY: 1500, feedZ: 300, spindleRpm: 20000, depthPerPass: 0.5, stepOver: 15, fluteLength: 12, notes: "Para acabamento 3D" },
-];
-
-export const DEFAULT_MATERIAL: MaterialConfig = {
-  width: 300, height: 200, thickness: 18, unit: "mm", zeroOrigin: "bottom-left", zZero: "top",
-};
-
-export const DEFAULT_LEAD: LeadSettings = { type: "none", radius: 3, length: 3 };
-export const DEFAULT_ENTRY: EntrySettings = { mode: "plunge", rampLength: 10, rampAngle: 5 };
-
-export function createDefaultOperation(order: number): ToolpathOperation {
-  return {
-    id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    name: `Operação ${order}`,
-    type: "profile-outside",
-    vectorIds: [],
-    toolId: "",
-    startDepth: 0,
-    finalDepth: 5,
-    depthPerPass: 1,
-    cutSide: "outside",
-    cutDirection: "climb",
-    leadIn: { ...DEFAULT_LEAD },
-    leadOut: { ...DEFAULT_LEAD },
-    entry: { ...DEFAULT_ENTRY },
-    tabs: { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
-    rampEntry: false,
-    order,
-    enabled: true,
-  };
-}
