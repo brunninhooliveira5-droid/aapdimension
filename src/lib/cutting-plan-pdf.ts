@@ -306,7 +306,98 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
   });
 }
 
-async function exportSheetRealScale(data: CuttingPlanPdfData) {
+function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number) {
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const barDrawW = pw - margin * 2;
+  const barDrawH = 18;
+  const maxBarsPerPage = Math.floor((ph - 60) / (barDrawH + 20));
+
+  r.bars.forEach((bar, bi) => {
+    const indexOnPage = bi % maxBarsPerPage;
+    if (indexOnPage === 0) {
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("Desenho das Barras", pw / 2, 15, { align: "center" });
+    }
+
+    const oy = 30 + indexOnPage * (barDrawH + 20);
+    const scale = barDrawW / barLength;
+
+    // Bar title
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Barra ${bi + 1} — ${bar.utilization.toFixed(1)}%`, margin, oy - 3);
+
+    // Bar background
+    doc.setDrawColor(100, 100, 100);
+    doc.setLineWidth(0.4);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, oy, barDrawW, barDrawH, "FD");
+
+    // Draw segments
+    bar.segments.forEach((seg, si) => {
+      const sx = margin + seg.position * scale;
+      const sw = seg.length * scale;
+      const color = getPieceColorPdf(seg.pieceIndex ?? si);
+      doc.setFillColor(color[0], color[1], color[2]);
+      doc.setDrawColor(40, 40, 40);
+      doc.setLineWidth(0.2);
+      doc.rect(sx, oy, sw, barDrawH, "FD");
+
+      // Label
+      doc.setTextColor(255, 255, 255);
+      const fontSize = Math.min(8, sw * 0.4);
+      if (fontSize >= 3 && sw > 8) {
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", "bold");
+        doc.text(`P${seg.pieceIndex + 1}`, sx + sw / 2, oy + barDrawH / 2 - 1.5, { align: "center" });
+        doc.setFontSize(Math.max(3, fontSize * 0.7));
+        doc.text(`${seg.length} mm`, sx + sw / 2, oy + barDrawH / 2 + 3, { align: "center" });
+      }
+
+      // Kerf line
+      if (kerfWidth > 0 && si < bar.segments.length - 1) {
+        const kerfX = sx + sw;
+        const kerfW = kerfWidth * scale;
+        doc.setDrawColor(220, 30, 30);
+        doc.setLineWidth(0.3);
+        doc.line(kerfX + kerfW / 2, oy, kerfX + kerfW / 2, oy + barDrawH);
+      }
+    });
+
+    // Waste area label
+    if (bar.wasteLength > 0) {
+      const lastSeg = bar.segments[bar.segments.length - 1];
+      const wasteStart = lastSeg ? (lastSeg.position + lastSeg.length + kerfWidth) : 0;
+      const wasteX = margin + wasteStart * scale;
+      const wasteW = barDrawW - wasteStart * scale;
+      if (wasteW > 10) {
+        doc.setDrawColor(230, 140, 50);
+        doc.setLineDashPattern([2, 2], 0);
+        doc.setLineWidth(0.3);
+        doc.rect(wasteX, oy, wasteW, barDrawH);
+        doc.setLineDashPattern([], 0);
+        doc.setTextColor(200, 100, 0);
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Sobra ${bar.wasteLength.toFixed(0)} mm`, wasteX + wasteW / 2, oy + barDrawH / 2 + 1, { align: "center" });
+      }
+    }
+
+    // Dimension label
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${barLength} mm`, margin + barDrawW / 2, oy + barDrawH + 5, { align: "center" });
+  });
+}
+
+
   const dims = data.dimensions.replace(/\s/g, "").split("x");
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
