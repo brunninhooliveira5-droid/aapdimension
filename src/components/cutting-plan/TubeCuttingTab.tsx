@@ -117,9 +117,8 @@ export function TubeCuttingTab() {
       const current = e.target as HTMLInputElement;
       const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-piece-id][data-field]'));
       const idx = allInputs.indexOf(current);
-      if (idx >= 0 && idx < allInputs.length - 1) {
-        allInputs[idx + 1].focus();
-      }
+      const next = idx >= 0 ? allInputs[(idx + 1) % allInputs.length] : allInputs[0];
+      next?.focus();
     }
   };
   const duplicatePiece = (id: string) => { const p = pieces.find(x => x.id === id); if (p) setPieces(prev => [...prev, { ...p, id: String(Date.now()) }]); };
