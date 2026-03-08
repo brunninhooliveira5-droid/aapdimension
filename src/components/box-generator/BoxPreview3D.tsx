@@ -145,20 +145,20 @@ function draw2DPieces(
   ctx: CanvasRenderingContext2D, cw: number, ch: number,
   params: BoxParams, W: number, H: number, D: number,
 ) {
-  const t = params.materialThickness;
+  const jc = computeBoxJoints(params);
   const isOpen = params.boxType === "open";
   const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
-  const wallH = isOpen || hasLid ? H - t : H;
-  const sideD = D - 2 * t;
+  const { wallH, sideW, pieceEdges } = jc;
+
   const pieces = [
-    { label: "Fundo", w: W, h: sideD },
-    { label: "Esquerda", w: sideD, h: wallH },
-    { label: "Direita", w: sideD, h: wallH },
-    { label: "Frente", w: W, h: wallH },
-    { label: "Traseira", w: W, h: wallH },
+    { id: "bottom", label: "Fundo", w: W, h: sideW },
+    { id: "left", label: "Esquerda", w: sideW, h: wallH },
+    { id: "right", label: "Direita", w: sideW, h: wallH },
+    { id: "front", label: "Frente", w: W, h: wallH },
+    { id: "back", label: "Traseira", w: W, h: wallH },
   ];
-  if (!isOpen && !hasLid) pieces.push({ label: "Topo", w: W, h: sideD });
-  if (hasLid) pieces.push({ label: "Tampa", w: W, h: sideD });
+  if (!isOpen && !hasLid) pieces.push({ id: "top", label: "Topo", w: W, h: sideW });
+  if (hasLid) pieces.push({ id: "lid", label: "Tampa", w: W, h: sideW });
 
   const maxPW = Math.max(...pieces.map(p => p.w));
   const maxPH = Math.max(...pieces.map(p => p.h));
@@ -174,6 +174,30 @@ function draw2DPieces(
   ctx.fillText("Peças Planificadas (2D)", 10, 14);
 
   const colors = ["#a07830", "#b88a3a", "#c49340", "#d4a553", "#c49340", "#e2b96a", "#e8c06a"];
+
+  const drawEdgeFingers = (
+    ex: number, ey: number, pw: number, ph: number,
+    edgeCfg: { isTabs: boolean; fingerCount: number } | null,
+    side: "top" | "bottom" | "left" | "right",
+  ) => {
+    if (!edgeCfg) return;
+    const fc = edgeCfg.fingerCount;
+    ctx.fillStyle = edgeCfg.isTabs ? "#3d2a10" : "#8b6914";
+    if (side === "top") {
+      const fS = pw / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(ex + fi * fS, edgeCfg.isTabs ? ey - 3 : ey, fS, 3); }
+    } else if (side === "bottom") {
+      const fS = pw / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(ex + fi * fS, edgeCfg.isTabs ? ey + ph : ey + ph - 3, fS, 3); }
+    } else if (side === "left") {
+      const fS = ph / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(edgeCfg.isTabs ? ex - 3 : ex, ey + fi * fS, 3, fS); }
+    } else {
+      const fS = ph / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(edgeCfg.isTabs ? ex + pw : ex + pw - 3, ey + fi * fS, 3, fS); }
+    }
+  };
+
   pieces.forEach((piece, idx) => {
     const pw = piece.w * sc;
     const ph = piece.h * sc;
@@ -185,13 +209,13 @@ function draw2DPieces(
     ctx.strokeRect(x, y, pw, ph);
 
     if (params.jointType === "finger" || params.jointType === "tslot") {
-      const fcW2 = computeFingerCount(piece.w, params.fingerMinSize, params.fingerMaxSize);
-      const fcH2 = computeFingerCount(piece.h, params.fingerMinSize, params.fingerMaxSize);
-      ctx.fillStyle = "#3d2a10";
-      const fSW = pw / fcW2;
-      for (let fi = 0; fi < fcW2; fi++) { if (fi % 2 === 0) { ctx.fillRect(x + fi * fSW, y - 3, fSW, 3); ctx.fillRect(x + fi * fSW, y + ph, fSW, 3); } }
-      const fSH = ph / fcH2;
-      for (let fi = 0; fi < fcH2; fi++) { if (fi % 2 === 0) { ctx.fillRect(x - 3, y + fi * fSH, 3, fSH); ctx.fillRect(x + pw, y + fi * fSH, 3, fSH); } }
+      const edges = pieceEdges[piece.id];
+      if (edges) {
+        drawEdgeFingers(x, y, pw, ph, edges.top, "top");
+        drawEdgeFingers(x, y, pw, ph, edges.bottom, "bottom");
+        drawEdgeFingers(x, y, pw, ph, edges.left, "left");
+        drawEdgeFingers(x, y, pw, ph, edges.right, "right");
+      }
     }
 
     ctx.fillStyle = "#3d2a10";
