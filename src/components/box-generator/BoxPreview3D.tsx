@@ -438,10 +438,12 @@ export function BoxPreview3D({ params, className }: Props) {
     // addWall: build slab + 3D finger tabs on tab edges + slot markers on slot edges
     // ────────────────────────────────────────────────────────────
     interface JointEdge {
-      c0i: number; c1i: number; // corner indices on the outer face
-      fc: number;               // finger count
-      isTabs: boolean;          // true = this wall has tabs, false = this wall has slots
-      tabDir: Vec3;             // direction tabs protrude (for isTabs=true)
+      c0i: number; c1i: number;
+      fc: number;
+      isTabs: boolean;
+      tabDir: Vec3;
+      padding: number;
+      edgeLength: number;
     }
 
     const addWall = (
@@ -458,37 +460,30 @@ export function BoxPreview3D({ params, className }: Props) {
       const iColor = state === "active" ? "#e8b850" : innerColor;
       const eColor = state === "active" ? "#d4a040" : edgeColor;
 
-      // Base slab
       faces.push(...buildSlab(c, normal, t, oColor, iColor, eColor, label, wallId, opacity));
 
-      // Finger joints
       if (useFinger && jointEdges) {
         const inward = v3scale(normal, -1);
         const inner = c.map(p => v3add(p, v3scale(inward, t)));
 
         for (const je of jointEdges) {
           if (je.isTabs) {
-            // ── TABS: 3D blocks protruding from this edge ──
             faces.push(...buildFingerTabs3D(
               c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i],
               je.tabDir, t, je.fc,
               oColor, eColor, state === "active" ? "#e8b850" : woodTabTip,
-              wallId, opacity,
+              wallId, opacity, je.padding, je.edgeLength,
             ));
           } else {
-            // ── SLOTS: dark markers on the edge showing where neighbor tabs fit ──
             faces.push(...buildSlotMarkers(
               c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i],
-              je.fc, wallId,
+              je.fc, wallId, je.padding, je.edgeLength,
             ));
           }
         }
       }
     };
 
-    // ────────────────────────────────────────────────────────────
-    // Build 3D joint edges from engine config (single source of truth)
-    // ────────────────────────────────────────────────────────────
     type EdgeMapping = { edge: "top" | "bottom" | "left" | "right"; c0i: number; c1i: number; tabDir: Vec3 };
     const buildJointEdges = (wallId: string, mapping: EdgeMapping[]): JointEdge[] => {
       const edges = jc.pieceEdges[wallId];
@@ -499,6 +494,9 @@ export function BoxPreview3D({ params, className }: Props) {
           c0i: m.c0i, c1i: m.c1i,
           fc: edges[m.edge]!.fingerCount,
           isTabs: edges[m.edge]!.isTabs,
+          tabDir: m.tabDir,
+          padding: edges[m.edge]!.padding,
+          edgeLength: edges[m.edge]!.edgeLength,
           tabDir: m.tabDir,
         }));
     };
