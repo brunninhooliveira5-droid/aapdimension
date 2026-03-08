@@ -65,12 +65,14 @@ export function SheetCuttingTab() {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Single cut mode (optimization)
+  const [singleCut, setSingleCut] = useState(false);
+
   // Export
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportA4, setExportA4] = useState(true);
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
-  const [singleCut, setSingleCut] = useState(false);
 
   // Fetch inventory
   useEffect(() => {
