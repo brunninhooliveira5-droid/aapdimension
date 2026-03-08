@@ -34,6 +34,7 @@ import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
 import CuttingPlanPage from "./pages/CuttingPlanPage";
+import Slicer3DPage from "./pages/Slicer3DPage";
 
 const queryClient = new QueryClient();
 
