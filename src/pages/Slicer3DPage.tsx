@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import {
-  Layers, Grid3x3, Sun, Unfold, Upload, Play, Download,
+  Layers, Grid3x3, Sun, Ungroup, Upload, Play, Download,
   FileText, Table2, Eye, Box, Send, Scissors, Settings2,
 } from "lucide-react";
 import * as THREE from "three";
