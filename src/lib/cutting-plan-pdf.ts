@@ -34,7 +34,7 @@ export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData
     exportCuttingPlanPdf({ ...data, scale: "a4" });
   }
   if (options.exportRealScale) {
-    await exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName });
+    await exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName, singleCut: options.singleCut });
   }
 }
 
