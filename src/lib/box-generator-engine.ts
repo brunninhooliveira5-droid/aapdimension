@@ -171,51 +171,63 @@ function fingerEdgePoints(
     const p1 = (i + 1) * fSize;
 
     if (edge === "bottom") {
-      // Along bottom edge, y=pieceH. Tabs go downward (+y).
       const baseY = pieceH;
       if (isTab) {
+        // Tab protrudes outward (downward)
         pts.push({ x: p0, y: baseY });
         pts.push({ x: p0, y: baseY + thickness });
         pts.push({ x: p1, y: baseY + thickness });
         pts.push({ x: p1, y: baseY });
       } else {
+        // Slot recesses inward (upward)
         pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY - thickness });
+        pts.push({ x: p1, y: baseY - thickness });
         pts.push({ x: p1, y: baseY });
       }
     } else if (edge === "top") {
-      // Along top edge, y=0. Tabs go upward (-y).
       const baseY = 0;
       if (isTab) {
+        // Tab protrudes outward (upward)
         pts.push({ x: p0, y: baseY });
         pts.push({ x: p0, y: baseY - thickness });
         pts.push({ x: p1, y: baseY - thickness });
         pts.push({ x: p1, y: baseY });
       } else {
+        // Slot recesses inward (downward)
         pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY + thickness });
+        pts.push({ x: p1, y: baseY + thickness });
         pts.push({ x: p1, y: baseY });
       }
     } else if (edge === "right") {
-      // Along right edge, x=pieceW. Tabs go rightward (+x).
       const baseX = pieceW;
       if (isTab) {
+        // Tab protrudes outward (rightward)
         pts.push({ x: baseX, y: p0 });
         pts.push({ x: baseX + thickness, y: p0 });
         pts.push({ x: baseX + thickness, y: p1 });
         pts.push({ x: baseX, y: p1 });
       } else {
+        // Slot recesses inward (leftward)
         pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX - thickness, y: p0 });
+        pts.push({ x: baseX - thickness, y: p1 });
         pts.push({ x: baseX, y: p1 });
       }
     } else if (edge === "left") {
-      // Along left edge, x=0. Tabs go leftward (-x).
       const baseX = 0;
       if (isTab) {
+        // Tab protrudes outward (leftward)
         pts.push({ x: baseX, y: p0 });
         pts.push({ x: baseX - thickness, y: p0 });
         pts.push({ x: baseX - thickness, y: p1 });
         pts.push({ x: baseX, y: p1 });
       } else {
+        // Slot recesses inward (rightward)
         pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX + thickness, y: p0 });
+        pts.push({ x: baseX + thickness, y: p1 });
         pts.push({ x: baseX, y: p1 });
       }
     }
