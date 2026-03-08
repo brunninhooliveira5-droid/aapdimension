@@ -60,7 +60,15 @@ export function SavedCuttingPlans() {
     fetchPlans();
   };
 
-  const handleExportPdf = (plan: SavedPlan) => {
+  const openExportDialog = (plan: SavedPlan) => {
+    setExportPlan(plan);
+    setExportScale("a4");
+    setShowExportDialog(true);
+  };
+
+  const handleExportPdf = () => {
+    if (!exportPlan) return;
+    const plan = exportPlan;
     const dims = plan.material_dimensions;
     const dimensionsStr = plan.plan_type === "chapa"
       ? `${dims.width} x ${dims.height} mm`
@@ -77,7 +85,9 @@ export function SavedCuttingPlans() {
       result: plan.result_json,
       clientName: plan.client_name,
       projectName: plan.project_name,
+      scale: exportScale,
     });
+    setShowExportDialog(false);
   };
 
   const sourceLabel = (s: string) => {
