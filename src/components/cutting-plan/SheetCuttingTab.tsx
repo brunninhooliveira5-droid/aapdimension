@@ -151,7 +151,27 @@ export function SheetCuttingTab() {
   };
 
   const addPiece = () => {
-    setPieces((prev) => [...prev, { id: String(Date.now()), width: "", height: "", quantity: "1", allowRotation: true }]);
+    const newId = String(Date.now());
+    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", allowRotation: allowRotation }]);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-piece-id="${newId}"][data-field="width"]`) as HTMLInputElement;
+      el?.focus();
+    }, 50);
+  };
+
+  const handlePieceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: keyof PieceRow) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addPiece();
+    }
+    if (e.key === " " && (e.target as HTMLInputElement).value === "") {
+      e.preventDefault();
+      if (index > 0) {
+        const prev = pieces[index - 1];
+        const val = String(prev[field] ?? "");
+        if (val) updatePiece(pieces[index].id, field, val);
+      }
+    }
   };
 
   const duplicatePiece = (id: string) => {
@@ -505,13 +525,13 @@ export function SheetCuttingTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
+                      <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.height} onChange={(e) => updatePiece(piece.id, "height", e.target.value)} className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
+                      <Input type="number" value={piece.height} onChange={(e) => updatePiece(piece.id, "height", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "height")} data-piece-id={piece.id} data-field="height" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} className="h-8 w-20" min="1" placeholder="1" />
+                      <Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "quantity")} data-piece-id={piece.id} data-field="quantity" className="h-8 w-20" min="1" placeholder="1" />
                     </TableCell>
                     <TableCell>
                       <Checkbox checked={piece.allowRotation} onCheckedChange={(v) => updatePiece(piece.id, "allowRotation", !!v)} />
