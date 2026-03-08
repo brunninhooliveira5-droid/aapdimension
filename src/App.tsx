@@ -33,6 +33,7 @@ import CompanyUsersPage from "./pages/CompanyUsersPage";
 import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
+import CuttingPlanPage from "./pages/CuttingPlanPage";
 
 const queryClient = new QueryClient();
 
