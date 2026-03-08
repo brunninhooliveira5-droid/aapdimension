@@ -354,7 +354,7 @@ export function TubeCuttingTab() {
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowSave(true)}><Save className="h-4 w-4 mr-1" /> Salvar Plano</Button>
-            <Button variant="outline" onClick={handleExportPdf}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
+            <Button variant="outline" onClick={() => setShowExportDialog(true)}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
           </div>
         </Card>
       )}
