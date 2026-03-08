@@ -142,60 +142,147 @@ function rectPath(w: number, h: number): Path2D_Segment[] {
 }
 
 /**
- * Generate a finger-joint edge profile along an axis.
- * Returns path segments for one edge (bottom or top, left or right).
- * 
- * @param length - total edge length
- * @param thickness - material thickness (depth of fingers)
+ * Generate a finger-joint edge contour along one side of a piece.
+ * Returns an array of {x,y} points tracing the edge with finger tabs/slots.
+ *
+ * @param edge - which edge: 'top','bottom','left','right'
+ * @param pieceW - piece total width
+ * @param pieceH - piece total height
+ * @param length - length of the edge
+ * @param thickness - material thickness (depth of tabs)
  * @param fingerCount - number of fingers
- * @param isTabs - true if this edge has tabs (protrusions), false if slots
- * @param direction - 'h' horizontal (along x), 'v' vertical (along y)
- * @param startX - starting x coordinate
- * @param startY - starting y coordinate
- * @param clearance - joint clearance
- * @param cornerRelief - type of corner relief for CNC
- * @param reliefR - radius for dogbone/fillet relief
+ * @param isTabs - true → starts with protruding tab; false → starts with slot
  */
-function fingerEdge(
+function fingerEdgePoints(
+  edge: "top" | "bottom" | "left" | "right",
+  pieceW: number,
+  pieceH: number,
   length: number,
   thickness: number,
   fingerCount: number,
   isTabs: boolean,
-  direction: "h" | "v",
-  startX: number,
-  startY: number,
-  clearance: number,
-  cornerRelief: CornerRelief = "none",
-  reliefR: number = 0,
-): Path2D_Segment[] {
-  const segments: Path2D_Segment[] = [];
-  const fingerSize = length / fingerCount;
-  const cl = clearance / 2;
+): { x: number; y: number }[] {
+  const pts: { x: number; y: number }[] = [];
+  const fSize = length / fingerCount;
 
   for (let i = 0; i < fingerCount; i++) {
     const isTab = (i % 2 === 0) === isTabs;
-    const pos = i * fingerSize;
-    const nextPos = (i + 1) * fingerSize;
+    const p0 = i * fSize;
+    const p1 = (i + 1) * fSize;
 
-    if (direction === "h") {
+    if (edge === "bottom") {
+      // Along bottom edge, y=pieceH. Tabs go downward (+y).
+      const baseY = pieceH;
       if (isTab) {
-        // Go out (down) then across then back up
-        segments.push({ type: "L", x: startX + pos, y: startY + thickness });
-        segments.push({ type: "L", x: startX + nextPos, y: startY + thickness });
-        segments.push({ type: "L", x: startX + nextPos, y: startY });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY + thickness });
+        pts.push({ x: p1, y: baseY + thickness });
+        pts.push({ x: p1, y: baseY });
       } else {
-        segments.push({ type: "L", x: startX + nextPos, y: startY });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p1, y: baseY });
       }
-    } else {
+    } else if (edge === "top") {
+      // Along top edge, y=0. Tabs go upward (-y).
+      const baseY = 0;
       if (isTab) {
-        segments.push({ type: "L", x: startX + thickness, y: startY + pos });
-        segments.push({ type: "L", x: startX + thickness, y: startY + nextPos });
-        segments.push({ type: "L", x: startX, y: startY + nextPos });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY - thickness });
+        pts.push({ x: p1, y: baseY - thickness });
+        pts.push({ x: p1, y: baseY });
       } else {
-        segments.push({ type: "L", x: startX, y: startY + nextPos });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p1, y: baseY });
+      }
+    } else if (edge === "right") {
+      // Along right edge, x=pieceW. Tabs go rightward (+x).
+      const baseX = pieceW;
+      if (isTab) {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX + thickness, y: p0 });
+        pts.push({ x: baseX + thickness, y: p1 });
+        pts.push({ x: baseX, y: p1 });
+      } else {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX, y: p1 });
+      }
+    } else if (edge === "left") {
+      // Along left edge, x=0. Tabs go leftward (-x).
+      const baseX = 0;
+      if (isTab) {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX - thickness, y: p0 });
+        pts.push({ x: baseX - thickness, y: p1 });
+        pts.push({ x: baseX, y: p1 });
+      } else {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX, y: p1 });
       }
     }
   }
+  return pts;
+}
+
+/**
+ * Build a full piece contour with finger joints on specified edges.
+ * edges: { top, bottom, left, right } each can be:
+ *   null → straight edge
+ *   { fingerCount, thickness, isTabs } → finger joint
+ */
+interface FingerEdgeConfig {
+  fingerCount: number;
+  thickness: number;
+  isTabs: boolean;
+}
+
+function buildFingerContour(
+  pieceW: number,
+  pieceH: number,
+  edges: {
+    top?: FingerEdgeConfig | null;
+    bottom?: FingerEdgeConfig | null;
+    left?: FingerEdgeConfig | null;
+    right?: FingerEdgeConfig | null;
+  },
+): Path2D_Segment[] {
+  const segments: Path2D_Segment[] = [];
+
+  // Top edge: left to right (y=0)
+  if (edges.top) {
+    const pts = fingerEdgePoints("top", pieceW, pieceH, pieceW, edges.top.thickness, edges.top.fingerCount, edges.top.isTabs);
+    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: pieceW, y: 0 });
+  }
+
+  // Right edge: top to bottom (x=pieceW)
+  if (edges.right) {
+    const pts = fingerEdgePoints("right", pieceW, pieceH, pieceH, edges.right.thickness, edges.right.fingerCount, edges.right.isTabs);
+    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: pieceW, y: pieceH });
+  }
+
+  // Bottom edge: right to left (y=pieceH)
+  if (edges.bottom) {
+    const pts = fingerEdgePoints("bottom", pieceW, pieceH, pieceW, edges.bottom.thickness, edges.bottom.fingerCount, edges.bottom.isTabs);
+    // Reverse so we go right→left
+    const reversed = [...pts].reverse();
+    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: 0, y: pieceH });
+  }
+
+  // Left edge: bottom to top (x=0)
+  if (edges.left) {
+    const pts = fingerEdgePoints("left", pieceW, pieceH, pieceH, edges.left.thickness, edges.left.fingerCount, edges.left.isTabs);
+    // Reverse so we go bottom→top
+    const reversed = [...pts].reverse();
+    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: 0, y: 0 });
+  }
+
   return segments;
 }
 
@@ -231,101 +318,102 @@ export function generateBox(params: BoxParams): BoxResult {
   // Apply kerf compensation
   const kerfOffset = params.fabMode === "laser" ? params.kerf / 2 : 0;
 
+  const useFinger = params.jointType === "finger" || params.jointType === "tslot";
+
   // ─── Front & Back ─────────────────────────────────
-  // Front/back: Width × Height, with finger joints on all 4 edges
   const frontW = W;
-  const frontH = isOpen || hasLid ? H - t : H; // open top = no top fingers
+  const frontH = isOpen || hasLid ? H - t : H;
+  const frontPath = useFinger
+    ? buildFingerContour(frontW, frontH, {
+        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_W, thickness: t, isTabs: true } : null,
+        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: true },
+        left: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
+        right: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
+      })
+    : rectPath(frontW, frontH);
+
   pieces.push({
-    id: "front",
-    label: "Frente",
-    width: frontW,
-    height: frontH,
-    quantity: 1,
-    paths: [rectPath(frontW, frontH)],
+    id: "front", label: "Frente", width: frontW, height: frontH, quantity: 1,
+    paths: [frontPath],
   });
   pieces.push({
-    id: "back",
-    label: "Traseira",
-    width: frontW,
-    height: frontH,
-    quantity: 1,
-    paths: [rectPath(frontW, frontH)],
+    id: "back", label: "Traseira", width: frontW, height: frontH, quantity: 1,
+    paths: [frontPath],
   });
 
   // ─── Left & Right sides ───────────────────────────
-  // Sides: Depth × Height, fingers interlock with front/back and top/bottom
-  const sideW = D - 2 * t; // internal depth (between front and back)
+  const sideW = D - 2 * t;
   const sideH = frontH;
+  const sidePath = useFinger
+    ? buildFingerContour(sideW, sideH, {
+        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_D, thickness: t, isTabs: false } : null,
+        bottom: { fingerCount: fingerCount_D, thickness: t, isTabs: false },
+        left: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
+        right: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
+      })
+    : rectPath(sideW, sideH);
+
   pieces.push({
-    id: "left",
-    label: "Lateral Esquerda",
-    width: sideW,
-    height: sideH,
-    quantity: 1,
-    paths: [rectPath(sideW, sideH)],
+    id: "left", label: "Lateral Esquerda", width: sideW, height: sideH, quantity: 1,
+    paths: [sidePath],
   });
   pieces.push({
-    id: "right",
-    label: "Lateral Direita",
-    width: sideW,
-    height: sideH,
-    quantity: 1,
-    paths: [rectPath(sideW, sideH)],
+    id: "right", label: "Lateral Direita", width: sideW, height: sideH, quantity: 1,
+    paths: [sidePath],
   });
 
   // ─── Bottom ────────────────────────────────────────
   const bottomW = W;
   const bottomH = D - 2 * t;
+  const bottomPath = useFinger
+    ? buildFingerContour(bottomW, bottomH, {
+        top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+        left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+        right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+      })
+    : rectPath(bottomW, bottomH);
+
   pieces.push({
-    id: "bottom",
-    label: "Fundo",
-    width: bottomW,
-    height: bottomH,
-    quantity: 1,
-    paths: [rectPath(bottomW, bottomH)],
+    id: "bottom", label: "Fundo", width: bottomW, height: bottomH, quantity: 1,
+    paths: [bottomPath],
   });
 
   // ─── Top / Lid ─────────────────────────────────────
   if (!isOpen) {
     if (hasLid) {
       const lidW = params.boxType === "lid_sliding" ? W + params.lidClearance : W;
-      const lidH = params.boxType === "lid_sliding" ? D - 2 * t : D - 2 * t;
+      const lidH = D - 2 * t;
       pieces.push({
         id: "lid",
         label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
-        width: lidW,
-        height: lidH,
-        quantity: 1,
+        width: lidW, height: lidH, quantity: 1,
         paths: [rectPath(lidW, lidH)],
       });
-      // Sliding tracks
       if (params.boxType === "lid_sliding") {
         pieces.push({
-          id: "track_left",
-          label: "Trilho Esquerdo",
-          width: D - 2 * t,
-          height: params.slidingTrackDepth,
-          quantity: 1,
+          id: "track_left", label: "Trilho Esquerdo",
+          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
           paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
         });
         pieces.push({
-          id: "track_right",
-          label: "Trilho Direito",
-          width: D - 2 * t,
-          height: params.slidingTrackDepth,
-          quantity: 1,
+          id: "track_right", label: "Trilho Direito",
+          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
           paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
         });
       }
     } else {
-      // Closed box - top panel
+      const topPath = useFinger
+        ? buildFingerContour(bottomW, bottomH, {
+            top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+            bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
+            left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+            right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
+          })
+        : rectPath(bottomW, bottomH);
       pieces.push({
-        id: "top",
-        label: "Topo",
-        width: bottomW,
-        height: bottomH,
-        quantity: 1,
-        paths: [rectPath(bottomW, bottomH)],
+        id: "top", label: "Topo", width: bottomW, height: bottomH, quantity: 1,
+        paths: [topPath],
       });
     }
   }
@@ -333,25 +421,17 @@ export function generateBox(params: BoxParams): BoxResult {
   // ─── Dividers ──────────────────────────────────────
   if (hasDividers) {
     const divT = params.dividerThickness || t;
-    // Vertical dividers (along depth)
     for (let i = 0; i < params.dividersV; i++) {
       pieces.push({
-        id: `div_v_${i}`,
-        label: `Divisória Vertical ${i + 1}`,
-        width: D - 2 * t,
-        height: frontH - t, // slightly shorter than walls
-        quantity: 1,
+        id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`,
+        width: D - 2 * t, height: frontH - t, quantity: 1,
         paths: [rectPath(D - 2 * t, frontH - t)],
       });
     }
-    // Horizontal dividers (along width)
     for (let i = 0; i < params.dividersH; i++) {
       pieces.push({
-        id: `div_h_${i}`,
-        label: `Divisória Horizontal ${i + 1}`,
-        width: iW,
-        height: frontH - t,
-        quantity: 1,
+        id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`,
+        width: iW, height: frontH - t, quantity: 1,
         paths: [rectPath(iW, frontH - t)],
       });
     }
@@ -378,7 +458,7 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
   let y = gap;
   let maxRowH = 0;
   const maxWidth = 800;
-  const rects: string[] = [];
+  const elements: string[] = [];
 
   for (const piece of pieces) {
     for (let q = 0; q < piece.quantity; q++) {
@@ -388,14 +468,23 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
         maxRowH = 0;
       }
 
-      rects.push(
-        `<g transform="translate(${x}, ${y})">` +
-        `<rect x="0" y="0" width="${piece.width}" height="${piece.height}" ` +
-        `fill="none" stroke="#000" stroke-width="0.5"/>` +
-        `<text x="${piece.width / 2}" y="${piece.height / 2}" ` +
+      if (piece.paths && piece.paths.length > 0) {
+        for (const contour of piece.paths) {
+          let d = `M ${x} ${y}`;
+          for (const seg of contour) {
+            d += ` L ${x + seg.x} ${y + seg.y}`;
+          }
+          d += " Z";
+          elements.push(
+            `<path d="${d}" fill="none" stroke="#000" stroke-width="0.5"/>`
+          );
+        }
+      }
+
+      elements.push(
+        `<text x="${x + piece.width / 2}" y="${y + piece.height / 2}" ` +
         `font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#666">` +
-        `${piece.label}` +
-        `</text></g>`
+        `${piece.label}</text>`
       );
 
       maxRowH = Math.max(maxRowH, piece.height);
@@ -404,7 +493,7 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
   }
 
   const totalH = y + maxRowH + gap;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${maxWidth}" height="${totalH}" viewBox="0 0 ${maxWidth} ${totalH}">\n${rects.join("\n")}\n</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${maxWidth}" height="${totalH}" viewBox="0 0 ${maxWidth} ${totalH}">\n${elements.join("\n")}\n</svg>`;
 }
 
 // ─── DXF Export ──────────────────────────────────────────────────
@@ -424,19 +513,25 @@ export function boxPiecesToDXF(pieces: BoxPiece[], gap: number = 10): string {
         maxRowH = 0;
       }
 
-      const x1 = offsetX;
-      const y1 = offsetY;
-      const x2 = offsetX + piece.width;
-      const y2 = offsetY + piece.height;
-
-      // Rectangle as 4 lines
       const addLine = (ax: number, ay: number, bx: number, by: number) => {
         lines += `0\nLINE\n8\n0\n10\n${ax}\n20\n${ay}\n30\n0\n11\n${bx}\n21\n${by}\n31\n0\n`;
       };
-      addLine(x1, y1, x2, y1);
-      addLine(x2, y1, x2, y2);
-      addLine(x2, y2, x1, y2);
-      addLine(x1, y2, x1, y1);
+
+      if (piece.paths && piece.paths.length > 0) {
+        for (const contour of piece.paths) {
+          let prevX = offsetX;
+          let prevY = offsetY;
+          for (const seg of contour) {
+            const nx = offsetX + seg.x;
+            const ny = offsetY + seg.y;
+            addLine(prevX, prevY, nx, ny);
+            prevX = nx;
+            prevY = ny;
+          }
+          // Close
+          addLine(prevX, prevY, offsetX, offsetY);
+        }
+      }
 
       maxRowH = Math.max(maxRowH, piece.height);
       offsetX += piece.width + gap;
