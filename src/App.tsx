@@ -35,6 +35,7 @@ import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
 import CuttingPlanPage from "./pages/CuttingPlanPage";
 import Slicer3DPage from "./pages/Slicer3DPage";
+import BoxGeneratorPage from "./pages/BoxGeneratorPage";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const AppRoutes = () => {
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
         <Route path="/plano-corte" element={<CuttingPlanPage />} />
         <Route path="/slicer-3d" element={<Slicer3DPage />} />
+        <Route path="/gerador-caixas" element={<BoxGeneratorPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
