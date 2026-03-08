@@ -213,9 +213,28 @@ export function TubeCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = (scale: PdfScale) => {
+  const handleExportPdf = () => {
     if (!result || result.errors.length > 0) return;
-    exportCuttingPlanPdf({ planName: planName || "Plano de Corte - Tubo", planType: "tubo", materialName, dimensions: `${parseFloat(materialLength)} mm`, unitPrice: parseFloat(materialPrice) || 0, kerfWidth: parseFloat(kerfWidth) || 0, pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })), result, clientName, projectName, scale });
+    if (!exportA4 && !exportRealScale) {
+      toast.error("Selecione pelo menos um formato.");
+      return;
+    }
+    if (exportRealScale && !folderName.trim()) {
+      toast.error("Informe o nome da pasta para exportação 1:1.");
+      return;
+    }
+    exportCuttingPlanWithOptions({
+      planName: planName || "Plano de Corte - Tubo",
+      planType: "tubo",
+      materialName,
+      dimensions: `${parseFloat(materialLength)} mm`,
+      unitPrice: parseFloat(materialPrice) || 0,
+      kerfWidth: parseFloat(kerfWidth) || 0,
+      pieces: pieces.map((p) => ({ length: parseFloat(p.length), quantity: parseInt(p.quantity) })),
+      result,
+      clientName,
+      projectName,
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
