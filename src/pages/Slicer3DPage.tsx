@@ -84,9 +84,20 @@ export default function Slicer3DPage() {
   const [fileName, setFileName] = useState("");
   const [mode, setMode] = useState("stacked");
   const [result, setResult] = useState<SlicerResult | null>(null);
-  const [materialName, setMaterialName] = useState("MDF");
+  const [selectedMaterial, setSelectedMaterial] = useState<SlicerMaterial | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewTab, setViewTab] = useState<"3d" | "2d" | "list">("3d");
+
+  // Compute model bounding box
+  const modelBounds = geometry ? (() => {
+    geometry.computeBoundingBox();
+    const bb = geometry.boundingBox!;
+    return {
+      x: bb.max.x - bb.min.x,
+      y: bb.max.y - bb.min.y,
+      z: bb.max.z - bb.min.z,
+    };
+  })() : null;
 
   // Params for each mode
   const [stackedParams, setStackedParams] = useState(defaultStackedParams);
