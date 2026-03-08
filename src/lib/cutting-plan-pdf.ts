@@ -25,6 +25,7 @@ export interface ExportOptions {
   exportA4: boolean;
   exportRealScale: boolean;
   folderName: string;
+  singleCut?: boolean;
 }
 
 export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData, "scale">, options: ExportOptions) {
