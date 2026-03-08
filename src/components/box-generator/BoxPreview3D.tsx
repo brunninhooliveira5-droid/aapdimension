@@ -57,34 +57,36 @@ function buildSlab(
  * edgeStart/edgeEnd = outer edge corners, innerStart/innerEnd = inner edge corners.
  * tabDir = direction tabs protrude (toward neighbor wall).
  */
+/**
+ * Build 3D finger tab blocks with surrounding-space padding support.
+ * Tabs only occupy the central portion of the edge (padding at each end is flat).
+ */
 function buildFingerTabs3D(
   edgeStart: Vec3, edgeEnd: Vec3, innerStart: Vec3, innerEnd: Vec3,
   tabDir: Vec3, thickness: number, fingerCount: number,
   outerColor: string, sideColor: string, tipColor: string,
-  wallId: string, opacity: number,
+  wallId: string, opacity: number, padding: number = 0, edgeLength: number = 0,
 ): Face3D[] {
   const faces: Face3D[] = [];
+  const eLen = edgeLength > 0 ? edgeLength : 1;
+  const pFrac = padding / eLen;       // padding as fraction of edge
+  const fRegion = 1 - 2 * pFrac;      // finger region fraction
+
   for (let fi = 0; fi < fingerCount; fi++) {
     if (fi % 2 !== 0) continue; // only even = tabs
-    const t0 = fi / fingerCount;
-    const t1 = (fi + 1) / fingerCount;
-    // 4 corners of the tab base (on the wall edge)
+    const t0 = pFrac + (fi / fingerCount) * fRegion;
+    const t1 = pFrac + ((fi + 1) / fingerCount) * fRegion;
     const a = v3lerp(edgeStart, edgeEnd, t0);
     const b = v3lerp(edgeStart, edgeEnd, t1);
     const ai = v3lerp(innerStart, innerEnd, t0);
     const bi = v3lerp(innerStart, innerEnd, t1);
-    // 4 corners of the tab tip (extended by thickness in tabDir)
     const ext = v3scale(tabDir, thickness);
     const ae = v3add(a, ext);
     const be = v3add(b, ext);
     const aie = v3add(ai, ext);
     const bie = v3add(bi, ext);
 
-    // Tip face (outer face of tab)
     faces.push({ pts: [ae, be, bie, aie], fill: tipColor, opacity, label: "", isJoint: true, wallId });
-    // Base face (hidden against wall edge, but needed for closed geometry)
-    // Not rendered — it's flush with the wall edge
-    // 4 side faces of the tab block
     faces.push({ pts: [a, b, be, ae], fill: outerColor, opacity, label: "", isJoint: true, wallId });
     faces.push({ pts: [bi, ai, aie, bie], fill: outerColor, opacity: opacity * 0.95, label: "", isJoint: true, wallId });
     faces.push({ pts: [a, ae, aie, ai], fill: sideColor, opacity, label: "", isJoint: true, wallId });
@@ -94,19 +96,22 @@ function buildFingerTabs3D(
 }
 
 /**
- * Build slot indicators on a wall edge — dark recessed marks showing where tabs from
- * the neighboring wall will fit.
+ * Build slot indicators with surrounding-space padding support.
  */
 function buildSlotMarkers(
   edgeStart: Vec3, edgeEnd: Vec3, innerStart: Vec3, innerEnd: Vec3,
-  fingerCount: number, wallId: string,
+  fingerCount: number, wallId: string, padding: number = 0, edgeLength: number = 0,
 ): Face3D[] {
   const faces: Face3D[] = [];
   const slotColor = "#3d2a10";
+  const eLen = edgeLength > 0 ? edgeLength : 1;
+  const pFrac = padding / eLen;
+  const fRegion = 1 - 2 * pFrac;
+
   for (let fi = 0; fi < fingerCount; fi++) {
-    if (fi % 2 !== 0) continue; // even positions = where tabs from neighbor go (slots here)
-    const t0 = fi / fingerCount;
-    const t1 = (fi + 1) / fingerCount;
+    if (fi % 2 !== 0) continue;
+    const t0 = pFrac + (fi / fingerCount) * fRegion;
+    const t1 = pFrac + ((fi + 1) / fingerCount) * fRegion;
     const a = v3lerp(edgeStart, edgeEnd, t0);
     const b = v3lerp(edgeStart, edgeEnd, t1);
     const ai = v3lerp(innerStart, innerEnd, t0);
