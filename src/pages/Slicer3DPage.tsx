@@ -19,6 +19,7 @@ import {
   RadialParamsPanel,
   UnfoldParamsPanel,
 } from "@/components/slicer3d/SlicerParametersPanel";
+import { SlicerMaterialManager, type SlicerMaterial } from "@/components/slicer3d/SlicerMaterialManager";
 import {
   stackedSlice,
   interlockedSlice,
