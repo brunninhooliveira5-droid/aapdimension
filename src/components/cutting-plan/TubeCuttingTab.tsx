@@ -112,6 +112,15 @@ export function TubeCuttingTab() {
         if (val) updatePiece(pieces[index].id, field, val);
       }
     }
+    if (e.key === "Shift") {
+      e.preventDefault();
+      const current = e.target as HTMLInputElement;
+      const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-piece-id][data-field]'));
+      const idx = allInputs.indexOf(current);
+      if (idx >= 0 && idx < allInputs.length - 1) {
+        allInputs[idx + 1].focus();
+      }
+    }
   };
   const duplicatePiece = (id: string) => { const p = pieces.find(x => x.id === id); if (p) setPieces(prev => [...prev, { ...p, id: String(Date.now()) }]); };
   const removePiece = (id: string) => { if (pieces.length <= 1) return; setPieces((prev) => prev.filter((p) => p.id !== id)); };
