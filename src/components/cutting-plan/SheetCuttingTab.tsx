@@ -370,7 +370,7 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
-    }, { exportA4, exportRealScale, folderName: folderName.trim() });
+    }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
     setShowExportDialog(false);
   };
 
