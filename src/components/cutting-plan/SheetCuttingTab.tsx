@@ -752,7 +752,7 @@ export function SheetCuttingTab() {
             <Button onClick={() => setShowSave(true)}>
               <Save className="h-4 w-4 mr-1" /> Salvar Plano
             </Button>
-            <Button variant="outline" onClick={handleExportPdf}>
+            <Button variant="outline" onClick={() => setShowExportDialog(true)}>
               <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
             </Button>
           </div>
