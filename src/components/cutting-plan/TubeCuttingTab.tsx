@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
+import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
 
 interface PieceRow {
   id: string;
