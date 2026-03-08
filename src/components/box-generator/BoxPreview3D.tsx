@@ -18,15 +18,7 @@ type Face3D = {
   wallId?: string;
 };
 
-function computeFingerCount(edgeLen: number, minSize: number, maxSize: number): number {
-  let best = 3;
-  for (let n = 3; n < 60; n += 2) {
-    const sz = edgeLen / n;
-    if (sz >= minSize && sz <= maxSize) { best = n; break; }
-    if (sz < minSize) { best = Math.max(3, n - 2); break; }
-  }
-  return best;
-}
+// fingerCount is now computed by computeBoxJoints (single source of truth)
 
 const v3add = (a: Vec3, b: Vec3): Vec3 => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
 const v3sub = (a: Vec3, b: Vec3): Vec3 => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
