@@ -151,7 +151,27 @@ export function SheetCuttingTab() {
   };
 
   const addPiece = () => {
-    setPieces((prev) => [...prev, { id: String(Date.now()), width: "", height: "", quantity: "1", allowRotation: true }]);
+    const newId = String(Date.now());
+    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", allowRotation: allowRotation }]);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-piece-id="${newId}"][data-field="width"]`) as HTMLInputElement;
+      el?.focus();
+    }, 50);
+  };
+
+  const handlePieceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: keyof PieceRow) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addPiece();
+    }
+    if (e.key === " " && (e.target as HTMLInputElement).value === "") {
+      e.preventDefault();
+      if (index > 0) {
+        const prev = pieces[index - 1];
+        const val = String(prev[field] ?? "");
+        if (val) updatePiece(pieces[index].id, field, val);
+      }
+    }
   };
 
   const duplicatePiece = (id: string) => {
