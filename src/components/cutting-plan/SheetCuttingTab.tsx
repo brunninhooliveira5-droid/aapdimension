@@ -70,6 +70,7 @@ export function SheetCuttingTab() {
   const [exportA4, setExportA4] = useState(true);
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
+  const [singleCut, setSingleCut] = useState(false);
 
   // Fetch inventory
   useEffect(() => {
@@ -369,7 +370,7 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
-    }, { exportA4, exportRealScale, folderName: folderName.trim() });
+    }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
     setShowExportDialog(false);
   };
 
@@ -821,10 +822,19 @@ export function SheetCuttingTab() {
                 </div>
               </div>
               {exportRealScale && (
-                <div className="pl-8 space-y-1">
-                  <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
-                  <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
+                <div className="pl-8 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
+                    <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
+                    <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="sheet-single-cut" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="sheet-single-cut" className="cursor-pointer font-medium">Corte Único</Label>
+                      <p className="text-xs text-muted-foreground">Compartilha um único corte entre peças adjacentes, reduzindo percurso da máquina</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
