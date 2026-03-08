@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Save, Trash2, FileDown, Eye, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { exportCuttingPlanPdf, type PdfScale } from "@/lib/cutting-plan-pdf";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface SavedPlan {
