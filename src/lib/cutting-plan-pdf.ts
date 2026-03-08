@@ -307,6 +307,8 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
   const matH = parseFloat(dims[1]) || 1000;
   const r = data.result as SheetCuttingResult;
   const folderName = data.folderName || "plano-corte-1x1";
+  const singleCut = data.singleCut ?? false;
+  const kerf = data.kerfWidth || 0;
 
   const zip = new JSZip();
   const folder = zip.folder(folderName)!;
@@ -331,25 +333,59 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
     doc.setFillColor(245, 245, 245);
     doc.rect(ox, oy, matW, matH, "FD");
 
-    // Draw pieces at real scale
-    layout.pieces.forEach((p, pi) => {
-      const color = getPieceColorPdf(p.pieceIndex ?? pi);
-      doc.setFillColor(color[0], color[1], color[2]);
-      doc.setDrawColor(40, 40, 40);
-      doc.setLineWidth(0.3);
-      doc.rect(ox + p.x, oy + p.y, p.width, p.height, "FD");
+    if (singleCut && kerf > 0) {
+      // === CORTE ÚNICO MODE ===
+      // Draw pieces as filled rects without individual stroke borders
+      layout.pieces.forEach((p, pi) => {
+        const color = getPieceColorPdf(p.pieceIndex ?? pi);
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.rect(ox + p.x, oy + p.y, p.width, p.height, "F");
 
-      // Internal piece label only
-      doc.setTextColor(255, 255, 255);
-      const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
-      if (fontSize >= 3) {
-        doc.setFontSize(fontSize);
-        doc.setFont("helvetica", "bold");
-        doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
-        doc.setFontSize(Math.max(3, fontSize * 0.7));
-        doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
-      }
-    });
+        // Internal piece label
+        doc.setTextColor(255, 255, 255);
+        const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
+        if (fontSize >= 3) {
+          doc.setFontSize(fontSize);
+          doc.setFont("helvetica", "bold");
+          doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+          doc.setFontSize(Math.max(3, fontSize * 0.7));
+          doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+        }
+      });
+
+      // Collect unique shared cut lines between adjacent pieces
+      const cutLines = computeSharedCutLines(layout.pieces, kerf, matW, matH);
+
+      // Draw cut lines — single red line at the center of the kerf gap
+      doc.setDrawColor(220, 30, 30);
+      doc.setLineWidth(0.25);
+      doc.setLineDashPattern([3, 2], 0);
+
+      cutLines.forEach(line => {
+        doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2);
+      });
+
+      doc.setLineDashPattern([], 0);
+    } else {
+      // === NORMAL MODE — independent contours ===
+      layout.pieces.forEach((p, pi) => {
+        const color = getPieceColorPdf(p.pieceIndex ?? pi);
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.setDrawColor(40, 40, 40);
+        doc.setLineWidth(0.3);
+        doc.rect(ox + p.x, oy + p.y, p.width, p.height, "FD");
+
+        doc.setTextColor(255, 255, 255);
+        const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
+        if (fontSize >= 3) {
+          doc.setFontSize(fontSize);
+          doc.setFont("helvetica", "bold");
+          doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+          doc.setFontSize(Math.max(3, fontSize * 0.7));
+          doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+        }
+      });
+    }
 
     const pdfBlob = doc.output("blob");
     folder.file(`chapa-${li + 1}.pdf`, pdfBlob);
@@ -357,4 +393,178 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
 
   const zipBlob = await zip.generateAsync({ type: "blob" });
   saveAs(zipBlob, `${folderName}.zip`);
+}
+
+// ─── Shared Cut Lines Logic ────────────────────────────────
+
+interface CutLine {
+  x1: number; y1: number; x2: number; y2: number;
+}
+
+interface PlacedPiece {
+  x: number; y: number; width: number; height: number;
+  pieceIndex?: number;
+}
+
+/**
+ * Finds unique shared cut lines between adjacent pieces.
+ * A shared cut is a line at the center of the kerf gap between two pieces
+ * that share a parallel edge.
+ * Also adds border cuts along the material edge where pieces touch.
+ */
+function computeSharedCutLines(
+  pieces: PlacedPiece[],
+  kerf: number,
+  matW: number,
+  matH: number
+): CutLine[] {
+  const TOLERANCE = 0.5; // mm tolerance for adjacency detection
+  const lines: CutLine[] = [];
+  const lineSet = new Set<string>();
+
+  const addLine = (x1: number, y1: number, x2: number, y2: number) => {
+    // Normalize line direction for dedup
+    const key = x1 < x2 || (x1 === x2 && y1 < y2)
+      ? `${x1.toFixed(2)},${y1.toFixed(2)}-${x2.toFixed(2)},${y2.toFixed(2)}`
+      : `${x2.toFixed(2)},${y2.toFixed(2)}-${x1.toFixed(2)},${y1.toFixed(2)}`;
+    if (!lineSet.has(key)) {
+      lineSet.add(key);
+      lines.push({ x1, y1, x2, y2 });
+    }
+  };
+
+  for (let i = 0; i < pieces.length; i++) {
+    const a = pieces[i];
+    const aRight = a.x + a.width;
+    const aBottom = a.y + a.height;
+
+    for (let j = i + 1; j < pieces.length; j++) {
+      const b = pieces[j];
+      const bRight = b.x + b.width;
+      const bBottom = b.y + b.height;
+
+      // Check vertical shared edge (A's right edge meets B's left edge)
+      const gapH = b.x - aRight;
+      if (Math.abs(gapH - kerf) < TOLERANCE) {
+        const overlapTop = Math.max(a.y, b.y);
+        const overlapBot = Math.min(aBottom, bBottom);
+        if (overlapBot - overlapTop > TOLERANCE) {
+          const cx = aRight + kerf / 2;
+          addLine(cx, overlapTop, cx, overlapBot);
+        }
+      }
+
+      // Check vertical shared edge (B's right edge meets A's left edge)
+      const gapH2 = a.x - bRight;
+      if (Math.abs(gapH2 - kerf) < TOLERANCE) {
+        const overlapTop = Math.max(a.y, b.y);
+        const overlapBot = Math.min(aBottom, bBottom);
+        if (overlapBot - overlapTop > TOLERANCE) {
+          const cx = bRight + kerf / 2;
+          addLine(cx, overlapTop, cx, overlapBot);
+        }
+      }
+
+      // Check horizontal shared edge (A's bottom edge meets B's top edge)
+      const gapV = b.y - aBottom;
+      if (Math.abs(gapV - kerf) < TOLERANCE) {
+        const overlapLeft = Math.max(a.x, b.x);
+        const overlapRight = Math.min(aRight, bRight);
+        if (overlapRight - overlapLeft > TOLERANCE) {
+          const cy = aBottom + kerf / 2;
+          addLine(overlapLeft, cy, overlapRight, cy);
+        }
+      }
+
+      // Check horizontal shared edge (B's bottom edge meets A's top edge)
+      const gapV2 = a.y - bBottom;
+      if (Math.abs(gapV2 - kerf) < TOLERANCE) {
+        const overlapLeft = Math.max(a.x, b.x);
+        const overlapRight = Math.min(aRight, bRight);
+        if (overlapRight - overlapLeft > TOLERANCE) {
+          const cy = bBottom + kerf / 2;
+          addLine(overlapLeft, cy, overlapRight, cy);
+        }
+      }
+    }
+
+    // Border cuts — outer edges of pieces that touch material boundary
+    // Left border
+    if (a.x < TOLERANCE) {
+      addLine(0, a.y, 0, aBottom);
+    }
+    // Top border
+    if (a.y < TOLERANCE) {
+      addLine(a.x, 0, aRight, 0);
+    }
+    // Right border (piece edge, not shared)
+    // Only add if no neighbor to the right
+    // Bottom border (piece edge, not shared)
+    // These are handled by shared cuts or are individual piece outlines
+  }
+
+  // Add outer contour cuts for piece edges that are NOT shared with another piece
+  for (let i = 0; i < pieces.length; i++) {
+    const a = pieces[i];
+    const aRight = a.x + a.width;
+    const aBottom = a.y + a.height;
+
+    // Right edge — check if shared
+    const hasRightNeighbor = pieces.some((b, j) => {
+      if (j === i) return false;
+      const gap = b.x - aRight;
+      if (Math.abs(gap - kerf) >= TOLERANCE) return false;
+      const overlapTop = Math.max(a.y, b.y);
+      const overlapBot = Math.min(aBottom, b.y + b.height);
+      return overlapBot - overlapTop > TOLERANCE;
+    });
+    if (!hasRightNeighbor) {
+      addLine(aRight, a.y, aRight, aBottom);
+    }
+
+    // Bottom edge — check if shared
+    const hasBottomNeighbor = pieces.some((b, j) => {
+      if (j === i) return false;
+      const gap = b.y - aBottom;
+      if (Math.abs(gap - kerf) >= TOLERANCE) return false;
+      const overlapLeft = Math.max(a.x, b.x);
+      const overlapRight = Math.min(aRight, b.x + b.width);
+      return overlapRight - overlapLeft > TOLERANCE;
+    });
+    if (!hasBottomNeighbor) {
+      addLine(a.x, aBottom, aRight, aBottom);
+    }
+
+    // Left edge if not at material border and not shared
+    if (a.x >= TOLERANCE) {
+      const hasLeftNeighbor = pieces.some((b, j) => {
+        if (j === i) return false;
+        const gap = a.x - (b.x + b.width);
+        if (Math.abs(gap - kerf) >= TOLERANCE) return false;
+        const overlapTop = Math.max(a.y, b.y);
+        const overlapBot = Math.min(aBottom, b.y + b.height);
+        return overlapBot - overlapTop > TOLERANCE;
+      });
+      if (!hasLeftNeighbor) {
+        addLine(a.x, a.y, a.x, aBottom);
+      }
+    }
+
+    // Top edge if not at material border and not shared
+    if (a.y >= TOLERANCE) {
+      const hasTopNeighbor = pieces.some((b, j) => {
+        if (j === i) return false;
+        const gap = a.y - (b.y + b.height);
+        if (Math.abs(gap - kerf) >= TOLERANCE) return false;
+        const overlapLeft = Math.max(a.x, b.x);
+        const overlapRight = Math.min(aRight, b.x + b.width);
+        return overlapRight - overlapLeft > TOLERANCE;
+      });
+      if (!hasTopNeighbor) {
+        addLine(a.x, a.y, aRight, a.y);
+      }
+    }
+  }
+
+  return lines;
 }
