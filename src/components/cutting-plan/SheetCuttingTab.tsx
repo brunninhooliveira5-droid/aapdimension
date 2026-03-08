@@ -70,6 +70,7 @@ export function SheetCuttingTab() {
   const [exportA4, setExportA4] = useState(true);
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
+  const [singleCut, setSingleCut] = useState(false);
 
   // Fetch inventory
   useEffect(() => {
