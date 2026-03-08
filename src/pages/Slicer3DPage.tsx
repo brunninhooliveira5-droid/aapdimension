@@ -417,7 +417,7 @@ export default function Slicer3DPage() {
               )}
               {viewTab === "list" && result && (
                 <div className="p-4 overflow-auto h-full">
-                  <PartsListTable contours={result.contours} materialName={materialName} />
+                  <PartsListTable contours={result.contours} materialName={selectedMaterial?.name || "—"} />
                 </div>
               )}
             </CardContent>
