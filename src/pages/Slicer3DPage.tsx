@@ -211,7 +211,7 @@ export default function Slicer3DPage() {
       doc.text(c.thickness.toFixed(1), colX[4], y);
       doc.text(c.area.toFixed(1), colX[5], y);
       doc.text("1", colX[6], y);
-      doc.text(materialName, colX[7], y);
+      doc.text(selectedMaterial?.name || "—", colX[7], y);
       y += 5;
     });
 
