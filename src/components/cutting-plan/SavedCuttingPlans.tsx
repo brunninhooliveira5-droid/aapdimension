@@ -42,6 +42,7 @@ export function SavedCuttingPlans() {
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [exportPlan, setExportPlan] = useState<SavedPlan | null>(null);
+  const [singleCut, setSingleCut] = useState(false);
 
   const fetchPlans = async () => {
     setLoading(true);
