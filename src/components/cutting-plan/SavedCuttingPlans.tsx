@@ -38,7 +38,9 @@ export function SavedCuttingPlans() {
   const [selectedPlan, setSelectedPlan] = useState<SavedPlan | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportScale, setExportScale] = useState<PdfScale>("a4");
+  const [exportA4, setExportA4] = useState(true);
+  const [exportRealScale, setExportRealScale] = useState(false);
+  const [folderName, setFolderName] = useState("");
   const [exportPlan, setExportPlan] = useState<SavedPlan | null>(null);
 
   const fetchPlans = async () => {
