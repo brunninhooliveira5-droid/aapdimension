@@ -172,6 +172,15 @@ export function SheetCuttingTab() {
         if (val) updatePiece(pieces[index].id, field, val);
       }
     }
+    if (e.key === "Shift") {
+      e.preventDefault();
+      const current = e.target as HTMLInputElement;
+      const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-piece-id][data-field]'));
+      const idx = allInputs.indexOf(current);
+      if (idx >= 0 && idx < allInputs.length - 1) {
+        allInputs[idx + 1].focus();
+      }
+    }
   };
 
   const duplicatePiece = (id: string) => {
