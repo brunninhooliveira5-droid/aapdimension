@@ -50,7 +50,9 @@ export function TubeCuttingTab() {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportScale, setExportScale] = useState<PdfScale>("a4");
+  const [exportA4, setExportA4] = useState(true);
+  const [exportRealScale, setExportRealScale] = useState(false);
+  const [folderName, setFolderName] = useState("");
 
   useEffect(() => {
     if (source === "estoque") {
