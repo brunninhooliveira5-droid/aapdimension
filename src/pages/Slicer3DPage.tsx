@@ -129,6 +129,10 @@ export default function Slicer3DPage() {
       toast.error("Importe um modelo 3D primeiro");
       return;
     }
+    if (!selectedMaterial) {
+      toast.error("Selecione um material antes de processar");
+      return;
+    }
     setLoading(true);
     try {
       let res: SlicerResult;
