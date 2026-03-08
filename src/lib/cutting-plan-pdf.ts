@@ -328,7 +328,7 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
 
     // Draw pieces at real scale
     layout.pieces.forEach((p, pi) => {
-      const color = getPieceColorPdf(p.originalIndex ?? pi);
+      const color = getPieceColorPdf(p.pieceIndex ?? pi);
       doc.setFillColor(color[0], color[1], color[2]);
       doc.setDrawColor(255, 255, 255);
       doc.setLineWidth(0.3);
@@ -339,7 +339,7 @@ function exportSheetRealScale(data: CuttingPlanPdfData) {
       if (fontSize >= 3) {
         doc.setFontSize(fontSize);
         doc.setFont("helvetica", "bold");
-        doc.text(`P${(p.originalIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+        doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
         doc.setFontSize(Math.max(3, fontSize * 0.7));
         doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
       }
