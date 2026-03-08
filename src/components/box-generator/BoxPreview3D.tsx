@@ -497,7 +497,6 @@ export function BoxPreview3D({ params, className }: Props) {
           tabDir: m.tabDir,
           padding: edges[m.edge]!.padding,
           edgeLength: edges[m.edge]!.edgeLength,
-          tabDir: m.tabDir,
         }));
     };
 
