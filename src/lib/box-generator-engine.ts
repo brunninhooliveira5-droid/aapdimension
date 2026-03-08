@@ -458,7 +458,7 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
   let y = gap;
   let maxRowH = 0;
   const maxWidth = 800;
-  const rects: string[] = [];
+  const elements: string[] = [];
 
   for (const piece of pieces) {
     for (let q = 0; q < piece.quantity; q++) {
@@ -468,14 +468,23 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
         maxRowH = 0;
       }
 
-      rects.push(
-        `<g transform="translate(${x}, ${y})">` +
-        `<rect x="0" y="0" width="${piece.width}" height="${piece.height}" ` +
-        `fill="none" stroke="#000" stroke-width="0.5"/>` +
-        `<text x="${piece.width / 2}" y="${piece.height / 2}" ` +
+      if (piece.paths && piece.paths.length > 0) {
+        for (const contour of piece.paths) {
+          let d = `M ${x} ${y}`;
+          for (const seg of contour) {
+            d += ` L ${x + seg.x} ${y + seg.y}`;
+          }
+          d += " Z";
+          elements.push(
+            `<path d="${d}" fill="none" stroke="#000" stroke-width="0.5"/>`
+          );
+        }
+      }
+
+      elements.push(
+        `<text x="${x + piece.width / 2}" y="${y + piece.height / 2}" ` +
         `font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#666">` +
-        `${piece.label}` +
-        `</text></g>`
+        `${piece.label}</text>`
       );
 
       maxRowH = Math.max(maxRowH, piece.height);
@@ -484,7 +493,7 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
   }
 
   const totalH = y + maxRowH + gap;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${maxWidth}" height="${totalH}" viewBox="0 0 ${maxWidth} ${totalH}">\n${rects.join("\n")}\n</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${maxWidth}" height="${totalH}" viewBox="0 0 ${maxWidth} ${totalH}">\n${elements.join("\n")}\n</svg>`;
 }
 
 // ─── DXF Export ──────────────────────────────────────────────────
@@ -504,19 +513,25 @@ export function boxPiecesToDXF(pieces: BoxPiece[], gap: number = 10): string {
         maxRowH = 0;
       }
 
-      const x1 = offsetX;
-      const y1 = offsetY;
-      const x2 = offsetX + piece.width;
-      const y2 = offsetY + piece.height;
-
-      // Rectangle as 4 lines
       const addLine = (ax: number, ay: number, bx: number, by: number) => {
         lines += `0\nLINE\n8\n0\n10\n${ax}\n20\n${ay}\n30\n0\n11\n${bx}\n21\n${by}\n31\n0\n`;
       };
-      addLine(x1, y1, x2, y1);
-      addLine(x2, y1, x2, y2);
-      addLine(x2, y2, x1, y2);
-      addLine(x1, y2, x1, y1);
+
+      if (piece.paths && piece.paths.length > 0) {
+        for (const contour of piece.paths) {
+          let prevX = offsetX;
+          let prevY = offsetY;
+          for (const seg of contour) {
+            const nx = offsetX + seg.x;
+            const ny = offsetY + seg.y;
+            addLine(prevX, prevY, nx, ny);
+            prevX = nx;
+            prevY = ny;
+          }
+          // Close
+          addLine(prevX, prevY, offsetX, offsetY);
+        }
+      }
 
       maxRowH = Math.max(maxRowH, piece.height);
       offsetX += piece.width + gap;
