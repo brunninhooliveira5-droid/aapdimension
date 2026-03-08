@@ -158,6 +158,11 @@ export async function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
       theme: "grid",
       headStyles: { fillColor: [34, 197, 94] },
     });
+
+    // Draw tube bar layouts visually
+    const dims = data.dimensions.replace(/\s/g, "").replace("mm", "");
+    const barLength = parseFloat(dims) || 6000;
+    drawTubeBarLayoutsA4(doc, r, barLength, data.kerfWidth);
   }
 
   const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
