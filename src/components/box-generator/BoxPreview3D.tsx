@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { BoxParams } from "@/lib/box-generator-engine";
+import type { BoxParams, PieceEdgeMap } from "@/lib/box-generator-engine";
+import { computeBoxJoints } from "@/lib/box-generator-engine";
 
 interface Props {
   params: BoxParams;
@@ -17,15 +18,7 @@ type Face3D = {
   wallId?: string;
 };
 
-function computeFingerCount(edgeLen: number, minSize: number, maxSize: number): number {
-  let best = 3;
-  for (let n = 3; n < 60; n += 2) {
-    const sz = edgeLen / n;
-    if (sz >= minSize && sz <= maxSize) { best = n; break; }
-    if (sz < minSize) { best = Math.max(3, n - 2); break; }
-  }
-  return best;
-}
+// fingerCount is now computed by computeBoxJoints (single source of truth)
 
 const v3add = (a: Vec3, b: Vec3): Vec3 => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
 const v3sub = (a: Vec3, b: Vec3): Vec3 => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
@@ -152,20 +145,20 @@ function draw2DPieces(
   ctx: CanvasRenderingContext2D, cw: number, ch: number,
   params: BoxParams, W: number, H: number, D: number,
 ) {
-  const t = params.materialThickness;
+  const jc = computeBoxJoints(params);
   const isOpen = params.boxType === "open";
   const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
-  const wallH = isOpen || hasLid ? H - t : H;
-  const sideD = D - 2 * t;
+  const { wallH, sideW, pieceEdges } = jc;
+
   const pieces = [
-    { label: "Fundo", w: W, h: sideD },
-    { label: "Esquerda", w: sideD, h: wallH },
-    { label: "Direita", w: sideD, h: wallH },
-    { label: "Frente", w: W, h: wallH },
-    { label: "Traseira", w: W, h: wallH },
+    { id: "bottom", label: "Fundo", w: W, h: sideW },
+    { id: "left", label: "Esquerda", w: sideW, h: wallH },
+    { id: "right", label: "Direita", w: sideW, h: wallH },
+    { id: "front", label: "Frente", w: W, h: wallH },
+    { id: "back", label: "Traseira", w: W, h: wallH },
   ];
-  if (!isOpen && !hasLid) pieces.push({ label: "Topo", w: W, h: sideD });
-  if (hasLid) pieces.push({ label: "Tampa", w: W, h: sideD });
+  if (!isOpen && !hasLid) pieces.push({ id: "top", label: "Topo", w: W, h: sideW });
+  if (hasLid) pieces.push({ id: "lid", label: "Tampa", w: W, h: sideW });
 
   const maxPW = Math.max(...pieces.map(p => p.w));
   const maxPH = Math.max(...pieces.map(p => p.h));
@@ -181,6 +174,30 @@ function draw2DPieces(
   ctx.fillText("Peças Planificadas (2D)", 10, 14);
 
   const colors = ["#a07830", "#b88a3a", "#c49340", "#d4a553", "#c49340", "#e2b96a", "#e8c06a"];
+
+  const drawEdgeFingers = (
+    ex: number, ey: number, pw: number, ph: number,
+    edgeCfg: { isTabs: boolean; fingerCount: number } | null,
+    side: "top" | "bottom" | "left" | "right",
+  ) => {
+    if (!edgeCfg) return;
+    const fc = edgeCfg.fingerCount;
+    ctx.fillStyle = edgeCfg.isTabs ? "#3d2a10" : "#8b6914";
+    if (side === "top") {
+      const fS = pw / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(ex + fi * fS, edgeCfg.isTabs ? ey - 3 : ey, fS, 3); }
+    } else if (side === "bottom") {
+      const fS = pw / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(ex + fi * fS, edgeCfg.isTabs ? ey + ph : ey + ph - 3, fS, 3); }
+    } else if (side === "left") {
+      const fS = ph / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(edgeCfg.isTabs ? ex - 3 : ex, ey + fi * fS, 3, fS); }
+    } else {
+      const fS = ph / fc;
+      for (let fi = 0; fi < fc; fi++) { if (fi % 2 === 0) ctx.fillRect(edgeCfg.isTabs ? ex + pw : ex + pw - 3, ey + fi * fS, 3, fS); }
+    }
+  };
+
   pieces.forEach((piece, idx) => {
     const pw = piece.w * sc;
     const ph = piece.h * sc;
@@ -192,13 +209,13 @@ function draw2DPieces(
     ctx.strokeRect(x, y, pw, ph);
 
     if (params.jointType === "finger" || params.jointType === "tslot") {
-      const fcW2 = computeFingerCount(piece.w, params.fingerMinSize, params.fingerMaxSize);
-      const fcH2 = computeFingerCount(piece.h, params.fingerMinSize, params.fingerMaxSize);
-      ctx.fillStyle = "#3d2a10";
-      const fSW = pw / fcW2;
-      for (let fi = 0; fi < fcW2; fi++) { if (fi % 2 === 0) { ctx.fillRect(x + fi * fSW, y - 3, fSW, 3); ctx.fillRect(x + fi * fSW, y + ph, fSW, 3); } }
-      const fSH = ph / fcH2;
-      for (let fi = 0; fi < fcH2; fi++) { if (fi % 2 === 0) { ctx.fillRect(x - 3, y + fi * fSH, 3, fSH); ctx.fillRect(x + pw, y + fi * fSH, 3, fSH); } }
+      const edges = pieceEdges[piece.id];
+      if (edges) {
+        drawEdgeFingers(x, y, pw, ph, edges.top, "top");
+        drawEdgeFingers(x, y, pw, ph, edges.bottom, "bottom");
+        drawEdgeFingers(x, y, pw, ph, edges.left, "left");
+        drawEdgeFingers(x, y, pw, ph, edges.right, "right");
+      }
     }
 
     ctx.fillStyle = "#3d2a10";
@@ -346,9 +363,9 @@ export function BoxPreview3D({ params, className }: Props) {
     const isOpen = params.boxType === "open";
     const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
     const hw = W/2, hh = H/2, hd = D/2;
+    const jc = computeBoxJoints(params);
     const useFinger = params.jointType === "finger" || params.jointType === "tslot";
-    const wallH = isOpen || hasLid ? H - t : H;
-    const sideD = D - 2 * t;
+    const wallH = jc.wallH;
 
     const woodOuter = "#d4a553";
     const woodInner = "#c49340";
@@ -357,10 +374,6 @@ export function BoxPreview3D({ params, className }: Props) {
     const woodDark  = "#a06e28";
     const woodTabTip = "#c89040";
     const woodTabSide = "#b88030";
-
-    const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
-    const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
-    const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
 
     const yBot = -hh, yTop = -hh + wallH;
     const zF = hd - t, zB = -hd + t; // inner Z limits for sides
@@ -468,89 +481,94 @@ export function BoxPreview3D({ params, className }: Props) {
       }
     };
 
-    // ── FRONT ── (full W × wallH at Z = +hd)
-    // Bottom edge: tabs going down into bottom. Top edge: tabs going up into top.
-    // Left/Right edges: slots receiving side tabs.
+    // ────────────────────────────────────────────────────────────
+    // Build 3D joint edges from engine config (single source of truth)
+    // ────────────────────────────────────────────────────────────
+    type EdgeMapping = { edge: "top" | "bottom" | "left" | "right"; c0i: number; c1i: number; tabDir: Vec3 };
+    const buildJointEdges = (wallId: string, mapping: EdgeMapping[]): JointEdge[] => {
+      const edges = jc.pieceEdges[wallId];
+      if (!edges) return [];
+      return mapping
+        .filter(m => edges[m.edge] !== null)
+        .map(m => ({
+          c0i: m.c0i, c1i: m.c1i,
+          fc: edges[m.edge]!.fingerCount,
+          isTabs: edges[m.edge]!.isTabs,
+          tabDir: m.tabDir,
+        }));
+    };
+
+    // ── FRONT ── (W × wallH at Z = +hd)
     addWall("front",
       [[-hw, yBot, hd], [hw, yBot, hd], [hw, yTop, hd], [-hw, yTop, hd]],
       [0, 0, 1], woodOuter, woodInner, woodEdge, "Frente",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },   // bottom: tabs down
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 }, // right: slots
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]  // top: tabs up
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 }, // left: slots
-      ],
+      buildJointEdges("front", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [-1, 0, 0] },
+      ]),
     );
 
-    // ── BACK ── (full W × wallH at Z = -hd)
+    // ── BACK ── (W × wallH at Z = -hd)
     addWall("back",
       [[hw, yBot, -hd], [-hw, yBot, -hd], [-hw, yTop, -hd], [hw, yTop, -hd]],
       [0, 0, -1], woodInner, woodOuter, woodEdge, "Traseira",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-      ],
+      buildJointEdges("back", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "left",   c0i: 1, c1i: 2, tabDir: [-1, 0, 0] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "right",  c0i: 0, c1i: 3, tabDir: [1, 0, 0] },
+      ]),
     );
 
-    // ── LEFT ── (sideD × wallH at X = -hw, inset Z by t)
-    // All edges have tabs going into neighbors.
+    // ── LEFT ── (sideW × wallH at X = -hw)
     addWall("left",
       [[-hw, yBot, zF], [-hw, yBot, zB], [-hw, yTop, zB], [-hw, yTop, zF]],
       [-1, 0, 0], woodEdge, woodInner, woodDark, "Esquerda",
-      [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 }, // bottom
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 }, // back
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },  // front
-      ],
+      buildJointEdges("left", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [0, 0, -1] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [0, 0, 1] },
+      ]),
     );
 
-    // ── RIGHT ── (sideD × wallH at X = +hw, inset Z by t)
+    // ── RIGHT ── (sideW × wallH at X = +hw)
     addWall("right",
       [[hw, yBot, zB], [hw, yBot, zF], [hw, yTop, zF], [hw, yTop, zB]],
       [1, 0, 0], woodInner, woodEdge, woodDark, "Direita",
-      [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
-      ],
+      buildJointEdges("right", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [0, 0, 1] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [0, 0, -1] },
+      ]),
     );
 
-    // ── BOTTOM ── (W × sideD at Y = -hh)
-    // All edges = slots (receives tabs from front/back/sides)
+    // ── BOTTOM ── (W × sideW at Y = -hh)
     addWall("bottom",
       [[-hw, -hh, zF], [hw, -hh, zF], [hw, -hh, zB], [-hw, -hh, zB]],
       [0, -1, 0], woodDark, woodEdge, woodEdge, "Fundo",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-        { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
-        { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-      ],
+      buildJointEdges("bottom", [
+        { edge: "top",    c0i: 0, c1i: 1, tabDir: [0, 0, 1] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+        { edge: "bottom", c0i: 2, c1i: 3, tabDir: [0, 0, -1] },
+        { edge: "left",   c0i: 3, c1i: 0, tabDir: [-1, 0, 0] },
+      ]),
     );
 
-    // ── TOP ── (W × sideD at Y = yTop)
+    // ── TOP ──
     if (!isOpen && !hasLid) {
       addWall("top",
         [[-hw, yTop, zB], [hw, yTop, zB], [hw, yTop, zF], [-hw, yTop, zF]],
         [0, 1, 0], woodLight, woodInner, woodEdge, "Topo",
-        [
-          { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
-          { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-          { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
-          { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-        ],
+        buildJointEdges("top", [
+          { edge: "top",    c0i: 0, c1i: 1, tabDir: [0, 0, -1] },
+          { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+          { edge: "bottom", c0i: 2, c1i: 3, tabDir: [0, 0, 1] },
+          { edge: "left",   c0i: 3, c1i: 0, tabDir: [-1, 0, 0] },
+        ]),
       );
     }
 
