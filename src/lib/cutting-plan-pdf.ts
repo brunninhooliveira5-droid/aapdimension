@@ -493,8 +493,14 @@ function computeSingleCutGeometry(
   const mergedH = mergeCollinearSegments(hContourSegs, kerf + TOL);
   const mergedV = mergeCollinearSegments(vContourSegs, kerf + TOL);
 
-  // Build connected contour polygon from merged segments
-  const contourLines = buildConnectedContour(mergedH, mergedV);
+  // Convert merged segments directly to lines (no polygon tracing needed)
+  const contourLines: CutLine[] = [];
+  for (const s of mergedH) {
+    contourLines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos });
+  }
+  for (const s of mergedV) {
+    contourLines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end });
+  }
 
   // Merge internal cut segments so they pass through intersections continuously
   const mergedHInternal = mergeCollinearSegments(hInternalSegs, kerf + TOL);
