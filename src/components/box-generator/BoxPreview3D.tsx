@@ -89,9 +89,10 @@ export function BoxPreview3D({ params, className }: Props) {
     dragging.current = false;
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.001)));
+    e.stopPropagation();
+    setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.002)));
   }, []);
 
   useEffect(() => {
