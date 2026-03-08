@@ -705,6 +705,69 @@ export function SheetCuttingTab() {
                           </div>
                         ))}
 
+                        {/* Kerf lines between pieces (singleCut mode) */}
+                        {singleCut && (() => {
+                          const kerf = parseFloat(kerfWidth) || 0;
+                          if (kerf <= 0) return null;
+                          const kerfLines: { x1: number; y1: number; x2: number; y2: number; vertical: boolean }[] = [];
+                          const pcs = layout.pieces;
+                          for (let a = 0; a < pcs.length; a++) {
+                            for (let b = a + 1; b < pcs.length; b++) {
+                              const pa = pcs[a], pb = pcs[b];
+                              const aR = pa.x + pa.width, bR = pb.x + pb.width;
+                              const aB = pa.y + pa.height, bB = pb.y + pb.height;
+                              // Vertical shared edge (right of a = left of b with kerf gap)
+                              if (Math.abs(aR + kerf - pb.x) < 1) {
+                                const overlapY1 = Math.max(pa.y, pb.y);
+                                const overlapY2 = Math.min(aB, bB);
+                                if (overlapY2 > overlapY1) {
+                                  kerfLines.push({ x1: aR + kerf / 2, y1: overlapY1, x2: aR + kerf / 2, y2: overlapY2, vertical: true });
+                                }
+                              }
+                              if (Math.abs(bR + kerf - pa.x) < 1) {
+                                const overlapY1 = Math.max(pa.y, pb.y);
+                                const overlapY2 = Math.min(aB, bB);
+                                if (overlapY2 > overlapY1) {
+                                  kerfLines.push({ x1: bR + kerf / 2, y1: overlapY1, x2: bR + kerf / 2, y2: overlapY2, vertical: true });
+                                }
+                              }
+                              // Horizontal shared edge
+                              if (Math.abs(aB + kerf - pb.y) < 1) {
+                                const overlapX1 = Math.max(pa.x, pb.x);
+                                const overlapX2 = Math.min(aR, bR);
+                                if (overlapX2 > overlapX1) {
+                                  kerfLines.push({ x1: overlapX1, y1: aB + kerf / 2, x2: overlapX2, y2: aB + kerf / 2, vertical: false });
+                                }
+                              }
+                              if (Math.abs(bB + kerf - pa.y) < 1) {
+                                const overlapX1 = Math.max(pa.x, pb.x);
+                                const overlapX2 = Math.min(aR, bR);
+                                if (overlapX2 > overlapX1) {
+                                  kerfLines.push({ x1: overlapX1, y1: bB + kerf / 2, x2: overlapX2, y2: bB + kerf / 2, vertical: false });
+                                }
+                              }
+                            }
+                          }
+                          return kerfLines.map((line, idx) => (
+                            <div
+                              key={`kerf-${idx}`}
+                              className="absolute bg-destructive"
+                              style={line.vertical ? {
+                                left: `${(line.x1 / matW) * 100}%`,
+                                top: `${(line.y1 / matH) * 100}%`,
+                                width: '1.5px',
+                                height: `${((line.y2 - line.y1) / matH) * 100}%`,
+                              } : {
+                                left: `${(line.x1 / matW) * 100}%`,
+                                top: `${(line.y1 / matH) * 100}%`,
+                                width: `${((line.x2 - line.x1) / matW) * 100}%`,
+                                height: '1.5px',
+                              }}
+                              title={`Corte compartilhado (kerf: ${kerf}mm)`}
+                            />
+                          ));
+                        })()}
+
                         {/* Scrap area - right */}
                         {hasScrapRight && (
                           <div
