@@ -9,6 +9,9 @@ export type CutSide = "inside" | "outside" | "on-line";
 
 export type ToolType = "flat-end" | "v-bit" | "ball-nose" | "finishing" | "straight";
 
+export type EntryMode = "plunge" | "ramp-linear" | "ramp-helicoidal";
+export type LeadType = "none" | "line" | "arc";
+
 export interface CncTool {
   id: string;
   name: string;
@@ -52,6 +55,19 @@ export interface TabSettings {
   count: number;
   width: number;
   height: number;
+  minDistance: number;
+}
+
+export interface EntrySettings {
+  mode: EntryMode;
+  rampLength: number;
+  rampAngle: number;
+}
+
+export interface LeadSettings {
+  type: LeadType;
+  radius: number;
+  length: number;
 }
 
 export interface ToolpathOperation {
@@ -65,8 +81,9 @@ export interface ToolpathOperation {
   depthPerPass: number;
   cutSide: CutSide;
   cutDirection: CutDirection;
-  leadIn: number;
-  leadOut: number;
+  leadIn: LeadSettings;
+  leadOut: LeadSettings;
+  entry: EntrySettings;
   tabs: TabSettings;
   rampEntry: boolean;
   order: number;
@@ -87,8 +104,10 @@ export interface SvgVector {
   label: string;
   pathData: string; // d attribute
   layer: string;
+  groupId: string;
   selected: boolean;
   color: string;
+  closed: boolean;
   boundingBox: { x: number; y: number; w: number; h: number };
 }
 
@@ -119,12 +138,13 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
 
   const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
-  function processElement(el: Element, layerName: string) {
+  function processElement(el: Element, layerName: string, groupId: string) {
     const tag = el.tagName.toLowerCase();
 
     if (tag === "g") {
       const gLabel = el.getAttribute("inkscape:label") || el.getAttribute("id") || layerName;
-      Array.from(el.children).forEach((child) => processElement(child, gLabel));
+      const gId = el.getAttribute("id") || groupId;
+      Array.from(el.children).forEach((child) => processElement(child, gLabel, gId));
       return;
     }
 
@@ -136,7 +156,15 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
       const y = parseFloat(el.getAttribute("y") || "0");
       const w = parseFloat(el.getAttribute("width") || "0");
       const h = parseFloat(el.getAttribute("height") || "0");
-      d = `M${x},${y} L${x + w},${y} L${x + w},${y + h} L${x},${y + h} Z`;
+      const rx = parseFloat(el.getAttribute("rx") || "0");
+      const ry = parseFloat(el.getAttribute("ry") || rx.toString());
+      if (rx > 0 || ry > 0) {
+        const r = Math.min(rx, w / 2);
+        const rr = Math.min(ry, h / 2);
+        d = `M${x + r},${y} L${x + w - r},${y} A${r},${rr} 0 0,1 ${x + w},${y + rr} L${x + w},${y + h - rr} A${r},${rr} 0 0,1 ${x + w - r},${y + h} L${x + r},${y + h} A${r},${rr} 0 0,1 ${x},${y + h - rr} L${x},${y + rr} A${r},${rr} 0 0,1 ${x + r},${y} Z`;
+      } else {
+        d = `M${x},${y} L${x + w},${y} L${x + w},${y + h} L${x},${y + h} Z`;
+      }
     } else if (tag === "circle") {
       const cx = parseFloat(el.getAttribute("cx") || "0");
       const cy = parseFloat(el.getAttribute("cy") || "0");
@@ -169,6 +197,8 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
 
     if (!d) return;
 
+    const closed = /[Zz]\s*$/.test(d.trim());
+
     // Compute bounding box from path data (simplified)
     const nums = d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
     const xs = nums.filter((_, i) => i % 2 === 0);
@@ -183,7 +213,9 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
       label: el.getAttribute("id") || `${tag}-${idx}`,
       pathData: d,
       layer: layerName,
+      groupId,
       selected: false,
+      closed,
       color: COLORS[idx % COLORS.length],
       boundingBox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
     });
@@ -191,7 +223,7 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
   }
 
   if (svgEl) {
-    Array.from(svgEl.children).forEach((child) => processElement(child, "Default"));
+    Array.from(svgEl.children).forEach((child) => processElement(child, "Default", "root"));
   }
 
   return { vectors, viewBox };
@@ -200,7 +232,6 @@ export function parseSvgContent(svgString: string): { vectors: SvgVector[]; view
 // ── Path Length Estimation ──
 
 function estimatePathLength(d: string): number {
-  // Simple estimation from path data coordinates
   const nums = d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
   let length = 0;
   for (let i = 2; i < nums.length - 1; i += 2) {
@@ -211,142 +242,14 @@ function estimatePathLength(d: string): number {
   return length;
 }
 
-// ── Operation Calculations ──
+// ── Extract Points from Path ──
 
-export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefined, vectors: SvgVector[]) {
-  if (!tool) return { passes: 0, pathLength: 0, estimatedTime: 0 };
-
-  const totalDepth = Math.abs(op.finalDepth - op.startDepth);
-  const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
-
-  let pathLength = 0;
-  for (const vid of op.vectorIds) {
-    const v = vectors.find((vv) => vv.id === vid);
-    if (v) pathLength += estimatePathLength(v.pathData);
-  }
-
-  // offset for profile operations
-  if (op.type === "pocket") {
-    const stepOverMm = tool.diameter * (tool.stepOver / 100);
-    if (stepOverMm > 0) {
-      // rough estimate: area / stepover * passes
-      const avgWidth = pathLength > 0 ? pathLength / 4 : 50; // rough
-      pathLength = pathLength * (avgWidth / stepOverMm) * 0.6;
-    }
-  }
-
-  const totalPath = pathLength * passes;
-  const feedRate = tool.feedXY || 1000;
-  const estimatedTime = totalPath / feedRate; // minutes
-
-  return { passes, pathLength: Math.round(pathLength), estimatedTime: Math.round(estimatedTime * 100) / 100 };
-}
-
-// ── G-code Generation ──
-
-const HEADERS: Record<PostProcessor, string[]> = {
-  mach3: ["%", "O0001", "G90 G94 G21", "G17"],
-  grbl: ["$H", "G90 G21 G17"],
-  ddcs: ["%", "G90 G21 G17"],
-};
-
-const FOOTERS: Record<PostProcessor, string[]> = {
-  mach3: ["M05", "G28 G91 Z0", "G28 X0 Y0", "M30", "%"],
-  grbl: ["M05", "G0 Z10", "G0 X0 Y0", "M2"],
-  ddcs: ["M05", "G0 Z10", "G0 X0 Y0", "M30", "%"],
-};
-
-export function generateGcode(
-  project: ToolpathProject,
-  postProcessor: PostProcessor
-): string {
-  const lines: string[] = [...HEADERS[postProcessor]];
-  lines.push(`(Project: ${project.name})`);
-  lines.push(`(Material: ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
-  lines.push("");
-
-  const sortedOps = [...project.operations]
-    .filter((o) => o.enabled)
-    .sort((a, b) => a.order - b.order);
-
-  for (const op of sortedOps) {
-    const tool = project.tools.find((t) => t.id === op.toolId);
-    if (!tool) continue;
-
-    lines.push(`(Operation: ${op.name} - ${OPERATION_LABELS[op.type]})`);
-    lines.push(`(Tool: ${tool.name} D${tool.diameter})`);
-    lines.push(`M03 S${tool.spindleRpm}`);
-    lines.push("G04 P2 (spindle warmup)");
-
-    const totalDepth = Math.abs(op.finalDepth - op.startDepth);
-    const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
-
-    // Get path points from vectors
-    for (const vid of op.vectorIds) {
-      const v = project.vectors.find((vv) => vv.id === vid);
-      if (!v) continue;
-
-      const points = extractPointsFromPath(v.pathData);
-      if (points.length < 2) continue;
-
-      // Offset for cut side
-      const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
-
-      for (let pass = 0; pass < passes; pass++) {
-        const z = -(op.startDepth + (pass + 1) * (op.depthPerPass || tool.depthPerPass));
-        const zClamped = Math.max(z, -Math.abs(op.finalDepth));
-
-        // Safe height
-        lines.push(`G0 Z5`);
-
-        // Move to first point
-        const [fx, fy] = applyOffset(points[0], offset);
-        lines.push(`G0 X${fx.toFixed(3)} Y${fy.toFixed(3)}`);
-
-        // Plunge
-        if (op.rampEntry && points.length > 2) {
-          lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
-        } else {
-          lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
-        }
-
-        // Cut path
-        for (let i = 1; i < points.length; i++) {
-          const [px, py] = applyOffset(points[i], offset);
-
-          // Handle tabs
-          if (op.tabs.enabled && op.type.startsWith("profile")) {
-            const tabZ = zClamped + op.tabs.height;
-            const segmentFraction = i / points.length;
-            const tabInterval = 1 / (op.tabs.count + 1);
-            const isTabZone = op.tabs.count > 0 && Math.abs(segmentFraction % tabInterval - tabInterval / 2) < 0.02;
-            if (isTabZone && pass === passes - 1) {
-              lines.push(`G1 Z${Math.min(tabZ, -0.1).toFixed(3)} F${tool.feedZ}`);
-              lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
-              lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
-              continue;
-            }
-          }
-
-          lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
-        }
-      }
-    }
-
-    lines.push(`G0 Z5`);
-    lines.push("");
-  }
-
-  lines.push(...FOOTERS[postProcessor]);
-  return lines.join("\n");
-}
-
-function extractPointsFromPath(d: string): [number, number][] {
+export function extractPointsFromPath(d: string): [number, number][] {
   const points: [number, number][] = [];
-  // Simple parser for M, L, Z commands (handles most SVG paths)
   const regex = /([MLHVCSQTAZmlhvcsqtaz])\s*([^MLHVCSQTAZmlhvcsqtaz]*)/g;
   let match;
   let cx = 0, cy = 0;
+  let firstX = 0, firstY = 0;
 
   while ((match = regex.exec(d)) !== null) {
     const cmd = match[1];
@@ -357,12 +260,14 @@ function extractPointsFromPath(d: string): [number, number][] {
         for (let i = 0; i < args.length - 1; i += 2) {
           cx = args[i]; cy = args[i + 1];
           points.push([cx, cy]);
+          if (i === 0) { firstX = cx; firstY = cy; }
         }
         break;
       case "m":
         for (let i = 0; i < args.length - 1; i += 2) {
           cx += args[i]; cy += args[i + 1];
           points.push([cx, cy]);
+          if (points.length === 1) { firstX = cx; firstY = cy; }
         }
         break;
       case "L":
@@ -391,11 +296,10 @@ function extractPointsFromPath(d: string): [number, number][] {
         break;
       case "Z":
       case "z":
-        if (points.length > 0) points.push([...points[0]]);
+        if (points.length > 0) points.push([firstX, firstY]);
         break;
       case "A":
       case "a": {
-        // Approximate arc with endpoint
         const abs = cmd === "A";
         for (let i = 0; i + 6 < args.length; i += 7) {
           if (abs) {
@@ -409,13 +313,27 @@ function extractPointsFromPath(d: string): [number, number][] {
       }
       case "C":
         for (let i = 0; i + 5 < args.length; i += 6) {
-          cx = args[i + 4]; cy = args[i + 5];
+          // Add midpoints for smoother representation
+          const cp1x = args[i], cp1y = args[i + 1];
+          const cp2x = args[i + 2], cp2y = args[i + 3];
+          const ex = args[i + 4], ey = args[i + 5];
+          // Subdivide bezier
+          const mx = (cx + 3 * cp1x + 3 * cp2x + ex) / 8;
+          const my = (cy + 3 * cp1y + 3 * cp2y + ey) / 8;
+          points.push([mx, my]);
+          cx = ex; cy = ey;
           points.push([cx, cy]);
         }
         break;
       case "c":
         for (let i = 0; i + 5 < args.length; i += 6) {
-          cx += args[i + 4]; cy += args[i + 5];
+          const cp1x = cx + args[i], cp1y = cy + args[i + 1];
+          const cp2x = cx + args[i + 2], cp2y = cy + args[i + 3];
+          const ex = cx + args[i + 4], ey = cy + args[i + 5];
+          const mx = (cx + 3 * cp1x + 3 * cp2x + ex) / 8;
+          const my = (cy + 3 * cp1y + 3 * cp2y + ey) / 8;
+          points.push([mx, my]);
+          cx = ex; cy = ey;
           points.push([cx, cy]);
         }
         break;
@@ -431,6 +349,30 @@ function extractPointsFromPath(d: string): [number, number][] {
           points.push([cx, cy]);
         }
         break;
+      case "S":
+        for (let i = 0; i + 3 < args.length; i += 4) {
+          cx = args[i + 2]; cy = args[i + 3];
+          points.push([cx, cy]);
+        }
+        break;
+      case "s":
+        for (let i = 0; i + 3 < args.length; i += 4) {
+          cx += args[i + 2]; cy += args[i + 3];
+          points.push([cx, cy]);
+        }
+        break;
+      case "T":
+        for (let i = 0; i + 1 < args.length; i += 2) {
+          cx = args[i]; cy = args[i + 1];
+          points.push([cx, cy]);
+        }
+        break;
+      case "t":
+        for (let i = 0; i + 1 < args.length; i += 2) {
+          cx += args[i]; cy += args[i + 1];
+          points.push([cx, cy]);
+        }
+        break;
       default:
         break;
     }
@@ -438,9 +380,218 @@ function extractPointsFromPath(d: string): [number, number][] {
   return points;
 }
 
+// ── Operation Calculations ──
+
+export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefined, vectors: SvgVector[]) {
+  if (!tool) return { passes: 0, pathLength: 0, estimatedTime: 0 };
+
+  const totalDepth = Math.abs(op.finalDepth - op.startDepth);
+  const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
+
+  let pathLength = 0;
+  for (const vid of op.vectorIds) {
+    const v = vectors.find((vv) => vv.id === vid);
+    if (v) pathLength += estimatePathLength(v.pathData);
+  }
+
+  if (op.type === "pocket") {
+    const stepOverMm = tool.diameter * (tool.stepOver / 100);
+    if (stepOverMm > 0) {
+      const avgWidth = pathLength > 0 ? pathLength / 4 : 50;
+      pathLength = pathLength * (avgWidth / stepOverMm) * 0.6;
+    }
+  }
+
+  const totalPath = pathLength * passes;
+  const feedRate = tool.feedXY || 1000;
+  const estimatedTime = totalPath / feedRate;
+
+  return { passes, pathLength: Math.round(pathLength), estimatedTime: Math.round(estimatedTime * 100) / 100 };
+}
+
+// ── G-code Generation ──
+
+const HEADERS: Record<PostProcessor, string[]> = {
+  mach3: ["%", "O0001", "G90 G94 G21", "G17"],
+  grbl: ["$H", "G90 G21 G17"],
+  ddcs: ["%", "G90 G21 G17"],
+};
+
+const FOOTERS: Record<PostProcessor, string[]> = {
+  mach3: ["M05", "G28 G91 Z0", "G28 X0 Y0", "M30", "%"],
+  grbl: ["M05", "G0 Z10", "G0 X0 Y0", "M2"],
+  ddcs: ["M05", "G0 Z10", "G0 X0 Y0", "M30", "%"],
+};
+
+const TOOL_CHANGE: Record<PostProcessor, (toolNum: number, toolName: string) => string[]> = {
+  mach3: (n, name) => [`M05`, `G0 Z25`, `M06 T${n}`, `(Tool: ${name})`, `G43 H${n}`],
+  grbl: (n, name) => [`M05`, `G0 Z25`, `(Tool change: T${n} - ${name})`, `M00 (Pause for tool change)`],
+  ddcs: (n, name) => [`M05`, `G0 Z25`, `M06 T${n}`, `(Tool: ${name})`],
+};
+
 function applyOffset(pt: [number, number], offset: number): [number, number] {
-  // Simplified offset — in real CAM this would follow normal vectors
   return [pt[0] + offset, pt[1]];
+}
+
+function generateRampEntry(
+  entry: EntrySettings,
+  startPt: [number, number],
+  targetZ: number,
+  feedZ: number,
+  offset: number
+): string[] {
+  const lines: string[] = [];
+  const [fx, fy] = applyOffset(startPt, offset);
+
+  if (entry.mode === "plunge") {
+    lines.push(`G1 Z${targetZ.toFixed(3)} F${feedZ}`);
+  } else if (entry.mode === "ramp-linear") {
+    const rampLen = entry.rampLength || 10;
+    lines.push(`G1 X${(fx + rampLen).toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
+    lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} F${feedZ}`);
+  } else if (entry.mode === "ramp-helicoidal") {
+    const steps = 8;
+    const rampRad = entry.rampLength || 5;
+    const zStep = targetZ / steps;
+    for (let s = 1; s <= steps; s++) {
+      const angle = (s / steps) * Math.PI * 2;
+      const rx = fx + Math.cos(angle) * rampRad;
+      const ry = fy + Math.sin(angle) * rampRad;
+      lines.push(`G1 X${rx.toFixed(3)} Y${ry.toFixed(3)} Z${(zStep * s).toFixed(3)} F${feedZ}`);
+    }
+    lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
+  }
+  return lines;
+}
+
+function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [number, number] | undefined, offset: number): string[] {
+  if (lead.type === "none" || !nextPt) return [];
+  const [px, py] = applyOffset(pt, offset);
+  const lines: string[] = [];
+
+  if (lead.type === "line") {
+    const dx = nextPt[0] - pt[0];
+    const dy = nextPt[1] - pt[1];
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dx / len;
+    const ny = -dy / len;
+    const startX = px + nx * (lead.length || 3);
+    const startY = py + ny * (lead.length || 3);
+    lines.push(`G0 X${startX.toFixed(3)} Y${startY.toFixed(3)}`);
+  } else if (lead.type === "arc") {
+    const r = lead.radius || 3;
+    lines.push(`G2 X${px.toFixed(3)} Y${py.toFixed(3)} R${r.toFixed(3)}`);
+  }
+  return lines;
+}
+
+export function generateGcode(
+  project: ToolpathProject,
+  postProcessor: PostProcessor
+): string {
+  const lines: string[] = [...HEADERS[postProcessor]];
+  lines.push(`(Project: ${project.name})`);
+  lines.push(`(Material: ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
+  lines.push("");
+
+  const sortedOps = [...project.operations]
+    .filter((o) => o.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  let lastToolId = "";
+  let toolNumber = 0;
+
+  for (const op of sortedOps) {
+    const tool = project.tools.find((t) => t.id === op.toolId);
+    if (!tool) continue;
+
+    // Tool change
+    if (op.toolId !== lastToolId) {
+      toolNumber++;
+      if (lastToolId !== "") {
+        lines.push(...TOOL_CHANGE[postProcessor](toolNumber, tool.name));
+      }
+      lastToolId = op.toolId;
+    }
+
+    lines.push(`(Operation: ${op.name} - ${OPERATION_LABELS[op.type]})`);
+    lines.push(`(Tool: ${tool.name} D${tool.diameter})`);
+    lines.push(`M03 S${tool.spindleRpm}`);
+    lines.push("G04 P2 (spindle warmup)");
+
+    const totalDepth = Math.abs(op.finalDepth - op.startDepth);
+    const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
+
+    const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
+
+    for (const vid of op.vectorIds) {
+      const v = project.vectors.find((vv) => vv.id === vid);
+      if (!v) continue;
+
+      const points = extractPointsFromPath(v.pathData);
+      if (points.length < 2) continue;
+
+      for (let pass = 0; pass < passes; pass++) {
+        const z = -(op.startDepth + (pass + 1) * (op.depthPerPass || tool.depthPerPass));
+        const zClamped = Math.max(z, -Math.abs(op.finalDepth));
+
+        lines.push(`G0 Z5`);
+
+        const [fx, fy] = applyOffset(points[0], offset);
+        lines.push(`G0 X${fx.toFixed(3)} Y${fy.toFixed(3)}`);
+
+        // Lead in
+        const leadInLines = generateLeadIn(op.leadIn, points[0], points[1], offset);
+        lines.push(...leadInLines);
+
+        // Entry
+        lines.push(...generateRampEntry(op.entry, points[0], zClamped, tool.feedZ, offset));
+
+        // Cut path
+        for (let i = 1; i < points.length; i++) {
+          const [px, py] = applyOffset(points[i], offset);
+
+          // Handle tabs
+          if (op.tabs.enabled && op.type.startsWith("profile")) {
+            const tabZ = zClamped + op.tabs.height;
+            const segmentFraction = i / points.length;
+            const tabInterval = 1 / (op.tabs.count + 1);
+            const isTabZone = op.tabs.count > 0 && Math.abs(segmentFraction % tabInterval - tabInterval / 2) < 0.02;
+            if (isTabZone && pass === passes - 1) {
+              lines.push(`G1 Z${Math.min(tabZ, -0.1).toFixed(3)} F${tool.feedZ}`);
+              lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
+              lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
+              continue;
+            }
+          }
+
+          lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
+        }
+
+        // Lead out
+        if (op.leadOut.type === "line" && points.length >= 2) {
+          const lastPt = points[points.length - 1];
+          const prevPt = points[points.length - 2];
+          const dx = lastPt[0] - prevPt[0];
+          const dy = lastPt[1] - prevPt[1];
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const endX = lastPt[0] + (dx / len) * (op.leadOut.length || 3) + offset;
+          const endY = lastPt[1] + (dy / len) * (op.leadOut.length || 3);
+          lines.push(`G1 X${endX.toFixed(3)} Y${endY.toFixed(3)} F${tool.feedXY}`);
+        } else if (op.leadOut.type === "arc") {
+          const lastPt = applyOffset(points[points.length - 1], offset);
+          const r = op.leadOut.radius || 3;
+          lines.push(`G2 X${lastPt[0].toFixed(3)} Y${(lastPt[1] + r).toFixed(3)} R${r.toFixed(3)} F${tool.feedXY}`);
+        }
+      }
+    }
+
+    lines.push(`G0 Z5`);
+    lines.push("");
+  }
+
+  lines.push(...FOOTERS[postProcessor]);
+  return lines.join("\n");
 }
 
 // ── Default presets ──
@@ -510,6 +661,9 @@ export const DEFAULT_MATERIAL: MaterialConfig = {
   zZero: "top",
 };
 
+export const DEFAULT_LEAD: LeadSettings = { type: "none", radius: 3, length: 3 };
+export const DEFAULT_ENTRY: EntrySettings = { mode: "plunge", rampLength: 10, rampAngle: 5 };
+
 export function createDefaultOperation(order: number): ToolpathOperation {
   return {
     id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -522,9 +676,10 @@ export function createDefaultOperation(order: number): ToolpathOperation {
     depthPerPass: 1,
     cutSide: "outside",
     cutDirection: "climb",
-    leadIn: 0,
-    leadOut: 0,
-    tabs: { enabled: false, count: 4, width: 5, height: 2 },
+    leadIn: { ...DEFAULT_LEAD },
+    leadOut: { ...DEFAULT_LEAD },
+    entry: { ...DEFAULT_ENTRY },
+    tabs: { enabled: false, count: 4, width: 5, height: 2, minDistance: 30 },
     rampEntry: false,
     order,
     enabled: true,
