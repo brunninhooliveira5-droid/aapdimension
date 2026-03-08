@@ -28,11 +28,16 @@ function computeFingerCount(edgeLen: number, minSize: number, maxSize: number): 
 }
 
 const v3add = (a: Vec3, b: Vec3): Vec3 => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const v3sub = (a: Vec3, b: Vec3): Vec3 => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
 const v3scale = (a: Vec3, s: number): Vec3 => [a[0]*s, a[1]*s, a[2]*s];
 const v3lerp = (a: Vec3, b: Vec3, t: number): Vec3 => [
   a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t
 ];
 
+/**
+ * Build a basic 6-face slab (no finger joints on edges).
+ * corners = 4 outer face points, normal = outward direction.
+ */
 function buildSlab(
   corners: Vec3[], normal: Vec3, thickness: number,
   outerColor: string, innerColor: string, edgeColor: string,
@@ -41,8 +46,11 @@ function buildSlab(
   const faces: Face3D[] = [];
   const inward = v3scale(normal, -1);
   const inner = corners.map(c => v3add(c, v3scale(inward, thickness)));
+  // Outer face
   faces.push({ pts: [...corners], fill: outerColor, opacity, label, wallId });
+  // Inner face
   faces.push({ pts: [inner[3], inner[2], inner[1], inner[0]], fill: innerColor, opacity: opacity * 0.9, label: "", wallId });
+  // 4 edge strips
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     faces.push({ pts: [corners[i], corners[j], inner[j], inner[i]], fill: edgeColor, opacity: opacity * 0.95, label: "", wallId });
@@ -50,52 +58,67 @@ function buildSlab(
   return faces;
 }
 
-function buildJointIndicators(
-  c0: Vec3, c1: Vec3, i0: Vec3, i1: Vec3,
-  fingerCount: number, isTabs: boolean, wallId: string,
+/**
+ * Build 3D finger tab blocks protruding from a wall edge.
+ * These are integral parts of the wall — same colors.
+ * edgeStart/edgeEnd = outer edge corners, innerStart/innerEnd = inner edge corners.
+ * tabDir = direction tabs protrude (toward neighbor wall).
+ */
+function buildFingerTabs3D(
+  edgeStart: Vec3, edgeEnd: Vec3, innerStart: Vec3, innerEnd: Vec3,
+  tabDir: Vec3, thickness: number, fingerCount: number,
+  outerColor: string, sideColor: string, tipColor: string,
+  wallId: string, opacity: number,
 ): Face3D[] {
   const faces: Face3D[] = [];
-  const tabColor = "#c48a2a";
-  const slotColor = "#3d2a10";
   for (let fi = 0; fi < fingerCount; fi++) {
-    const isTab = (fi % 2 === 0) === isTabs;
+    if (fi % 2 !== 0) continue; // only even = tabs
     const t0 = fi / fingerCount;
     const t1 = (fi + 1) / fingerCount;
-    const a = v3lerp(c0, c1, t0);
-    const b = v3lerp(c0, c1, t1);
-    const ai = v3lerp(i0, i1, t0);
-    const bi = v3lerp(i0, i1, t1);
-    faces.push({ pts: [a, b, bi, ai], fill: isTab ? tabColor : slotColor, opacity: 0.92, label: "", isJoint: true, wallId });
+    // 4 corners of the tab base (on the wall edge)
+    const a = v3lerp(edgeStart, edgeEnd, t0);
+    const b = v3lerp(edgeStart, edgeEnd, t1);
+    const ai = v3lerp(innerStart, innerEnd, t0);
+    const bi = v3lerp(innerStart, innerEnd, t1);
+    // 4 corners of the tab tip (extended by thickness in tabDir)
+    const ext = v3scale(tabDir, thickness);
+    const ae = v3add(a, ext);
+    const be = v3add(b, ext);
+    const aie = v3add(ai, ext);
+    const bie = v3add(bi, ext);
+
+    // Tip face (outer face of tab)
+    faces.push({ pts: [ae, be, bie, aie], fill: tipColor, opacity, label: "", isJoint: true, wallId });
+    // Base face (hidden against wall edge, but needed for closed geometry)
+    // Not rendered — it's flush with the wall edge
+    // 4 side faces of the tab block
+    faces.push({ pts: [a, b, be, ae], fill: outerColor, opacity, label: "", isJoint: true, wallId });
+    faces.push({ pts: [bi, ai, aie, bie], fill: outerColor, opacity: opacity * 0.95, label: "", isJoint: true, wallId });
+    faces.push({ pts: [a, ae, aie, ai], fill: sideColor, opacity, label: "", isJoint: true, wallId });
+    faces.push({ pts: [b, be, bie, bi], fill: sideColor, opacity, label: "", isJoint: true, wallId });
   }
   return faces;
 }
 
-function buildExplodedTabs(
+/**
+ * Build slot indicators on a wall edge — dark recessed marks showing where tabs from
+ * the neighboring wall will fit.
+ */
+function buildSlotMarkers(
   edgeStart: Vec3, edgeEnd: Vec3, innerStart: Vec3, innerEnd: Vec3,
-  tabDir: Vec3, thickness: number, fingerCount: number, wallId: string,
+  fingerCount: number, wallId: string,
 ): Face3D[] {
   const faces: Face3D[] = [];
-  const tabColor = "#c48a2a";
-  const tabSide = "#a87420";
-  const tabTop = "#d49a35";
+  const slotColor = "#3d2a10";
   for (let fi = 0; fi < fingerCount; fi++) {
-    if (fi % 2 !== 0) continue;
+    if (fi % 2 !== 0) continue; // even positions = where tabs from neighbor go (slots here)
     const t0 = fi / fingerCount;
     const t1 = (fi + 1) / fingerCount;
     const a = v3lerp(edgeStart, edgeEnd, t0);
     const b = v3lerp(edgeStart, edgeEnd, t1);
     const ai = v3lerp(innerStart, innerEnd, t0);
     const bi = v3lerp(innerStart, innerEnd, t1);
-    const ae = v3add(a, v3scale(tabDir, thickness));
-    const be = v3add(b, v3scale(tabDir, thickness));
-    const aie = v3add(ai, v3scale(tabDir, thickness));
-    const bie = v3add(bi, v3scale(tabDir, thickness));
-    faces.push({ pts: [ae, be, bie, aie], fill: tabColor, opacity: 0.95, label: "", isJoint: true, wallId });
-    faces.push({ pts: [b, a, ai, bi], fill: tabSide, opacity: 0.85, label: "", isJoint: true, wallId });
-    faces.push({ pts: [a, ae, aie, ai], fill: tabTop, opacity: 0.90, label: "", isJoint: true, wallId });
-    faces.push({ pts: [be, b, bi, bie], fill: tabTop, opacity: 0.90, label: "", isJoint: true, wallId });
-    faces.push({ pts: [a, b, be, ae], fill: tabSide, opacity: 0.88, label: "", isJoint: true, wallId });
-    faces.push({ pts: [aie, bie, bi, ai], fill: tabSide, opacity: 0.85, label: "", isJoint: true, wallId });
+    faces.push({ pts: [a, b, bi, ai], fill: slotColor, opacity: 0.7, label: "", isJoint: true, wallId });
   }
   return faces;
 }
@@ -104,8 +127,8 @@ function buildExplodedTabs(
 interface WallConfig {
   id: string;
   label: string;
-  explodeDir: Vec3; // direction to explode away
-  order: number;    // assembly order (0 = first)
+  explodeDir: Vec3;
+  order: number;
 }
 
 const ASSEMBLY_ORDER: WallConfig[] = [
@@ -120,7 +143,6 @@ const ASSEMBLY_ORDER: WallConfig[] = [
 
 type SimMode = "assembled" | "exploded" | "flat2d" | "animating" | "stepbystep";
 
-// Easing function (ease-out cubic)
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -199,8 +221,8 @@ export function BoxPreview3D({ params, className }: Props) {
   const [rotation, setRotation] = useState({ rx: 0.5, ry: -0.7 });
   const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<SimMode>("assembled");
-  const [animProgress, setAnimProgress] = useState(0); // 0-1 overall
-  const [currentStep, setCurrentStep] = useState(-1); // step-by-step: which wall is being placed
+  const [animProgress, setAnimProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState(-1);
   const [isPaused, setIsPaused] = useState(false);
   const [simComplete, setSimComplete] = useState(false);
   const animRef = useRef<number>(0);
@@ -224,16 +246,14 @@ export function BoxPreview3D({ params, className }: Props) {
     setZoom(z => Math.max(0.3, Math.min(3, z - e.deltaY * 0.002)));
   }, []);
 
-  // Determine which walls exist
   const getActiveWalls = useCallback(() => {
     const isOpen = params.boxType === "open";
     const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
-    const walls = ASSEMBLY_ORDER.filter(w => {
+    return ASSEMBLY_ORDER.filter(w => {
       if (w.id === "top" && (isOpen || hasLid)) return false;
       if (w.id === "lid" && !hasLid) return false;
       return true;
     });
-    return walls;
   }, [params.boxType]);
 
   // ── Animation loop ──
@@ -241,24 +261,19 @@ export function BoxPreview3D({ params, className }: Props) {
     if (viewMode !== "animating") return;
     if (isPaused) return;
     const wallCount = getActiveWalls().length;
-    const duration = wallCount * 800; // ms total
+    const duration = wallCount * 800;
     const startTime = performance.now() - animProgress * duration;
-
     const tick = (now: number) => {
       const elapsed = now - startTime;
       const p = Math.min(1, elapsed / duration);
       setAnimProgress(p);
-      if (p >= 1) {
-        setSimComplete(true);
-        return;
-      }
+      if (p >= 1) { setSimComplete(true); return; }
       animRef.current = requestAnimationFrame(tick);
     };
     animRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animRef.current);
   }, [viewMode, isPaused, getActiveWalls, animProgress]);
 
-  // Step-by-step animation for individual step
   const [stepAnim, setStepAnim] = useState(0);
   useEffect(() => {
     if (viewMode !== "stepbystep" || currentStep < 0) return;
@@ -335,29 +350,30 @@ export function BoxPreview3D({ params, className }: Props) {
     const wallH = isOpen || hasLid ? H - t : H;
     const sideD = D - 2 * t;
 
-    const woodFront = "#d4a553", woodSide = "#c49340", woodEdge = "#b07e30";
-    const woodLight = "#e2b96a", woodDark = "#a06e28";
+    const woodOuter = "#d4a553";
+    const woodInner = "#c49340";
+    const woodEdge  = "#b07e30";
+    const woodLight = "#e2b96a";
+    const woodDark  = "#a06e28";
+    const woodTabTip = "#c89040";
+    const woodTabSide = "#b88030";
 
     const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
     const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
     const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
 
     const yBot = -hh, yTop = -hh + wallH;
-    const zF = hd - t, zB = -hd + t;
+    const zF = hd - t, zB = -hd + t; // inner Z limits for sides
 
     const activeWalls = getActiveWalls();
 
-    // Compute per-wall offset based on mode
     const getWallOffset = (wallId: string): Vec3 => {
       const wc = ASSEMBLY_ORDER.find(w => w.id === wallId);
       if (!wc) return [0, 0, 0];
-      const explodeMag = maxDim * 0.3;
+      const explodeMag = maxDim * 0.35;
 
       if (viewMode === "assembled") return [0, 0, 0];
-
-      if (viewMode === "exploded") {
-        return v3scale(wc.explodeDir, explodeMag);
-      }
+      if (viewMode === "exploded") return v3scale(wc.explodeDir, explodeMag);
 
       if (viewMode === "animating") {
         const wallIdx = activeWalls.findIndex(w => w.id === wallId);
@@ -365,43 +381,31 @@ export function BoxPreview3D({ params, className }: Props) {
         const perWall = 1 / wallCount;
         const wallStart = wallIdx * perWall;
         const wallEnd = wallStart + perWall;
-
-        if (animProgress >= wallEnd) return [0, 0, 0]; // fully assembled
-        if (animProgress < wallStart) return v3scale(wc.explodeDir, explodeMag); // still exploded
-
+        if (animProgress >= wallEnd) return [0, 0, 0];
+        if (animProgress < wallStart) return v3scale(wc.explodeDir, explodeMag);
         const localP = (animProgress - wallStart) / perWall;
-        const eased = easeOutCubic(localP);
-        return v3scale(wc.explodeDir, explodeMag * (1 - eased));
+        return v3scale(wc.explodeDir, explodeMag * (1 - easeOutCubic(localP)));
       }
 
       if (viewMode === "stepbystep") {
         const wallIdx = activeWalls.findIndex(w => w.id === wallId);
-        if (wallIdx < currentStep) return [0, 0, 0]; // already placed
-        if (wallIdx === currentStep) {
-          // Animating this step
-          return v3scale(wc.explodeDir, explodeMag * (1 - stepAnim));
-        }
-        return v3scale(wc.explodeDir, explodeMag); // not yet
+        if (wallIdx < currentStep) return [0, 0, 0];
+        if (wallIdx === currentStep) return v3scale(wc.explodeDir, explodeMag * (1 - stepAnim));
+        return v3scale(wc.explodeDir, explodeMag);
       }
-
       return [0, 0, 0];
     };
 
-    // Determine active/highlight wall
     const getWallState = (wallId: string): "active" | "placed" | "waiting" => {
       if (viewMode === "assembled" || viewMode === "exploded") return "placed";
       const wallIdx = activeWalls.findIndex(w => w.id === wallId);
-
       if (viewMode === "animating") {
         const wallCount = activeWalls.length;
         const perWall = 1 / wallCount;
-        const wallStart = wallIdx * perWall;
-        const wallEnd = wallStart + perWall;
-        if (animProgress >= wallEnd) return "placed";
-        if (animProgress >= wallStart) return "active";
+        if (animProgress >= (wallIdx + 1) * perWall) return "placed";
+        if (animProgress >= wallIdx * perWall) return "active";
         return "waiting";
       }
-
       if (viewMode === "stepbystep") {
         if (wallIdx < currentStep) return "placed";
         if (wallIdx === currentStep) return "active";
@@ -412,108 +416,140 @@ export function BoxPreview3D({ params, className }: Props) {
 
     const faces: Face3D[] = [];
 
-    // Helper to build a wall with offset and state
+    // ────────────────────────────────────────────────────────────
+    // addWall: build slab + 3D finger tabs on tab edges + slot markers on slot edges
+    // ────────────────────────────────────────────────────────────
+    interface JointEdge {
+      c0i: number; c1i: number; // corner indices on the outer face
+      fc: number;               // finger count
+      isTabs: boolean;          // true = this wall has tabs, false = this wall has slots
+      tabDir: Vec3;             // direction tabs protrude (for isTabs=true)
+    }
+
     const addWall = (
       wallId: string, corners: Vec3[], normal: Vec3,
       outerColor: string, innerColor: string, edgeColor: string,
       label: string,
-      jointEdges?: { c0i: number; c1i: number; fc: number; isTabs: boolean; tabDir?: Vec3 }[],
+      jointEdges?: JointEdge[],
     ) => {
       const off = getWallOffset(wallId);
       const state = getWallState(wallId);
       const c = corners.map(p => v3add(p, off));
       const opacity = state === "waiting" ? 0.3 : state === "active" ? 0.98 : 0.92;
-
-      // Glow: if active, brighten colors
       const oColor = state === "active" ? "#f0c868" : outerColor;
       const iColor = state === "active" ? "#e8b850" : innerColor;
+      const eColor = state === "active" ? "#d4a040" : edgeColor;
 
-      faces.push(...buildSlab(c, normal, t, oColor, iColor, edgeColor, label, wallId, opacity));
+      // Base slab
+      faces.push(...buildSlab(c, normal, t, oColor, iColor, eColor, label, wallId, opacity));
 
+      // Finger joints
       if (useFinger && jointEdges) {
-        const inner = c.map(p => v3add(p, v3scale(normal, -t)));
-        for (const je of jointEdges) {
-          faces.push(...buildJointIndicators(c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i], je.fc, je.isTabs, wallId));
+        const inward = v3scale(normal, -1);
+        const inner = c.map(p => v3add(p, v3scale(inward, t)));
 
-          // Exploded tabs only when wall is not fully assembled
-          const isExplodedState = viewMode === "exploded" || (viewMode === "animating" && state !== "placed") || (viewMode === "stepbystep" && state !== "placed");
-          if (isExplodedState && je.isTabs && je.tabDir) {
-            faces.push(...buildExplodedTabs(c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i], je.tabDir, t, je.fc, wallId));
+        for (const je of jointEdges) {
+          if (je.isTabs) {
+            // ── TABS: 3D blocks protruding from this edge ──
+            faces.push(...buildFingerTabs3D(
+              c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i],
+              je.tabDir, t, je.fc,
+              oColor, eColor, state === "active" ? "#e8b850" : woodTabTip,
+              wallId, opacity,
+            ));
+          } else {
+            // ── SLOTS: dark markers on the edge showing where neighbor tabs fit ──
+            faces.push(...buildSlotMarkers(
+              c[je.c0i], c[je.c1i], inner[je.c0i], inner[je.c1i],
+              je.fc, wallId,
+            ));
           }
         }
       }
     };
 
-    // ── FRONT ──
+    // ── FRONT ── (full W × wallH at Z = +hd)
+    // Bottom edge: tabs going down into bottom. Top edge: tabs going up into top.
+    // Left/Right edges: slots receiving side tabs.
     addWall("front",
       [[-hw, yBot, hd], [hw, yBot, hd], [hw, yTop, hd], [-hw, yTop, hd]],
-      [0, 0, 1], woodFront, woodSide, woodEdge, "Frente",
+      [0, 0, 1], woodOuter, woodInner, woodEdge, "Frente",
       [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
-        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: false },
+        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },   // bottom: tabs down
+        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 }, // right: slots
+        ...(!isOpen && !hasLid
+          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]  // top: tabs up
+          : []),
+        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 }, // left: slots
       ],
     );
 
-    // ── BACK ──
+    // ── BACK ── (full W × wallH at Z = -hd)
     addWall("back",
       [[hw, yBot, -hd], [-hw, yBot, -hd], [-hw, yTop, -hd], [hw, yTop, -hd]],
-      [0, 0, -1], woodSide, woodFront, woodEdge, "Traseira",
+      [0, 0, -1], woodInner, woodOuter, woodEdge, "Traseira",
       [
         { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
-        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: false },
+        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
+        ...(!isOpen && !hasLid
+          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
+          : []),
+        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
       ],
     );
 
-    // ── LEFT ──
+    // ── LEFT ── (sideD × wallH at X = -hw, inset Z by t)
+    // All edges have tabs going into neighbors.
     addWall("left",
       [[-hw, yBot, zF], [-hw, yBot, zB], [-hw, yTop, zB], [-hw, yTop, zF]],
-      [-1, 0, 0], woodEdge, woodSide, woodDark, "Esquerda",
+      [-1, 0, 0], woodEdge, woodInner, woodDark, "Esquerda",
       [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
-        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },
+        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 }, // bottom
+        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 }, // back
+        ...(!isOpen && !hasLid
+          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
+          : []),
+        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },  // front
       ],
     );
 
-    // ── RIGHT ──
+    // ── RIGHT ── (sideD × wallH at X = +hw, inset Z by t)
     addWall("right",
       [[hw, yBot, zB], [hw, yBot, zF], [hw, yTop, zF], [hw, yTop, zB]],
-      [1, 0, 0], woodSide, woodEdge, woodDark, "Direita",
+      [1, 0, 0], woodInner, woodEdge, woodDark, "Direita",
       [
         { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
         { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
-        { c0i: 3, c1i: 0, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
+        ...(!isOpen && !hasLid
+          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
+          : []),
+        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
       ],
     );
 
-    // ── BOTTOM ──
+    // ── BOTTOM ── (W × sideD at Y = -hh)
+    // All edges = slots (receives tabs from front/back/sides)
     addWall("bottom",
       [[-hw, -hh, zF], [hw, -hh, zF], [hw, -hh, zB], [-hw, -hh, zB]],
       [0, -1, 0], woodDark, woodEdge, woodEdge, "Fundo",
       [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: false },
-        { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false },
-        { c0i: 2, c1i: 3, fc: fcW, isTabs: false },
-        { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false },
+        { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
+        { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
+        { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
+        { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
       ],
     );
 
-    // ── TOP ──
+    // ── TOP ── (W × sideD at Y = yTop)
     if (!isOpen && !hasLid) {
       addWall("top",
         [[-hw, yTop, zB], [hw, yTop, zB], [hw, yTop, zF], [-hw, yTop, zF]],
-        [0, 1, 0], woodLight, woodSide, woodEdge, "Topo",
+        [0, 1, 0], woodLight, woodInner, woodEdge, "Topo",
         [
-          { c0i: 0, c1i: 1, fc: fcW, isTabs: false },
-          { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false },
-          { c0i: 2, c1i: 3, fc: fcW, isTabs: false },
-          { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false },
+          { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
+          { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
+          { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
+          { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
         ],
       );
     }
@@ -524,11 +560,11 @@ export function BoxPreview3D({ params, className }: Props) {
       addWall("lid",
         [[-hw-overhang, yTop+t*0.5, -hd-overhang], [hw+overhang, yTop+t*0.5, -hd-overhang],
          [hw+overhang, yTop+t*0.5, hd+overhang], [-hw-overhang, yTop+t*0.5, hd+overhang]],
-        [0, 1, 0], "#e8c06a", woodSide, woodEdge, "Tampa",
+        [0, 1, 0], "#e8c06a", woodInner, woodEdge, "Tampa",
       );
     }
 
-    // ── Project & sort ──
+    // ── Project & sort & draw ──
     const projectedFaces = faces.map(face => {
       const projected = face.pts.map(([x, y, z]) => project(x, y, z));
       const zAvg = projected.reduce((s, p) => s + p[2], 0) / projected.length;
@@ -538,15 +574,20 @@ export function BoxPreview3D({ params, className }: Props) {
 
     for (const face of projectedFaces) {
       const pts = face.projected;
+      if (pts.length < 3) continue;
+
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
       ctx.closePath();
 
+      // Simple shading
       const ax = pts[1][0]-pts[0][0], ay = pts[1][1]-pts[0][1];
       const bx = pts[2][0]-pts[0][0], by = pts[2][1]-pts[0][1];
       const nz = ax * by - ay * bx;
-      const lightFactor = 0.4 + 0.6 * Math.abs(nz) / (Math.sqrt(ax*ax+ay*ay)*Math.sqrt(bx*bx+by*by) + 0.001);
+      const aLen = Math.sqrt(ax*ax+ay*ay);
+      const bLen = Math.sqrt(bx*bx+by*by);
+      const lightFactor = 0.4 + 0.6 * Math.abs(nz) / (aLen * bLen + 0.001);
 
       ctx.globalAlpha = face.opacity * Math.min(lightFactor + 0.2, 1);
       ctx.fillStyle = face.fill;
@@ -563,10 +604,11 @@ export function BoxPreview3D({ params, className }: Props) {
         ctx.restore();
       }
 
+      // Stroke
       if (face.isJoint) {
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.6;
         ctx.strokeStyle = "#2a1800";
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = 0.5;
         ctx.stroke();
       } else {
         ctx.globalAlpha = 0.7;
@@ -574,13 +616,14 @@ export function BoxPreview3D({ params, className }: Props) {
         ctx.lineWidth = wallState === "active" ? 1.8 : 1.2;
         ctx.stroke();
 
+        // Label & wood grain
         if (face.label) {
-          const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-          const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+          const cx2 = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+          const cy2 = pts.reduce((s, p) => s + p[1], 0) / pts.length;
           const fW = Math.sqrt((pts[1][0]-pts[0][0])**2+(pts[1][1]-pts[0][1])**2);
           const fH = Math.sqrt((pts[2][0]-pts[1][0])**2+(pts[2][1]-pts[1][1])**2);
           if (fW > 30 && fH > 20) {
-            ctx.globalAlpha = 0.08;
+            ctx.globalAlpha = 0.07;
             ctx.strokeStyle = "#5a3d12";
             ctx.lineWidth = 0.5;
             const grainCount = Math.min(8, Math.floor(fH / 8));
@@ -597,7 +640,7 @@ export function BoxPreview3D({ params, className }: Props) {
           ctx.font = "bold 10px sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(face.label, cx, cy);
+          ctx.fillText(face.label, cx2, cy2);
         }
       }
       ctx.globalAlpha = 1;
@@ -612,7 +655,6 @@ export function BoxPreview3D({ params, className }: Props) {
     ctx.textAlign = "left";
     ctx.fillText(`Encaixe: ${jl[params.jointType] || params.jointType}`, 10, 16);
     ctx.fillText(`Espessura: ${t}${params.unit}`, 10, 30);
-
     const modeLabels: Record<SimMode, string> = {
       assembled: "Montada", exploded: "Explodida", flat2d: "2D",
       animating: "Simulando...", stepbystep: "Passo a Passo",
@@ -620,7 +662,6 @@ export function BoxPreview3D({ params, className }: Props) {
     ctx.fillStyle = viewMode === "animating" || viewMode === "stepbystep" ? "#d97706" : "#2c5e8a";
     ctx.fillText(`Modo: ${modeLabels[viewMode]}`, 10, 44);
 
-    // Step info
     if (viewMode === "stepbystep" && currentStep >= 0 && currentStep < activeWalls.length) {
       const stepWall = activeWalls[currentStep];
       ctx.fillStyle = "rgba(217,119,6,0.15)";
@@ -630,7 +671,6 @@ export function BoxPreview3D({ params, className }: Props) {
       ctx.fillText(`Passo ${currentStep + 1}/${activeWalls.length}: ${stepWall.label}`, 10, 68);
     }
 
-    // Completion message
     if (simComplete && (viewMode === "animating" || viewMode === "stepbystep")) {
       ctx.fillStyle = "rgba(22,101,52,0.85)";
       const msgW = 260, msgH = 30;
@@ -644,7 +684,6 @@ export function BoxPreview3D({ params, className }: Props) {
       ctx.fillText("✓ Simulação de montagem concluída", cw / 2, msgY + 19);
     }
 
-    // Dimensions
     ctx.fillStyle = "#2c5e8a";
     ctx.font = "bold 12px sans-serif";
     ctx.textAlign = "center";
@@ -664,41 +703,21 @@ export function BoxPreview3D({ params, className }: Props) {
     return () => canvas.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
-  // ── Actions ──
   const startSimulation = () => {
-    setAnimProgress(0);
-    setSimComplete(false);
-    setIsPaused(false);
-    setViewMode("animating");
+    setAnimProgress(0); setSimComplete(false); setIsPaused(false); setViewMode("animating");
   };
-
   const startStepByStep = () => {
-    setCurrentStep(0);
-    setSimComplete(false);
-    setStepAnim(0);
-    setViewMode("stepbystep");
+    setCurrentStep(0); setSimComplete(false); setStepAnim(0); setViewMode("stepbystep");
   };
-
   const nextStep = () => {
     const walls = getActiveWalls();
-    if (currentStep < walls.length - 1) {
-      setCurrentStep(s => s + 1);
-    } else {
-      setSimComplete(true);
-    }
+    if (currentStep < walls.length - 1) setCurrentStep(s => s + 1);
+    else setSimComplete(true);
   };
-
-  const prevStep = () => {
-    if (currentStep > 0) setCurrentStep(s => s - 1);
-  };
-
+  const prevStep = () => { if (currentStep > 0) setCurrentStep(s => s - 1); };
   const resetSim = () => {
     cancelAnimationFrame(animRef.current);
-    setAnimProgress(0);
-    setCurrentStep(-1);
-    setSimComplete(false);
-    setIsPaused(false);
-    setViewMode("assembled");
+    setAnimProgress(0); setCurrentStep(-1); setSimComplete(false); setIsPaused(false); setViewMode("assembled");
   };
 
   const is3D = viewMode !== "flat2d";
@@ -727,24 +746,20 @@ export function BoxPreview3D({ params, className }: Props) {
         <div style={{ width: 1, background: "#ccc", margin: "2px 2px" }} />
         <BtnSim active={viewMode === "animating"} onClick={startSimulation} accent>▶ Simular</BtnSim>
         <BtnSim active={viewMode === "stepbystep"} onClick={startStepByStep} accent>Passo a Passo</BtnSim>
-
         {viewMode === "animating" && (
           <BtnSim onClick={() => setIsPaused(p => !p)}>{isPaused ? "▶" : "⏸"}</BtnSim>
         )}
-
         {viewMode === "stepbystep" && (
           <>
             <BtnSim onClick={prevStep} disabled={currentStep <= 0}>◀</BtnSim>
             <BtnSim onClick={nextStep} disabled={simComplete}>▶</BtnSim>
           </>
         )}
-
         {(viewMode === "animating" || viewMode === "stepbystep") && (
           <BtnSim onClick={resetSim}>↺</BtnSim>
         )}
       </div>
 
-      {/* ── Step-by-step piece list ── */}
       {viewMode === "stepbystep" && (
         <div style={{
           position: "absolute", top: 8, right: 8, background: "rgba(255,255,255,0.9)",
@@ -764,7 +779,6 @@ export function BoxPreview3D({ params, className }: Props) {
         </div>
       )}
 
-      {/* Completion panel */}
       {simComplete && (viewMode === "animating" || viewMode === "stepbystep") && (
         <div style={{
           position: "absolute", top: 8, right: 8, background: "rgba(22,101,52,0.92)",
@@ -783,7 +797,6 @@ export function BoxPreview3D({ params, className }: Props) {
   );
 }
 
-// ── Tiny button component ──
 function BtnSim({ children, active, onClick, accent, disabled }: {
   children: React.ReactNode; active?: boolean; onClick?: () => void; accent?: boolean; disabled?: boolean;
 }) {
