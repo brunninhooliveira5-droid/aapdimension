@@ -400,16 +400,23 @@ export function BoxPreview3D({ params, className }: Props) {
     ctx.fillText("Clique e arraste para rotacionar · Scroll para zoom", cw / 2, ch - 10);
   }, [params, rotation, zoom]);
 
+  // Register native wheel listener with passive:false to prevent page scroll
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
   return (
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: "100%", height: "100%", cursor: dragging.current ? "grabbing" : "grab" }}
+      style={{ width: "100%", height: "100%", cursor: dragging.current ? "grabbing" : "grab", touchAction: "none" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
     />
   );
 }
