@@ -832,6 +832,12 @@ export function SheetCuttingTab() {
               <div className="w-3 h-3 rounded-sm border-2 border-primary/60 bg-muted/30" />
               Chapa (material)
             </div>
+            {singleCut && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-3 h-0.5 bg-destructive" />
+                Corte compartilhado
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">
