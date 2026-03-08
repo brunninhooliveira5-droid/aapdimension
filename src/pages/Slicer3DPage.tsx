@@ -312,9 +312,9 @@ export default function Slicer3DPage() {
                 </div>
               </Tabs>
 
-              <Button className="w-full mt-4" onClick={handleProcess} disabled={!geometry || loading}>
+              <Button className="w-full mt-4" onClick={handleProcess} disabled={!geometry || !selectedMaterial || loading}>
                 <Play className="h-4 w-4 mr-2" />
-                {loading ? "Processando..." : "Processar"}
+                {loading ? "Processando..." : !selectedMaterial ? "Selecione um material" : "Processar"}
               </Button>
             </CardContent>
           </Card>
