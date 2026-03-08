@@ -506,6 +506,17 @@ export function SheetCuttingTab() {
             <Label htmlFor="global-rotation" className="cursor-pointer text-sm">Rotação automática</Label>
           </div>
         </div>
+        <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
+          <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="opt-single-cut" className="mt-0.5" />
+          <div>
+            <Label htmlFor="opt-single-cut" className="cursor-pointer font-medium flex items-center gap-1.5">
+              <Scissors className="h-4 w-4 text-primary" /> Corte Único
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Peças adjacentes compartilham um único corte, reduzindo percurso. O kerf é aplicado já no cálculo para garantir que as peças caibam no material.
+            </p>
+          </div>
+        </div>
       </Card>
 
       {/* Pieces */}
