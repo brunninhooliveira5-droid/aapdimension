@@ -93,6 +93,7 @@ const AppRoutes = () => {
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
         <Route path="/plano-corte" element={<CuttingPlanPage />} />
         <Route path="/slicer-3d" element={<Slicer3DPage />} />
+        <Route path="/gerador-caixas" element={<BoxGeneratorPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
