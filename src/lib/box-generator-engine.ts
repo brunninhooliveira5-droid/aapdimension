@@ -452,164 +452,105 @@ export function validateBoxJoints(config: BoxJointConfig): JointConflict[] {
 
 export function generateBox(params: BoxParams): BoxResult {
   const t = params.materialThickness;
-  let W = params.width;
-  let H = params.height;
-  let D = params.depth;
+  const jc = computeBoxJoints(params);
+  const { W, H, D, wallH, sideW, pieceEdges } = jc;
 
-  // Convert internal to external dimensions
-  if (params.dimensionMode === "internal") {
-    W += 2 * t;
-    H += 2 * t;
-    D += 2 * t;
-  }
-
-  // Internal dimensions for reference
   const iW = W - 2 * t;
-  const iH = H - 2 * t;
-  const iD = D - 2 * t;
-
-  const pieces: BoxPiece[] = [];
-  const fingerCount_W = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
-  const fingerCount_H = computeFingerCount(H, params.fingerMinSize, params.fingerMaxSize);
-  const fingerCount_D = computeFingerCount(D, params.fingerMinSize, params.fingerMaxSize);
-
   const isOpen = params.boxType === "open";
   const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
   const hasDividers = params.boxType === "dividers" || (params.dividersH > 0 || params.dividersV > 0);
-
-  // Apply kerf compensation
-  const kerfOffset = params.fabMode === "laser" ? params.kerf / 2 : 0;
-
   const useFinger = params.jointType === "finger" || params.jointType === "tslot";
 
-  // ─── Front & Back ─────────────────────────────────
-  const frontW = W;
-  const frontH = isOpen || hasLid ? H - t : H;
-  const frontPath = useFinger
-    ? buildFingerContour(frontW, frontH, {
-        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_W, thickness: t, isTabs: true } : null,
-        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: true },
-        left: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
-        right: { fingerCount: fingerCount_H, thickness: t, isTabs: false },
-      })
-    : rectPath(frontW, frontH);
+  const pieces: BoxPiece[] = [];
+  const defaultEdges: PieceEdgeMap = { top: null, bottom: null, left: null, right: null };
 
-  pieces.push({
-    id: "front", label: "Frente", width: frontW, height: frontH, quantity: 1,
-    paths: [frontPath],
-  });
-  pieces.push({
-    id: "back", label: "Traseira", width: frontW, height: frontH, quantity: 1,
-    paths: [frontPath],
-  });
+  // Convert PieceEdgeMap to buildFingerContour config format
+  const toFingerConfig = (em: PieceEdgeMap) => {
+    const convert = (e: EdgeJointConfig | null) =>
+      e ? { fingerCount: e.fingerCount, thickness: t, isTabs: e.isTabs } : null;
+    return { top: convert(em.top), bottom: convert(em.bottom), left: convert(em.left), right: convert(em.right) };
+  };
+
+  // ─── Front & Back ─────────────────────────────────
+  const frontEdges = pieceEdges.front;
+  const frontPath = useFinger
+    ? buildFingerContour(W, wallH, toFingerConfig(frontEdges))
+    : rectPath(W, wallH);
+  pieces.push({ id: "front", label: "Frente", width: W, height: wallH, quantity: 1, paths: [frontPath], edges: frontEdges });
+
+  const backEdges = pieceEdges.back;
+  const backPath = useFinger
+    ? buildFingerContour(W, wallH, toFingerConfig(backEdges))
+    : rectPath(W, wallH);
+  pieces.push({ id: "back", label: "Traseira", width: W, height: wallH, quantity: 1, paths: [backPath], edges: backEdges });
 
   // ─── Left & Right sides ───────────────────────────
-  const sideW = D - 2 * t;
-  const sideH = frontH;
-  const sidePath = useFinger
-    ? buildFingerContour(sideW, sideH, {
-        top: (!isOpen && !hasLid) ? { fingerCount: fingerCount_D, thickness: t, isTabs: false } : null,
-        bottom: { fingerCount: fingerCount_D, thickness: t, isTabs: false },
-        left: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
-        right: { fingerCount: fingerCount_H, thickness: t, isTabs: true },
-      })
-    : rectPath(sideW, sideH);
+  const leftEdges = pieceEdges.left;
+  const leftPath = useFinger
+    ? buildFingerContour(sideW, wallH, toFingerConfig(leftEdges))
+    : rectPath(sideW, wallH);
+  pieces.push({ id: "left", label: "Lateral Esquerda", width: sideW, height: wallH, quantity: 1, paths: [leftPath], edges: leftEdges });
 
-  pieces.push({
-    id: "left", label: "Lateral Esquerda", width: sideW, height: sideH, quantity: 1,
-    paths: [sidePath],
-  });
-  pieces.push({
-    id: "right", label: "Lateral Direita", width: sideW, height: sideH, quantity: 1,
-    paths: [sidePath],
-  });
+  const rightEdges = pieceEdges.right;
+  const rightPath = useFinger
+    ? buildFingerContour(sideW, wallH, toFingerConfig(rightEdges))
+    : rectPath(sideW, wallH);
+  pieces.push({ id: "right", label: "Lateral Direita", width: sideW, height: wallH, quantity: 1, paths: [rightPath], edges: rightEdges });
 
   // ─── Bottom ────────────────────────────────────────
-  const bottomW = W;
-  const bottomH = D - 2 * t;
+  const bottomEdges = pieceEdges.bottom;
   const bottomPath = useFinger
-    ? buildFingerContour(bottomW, bottomH, {
-        top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
-        bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
-        left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
-        right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
-      })
-    : rectPath(bottomW, bottomH);
-
-  pieces.push({
-    id: "bottom", label: "Fundo", width: bottomW, height: bottomH, quantity: 1,
-    paths: [bottomPath],
-  });
+    ? buildFingerContour(W, sideW, toFingerConfig(bottomEdges))
+    : rectPath(W, sideW);
+  pieces.push({ id: "bottom", label: "Fundo", width: W, height: sideW, quantity: 1, paths: [bottomPath], edges: bottomEdges });
 
   // ─── Top / Lid ─────────────────────────────────────
   if (!isOpen) {
     if (hasLid) {
       const lidW = params.boxType === "lid_sliding" ? W + params.lidClearance : W;
-      const lidH = D - 2 * t;
-      pieces.push({
-        id: "lid",
-        label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
-        width: lidW, height: lidH, quantity: 1,
-        paths: [rectPath(lidW, lidH)],
-      });
+      pieces.push({ id: "lid", label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
+        width: lidW, height: sideW, quantity: 1, paths: [rectPath(lidW, sideW)], edges: defaultEdges });
       if (params.boxType === "lid_sliding") {
-        pieces.push({
-          id: "track_left", label: "Trilho Esquerdo",
-          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
-          paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
-        });
-        pieces.push({
-          id: "track_right", label: "Trilho Direito",
-          width: D - 2 * t, height: params.slidingTrackDepth, quantity: 1,
-          paths: [rectPath(D - 2 * t, params.slidingTrackDepth)],
-        });
+        pieces.push({ id: "track_left", label: "Trilho Esquerdo",
+          width: sideW, height: params.slidingTrackDepth, quantity: 1,
+          paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
+        pieces.push({ id: "track_right", label: "Trilho Direito",
+          width: sideW, height: params.slidingTrackDepth, quantity: 1,
+          paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
       }
     } else {
+      const topEdges = pieceEdges.top || defaultEdges;
       const topPath = useFinger
-        ? buildFingerContour(bottomW, bottomH, {
-            top: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
-            bottom: { fingerCount: fingerCount_W, thickness: t, isTabs: false },
-            left: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
-            right: { fingerCount: fingerCount_D, thickness: t, isTabs: true },
-          })
-        : rectPath(bottomW, bottomH);
-      pieces.push({
-        id: "top", label: "Topo", width: bottomW, height: bottomH, quantity: 1,
-        paths: [topPath],
-      });
+        ? buildFingerContour(W, sideW, toFingerConfig(topEdges))
+        : rectPath(W, sideW);
+      pieces.push({ id: "top", label: "Topo", width: W, height: sideW, quantity: 1, paths: [topPath], edges: topEdges });
     }
   }
 
   // ─── Dividers ──────────────────────────────────────
   if (hasDividers) {
-    const divT = params.dividerThickness || t;
     for (let i = 0; i < params.dividersV; i++) {
-      pieces.push({
-        id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`,
-        width: D - 2 * t, height: frontH - t, quantity: 1,
-        paths: [rectPath(D - 2 * t, frontH - t)],
-      });
+      pieces.push({ id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`,
+        width: sideW, height: wallH - t, quantity: 1,
+        paths: [rectPath(sideW, wallH - t)], edges: defaultEdges });
     }
     for (let i = 0; i < params.dividersH; i++) {
-      pieces.push({
-        id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`,
-        width: iW, height: frontH - t, quantity: 1,
-        paths: [rectPath(iW, frontH - t)],
-      });
+      pieces.push({ id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`,
+        width: iW, height: wallH - t, quantity: 1,
+        paths: [rectPath(iW, wallH - t)], edges: defaultEdges });
     }
   }
 
-  // Calculate totals
   const totalPieces = pieces.reduce((sum, p) => sum + p.quantity, 0);
   const totalArea = pieces.reduce((sum, p) => sum + p.width * p.height * p.quantity, 0);
+  const conflicts = validateBoxJoints(jc);
 
   return {
     pieces,
     totalPieces,
-    stats: {
-      totalArea,
-      materialSheets: 1, // simplified
-    },
+    stats: { totalArea, materialSheets: 1 },
+    jointConfig: jc,
+    conflicts,
   };
 }
 

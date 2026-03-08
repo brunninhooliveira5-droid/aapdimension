@@ -481,89 +481,94 @@ export function BoxPreview3D({ params, className }: Props) {
       }
     };
 
-    // ── FRONT ── (full W × wallH at Z = +hd)
-    // Bottom edge: tabs going down into bottom. Top edge: tabs going up into top.
-    // Left/Right edges: slots receiving side tabs.
+    // ────────────────────────────────────────────────────────────
+    // Build 3D joint edges from engine config (single source of truth)
+    // ────────────────────────────────────────────────────────────
+    type EdgeMapping = { edge: "top" | "bottom" | "left" | "right"; c0i: number; c1i: number; tabDir: Vec3 };
+    const buildJointEdges = (wallId: string, mapping: EdgeMapping[]): JointEdge[] => {
+      const edges = jc.pieceEdges[wallId];
+      if (!edges) return [];
+      return mapping
+        .filter(m => edges[m.edge] !== null)
+        .map(m => ({
+          c0i: m.c0i, c1i: m.c1i,
+          fc: edges[m.edge]!.fingerCount,
+          isTabs: edges[m.edge]!.isTabs,
+          tabDir: m.tabDir,
+        }));
+    };
+
+    // ── FRONT ── (W × wallH at Z = +hd)
     addWall("front",
       [[-hw, yBot, hd], [hw, yBot, hd], [hw, yTop, hd], [-hw, yTop, hd]],
       [0, 0, 1], woodOuter, woodInner, woodEdge, "Frente",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },   // bottom: tabs down
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 }, // right: slots
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]  // top: tabs up
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 }, // left: slots
-      ],
+      buildJointEdges("front", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [-1, 0, 0] },
+      ]),
     );
 
-    // ── BACK ── (full W × wallH at Z = -hd)
+    // ── BACK ── (W × wallH at Z = -hd)
     addWall("back",
       [[hw, yBot, -hd], [-hw, yBot, -hd], [-hw, yTop, -hd], [hw, yTop, -hd]],
       [0, 0, -1], woodInner, woodOuter, woodEdge, "Traseira",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-      ],
+      buildJointEdges("back", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "left",   c0i: 1, c1i: 2, tabDir: [-1, 0, 0] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "right",  c0i: 0, c1i: 3, tabDir: [1, 0, 0] },
+      ]),
     );
 
-    // ── LEFT ── (sideD × wallH at X = -hw, inset Z by t)
-    // All edges have tabs going into neighbors.
+    // ── LEFT ── (sideW × wallH at X = -hw)
     addWall("left",
       [[-hw, yBot, zF], [-hw, yBot, zB], [-hw, yTop, zB], [-hw, yTop, zF]],
       [-1, 0, 0], woodEdge, woodInner, woodDark, "Esquerda",
-      [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 }, // bottom
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 }, // back
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },  // front
-      ],
+      buildJointEdges("left", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [0, 0, -1] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [0, 0, 1] },
+      ]),
     );
 
-    // ── RIGHT ── (sideD × wallH at X = +hw, inset Z by t)
+    // ── RIGHT ── (sideW × wallH at X = +hw)
     addWall("right",
       [[hw, yBot, zB], [hw, yBot, zF], [hw, yTop, zF], [hw, yTop, zB]],
       [1, 0, 0], woodInner, woodEdge, woodDark, "Direita",
-      [
-        { c0i: 0, c1i: 1, fc: fcSideD, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcWallH, isTabs: true, tabDir: [0, 0, 1] as Vec3 },
-        ...(!isOpen && !hasLid
-          ? [{ c0i: 3, c1i: 2, fc: fcSideD, isTabs: true, tabDir: [0, 1, 0] as Vec3 }]
-          : []),
-        { c0i: 0, c1i: 3, fc: fcWallH, isTabs: true, tabDir: [0, 0, -1] as Vec3 },
-      ],
+      buildJointEdges("right", [
+        { edge: "bottom", c0i: 0, c1i: 1, tabDir: [0, -1, 0] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [0, 0, 1] },
+        { edge: "top",    c0i: 3, c1i: 2, tabDir: [0, 1, 0] },
+        { edge: "left",   c0i: 0, c1i: 3, tabDir: [0, 0, -1] },
+      ]),
     );
 
-    // ── BOTTOM ── (W × sideD at Y = -hh)
-    // All edges = slots (receives tabs from front/back/sides)
+    // ── BOTTOM ── (W × sideW at Y = -hh)
     addWall("bottom",
       [[-hw, -hh, zF], [hw, -hh, zF], [hw, -hh, zB], [-hw, -hh, zB]],
       [0, -1, 0], woodDark, woodEdge, woodEdge, "Fundo",
-      [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
-        { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-        { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
-        { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-      ],
+      buildJointEdges("bottom", [
+        { edge: "top",    c0i: 0, c1i: 1, tabDir: [0, 0, 1] },
+        { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+        { edge: "bottom", c0i: 2, c1i: 3, tabDir: [0, 0, -1] },
+        { edge: "left",   c0i: 3, c1i: 0, tabDir: [-1, 0, 0] },
+      ]),
     );
 
-    // ── TOP ── (W × sideD at Y = yTop)
+    // ── TOP ──
     if (!isOpen && !hasLid) {
       addWall("top",
         [[-hw, yTop, zB], [hw, yTop, zB], [hw, yTop, zF], [-hw, yTop, zF]],
         [0, 1, 0], woodLight, woodInner, woodEdge, "Topo",
-        [
-          { c0i: 0, c1i: 1, fc: fcW, isTabs: false, tabDir: [0, 0, -1] as Vec3 },
-          { c0i: 1, c1i: 2, fc: fcSideD, isTabs: false, tabDir: [1, 0, 0] as Vec3 },
-          { c0i: 2, c1i: 3, fc: fcW, isTabs: false, tabDir: [0, 0, 1] as Vec3 },
-          { c0i: 3, c1i: 0, fc: fcSideD, isTabs: false, tabDir: [-1, 0, 0] as Vec3 },
-        ],
+        buildJointEdges("top", [
+          { edge: "top",    c0i: 0, c1i: 1, tabDir: [0, 0, -1] },
+          { edge: "right",  c0i: 1, c1i: 2, tabDir: [1, 0, 0] },
+          { edge: "bottom", c0i: 2, c1i: 3, tabDir: [0, 0, 1] },
+          { edge: "left",   c0i: 3, c1i: 0, tabDir: [-1, 0, 0] },
+        ]),
       );
     }
 
