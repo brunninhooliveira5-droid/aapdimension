@@ -344,7 +344,7 @@ export function SheetCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = (scale: PdfScale) => {
     if (!result || result.errors.length > 0) return;
     const matW = parseFloat(materialWidth);
     const matH = parseFloat(materialHeight);
@@ -359,7 +359,9 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
+      scale,
     });
+    setShowExportDialog(false);
   };
 
   const matW = parseFloat(materialWidth) || 0;
