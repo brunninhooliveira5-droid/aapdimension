@@ -826,6 +826,59 @@ export type Database = {
           },
         ]
       }
+      cutting_scraps: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          length: number
+          material_name: string
+          notes: string
+          origin_plan_id: string | null
+          scrap_type: string
+          status: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height?: number
+          id?: string
+          length?: number
+          material_name?: string
+          notes?: string
+          origin_plan_id?: string | null
+          scrap_type?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          length?: number
+          material_name?: string
+          notes?: string
+          origin_plan_id?: string | null
+          scrap_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cutting_scraps_origin_plan_id_fkey"
+            columns: ["origin_plan_id"]
+            isOneToOne: false
+            referencedRelation: "cutting_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_templates: {
         Row: {
           allowed_roles: string[] | null
