@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Save, Trash2, FileDown, Eye, RefreshCw } from "lucide-react";
+import { Save, Trash2, FileDown, Eye, RefreshCw, Play, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
@@ -30,6 +30,7 @@ interface SavedPlan {
   units_needed: number;
   estimated_cost: number;
   created_at: string;
+  execution_status: string;
 }
 
 export function SavedCuttingPlans() {
@@ -43,6 +44,7 @@ export function SavedCuttingPlans() {
   const [folderName, setFolderName] = useState("");
   const [exportPlan, setExportPlan] = useState<SavedPlan | null>(null);
   const [singleCut, setSingleCut] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -62,6 +64,78 @@ export function SavedCuttingPlans() {
     toast.success("Plano excluído.");
     setDeleting(null);
     fetchPlans();
+  };
+
+  const handleToggleStatus = async (plan: SavedPlan) => {
+    const newStatus = plan.execution_status === "aguardando" ? "em_execucao" : "aguardando";
+    setTogglingStatus(plan.id);
+
+    await supabase.from("cutting_plans" as any).update({ execution_status: newStatus } as any).eq("id", plan.id);
+
+    // When setting to "em_execucao", save scraps from the plan result
+    if (newStatus === "em_execucao") {
+      await saveScrapsFromPlan(plan);
+    } else {
+      // When reverting to "aguardando", remove scraps linked to this plan
+      await supabase.from("cutting_scraps" as any).delete().eq("origin_plan_id", plan.id);
+      toast.success("Status: Aguardando. Retalhos removidos.");
+    }
+
+    setTogglingStatus(null);
+    fetchPlans();
+  };
+
+  const saveScrapsFromPlan = async (plan: SavedPlan) => {
+    const result = plan.result_json;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return;
+
+    const scrapsToInsert: any[] = [];
+
+    if (plan.plan_type === "chapa" && result?.scraps?.length > 0) {
+      for (const scrap of result.scraps) {
+        if ((scrap.width > 0 && scrap.height > 0)) {
+          scrapsToInsert.push({
+            user_id: userId,
+            material_name: plan.material_name,
+            width: scrap.width,
+            height: scrap.height,
+            length: 0,
+            scrap_type: "chapa",
+            status: "disponível",
+            notes: `Gerado do plano: ${plan.plan_name} (Chapa ${scrap.sheetIndex + 1})`,
+            origin_plan_id: plan.id,
+          });
+        }
+      }
+    } else if (plan.plan_type === "tubo" && result?.bars?.length > 0) {
+      for (let i = 0; i < result.bars.length; i++) {
+        const bar = result.bars[i];
+        if (bar.wasteLength > 0) {
+          scrapsToInsert.push({
+            user_id: userId,
+            material_name: plan.material_name,
+            width: 0,
+            height: 0,
+            length: bar.wasteLength,
+            scrap_type: "tubo",
+            status: "disponível",
+            notes: `Gerado do plano: ${plan.plan_name} (Barra ${i + 1})`,
+            origin_plan_id: plan.id,
+          });
+        }
+      }
+    }
+
+    if (scrapsToInsert.length > 0) {
+      // Remove existing scraps from this plan first to avoid duplicates
+      await supabase.from("cutting_scraps" as any).delete().eq("origin_plan_id", plan.id);
+      await supabase.from("cutting_scraps" as any).insert(scrapsToInsert as any);
+      toast.success(`Em Execução! ${scrapsToInsert.length} retalho(s) salvo(s).`);
+    } else {
+      toast.success("Em Execução! Nenhum retalho gerado.");
+    }
   };
 
   const openExportDialog = (plan: SavedPlan) => {
@@ -109,6 +183,13 @@ export function SavedCuttingPlans() {
     return "Manual";
   };
 
+  const statusBadge = (status: string) => {
+    if (status === "em_execucao") {
+      return <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1"><Play className="h-3 w-3" />Em Execução</Badge>;
+    }
+    return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" />Aguardando</Badge>;
+  };
+
   return (
     <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -134,6 +215,7 @@ export function SavedCuttingPlans() {
                 <TableHead>Material</TableHead>
                 <TableHead>Aproveitamento</TableHead>
                 <TableHead>Custo</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="w-32" />
               </TableRow>
@@ -152,6 +234,15 @@ export function SavedCuttingPlans() {
                     <span className="font-semibold text-primary">{Number(plan.utilization_percent).toFixed(1)}%</span>
                   </TableCell>
                   <TableCell>R$ {Number(plan.estimated_cost).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => handleToggleStatus(plan)}
+                      disabled={togglingStatus === plan.id}
+                      className="cursor-pointer disabled:opacity-50"
+                    >
+                      {statusBadge(plan.execution_status || "aguardando")}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(plan.created_at).toLocaleDateString("pt-BR")}
                   </TableCell>
@@ -218,6 +309,10 @@ export function SavedCuttingPlans() {
                   <p className="text-muted-foreground">Largura da serra</p>
                   <p className="font-medium">{selectedPlan.kerf_width} mm</p>
                 </div>
+                <div>
+                  <p className="text-muted-foreground">Status</p>
+                  <div className="mt-1">{statusBadge(selectedPlan.execution_status || "aguardando")}</div>
+                </div>
               </div>
 
               {selectedPlan.client_name && (
@@ -263,9 +358,22 @@ export function SavedCuttingPlans() {
                 </div>
               </div>
 
-              <Button className="w-full" variant="outline" onClick={() => openExportDialog(selectedPlan)}>
-                <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
-              </Button>
+              <div className="flex gap-2">
+                <Button className="flex-1" variant="outline" onClick={() => openExportDialog(selectedPlan)}>
+                  <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant={selectedPlan.execution_status === "em_execucao" ? "secondary" : "default"}
+                  onClick={() => { handleToggleStatus(selectedPlan); setSelectedPlan(null); }}
+                >
+                  {selectedPlan.execution_status === "em_execucao" ? (
+                    <><Clock className="h-4 w-4 mr-1" /> Voltar p/ Aguardando</>
+                  ) : (
+                    <><Play className="h-4 w-4 mr-1" /> Iniciar Execução</>
+                  )}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

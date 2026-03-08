@@ -1,0 +1,1 @@
+ALTER TABLE public.cutting_plans ADD COLUMN IF NOT EXISTS execution_status text NOT NULL DEFAULT 'aguardando';

@@ -640,6 +640,7 @@ export type Database = {
           client_name: string | null
           created_at: string
           estimated_cost: number
+          execution_status: string
           id: string
           kerf_width: number
           material_dimensions: Json
@@ -660,6 +661,7 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           estimated_cost?: number
+          execution_status?: string
           id?: string
           kerf_width?: number
           material_dimensions?: Json
@@ -680,6 +682,7 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           estimated_cost?: number
+          execution_status?: string
           id?: string
           kerf_width?: number
           material_dimensions?: Json
