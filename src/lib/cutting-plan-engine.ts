@@ -82,7 +82,95 @@ export function getPieceColor(index: number): string {
   return PIECE_COLORS[index % PIECE_COLORS.length];
 }
 
-// === Sheet cutting (FFDH with rotation) ===
+// === Sheet cutting (Maximal Rectangles with tight packing) ===
+
+interface FreeRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function findBestFit(
+  freeRects: FreeRect[],
+  pw: number,
+  ph: number
+): { rectIndex: number; x: number; y: number } | null {
+  let bestIdx = -1;
+  let bestShortSide = Infinity;
+  let bestLongSide = Infinity;
+  let bestX = 0;
+  let bestY = 0;
+
+  for (let i = 0; i < freeRects.length; i++) {
+    const r = freeRects[i];
+    if (pw <= r.w && ph <= r.h) {
+      const leftoverW = r.w - pw;
+      const leftoverH = r.h - ph;
+      const shortSide = Math.min(leftoverW, leftoverH);
+      const longSide = Math.max(leftoverW, leftoverH);
+      // Best Short Side Fit: prefer position with least leftover, tie-break by y then x (top-left)
+      if (shortSide < bestShortSide || (shortSide === bestShortSide && longSide < bestLongSide)) {
+        bestIdx = i;
+        bestShortSide = shortSide;
+        bestLongSide = longSide;
+        bestX = r.x;
+        bestY = r.y;
+      }
+    }
+  }
+
+  return bestIdx >= 0 ? { rectIndex: bestIdx, x: bestX, y: bestY } : null;
+}
+
+function splitFreeRects(freeRects: FreeRect[], px: number, py: number, pw: number, ph: number): FreeRect[] {
+  const newRects: FreeRect[] = [];
+
+  for (const r of freeRects) {
+    // Check if placed piece overlaps this free rect
+    if (px >= r.x + r.w || px + pw <= r.x || py >= r.y + r.h || py + ph <= r.y) {
+      // No overlap, keep it
+      newRects.push(r);
+      continue;
+    }
+
+    // Generate new free rects from the remaining space
+    // Right side
+    if (px + pw < r.x + r.w) {
+      newRects.push({ x: px + pw, y: r.y, w: r.x + r.w - (px + pw), h: r.h });
+    }
+    // Left side
+    if (px > r.x) {
+      newRects.push({ x: r.x, y: r.y, w: px - r.x, h: r.h });
+    }
+    // Bottom
+    if (py + ph < r.y + r.h) {
+      newRects.push({ x: r.x, y: py + ph, w: r.w, h: r.y + r.h - (py + ph) });
+    }
+    // Top
+    if (py > r.y) {
+      newRects.push({ x: r.x, y: r.y, w: r.w, h: py - r.y });
+    }
+  }
+
+  // Remove rects fully contained by another
+  const filtered: FreeRect[] = [];
+  for (let i = 0; i < newRects.length; i++) {
+    let contained = false;
+    for (let j = 0; j < newRects.length; j++) {
+      if (i === j) continue;
+      const a = newRects[i];
+      const b = newRects[j];
+      if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+        contained = true;
+        break;
+      }
+    }
+    if (!contained) filtered.push(newRects[i]);
+  }
+
+  return filtered;
+}
 
 export function calculateSheetCutting(
   matW: number,
@@ -133,7 +221,7 @@ export function calculateSheetCutting(
     }
   });
 
-  // Sort by area descending for best utilization
+  // Sort by area descending for best packing
   const mode = options?.mode || "best_utilization";
   if (mode === "best_utilization" || mode === "fewer_units") {
     expanded.sort((a, b) => (b.w * b.h) - (a.w * a.h));
@@ -142,27 +230,79 @@ export function calculateSheetCutting(
   const layouts: SheetLayout[] = [];
   const scraps: { width: number; height: number; sheetIndex: number }[] = [];
 
-  type Shelf = { y: number; h: number; usedW: number; count: number };
-  let shelves: Shelf[] = [];
-  let curPieces: PlacedPiece[] = [];
+  let remaining = [...expanded];
 
-  function flush() {
+  while (remaining.length > 0) {
+    // Start a new sheet using Maximal Rectangles algorithm
+    let freeRects: FreeRect[] = [{ x: 0, y: 0, w: effW, h: effH }];
+    const curPieces: PlacedPiece[] = [];
+    const notPlaced: typeof remaining = [];
+
+    for (const piece of remaining) {
+      // Build orientations to try (include kerf in dimensions for spacing)
+      const orients: [number, number, boolean][] = [];
+      
+      // Normal orientation
+      if (piece.w <= effW && piece.h <= effH) {
+        orients.push([piece.w, piece.h, false]);
+      }
+      // Rotated orientation (only if rotation allowed AND dimensions differ)
+      if (piece.canRotate && piece.h <= effW && piece.w <= effH && piece.w !== piece.h) {
+        orients.push([piece.h, piece.w, true]);
+      }
+      if (orients.length === 0) { notPlaced.push(piece); continue; }
+
+      let bestPlacement: { x: number; y: number; pw: number; ph: number; rot: boolean } | null = null;
+      let bestScore = Infinity;
+
+      for (const [pw, ph, rot] of orients) {
+        // Account for kerf: we need pw + kerf width to fit, but piece itself is pw
+        const fit = findBestFit(freeRects, pw, ph);
+        if (fit) {
+          const leftoverW = freeRects[fit.rectIndex].w - pw;
+          const leftoverH = freeRects[fit.rectIndex].h - ph;
+          const score = Math.min(leftoverW, leftoverH);
+          if (score < bestScore) {
+            bestScore = score;
+            bestPlacement = { x: fit.x, y: fit.y, pw, ph, rot };
+          }
+        }
+      }
+
+      if (bestPlacement) {
+        const { x, y, pw, ph, rot } = bestPlacement;
+        curPieces.push({
+          pieceId: piece.id,
+          pieceIndex: piece.idx,
+          x: x + safetyMargin,
+          y: y + safetyMargin,
+          width: pw,
+          height: ph,
+          rotated: rot,
+        });
+        // Split free rects accounting for kerf (piece occupies pw+kerf x ph+kerf)
+        const kerfPw = Math.min(pw + kerfWidth, effW - x);
+        const kerfPh = Math.min(ph + kerfWidth, effH - y);
+        freeRects = splitFreeRects(freeRects, x, y, kerfPw, kerfPh);
+      } else {
+        notPlaced.push(piece);
+      }
+    }
+
     if (curPieces.length > 0) {
       const used = curPieces.reduce((s, p) => s + p.width * p.height, 0);
       const total = effW * effH;
       const wasteArea = total - used;
 
-      // Calculate scrap rectangles
-      const maxUsedY = shelves.length > 0 ? Math.max(...shelves.map(s => s.y + s.h)) : 0;
+      const maxUsedY = Math.max(...curPieces.map(p => (p.y - safetyMargin) + p.height));
       const scrapH = effH - maxUsedY;
 
       const layout: SheetLayout = {
-        pieces: [...curPieces],
+        pieces: curPieces,
         utilization: (used / total) * 100,
         wasteArea,
       };
 
-      // Add significant scraps
       if (scrapH >= minScrap && effW >= minScrap) {
         layout.scrapWidth = effW;
         layout.scrapHeight = scrapH;
@@ -171,63 +311,14 @@ export function calculateSheetCutting(
 
       layouts.push(layout);
     }
-    shelves = [];
-    curPieces = [];
-  }
 
-  for (const piece of expanded) {
-    let placed = false;
+    remaining = notPlaced;
 
-    // Valid orientations
-    const orients: [number, number, boolean][] = [];
-    if (piece.w <= effW && piece.h <= effH) orients.push([piece.w, piece.h, false]);
-    if (piece.canRotate && piece.h <= effW && piece.w <= effH && piece.w !== piece.h) orients.push([piece.h, piece.w, true]);
-    if (orients.length === 0) continue;
-
-    // Sort orientations: prefer the one that wastes less height
-    if (orients.length > 1) {
-      orients.sort((a, b) => a[1] - b[1]);
-    }
-
-    // Try existing shelves
-    for (const shelf of shelves) {
-      for (const [pw, ph, rot] of orients) {
-        const gap = shelf.count > 0 ? kerfWidth : 0;
-        if (shelf.usedW + gap + pw <= effW && ph <= shelf.h) {
-          const x = shelf.usedW + gap;
-          curPieces.push({ pieceId: piece.id, pieceIndex: piece.idx, x: x + safetyMargin, y: shelf.y + safetyMargin, width: pw, height: ph, rotated: rot });
-          shelf.usedW = x + pw;
-          shelf.count++;
-          placed = true;
-          break;
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed) {
-      // New shelf on current sheet
-      for (const [pw, ph, rot] of orients) {
-        const last = shelves[shelves.length - 1];
-        const newY = last ? last.y + last.h + kerfWidth : 0;
-        if (newY + ph <= effH && pw <= effW) {
-          shelves.push({ y: newY, h: ph, usedW: pw, count: 1 });
-          curPieces.push({ pieceId: piece.id, pieceIndex: piece.idx, x: safetyMargin, y: newY + safetyMargin, width: pw, height: ph, rotated: rot });
-          placed = true;
-          break;
-        }
-      }
-    }
-
-    if (!placed) {
-      flush();
-      const [pw, ph, rot] = orients[0];
-      shelves.push({ y: 0, h: ph, usedW: pw, count: 1 });
-      curPieces.push({ pieceId: piece.id, pieceIndex: piece.idx, x: safetyMargin, y: safetyMargin, width: pw, height: ph, rotated: rot });
+    // Safety: prevent infinite loop
+    if (curPieces.length === 0 && remaining.length > 0) {
+      break;
     }
   }
-
-  flush();
 
   const sheetArea = matW * matH;
   const totalUsed = layouts.reduce((s, l) => s + l.pieces.reduce((s2, p) => s2 + p.width * p.height, 0), 0);
