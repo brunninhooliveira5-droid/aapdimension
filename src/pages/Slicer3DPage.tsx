@@ -191,7 +191,7 @@ export default function Slicer3DPage() {
     doc.setFontSize(14);
     doc.text("Slicer 3D CNC — Lista de Peças", 14, 15);
     doc.setFontSize(8);
-    doc.text(`Modo: ${mode} | Total: ${result.stats.totalPieces} peças | Material: ${materialName}`, 14, 22);
+    doc.text(`Modo: ${mode} | Total: ${result.stats.totalPieces} peças | Material: ${selectedMaterial?.name || "—"}`, 14, 22);
 
     let y = 30;
     doc.setFontSize(7);
