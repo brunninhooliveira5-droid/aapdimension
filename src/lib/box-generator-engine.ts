@@ -1,6 +1,6 @@
 /**
  * Parametric Box Generator Engine
- * Generates 2D cut pieces for CNC Router / Laser box fabrication
+ * MakerCase-style logic: finger-size based, side-dominant joints
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -37,8 +37,7 @@ export interface BoxParams {
   materialName: string;
   // Joint
   jointType: JointType;
-  fingerMinSize: number;
-  fingerMaxSize: number;
+  fingerSize: number;       // MakerCase-style: user picks desired finger width
   fingerClearance: number;
   // Laser
   kerf: number;
@@ -68,6 +67,7 @@ export interface Path2D_Segment {
 export interface EdgeJointConfig {
   isTabs: boolean;
   fingerCount: number;
+  fingerWidth: number;  // actual computed finger width for this edge
   edgeLength: number;
 }
 
@@ -94,13 +94,11 @@ export interface JointDef {
   pieceB: string;
   edgeB: string;
   fingerCount: number;
+  fingerWidth: number;
   pieceA_isTabs: boolean;
 }
 
 export interface BoxJointConfig {
-  fcW: number;
-  fcWallH: number;
-  fcSideW: number;
   wallH: number;
   sideW: number;
   W: number;
@@ -134,14 +132,13 @@ export const defaultBoxParams: BoxParams = {
   fabMode: "laser",
   boxType: "closed",
   dimensionMode: "external",
-  width: 200,
-  height: 100,
-  depth: 150,
+  width: 100,
+  height: 50,
+  depth: 100,
   materialThickness: 3,
   materialName: "MDF 3mm",
   jointType: "finger",
-  fingerMinSize: 10,
-  fingerMaxSize: 20,
+  fingerSize: 9,          // MakerCase default ~9mm
   fingerClearance: 0.1,
   kerf: 0.2,
   toolDiameter: 3,
@@ -157,21 +154,30 @@ export const defaultBoxParams: BoxParams = {
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-function computeFingerCount(edgeLength: number, minSize: number, maxSize: number): number {
-  // Must be odd count so edges start and end with a tab
-  let bestCount = 3;
-  for (let n = 3; n < 100; n += 2) {
-    const size = edgeLength / n;
-    if (size >= minSize && size <= maxSize) {
-      bestCount = n;
-      break;
-    }
-    if (size < minSize) {
-      bestCount = Math.max(3, n - 2);
-      break;
-    }
+/**
+ * MakerCase-style finger count: compute how many fingers fit given a desired finger size.
+ * Always returns an ODD number ≥ 3 so edges start and end with a tab.
+ */
+function computeFingerCount(edgeLength: number, desiredFingerSize: number): number {
+  if (edgeLength <= 0 || desiredFingerSize <= 0) return 3;
+  
+  // Raw count based on desired size
+  const rawCount = Math.round(edgeLength / desiredFingerSize);
+  
+  // Ensure odd and at least 3
+  let count = Math.max(3, rawCount);
+  if (count % 2 === 0) {
+    // Pick the nearest odd: count-1 or count+1
+    const lower = count - 1;
+    const upper = count + 1;
+    const lowerSize = edgeLength / lower;
+    const upperSize = edgeLength / upper;
+    // Pick whichever gives a finger size closer to desired
+    count = Math.abs(lowerSize - desiredFingerSize) <= Math.abs(upperSize - desiredFingerSize)
+      ? lower : upper;
   }
-  return bestCount;
+  
+  return Math.max(3, count);
 }
 
 function rectPath(w: number, h: number): Path2D_Segment[] {
@@ -184,16 +190,8 @@ function rectPath(w: number, h: number): Path2D_Segment[] {
 }
 
 /**
- * Generate a finger-joint edge contour along one side of a piece.
- * Returns an array of {x,y} points tracing the edge with finger tabs/slots.
- *
- * @param edge - which edge: 'top','bottom','left','right'
- * @param pieceW - piece total width
- * @param pieceH - piece total height
- * @param length - length of the edge
- * @param thickness - material thickness (depth of tabs)
- * @param fingerCount - number of fingers
- * @param isTabs - true → starts with protruding tab; false → starts with slot
+ * Generate finger-joint edge points along one side of a piece.
+ * MakerCase approach: fingerWidth = edgeLength / fingerCount (uniform fingers).
  */
 function fingerEdgePoints(
   edge: "top" | "bottom" | "left" | "right",
@@ -215,74 +213,36 @@ function fingerEdgePoints(
     if (edge === "bottom") {
       const baseY = pieceH;
       if (isTab) {
-        // Tab protrudes outward (downward)
-        pts.push({ x: p0, y: baseY });
-        pts.push({ x: p0, y: baseY + thickness });
-        pts.push({ x: p1, y: baseY + thickness });
-        pts.push({ x: p1, y: baseY });
+        pts.push({ x: p0, y: baseY }, { x: p0, y: baseY + thickness }, { x: p1, y: baseY + thickness }, { x: p1, y: baseY });
       } else {
-        // Slot recesses inward (upward)
-        pts.push({ x: p0, y: baseY });
-        pts.push({ x: p0, y: baseY - thickness });
-        pts.push({ x: p1, y: baseY - thickness });
-        pts.push({ x: p1, y: baseY });
+        pts.push({ x: p0, y: baseY }, { x: p0, y: baseY - thickness }, { x: p1, y: baseY - thickness }, { x: p1, y: baseY });
       }
     } else if (edge === "top") {
       const baseY = 0;
       if (isTab) {
-        // Tab protrudes outward (upward)
-        pts.push({ x: p0, y: baseY });
-        pts.push({ x: p0, y: baseY - thickness });
-        pts.push({ x: p1, y: baseY - thickness });
-        pts.push({ x: p1, y: baseY });
+        pts.push({ x: p0, y: baseY }, { x: p0, y: baseY - thickness }, { x: p1, y: baseY - thickness }, { x: p1, y: baseY });
       } else {
-        // Slot recesses inward (downward)
-        pts.push({ x: p0, y: baseY });
-        pts.push({ x: p0, y: baseY + thickness });
-        pts.push({ x: p1, y: baseY + thickness });
-        pts.push({ x: p1, y: baseY });
+        pts.push({ x: p0, y: baseY }, { x: p0, y: baseY + thickness }, { x: p1, y: baseY + thickness }, { x: p1, y: baseY });
       }
     } else if (edge === "right") {
       const baseX = pieceW;
       if (isTab) {
-        // Tab protrudes outward (rightward)
-        pts.push({ x: baseX, y: p0 });
-        pts.push({ x: baseX + thickness, y: p0 });
-        pts.push({ x: baseX + thickness, y: p1 });
-        pts.push({ x: baseX, y: p1 });
+        pts.push({ x: baseX, y: p0 }, { x: baseX + thickness, y: p0 }, { x: baseX + thickness, y: p1 }, { x: baseX, y: p1 });
       } else {
-        // Slot recesses inward (leftward)
-        pts.push({ x: baseX, y: p0 });
-        pts.push({ x: baseX - thickness, y: p0 });
-        pts.push({ x: baseX - thickness, y: p1 });
-        pts.push({ x: baseX, y: p1 });
+        pts.push({ x: baseX, y: p0 }, { x: baseX - thickness, y: p0 }, { x: baseX - thickness, y: p1 }, { x: baseX, y: p1 });
       }
     } else if (edge === "left") {
       const baseX = 0;
       if (isTab) {
-        // Tab protrudes outward (leftward)
-        pts.push({ x: baseX, y: p0 });
-        pts.push({ x: baseX - thickness, y: p0 });
-        pts.push({ x: baseX - thickness, y: p1 });
-        pts.push({ x: baseX, y: p1 });
+        pts.push({ x: baseX, y: p0 }, { x: baseX - thickness, y: p0 }, { x: baseX - thickness, y: p1 }, { x: baseX, y: p1 });
       } else {
-        // Slot recesses inward (rightward)
-        pts.push({ x: baseX, y: p0 });
-        pts.push({ x: baseX + thickness, y: p0 });
-        pts.push({ x: baseX + thickness, y: p1 });
-        pts.push({ x: baseX, y: p1 });
+        pts.push({ x: baseX, y: p0 }, { x: baseX + thickness, y: p0 }, { x: baseX + thickness, y: p1 }, { x: baseX, y: p1 });
       }
     }
   }
   return pts;
 }
 
-/**
- * Build a full piece contour with finger joints on specified edges.
- * edges: { top, bottom, left, right } each can be:
- *   null → straight edge
- *   { fingerCount, thickness, isTabs } → finger joint
- */
 interface FingerEdgeConfig {
   fingerCount: number;
   thickness: number;
@@ -320,7 +280,6 @@ function buildFingerContour(
   // Bottom edge: right to left (y=pieceH)
   if (edges.bottom) {
     const pts = fingerEdgePoints("bottom", pieceW, pieceH, pieceW, edges.bottom.thickness, edges.bottom.fingerCount, edges.bottom.isTabs);
-    // Reverse so we go right→left
     const reversed = [...pts].reverse();
     for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
   } else {
@@ -330,7 +289,6 @@ function buildFingerContour(
   // Left edge: bottom to top (x=0)
   if (edges.left) {
     const pts = fingerEdgePoints("left", pieceW, pieceH, pieceH, edges.left.thickness, edges.left.fingerCount, edges.left.isTabs);
-    // Reverse so we go bottom→top
     const reversed = [...pts].reverse();
     for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
   } else {
@@ -352,45 +310,72 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
   const wallH = isOpen || hasLid ? H - t : H;
   const sideW = D - 2 * t;
   const hasTop = !isOpen && !hasLid;
+  const bottomW = W - 2 * t;   // bottom width (fits between sides... wait)
 
-  // Finger counts computed from REAL edge lengths
-  const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
-  const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
-  const fcSideW = computeFingerCount(sideW, params.fingerMinSize, params.fingerMaxSize);
+  // MakerCase-style: compute finger count from desired finger size
+  // Each junction computes its own fingerCount based on real edge length
+  const fs = params.fingerSize;
 
-  // Unified joint pattern:
-  //   Front/Back: top=tabs, bottom=tabs, left=slots, right=slots
-  //   Sides:      ALL edges = tabs
-  //   Bottom/Top: ALL edges = slots
+  // Edge lengths for each junction type:
+  // Front/Back vertical edges ↔ Sides: wallH
+  const fcVertical = computeFingerCount(wallH, fs);
+  const fwVertical = wallH / fcVertical;
+  
+  // Front/Back bottom/top edges ↔ Bottom/Top: W
+  const fcFrontHoriz = computeFingerCount(W, fs);
+  const fwFrontHoriz = W / fcFrontHoriz;
+  
+  // Sides bottom/top edges ↔ Bottom/Top: sideW (D-2t)
+  const fcSideHoriz = computeFingerCount(sideW, fs);
+  const fwSideHoriz = sideW / fcSideHoriz;
+
+  /**
+   * MakerCase joint pattern (side-dominant):
+   * 
+   * Front/Back:
+   *   - top    = tabs (into top piece)        [if closed]
+   *   - bottom = tabs (into bottom piece)
+   *   - left   = slots (receives side tabs)
+   *   - right  = slots (receives side tabs)
+   * 
+   * Left/Right (sides):
+   *   - top    = tabs (into top piece)        [if closed]
+   *   - bottom = tabs (into bottom piece)
+   *   - left   = tabs (into front/back)
+   *   - right  = tabs (into front/back)
+   * 
+   * Bottom/Top:
+   *   - ALL edges = slots (receives wall tabs)
+   */
   const joints: JointDef[] = [
     // Front/Back ↔ Sides (vertical edges)
-    { pieceA: "front", edgeA: "left",  pieceB: "left",  edgeB: "left",  fingerCount: fcWallH, pieceA_isTabs: false },
-    { pieceA: "front", edgeA: "right", pieceB: "right", edgeB: "right", fingerCount: fcWallH, pieceA_isTabs: false },
-    { pieceA: "back",  edgeA: "left",  pieceB: "left",  edgeB: "right", fingerCount: fcWallH, pieceA_isTabs: false },
-    { pieceA: "back",  edgeA: "right", pieceB: "right", edgeB: "left",  fingerCount: fcWallH, pieceA_isTabs: false },
-    // Front/Back ↔ Bottom
-    { pieceA: "front", edgeA: "bottom", pieceB: "bottom", edgeB: "top",    fingerCount: fcW,    pieceA_isTabs: true },
-    { pieceA: "back",  edgeA: "bottom", pieceB: "bottom", edgeB: "bottom", fingerCount: fcW,    pieceA_isTabs: true },
-    // Sides ↔ Bottom
-    { pieceA: "left",  edgeA: "bottom", pieceB: "bottom", edgeB: "left",  fingerCount: fcSideW, pieceA_isTabs: true },
-    { pieceA: "right", edgeA: "bottom", pieceB: "bottom", edgeB: "right", fingerCount: fcSideW, pieceA_isTabs: true },
+    { pieceA: "front", edgeA: "left",  pieceB: "left",  edgeB: "left",  fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
+    { pieceA: "front", edgeA: "right", pieceB: "right", edgeB: "right", fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
+    { pieceA: "back",  edgeA: "left",  pieceB: "left",  edgeB: "right", fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
+    { pieceA: "back",  edgeA: "right", pieceB: "right", edgeB: "left",  fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
+    // Front/Back ↔ Bottom (horizontal)
+    { pieceA: "front", edgeA: "bottom", pieceB: "bottom", edgeB: "top",    fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
+    { pieceA: "back",  edgeA: "bottom", pieceB: "bottom", edgeB: "bottom", fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
+    // Sides ↔ Bottom (horizontal)
+    { pieceA: "left",  edgeA: "bottom", pieceB: "bottom", edgeB: "left",  fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
+    { pieceA: "right", edgeA: "bottom", pieceB: "bottom", edgeB: "right", fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
   ];
 
   if (hasTop) {
     joints.push(
-      { pieceA: "front", edgeA: "top", pieceB: "top", edgeB: "bottom", fingerCount: fcW,    pieceA_isTabs: true },
-      { pieceA: "back",  edgeA: "top", pieceB: "top", edgeB: "top",    fingerCount: fcW,    pieceA_isTabs: true },
-      { pieceA: "left",  edgeA: "top", pieceB: "top", edgeB: "left",   fingerCount: fcSideW, pieceA_isTabs: true },
-      { pieceA: "right", edgeA: "top", pieceB: "top", edgeB: "right",  fingerCount: fcSideW, pieceA_isTabs: true },
+      { pieceA: "front", edgeA: "top", pieceB: "top", edgeB: "bottom", fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
+      { pieceA: "back",  edgeA: "top", pieceB: "top", edgeB: "top",    fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
+      { pieceA: "left",  edgeA: "top", pieceB: "top", edgeB: "left",   fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
+      { pieceA: "right", edgeA: "top", pieceB: "top", edgeB: "right",  fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
     );
   }
 
   // Build per-piece edge maps from joint definitions
   const edgeLengths: Record<string, Record<string, number>> = {
-    front: { top: W, bottom: W, left: wallH, right: wallH },
-    back:  { top: W, bottom: W, left: wallH, right: wallH },
-    left:  { top: sideW, bottom: sideW, left: wallH, right: wallH },
-    right: { top: sideW, bottom: sideW, left: wallH, right: wallH },
+    front:  { top: W, bottom: W, left: wallH, right: wallH },
+    back:   { top: W, bottom: W, left: wallH, right: wallH },
+    left:   { top: sideW, bottom: sideW, left: wallH, right: wallH },
+    right:  { top: sideW, bottom: sideW, left: wallH, right: wallH },
     bottom: { top: W, bottom: W, left: sideW, right: sideW },
   };
   if (hasTop) edgeLengths.top = { top: W, bottom: W, left: sideW, right: sideW };
@@ -407,6 +392,7 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
       (pieceEdges[j.pieceA] as any)[j.edgeA] = {
         isTabs: j.pieceA_isTabs,
         fingerCount: j.fingerCount,
+        fingerWidth: j.fingerWidth,
         edgeLength: edgeLengths[j.pieceA]?.[j.edgeA] || 0,
       };
     }
@@ -414,12 +400,13 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
       (pieceEdges[j.pieceB] as any)[j.edgeB] = {
         isTabs: !j.pieceA_isTabs,
         fingerCount: j.fingerCount,
+        fingerWidth: j.fingerWidth,
         edgeLength: edgeLengths[j.pieceB]?.[j.edgeB] || 0,
       };
     }
   }
 
-  return { fcW, fcWallH, fcSideW, wallH, sideW, W, H, D, joints, pieceEdges };
+  return { wallH, sideW, W, H, D, joints, pieceEdges };
 }
 
 export function validateBoxJoints(config: BoxJointConfig): JointConflict[] {
@@ -464,7 +451,6 @@ export function generateBox(params: BoxParams): BoxResult {
   const pieces: BoxPiece[] = [];
   const defaultEdges: PieceEdgeMap = { top: null, bottom: null, left: null, right: null };
 
-  // Convert PieceEdgeMap to buildFingerContour config format
   const toFingerConfig = (em: PieceEdgeMap) => {
     const convert = (e: EdgeJointConfig | null) =>
       e ? { fingerCount: e.fingerCount, thickness: t, isTabs: e.isTabs } : null;
@@ -631,7 +617,6 @@ export function boxPiecesToDXF(pieces: BoxPiece[], gap: number = 10): string {
             prevX = nx;
             prevY = ny;
           }
-          // Close
           addLine(prevX, prevY, offsetX, offsetY);
         }
       }
