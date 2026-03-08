@@ -16,6 +16,22 @@ interface CuttingPlanPdfData {
   clientName?: string;
   projectName?: string;
   scale?: PdfScale;
+  folderName?: string;
+}
+
+export interface ExportOptions {
+  exportA4: boolean;
+  exportRealScale: boolean;
+  folderName: string;
+}
+
+export function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData, "scale">, options: ExportOptions) {
+  if (options.exportA4) {
+    exportCuttingPlanPdf({ ...data, scale: "a4" });
+  }
+  if (options.exportRealScale) {
+    exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName });
+  }
 }
 
 const MM_TO_PT = 2.83465; // 1mm = 2.83465 points
