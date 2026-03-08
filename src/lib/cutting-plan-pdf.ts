@@ -19,6 +19,7 @@ interface CuttingPlanPdfData {
   projectName?: string;
   scale?: PdfScale;
   folderName?: string;
+  singleCut?: boolean;
 }
 
 export interface ExportOptions {
