@@ -250,7 +250,7 @@ export function SavedCuttingPlans() {
                 </div>
               </div>
 
-              <Button className="w-full" variant="outline" onClick={() => handleExportPdf(selectedPlan)}>
+              <Button className="w-full" variant="outline" onClick={() => openExportDialog(selectedPlan)}>
                 <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
               </Button>
             </div>
