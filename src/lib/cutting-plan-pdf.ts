@@ -335,14 +335,11 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
 
     if (singleCut && kerf > 0) {
       // === CORTE ÚNICO MODE ===
-      // Draw pieces as filled rects without individual stroke borders
-      layout.pieces.forEach((p, pi) => {
-        const color = getPieceColorPdf(p.pieceIndex ?? pi);
-        doc.setFillColor(color[0], color[1], color[2]);
-        doc.rect(ox + p.x, oy + p.y, p.width, p.height, "F");
+      // Only draw cut lines — no filled piece rectangles
 
-        // Internal piece label
-        doc.setTextColor(255, 255, 255);
+      // Piece labels (dark text, no background)
+      layout.pieces.forEach((p, pi) => {
+        doc.setTextColor(40, 40, 40);
         const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
         if (fontSize >= 3) {
           doc.setFontSize(fontSize);
@@ -356,16 +353,13 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
       // Collect unique shared cut lines between adjacent pieces
       const cutLines = computeSharedCutLines(layout.pieces, kerf, matW, matH);
 
-      // Draw cut lines — single red line at the center of the kerf gap
+      // Draw cut lines — solid red lines
       doc.setDrawColor(220, 30, 30);
-      doc.setLineWidth(0.25);
-      doc.setLineDashPattern([3, 2], 0);
+      doc.setLineWidth(0.3);
 
       cutLines.forEach(line => {
         doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2);
       });
-
-      doc.setLineDashPattern([], 0);
     } else {
       // === NORMAL MODE — independent contours ===
       layout.pieces.forEach((p, pi) => {
