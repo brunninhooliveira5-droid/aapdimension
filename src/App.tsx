@@ -33,6 +33,7 @@ import CompanyUsersPage from "./pages/CompanyUsersPage";
 import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
+import CuttingPlanPage from "./pages/CuttingPlanPage";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const AppRoutes = () => {
         <Route path="/operacoes/estoque" element={<RoleGate section="controle_producao"><OperacoesEstoquePage /></RoleGate>} />
         <Route path="/operacoes/fichas" element={<RoleGate section="controle_producao"><OperacoesFichasPage /></RoleGate>} />
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
+        <Route path="/plano-corte" element={<CuttingPlanPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
