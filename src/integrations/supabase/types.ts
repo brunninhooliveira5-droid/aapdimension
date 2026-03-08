@@ -590,6 +590,114 @@ export type Database = {
         }
         Relationships: []
       }
+      cutting_plan_materials: {
+        Row: {
+          category: string
+          created_at: string
+          height: number
+          id: string
+          is_active: boolean
+          length: number
+          name: string
+          observation: string | null
+          unit_price: number
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          height?: number
+          id?: string
+          is_active?: boolean
+          length?: number
+          name: string
+          observation?: string | null
+          unit_price?: number
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          height?: number
+          id?: string
+          is_active?: boolean
+          length?: number
+          name?: string
+          observation?: string | null
+          unit_price?: number
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
+      cutting_plans: {
+        Row: {
+          client_name: string | null
+          created_at: string
+          estimated_cost: number
+          id: string
+          kerf_width: number
+          material_dimensions: Json
+          material_name: string
+          material_source: string
+          material_unit_price: number
+          pieces: Json
+          plan_name: string
+          plan_type: string
+          project_name: string | null
+          result_json: Json
+          units_needed: number
+          user_id: string
+          utilization_percent: number
+          waste_area: number
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string
+          estimated_cost?: number
+          id?: string
+          kerf_width?: number
+          material_dimensions?: Json
+          material_name?: string
+          material_source?: string
+          material_unit_price?: number
+          pieces?: Json
+          plan_name: string
+          plan_type?: string
+          project_name?: string | null
+          result_json?: Json
+          units_needed?: number
+          user_id: string
+          utilization_percent?: number
+          waste_area?: number
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string
+          estimated_cost?: number
+          id?: string
+          kerf_width?: number
+          material_dimensions?: Json
+          material_name?: string
+          material_source?: string
+          material_unit_price?: number
+          pieces?: Json
+          plan_name?: string
+          plan_type?: string
+          project_name?: string | null
+          result_json?: Json
+          units_needed?: number
+          user_id?: string
+          utilization_percent?: number
+          waste_area?: number
+        }
+        Relationships: []
+      }
       cutting_quotes: {
         Row: {
           base_speed_final_mmmin: number
