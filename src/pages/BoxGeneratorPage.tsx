@@ -270,19 +270,37 @@ export default function BoxGeneratorPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs">Mín. Dedo</Label>
-                  <Input type="number" value={params.fingerMinSize} onChange={(e) => update({ fingerMinSize: +e.target.value })} />
+              <div>
+                <Label className="text-xs">Tamanho do Dedo ({params.unit})</Label>
+                <div className="flex gap-2 mt-1">
+                  {[
+                    { label: "Fino", value: params.unit === "mm" ? 6 : 0.25 },
+                    { label: "Médio", value: params.unit === "mm" ? 9 : 0.375 },
+                    { label: "Largo", value: params.unit === "mm" ? 12 : 0.5 },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.label}
+                      type="button"
+                      variant={params.fingerSize === preset.value ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => update({ fingerSize: preset.value })}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
                 </div>
-                <div>
-                  <Label className="text-xs">Máx. Dedo</Label>
-                  <Input type="number" value={params.fingerMaxSize} onChange={(e) => update({ fingerMaxSize: +e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">Folga</Label>
-                  <Input type="number" step="0.05" value={params.fingerClearance} onChange={(e) => update({ fingerClearance: +e.target.value })} />
-                </div>
+                <Input
+                  type="number"
+                  step="0.5"
+                  className="mt-2"
+                  value={params.fingerSize}
+                  onChange={(e) => update({ fingerSize: +e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Folga ({params.unit})</Label>
+                <Input type="number" step="0.05" value={params.fingerClearance} onChange={(e) => update({ fingerClearance: +e.target.value })} />
               </div>
             </CardContent>
           </Card>
