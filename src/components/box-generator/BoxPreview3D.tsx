@@ -363,9 +363,9 @@ export function BoxPreview3D({ params, className }: Props) {
     const isOpen = params.boxType === "open";
     const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
     const hw = W/2, hh = H/2, hd = D/2;
+    const jc = computeBoxJoints(params);
     const useFinger = params.jointType === "finger" || params.jointType === "tslot";
-    const wallH = isOpen || hasLid ? H - t : H;
-    const sideD = D - 2 * t;
+    const wallH = jc.wallH;
 
     const woodOuter = "#d4a553";
     const woodInner = "#c49340";
@@ -374,10 +374,6 @@ export function BoxPreview3D({ params, className }: Props) {
     const woodDark  = "#a06e28";
     const woodTabTip = "#c89040";
     const woodTabSide = "#b88030";
-
-    const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
-    const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
-    const fcSideD = computeFingerCount(sideD, params.fingerMinSize, params.fingerMaxSize);
 
     const yBot = -hh, yTop = -hh + wallH;
     const zF = hd - t, zB = -hd + t; // inner Z limits for sides
