@@ -610,42 +610,118 @@ export function SheetCuttingTab() {
           </div>
 
           {/* Visual layouts */}
-          <div className="space-y-4">
-            {result.layouts.map((layout, i) => (
-              <div key={i} className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  Chapa {i + 1} — {layout.pieces.length} peça(s) — Aproveitamento: {layout.utilization.toFixed(1)}%
-                  {layout.scrapWidth && layout.scrapHeight && (
-                    <span className="text-muted-foreground ml-2">
-                      (Retalho: {layout.scrapWidth.toFixed(0)} x {layout.scrapHeight.toFixed(0)} mm)
-                    </span>
-                  )}
-                </p>
-                <div
-                  className="relative border-2 border-border rounded bg-muted/20 overflow-hidden"
-                  style={{ width: "100%", paddingBottom: `${(matH / matW) * 100}%`, maxHeight: 400 }}
-                >
-                  {layout.pieces.map((p, j) => (
-                    <div
-                      key={j}
-                      className="absolute flex items-center justify-center text-[9px] font-bold text-white border border-white/30 rounded-sm"
-                      title={`Peça ${p.pieceIndex + 1}: ${p.width} x ${p.height} mm${p.rotated ? " (girada)" : ""}`}
-                      style={{
-                        left: `${(p.x / matW) * 100}%`,
-                        top: `${(p.y / matH) * 100}%`,
-                        width: `${(p.width / matW) * 100}%`,
-                        height: `${(p.height / matH) * 100}%`,
-                        backgroundColor: getPieceColor(p.pieceIndex),
-                      }}
-                    >
-                      <span className="truncate px-0.5">
-                        P{p.pieceIndex + 1} {p.rotated ? "↻" : ""}
+          <div className="space-y-6">
+            {result.layouts.map((layout, i) => {
+              const scrapX = layout.pieces.length > 0
+                ? Math.max(...layout.pieces.map(p => p.x + p.width))
+                : 0;
+              const scrapY = layout.pieces.length > 0
+                ? Math.max(...layout.pieces.map(p => p.y + p.height))
+                : 0;
+              const hasScrapRight = matW - scrapX > 10;
+              const hasScrapBottom = matH - scrapY > 10;
+
+              return (
+                <div key={i} className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    Chapa {i + 1} — {layout.pieces.length} peça(s) — Aproveitamento: {layout.utilization.toFixed(1)}%
+                    {layout.scrapWidth && layout.scrapHeight && (
+                      <span className="text-muted-foreground ml-2">
+                        (Retalho: {layout.scrapWidth.toFixed(0)} x {layout.scrapHeight.toFixed(0)} mm)
                       </span>
+                    )}
+                  </p>
+
+                  {/* Material dimension label */}
+                  <div className="text-xs text-muted-foreground font-medium mb-1">
+                    Material: {matW} x {matH} mm
+                  </div>
+
+                  <div className="relative">
+                    {/* Top dimension */}
+                    <div className="flex items-center justify-center mb-1">
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                        <div className="h-px w-6 bg-muted-foreground/50" />
+                        {matW} mm
+                        <div className="h-px w-6 bg-muted-foreground/50" />
+                      </div>
                     </div>
-                  ))}
+
+                    <div className="flex items-stretch">
+                      {/* Sheet visual */}
+                      <div
+                        className="relative border-2 border-primary/60 rounded bg-muted/30 overflow-hidden flex-1"
+                        style={{ paddingBottom: `${(matH / matW) * 100}%`, maxHeight: 450 }}
+                      >
+                        {/* Pieces */}
+                        {layout.pieces.map((p, j) => (
+                          <div
+                            key={j}
+                            className="absolute flex flex-col items-center justify-center text-[9px] font-bold text-white border border-white/40 rounded-sm shadow-sm"
+                            title={`Peça ${p.pieceIndex + 1}: ${p.width} x ${p.height} mm${p.rotated ? " (girada)" : ""}`}
+                            style={{
+                              left: `${(p.x / matW) * 100}%`,
+                              top: `${(p.y / matH) * 100}%`,
+                              width: `${(p.width / matW) * 100}%`,
+                              height: `${(p.height / matH) * 100}%`,
+                              backgroundColor: getPieceColor(p.pieceIndex),
+                            }}
+                          >
+                            <span className="truncate px-0.5 leading-tight">
+                              P{p.pieceIndex + 1}{p.rotated ? " ↻" : ""}
+                            </span>
+                            <span className="truncate px-0.5 text-[8px] opacity-80 leading-tight">
+                              {p.width}x{p.height}
+                            </span>
+                          </div>
+                        ))}
+
+                        {/* Scrap area - right */}
+                        {hasScrapRight && (
+                          <div
+                            className="absolute border-2 border-dashed border-orange-400/60 bg-orange-500/10 flex items-center justify-center rounded-sm"
+                            style={{
+                              left: `${(scrapX / matW) * 100}%`,
+                              top: "0%",
+                              width: `${((matW - scrapX) / matW) * 100}%`,
+                              height: `${(scrapY / matH) * 100}%`,
+                            }}
+                          >
+                            <span className="text-[8px] text-orange-600 dark:text-orange-400 font-medium opacity-80 truncate px-0.5">
+                              Sobra
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Scrap area - bottom */}
+                        {hasScrapBottom && (
+                          <div
+                            className="absolute border-2 border-dashed border-orange-400/60 bg-orange-500/10 flex items-center justify-center rounded-sm"
+                            style={{
+                              left: "0%",
+                              top: `${(scrapY / matH) * 100}%`,
+                              width: "100%",
+                              height: `${((matH - scrapY) / matH) * 100}%`,
+                            }}
+                          >
+                            <span className="text-[8px] text-orange-600 dark:text-orange-400 font-medium opacity-80 truncate px-0.5">
+                              Retalho {(matW).toFixed(0)}x{(matH - scrapY).toFixed(0)} mm
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right dimension */}
+                      <div className="flex flex-col items-center justify-center ml-1">
+                        <div className="w-px flex-1 bg-muted-foreground/50" />
+                        <span className="text-[10px] text-muted-foreground font-medium py-1 [writing-mode:vertical-rl]">{matH} mm</span>
+                        <div className="w-px flex-1 bg-muted-foreground/50" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Legend */}
@@ -656,6 +732,14 @@ export function SheetCuttingTab() {
                 Peça {i + 1}
               </div>
             ))}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="w-3 h-3 rounded-sm border-2 border-dashed border-orange-400/60 bg-orange-500/10" />
+              Sobra / Retalho
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="w-3 h-3 rounded-sm border-2 border-primary/60 bg-muted/30" />
+              Chapa (material)
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
