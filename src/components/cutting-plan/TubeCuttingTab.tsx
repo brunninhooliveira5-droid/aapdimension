@@ -115,7 +115,8 @@ export function TubeCuttingTab() {
     if (e.key === "Shift") {
       e.preventDefault();
       const current = e.target as HTMLInputElement;
-      const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-piece-id][data-field]'));
+      const currentField = current.getAttribute("data-field");
+      const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>(`[data-piece-id][data-field="${currentField}"]`));
       const idx = allInputs.indexOf(current);
       const next = idx >= 0 ? allInputs[(idx + 1) % allInputs.length] : allInputs[0];
       next?.focus();
