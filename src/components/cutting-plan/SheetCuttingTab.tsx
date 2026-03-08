@@ -346,11 +346,19 @@ export function SheetCuttingTab() {
     setSaving(false);
   };
 
-  const handleExportPdf = (scale: PdfScale) => {
+  const handleExportPdf = () => {
     if (!result || result.errors.length > 0) return;
+    if (!exportA4 && !exportRealScale) {
+      toast.error("Selecione pelo menos um formato.");
+      return;
+    }
+    if (exportRealScale && !folderName.trim()) {
+      toast.error("Informe o nome da pasta para exportação 1:1.");
+      return;
+    }
     const matW = parseFloat(materialWidth);
     const matH = parseFloat(materialHeight);
-    exportCuttingPlanPdf({
+    exportCuttingPlanWithOptions({
       planName: planName || "Plano de Corte - Chapa",
       planType: "chapa",
       materialName,
@@ -361,8 +369,7 @@ export function SheetCuttingTab() {
       result,
       clientName,
       projectName,
-      scale,
-    });
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
