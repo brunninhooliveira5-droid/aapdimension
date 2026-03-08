@@ -23,31 +23,46 @@ export function BoxPreview2D({ pieces, className }: Props) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, cw, ch);
 
-    // Layout pieces in rows
-    const gap = 8;
-    let x = gap;
-    let y = gap;
-    let maxRowH = 0;
-    const maxW = cw - gap * 2;
+    const gap = 12;
 
-    // Calculate scale
-    let totalW = 0;
-    let totalH = 0;
-    {
-      let lx = gap, ly = gap, lmrh = 0;
-      for (const p of pieces) {
-        for (let q = 0; q < p.quantity; q++) {
-          if (lx + p.width + gap > 2000) { lx = gap; ly += lmrh + gap; lmrh = 0; }
-          totalW = Math.max(totalW, lx + p.width + gap);
-          lmrh = Math.max(lmrh, p.height);
-          lx += p.width + gap;
+    // Pre-calculate bounding boxes for each piece (accounting for finger tabs)
+    const pieceBounds = pieces.map((p) => {
+      let minX = 0, minY = 0, maxX = p.width, maxY = p.height;
+      if (p.paths && p.paths.length > 0) {
+        for (const contour of p.paths) {
+          for (const seg of contour) {
+            if (seg.x < minX) minX = seg.x;
+            if (seg.y < minY) minY = seg.y;
+            if (seg.x > maxX) maxX = seg.x;
+            if (seg.y > maxY) maxY = seg.y;
+          }
         }
-        totalH = ly + lmrh + gap;
+      }
+      return { minX, minY, maxX, maxY, drawW: maxX - minX, drawH: maxY - minY };
+    });
+
+    // Layout pieces in rows
+    let totalW = 0, totalH = 0;
+    {
+      let lx = 0, ly = 0, lmrh = 0;
+      for (let pi = 0; pi < pieces.length; pi++) {
+        const b = pieceBounds[pi];
+        for (let q = 0; q < pieces[pi].quantity; q++) {
+          if (lx + b.drawW + gap > 2000 && lx > 0) { lx = 0; ly += lmrh + gap; lmrh = 0; }
+          totalW = Math.max(totalW, lx + b.drawW);
+          lmrh = Math.max(lmrh, b.drawH);
+          lx += b.drawW + gap;
+        }
+        totalH = ly + lmrh;
       }
     }
-    const scale = Math.min((cw - gap * 2) / totalW, (ch - gap * 2) / totalH, 1);
+
+    const scale = Math.min((cw - gap * 4) / (totalW || 1), (ch - gap * 4) / (totalH || 1), 1.5);
+    const offsetX = (cw - totalW * scale) / 2;
+    const offsetY = (ch - totalH * scale) / 2;
+
     ctx.save();
-    ctx.translate(gap, gap);
+    ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
     const colors = [
@@ -55,40 +70,70 @@ export function BoxPreview2D({ pieces, className }: Props) {
     ];
 
     let ci = 0;
-    x = 0; y = 0; maxRowH = 0;
-    for (const piece of pieces) {
+    let x = 0, y = 0, maxRowH = 0;
+    const maxW = (cw - gap * 4) / scale;
+
+    for (let pi = 0; pi < pieces.length; pi++) {
+      const piece = pieces[pi];
+      const b = pieceBounds[pi];
       const color = colors[ci++ % colors.length];
+
       for (let q = 0; q < piece.quantity; q++) {
-        if (x + piece.width > maxW / scale) {
+        if (x + b.drawW > maxW && x > 0) {
           x = 0;
           y += maxRowH + gap;
           maxRowH = 0;
         }
 
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5 / scale;
-        ctx.strokeRect(x, y, piece.width, piece.height);
+        // Draw piece contour from paths
+        const drawX = x - b.minX;
+        const drawY = y - b.minY;
 
-        ctx.fillStyle = color + "18";
-        ctx.fillRect(x, y, piece.width, piece.height);
+        if (piece.paths && piece.paths.length > 0) {
+          for (const contour of piece.paths) {
+            if (contour.length === 0) continue;
+
+            // Fill
+            ctx.beginPath();
+            ctx.moveTo(drawX, drawY);
+            for (const seg of contour) {
+              ctx.lineTo(drawX + seg.x, drawY + seg.y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = color + "15";
+            ctx.fill();
+
+            // Stroke
+            ctx.beginPath();
+            ctx.moveTo(drawX, drawY);
+            for (const seg of contour) {
+              ctx.lineTo(drawX + seg.x, drawY + seg.y);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5 / scale;
+            ctx.stroke();
+          }
+        }
 
         // Label
-        const fontSize = Math.max(8, Math.min(14, piece.width / 10));
+        const labelX = x + b.drawW / 2;
+        const labelY = y + b.drawH / 2;
+        const fontSize = Math.max(6, Math.min(12, b.drawW / 12));
         ctx.fillStyle = color;
-        ctx.font = `${fontSize}px sans-serif`;
+        ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(piece.label, x + piece.width / 2, y + piece.height / 2 - fontSize * 0.6);
-        ctx.font = `${fontSize * 0.7}px sans-serif`;
-        ctx.fillStyle = "#888";
+        ctx.fillText(piece.label, labelX, labelY - fontSize * 0.6);
+        ctx.font = `${fontSize * 0.75}px sans-serif`;
+        ctx.fillStyle = "#666";
         ctx.fillText(
           `${piece.width.toFixed(1)} × ${piece.height.toFixed(1)}`,
-          x + piece.width / 2,
-          y + piece.height / 2 + fontSize * 0.5
+          labelX, labelY + fontSize * 0.5,
         );
 
-        maxRowH = Math.max(maxRowH, piece.height);
-        x += piece.width + gap;
+        maxRowH = Math.max(maxRowH, b.drawH);
+        x += b.drawW + gap;
       }
     }
 
