@@ -65,19 +65,29 @@ export function SavedCuttingPlans() {
 
   const openExportDialog = (plan: SavedPlan) => {
     setExportPlan(plan);
-    setExportScale("a4");
+    setExportA4(true);
+    setExportRealScale(false);
+    setFolderName("");
     setShowExportDialog(true);
   };
 
   const handleExportPdf = () => {
     if (!exportPlan) return;
+    if (!exportA4 && !exportRealScale) {
+      toast.error("Selecione pelo menos um formato.");
+      return;
+    }
+    if (exportRealScale && !folderName.trim()) {
+      toast.error("Informe o nome da pasta para exportação 1:1.");
+      return;
+    }
     const plan = exportPlan;
     const dims = plan.material_dimensions;
     const dimensionsStr = plan.plan_type === "chapa"
       ? `${dims.width} x ${dims.height} mm`
       : `${dims.length} mm`;
 
-    exportCuttingPlanPdf({
+    exportCuttingPlanWithOptions({
       planName: plan.plan_name,
       planType: plan.plan_type as "chapa" | "tubo",
       materialName: plan.material_name,
@@ -88,8 +98,7 @@ export function SavedCuttingPlans() {
       result: plan.result_json,
       clientName: plan.client_name,
       projectName: plan.project_name,
-      scale: exportScale,
-    });
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
