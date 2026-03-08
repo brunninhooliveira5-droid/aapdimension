@@ -5443,6 +5443,39 @@ export type Database = {
         }
         Relationships: []
       }
+      slicer_materials: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          name: string
+          thickness: number
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height?: number
+          id?: string
+          name: string
+          thickness?: number
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          name?: string
+          thickness?: number
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
       technical_bulletins: {
         Row: {
           active: boolean

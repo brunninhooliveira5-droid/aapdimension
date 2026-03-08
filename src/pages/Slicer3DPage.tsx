@@ -19,6 +19,7 @@ import {
   RadialParamsPanel,
   UnfoldParamsPanel,
 } from "@/components/slicer3d/SlicerParametersPanel";
+import { SlicerMaterialManager, type SlicerMaterial } from "@/components/slicer3d/SlicerMaterialManager";
 import {
   stackedSlice,
   interlockedSlice,
@@ -83,9 +84,20 @@ export default function Slicer3DPage() {
   const [fileName, setFileName] = useState("");
   const [mode, setMode] = useState("stacked");
   const [result, setResult] = useState<SlicerResult | null>(null);
-  const [materialName, setMaterialName] = useState("MDF");
+  const [selectedMaterial, setSelectedMaterial] = useState<SlicerMaterial | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewTab, setViewTab] = useState<"3d" | "2d" | "list">("3d");
+
+  // Compute model bounding box
+  const modelBounds = geometry ? (() => {
+    geometry.computeBoundingBox();
+    const bb = geometry.boundingBox!;
+    return {
+      x: bb.max.x - bb.min.x,
+      y: bb.max.y - bb.min.y,
+      z: bb.max.z - bb.min.z,
+    };
+  })() : null;
 
   // Params for each mode
   const [stackedParams, setStackedParams] = useState(defaultStackedParams);
@@ -117,24 +129,30 @@ export default function Slicer3DPage() {
       toast.error("Importe um modelo 3D primeiro");
       return;
     }
+    if (!selectedMaterial) {
+      toast.error("Selecione um material antes de processar");
+      return;
+    }
     setLoading(true);
     try {
+      // Override material thickness from selected material
+      const overrideThickness = (p: any) => ({ ...p, materialThickness: selectedMaterial.thickness });
       let res: SlicerResult;
       switch (mode) {
         case "stacked":
-          res = stackedSlice(geometry, stackedParams);
+          res = stackedSlice(geometry, overrideThickness(stackedParams));
           break;
         case "interlocked":
-          res = interlockedSlice(geometry, interlockParams);
+          res = interlockedSlice(geometry, overrideThickness(interlockParams));
           break;
         case "radial":
-          res = radialSlice(geometry, radialParams);
+          res = radialSlice(geometry, overrideThickness(radialParams));
           break;
         case "unfold":
-          res = unfoldMesh(geometry, unfoldParams);
+          res = unfoldMesh(geometry, overrideThickness(unfoldParams));
           break;
         default:
-          res = stackedSlice(geometry, stackedParams);
+          res = stackedSlice(geometry, overrideThickness(stackedParams));
       }
       setResult(res);
       setViewTab("2d");
@@ -144,7 +162,7 @@ export default function Slicer3DPage() {
     } finally {
       setLoading(false);
     }
-  }, [geometry, mode, stackedParams, interlockParams, radialParams, unfoldParams]);
+  }, [geometry, mode, stackedParams, interlockParams, radialParams, unfoldParams, selectedMaterial]);
 
   // Export handlers
   const downloadFile = (content: string, filename: string, mime: string) => {
@@ -175,7 +193,7 @@ export default function Slicer3DPage() {
     doc.setFontSize(14);
     doc.text("Slicer 3D CNC — Lista de Peças", 14, 15);
     doc.setFontSize(8);
-    doc.text(`Modo: ${mode} | Total: ${result.stats.totalPieces} peças | Material: ${materialName}`, 14, 22);
+    doc.text(`Modo: ${mode} | Total: ${result.stats.totalPieces} peças | Material: ${selectedMaterial?.name || "—"}`, 14, 22);
 
     let y = 30;
     doc.setFontSize(7);
@@ -195,7 +213,7 @@ export default function Slicer3DPage() {
       doc.text(c.thickness.toFixed(1), colX[4], y);
       doc.text(c.area.toFixed(1), colX[5], y);
       doc.text("1", colX[6], y);
-      doc.text(materialName, colX[7], y);
+      doc.text(selectedMaterial?.name || "—", colX[7], y);
       y += 5;
     });
 
@@ -253,12 +271,15 @@ export default function Slicer3DPage() {
               {fileName && (
                 <p className="text-xs text-muted-foreground truncate">📁 {fileName}</p>
               )}
-              <div>
-                <Label className="text-xs">Material</Label>
-                <Input value={materialName} onChange={(e) => setMaterialName(e.target.value)} placeholder="Ex: MDF, Acrílico..." />
-              </div>
             </CardContent>
           </Card>
+
+          {/* Material Selection */}
+          <SlicerMaterialManager
+            selectedMaterial={selectedMaterial}
+            onSelectMaterial={setSelectedMaterial}
+            modelBounds={modelBounds}
+          />
 
           {/* Mode Selection */}
           <Card>
@@ -293,9 +314,9 @@ export default function Slicer3DPage() {
                 </div>
               </Tabs>
 
-              <Button className="w-full mt-4" onClick={handleProcess} disabled={!geometry || loading}>
+              <Button className="w-full mt-4" onClick={handleProcess} disabled={!geometry || !selectedMaterial || loading}>
                 <Play className="h-4 w-4 mr-2" />
-                {loading ? "Processando..." : "Processar"}
+                {loading ? "Processando..." : !selectedMaterial ? "Selecione um material" : "Processar"}
               </Button>
             </CardContent>
           </Card>
@@ -398,7 +419,7 @@ export default function Slicer3DPage() {
               )}
               {viewTab === "list" && result && (
                 <div className="p-4 overflow-auto h-full">
-                  <PartsListTable contours={result.contours} materialName={materialName} />
+                  <PartsListTable contours={result.contours} materialName={selectedMaterial?.name || "—"} />
                 </div>
               )}
             </CardContent>
