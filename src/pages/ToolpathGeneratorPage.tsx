@@ -219,19 +219,20 @@ export default function ToolpathGeneratorPage() {
       <div className="flex items-center justify-between px-1 flex-wrap gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 text-amber-600">V4</Badge>
+          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border-emerald-500/30 text-emerald-600">V4.2</Badge>
           {activePreset && (
             <Badge variant="outline" className="text-[9px] h-5">
               {activePreset.name}
               {isMetal(activePreset.category) && " ⚡"}
+              {activePreset.coolantRequired && " 💧"}
             </Badge>
           )}
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-44 text-xs" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0"
+          <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white border-0"
             onClick={handleAutoCam} disabled={vectors.length === 0}>
-            <Wand2 className="h-3.5 w-3.5" /> Auto CAM
+            <Wand2 className="h-3.5 w-3.5" /> Auto CAM V4
           </Button>
           <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate} disabled={operations.length === 0}>
             <AlertTriangle className="h-3.5 w-3.5" /> Validar
