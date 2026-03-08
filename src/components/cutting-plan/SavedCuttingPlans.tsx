@@ -99,7 +99,7 @@ export function SavedCuttingPlans() {
       result: plan.result_json,
       clientName: plan.client_name,
       projectName: plan.project_name,
-    }, { exportA4, exportRealScale, folderName: folderName.trim() });
+    }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
     setShowExportDialog(false);
   };
 
