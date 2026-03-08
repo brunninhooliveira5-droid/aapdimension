@@ -1,5 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import type { SheetCuttingResult, TubeCuttingResult } from "./cutting-plan-engine";
 
 export type PdfScale = "a4" | "1:1";
