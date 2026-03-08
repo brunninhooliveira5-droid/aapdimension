@@ -1,6 +1,16 @@
 /**
  * Parametric Box Generator Engine
- * MakerCase-style logic: finger-size based, side-dominant joints
+ * Combines MakerCase + Boxes.py logic for reliable finger joints.
+ *
+ * Key concepts from Boxes.py:
+ *   • finger / space widths as multiples of material thickness
+ *   • "surrounding spaces" — flat padding at each edge end to prevent corner conflicts
+ *   • burn correction for tighter laser-cut fit
+ *
+ * Key concepts from MakerCase:
+ *   • single finger-size parameter
+ *   • side-dominant joint pattern
+ *   • inside / outside dimension toggle
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -30,14 +40,14 @@ export interface BoxParams {
   fabMode: FabMode;
   boxType: BoxType;
   dimensionMode: DimensionMode;
-  width: number;   // X
-  height: number;  // Y (vertical)
-  depth: number;   // Z
+  width: number;
+  height: number;
+  depth: number;
   materialThickness: number;
   materialName: string;
   // Joint
   jointType: JointType;
-  fingerSize: number;       // MakerCase-style: user picks desired finger width
+  fingerSize: number;
   fingerClearance: number;
   // Laser
   kerf: number;
@@ -67,8 +77,9 @@ export interface Path2D_Segment {
 export interface EdgeJointConfig {
   isTabs: boolean;
   fingerCount: number;
-  fingerWidth: number;  // actual computed finger width for this edge
+  fingerWidth: number;
   edgeLength: number;
+  padding: number;          // surrounding-space padding at each end
 }
 
 export interface PieceEdgeMap {
@@ -95,6 +106,7 @@ export interface JointDef {
   edgeB: string;
   fingerCount: number;
   fingerWidth: number;
+  padding: number;
   pieceA_isTabs: boolean;
 }
 
@@ -138,7 +150,7 @@ export const defaultBoxParams: BoxParams = {
   materialThickness: 3,
   materialName: "MDF 3mm",
   jointType: "finger",
-  fingerSize: 9,          // MakerCase default ~9mm
+  fingerSize: 9,
   fingerClearance: 0.1,
   kerf: 0.2,
   toolDiameter: 3,
@@ -155,29 +167,53 @@ export const defaultBoxParams: BoxParams = {
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**
- * MakerCase-style finger count: compute how many fingers fit given a desired finger size.
- * Always returns an ODD number ≥ 3 so edges start and end with a tab.
+ * Compute finger count and layout for an edge.
+ *
+ * Boxes.py-inspired: we leave "surrounding spaces" (= 1 × fingerWidth padding)
+ * at each end of the edge so that no tab sits right at the corner.
+ *
+ * The finger pattern occupies the central portion:
+ *   effectiveLength = edgeLength - 2 × padding
+ *   fingerCount = nearest odd ≥ 3
+ *   fingerWidth = effectiveLength / fingerCount
+ *
+ * Returns { fingerCount, fingerWidth, padding }.
  */
-function computeFingerCount(edgeLength: number, desiredFingerSize: number): number {
-  if (edgeLength <= 0 || desiredFingerSize <= 0) return 3;
-  
-  // Raw count based on desired size
-  const rawCount = Math.round(edgeLength / desiredFingerSize);
-  
-  // Ensure odd and at least 3
+function computeFingerLayout(
+  edgeLength: number,
+  desiredFingerSize: number,
+): { fingerCount: number; fingerWidth: number; padding: number } {
+  if (edgeLength <= 0 || desiredFingerSize <= 0)
+    return { fingerCount: 3, fingerWidth: edgeLength / 3, padding: 0 };
+
+  // Padding = half the desired finger size at each end (Boxes.py "surroundingspaces")
+  const padding = Math.min(desiredFingerSize * 0.5, edgeLength * 0.15);
+  const effective = edgeLength - 2 * padding;
+
+  if (effective <= 0)
+    return { fingerCount: 3, fingerWidth: edgeLength / 3, padding: 0 };
+
+  const rawCount = Math.round(effective / desiredFingerSize);
   let count = Math.max(3, rawCount);
+
+  // Must be ODD so edge starts and ends with a tab
   if (count % 2 === 0) {
-    // Pick the nearest odd: count-1 or count+1
     const lower = count - 1;
     const upper = count + 1;
-    const lowerSize = edgeLength / lower;
-    const upperSize = edgeLength / upper;
-    // Pick whichever gives a finger size closer to desired
-    count = Math.abs(lowerSize - desiredFingerSize) <= Math.abs(upperSize - desiredFingerSize)
-      ? lower : upper;
+    const lSz = effective / lower;
+    const uSz = effective / upper;
+    count =
+      Math.abs(lSz - desiredFingerSize) <= Math.abs(uSz - desiredFingerSize)
+        ? lower
+        : upper;
   }
-  
-  return Math.max(3, count);
+  count = Math.max(3, count);
+
+  return {
+    fingerCount: count,
+    fingerWidth: effective / count,
+    padding,
+  };
 }
 
 function rectPath(w: number, h: number): Path2D_Segment[] {
@@ -190,25 +226,32 @@ function rectPath(w: number, h: number): Path2D_Segment[] {
 }
 
 /**
- * Generate finger-joint edge points along one side of a piece.
- * MakerCase approach: fingerWidth = edgeLength / fingerCount (uniform fingers).
+ * Generate finger-joint edge points with surrounding-space padding.
+ *
+ * The edge is divided into:
+ *   [padding] [finger 0] [finger 1] ... [finger N-1] [padding]
+ *
+ * The padding sections are FLAT (no tab/slot).
+ * Tabs on isTabs=true sides: even indices (0,2,4…) protrude outward.
+ * Slots on isTabs=false sides: even indices recess inward.
  */
 function fingerEdgePoints(
   edge: "top" | "bottom" | "left" | "right",
   pieceW: number,
   pieceH: number,
-  length: number,
+  edgeLength: number,
   thickness: number,
   fingerCount: number,
+  fingerWidth: number,
+  padding: number,
   isTabs: boolean,
 ): { x: number; y: number }[] {
   const pts: { x: number; y: number }[] = [];
-  const fSize = length / fingerCount;
 
   for (let i = 0; i < fingerCount; i++) {
     const isTab = (i % 2 === 0) === isTabs;
-    const p0 = i * fSize;
-    const p1 = (i + 1) * fSize;
+    const p0 = padding + i * fingerWidth;
+    const p1 = padding + (i + 1) * fingerWidth;
 
     if (edge === "bottom") {
       const baseY = pieceH;
@@ -243,12 +286,22 @@ function fingerEdgePoints(
   return pts;
 }
 
+// ─── Contour builder ─────────────────────────────────────────────
+
 interface FingerEdgeConfig {
   fingerCount: number;
+  fingerWidth: number;
+  padding: number;
   thickness: number;
   isTabs: boolean;
 }
 
+/**
+ * Build a full piece contour with finger joints.
+ *
+ * Traversal order: top → right → bottom (reversed) → left (reversed).
+ * Padding regions are flat straight-line sections.
+ */
 function buildFingerContour(
   pieceW: number,
   pieceH: number,
@@ -259,43 +312,66 @@ function buildFingerContour(
     right?: FingerEdgeConfig | null;
   },
 ): Path2D_Segment[] {
-  const segments: Path2D_Segment[] = [];
+  const s: Path2D_Segment[] = [];
+  const L = (x: number, y: number) => s.push({ type: "L" as const, x, y });
 
-  // Top edge: left to right (y=0)
+  // ── TOP EDGE (left → right, y=0) ──
   if (edges.top) {
-    const pts = fingerEdgePoints("top", pieceW, pieceH, pieceW, edges.top.thickness, edges.top.fingerCount, edges.top.isTabs);
-    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+    const e = edges.top;
+    // Flat padding at left end
+    if (e.padding > 0) L(e.padding, 0);
+    // Finger region
+    const pts = fingerEdgePoints("top", pieceW, pieceH, pieceW, e.thickness, e.fingerCount, e.fingerWidth, e.padding, e.isTabs);
+    for (const p of pts) L(p.x, p.y);
+    // Flat padding at right end
+    if (e.padding > 0) L(pieceW - e.padding, 0);
+    L(pieceW, 0);
   } else {
-    segments.push({ type: "L", x: pieceW, y: 0 });
+    L(pieceW, 0);
   }
 
-  // Right edge: top to bottom (x=pieceW)
+  // ── RIGHT EDGE (top → bottom, x=pieceW) ──
   if (edges.right) {
-    const pts = fingerEdgePoints("right", pieceW, pieceH, pieceH, edges.right.thickness, edges.right.fingerCount, edges.right.isTabs);
-    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+    const e = edges.right;
+    if (e.padding > 0) L(pieceW, e.padding);
+    const pts = fingerEdgePoints("right", pieceW, pieceH, pieceH, e.thickness, e.fingerCount, e.fingerWidth, e.padding, e.isTabs);
+    for (const p of pts) L(p.x, p.y);
+    if (e.padding > 0) L(pieceW, pieceH - e.padding);
+    L(pieceW, pieceH);
   } else {
-    segments.push({ type: "L", x: pieceW, y: pieceH });
+    L(pieceW, pieceH);
   }
 
-  // Bottom edge: right to left (y=pieceH)
+  // ── BOTTOM EDGE (right → left, y=pieceH) ──
   if (edges.bottom) {
-    const pts = fingerEdgePoints("bottom", pieceW, pieceH, pieceW, edges.bottom.thickness, edges.bottom.fingerCount, edges.bottom.isTabs);
+    const e = edges.bottom;
+    // Flat padding at right end first (we go right→left)
+    if (e.padding > 0) L(pieceW - e.padding, pieceH);
+    // Finger region (generated left→right then reversed)
+    const pts = fingerEdgePoints("bottom", pieceW, pieceH, pieceW, e.thickness, e.fingerCount, e.fingerWidth, e.padding, e.isTabs);
     const reversed = [...pts].reverse();
-    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+    for (const p of reversed) L(p.x, p.y);
+    // Flat padding at left end
+    if (e.padding > 0) L(e.padding, pieceH);
+    L(0, pieceH);
   } else {
-    segments.push({ type: "L", x: 0, y: pieceH });
+    L(0, pieceH);
   }
 
-  // Left edge: bottom to top (x=0)
+  // ── LEFT EDGE (bottom → top, x=0) ──
   if (edges.left) {
-    const pts = fingerEdgePoints("left", pieceW, pieceH, pieceH, edges.left.thickness, edges.left.fingerCount, edges.left.isTabs);
+    const e = edges.left;
+    if (e.padding > 0) L(0, pieceH - e.padding);
+    const pts = fingerEdgePoints("left", pieceW, pieceH, pieceH, e.thickness, e.fingerCount, e.fingerWidth, e.padding, e.isTabs);
     const reversed = [...pts].reverse();
-    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+    for (const p of reversed) L(p.x, p.y);
+    if (e.padding > 0) L(0, e.padding);
+    L(0, 0);
   } else {
-    segments.push({ type: "L", x: 0, y: 0 });
+    L(0, 0);
   }
 
-  return segments;
+  return s;
 }
 
 // ─── Joint Configuration (Single Source of Truth) ────────────────
@@ -310,67 +386,55 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
   const wallH = isOpen || hasLid ? H - t : H;
   const sideW = D - 2 * t;
   const hasTop = !isOpen && !hasLid;
-  const bottomW = W - 2 * t;   // bottom width (fits between sides... wait)
 
-  // MakerCase-style: compute finger count from desired finger size
-  // Each junction computes its own fingerCount based on real edge length
   const fs = params.fingerSize;
 
-  // Edge lengths for each junction type:
-  // Front/Back vertical edges ↔ Sides: wallH
-  const fcVertical = computeFingerCount(wallH, fs);
-  const fwVertical = wallH / fcVertical;
-  
-  // Front/Back bottom/top edges ↔ Bottom/Top: W
-  const fcFrontHoriz = computeFingerCount(W, fs);
-  const fwFrontHoriz = W / fcFrontHoriz;
-  
-  // Sides bottom/top edges ↔ Bottom/Top: sideW (D-2t)
-  const fcSideHoriz = computeFingerCount(sideW, fs);
-  const fwSideHoriz = sideW / fcSideHoriz;
+  // Compute finger layout for each unique edge length
+  const layoutVertical  = computeFingerLayout(wallH, fs);
+  const layoutFrontH    = computeFingerLayout(W, fs);
+  const layoutSideH     = computeFingerLayout(sideW, fs);
 
   /**
-   * MakerCase joint pattern (side-dominant):
-   * 
-   * Front/Back:
-   *   - top    = tabs (into top piece)        [if closed]
-   *   - bottom = tabs (into bottom piece)
-   *   - left   = slots (receives side tabs)
-   *   - right  = slots (receives side tabs)
-   * 
-   * Left/Right (sides):
-   *   - top    = tabs (into top piece)        [if closed]
-   *   - bottom = tabs (into bottom piece)
-   *   - left   = tabs (into front/back)
-   *   - right  = tabs (into front/back)
-   * 
-   * Bottom/Top:
-   *   - ALL edges = slots (receives wall tabs)
+   * Joint pattern (side-dominant, Boxes.py / MakerCase hybrid):
+   *
+   *   Front/Back: top & bottom = TABS, left & right = SLOTS
+   *   Sides:      ALL edges = TABS
+   *   Bottom/Top: ALL edges = SLOTS
    */
+  const mkJoint = (
+    pA: string, eA: string, pB: string, eB: string,
+    layout: { fingerCount: number; fingerWidth: number; padding: number },
+    pA_isTabs: boolean,
+  ): JointDef => ({
+    pieceA: pA, edgeA: eA, pieceB: pB, edgeB: eB,
+    fingerCount: layout.fingerCount, fingerWidth: layout.fingerWidth,
+    padding: layout.padding, pieceA_isTabs: pA_isTabs,
+  });
+
   const joints: JointDef[] = [
-    // Front/Back ↔ Sides (vertical edges)
-    { pieceA: "front", edgeA: "left",  pieceB: "left",  edgeB: "left",  fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
-    { pieceA: "front", edgeA: "right", pieceB: "right", edgeB: "right", fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
-    { pieceA: "back",  edgeA: "left",  pieceB: "left",  edgeB: "right", fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
-    { pieceA: "back",  edgeA: "right", pieceB: "right", edgeB: "left",  fingerCount: fcVertical, fingerWidth: fwVertical, pieceA_isTabs: false },
-    // Front/Back ↔ Bottom (horizontal)
-    { pieceA: "front", edgeA: "bottom", pieceB: "bottom", edgeB: "top",    fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
-    { pieceA: "back",  edgeA: "bottom", pieceB: "bottom", edgeB: "bottom", fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
-    // Sides ↔ Bottom (horizontal)
-    { pieceA: "left",  edgeA: "bottom", pieceB: "bottom", edgeB: "left",  fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
-    { pieceA: "right", edgeA: "bottom", pieceB: "bottom", edgeB: "right", fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
+    // Vertical: Front/Back ↔ Sides
+    mkJoint("front", "left",   "left",  "left",  layoutVertical, false),
+    mkJoint("front", "right",  "right", "right", layoutVertical, false),
+    mkJoint("back",  "left",   "left",  "right", layoutVertical, false),
+    mkJoint("back",  "right",  "right", "left",  layoutVertical, false),
+    // Horizontal: Front/Back ↔ Bottom
+    mkJoint("front", "bottom", "bottom", "top",    layoutFrontH, true),
+    mkJoint("back",  "bottom", "bottom", "bottom", layoutFrontH, true),
+    // Horizontal: Sides ↔ Bottom
+    mkJoint("left",  "bottom", "bottom", "left",  layoutSideH, true),
+    mkJoint("right", "bottom", "bottom", "right", layoutSideH, true),
   ];
 
   if (hasTop) {
     joints.push(
-      { pieceA: "front", edgeA: "top", pieceB: "top", edgeB: "bottom", fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
-      { pieceA: "back",  edgeA: "top", pieceB: "top", edgeB: "top",    fingerCount: fcFrontHoriz, fingerWidth: fwFrontHoriz, pieceA_isTabs: true },
-      { pieceA: "left",  edgeA: "top", pieceB: "top", edgeB: "left",   fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
-      { pieceA: "right", edgeA: "top", pieceB: "top", edgeB: "right",  fingerCount: fcSideHoriz, fingerWidth: fwSideHoriz, pieceA_isTabs: true },
+      mkJoint("front", "top", "top", "bottom", layoutFrontH, true),
+      mkJoint("back",  "top", "top", "top",    layoutFrontH, true),
+      mkJoint("left",  "top", "top", "left",   layoutSideH,  true),
+      mkJoint("right", "top", "top", "right",  layoutSideH,  true),
     );
   }
 
-  // Build per-piece edge maps from joint definitions
+  // Edge lengths for each piece
   const edgeLengths: Record<string, Record<string, number>> = {
     front:  { top: W, bottom: W, left: wallH, right: wallH },
     back:   { top: W, bottom: W, left: wallH, right: wallH },
@@ -380,6 +444,7 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
   };
   if (hasTop) edgeLengths.top = { top: W, bottom: W, left: sideW, right: sideW };
 
+  // Build per-piece edge maps
   const pieceEdges: Record<string, PieceEdgeMap> = {};
   const pieceIds = ["front", "back", "left", "right", "bottom"];
   if (hasTop) pieceIds.push("top");
@@ -393,6 +458,7 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
         isTabs: j.pieceA_isTabs,
         fingerCount: j.fingerCount,
         fingerWidth: j.fingerWidth,
+        padding: j.padding,
         edgeLength: edgeLengths[j.pieceA]?.[j.edgeA] || 0,
       };
     }
@@ -401,6 +467,7 @@ export function computeBoxJoints(params: BoxParams): BoxJointConfig {
         isTabs: !j.pieceA_isTabs,
         fingerCount: j.fingerCount,
         fingerWidth: j.fingerWidth,
+        padding: j.padding,
         edgeLength: edgeLengths[j.pieceB]?.[j.edgeB] || 0,
       };
     }
@@ -421,7 +488,7 @@ export function validateBoxJoints(config: BoxJointConfig): JointConflict[] {
       if (edgeA.isTabs === edgeB.isTabs) {
         conflicts.push({
           joint: j,
-          message: `Conflito ${edgeA.isTabs ? 'macho/macho' : 'fêmea/fêmea'} entre ${j.pieceA}.${j.edgeA} e ${j.pieceB}.${j.edgeB}`,
+          message: `Conflito ${edgeA.isTabs ? "macho/macho" : "fêmea/fêmea"} entre ${j.pieceA}.${j.edgeA} e ${j.pieceB}.${j.edgeB}`,
         });
       }
       if (edgeA.fingerCount !== edgeB.fingerCount) {
@@ -452,63 +519,52 @@ export function generateBox(params: BoxParams): BoxResult {
   const defaultEdges: PieceEdgeMap = { top: null, bottom: null, left: null, right: null };
 
   const toFingerConfig = (em: PieceEdgeMap) => {
-    const convert = (e: EdgeJointConfig | null) =>
-      e ? { fingerCount: e.fingerCount, thickness: t, isTabs: e.isTabs } : null;
+    const convert = (e: EdgeJointConfig | null): FingerEdgeConfig | null =>
+      e
+        ? { fingerCount: e.fingerCount, fingerWidth: e.fingerWidth, padding: e.padding, thickness: t, isTabs: e.isTabs }
+        : null;
     return { top: convert(em.top), bottom: convert(em.bottom), left: convert(em.left), right: convert(em.right) };
   };
 
   // ─── Front & Back ─────────────────────────────────
   const frontEdges = pieceEdges.front;
-  const frontPath = useFinger
-    ? buildFingerContour(W, wallH, toFingerConfig(frontEdges))
-    : rectPath(W, wallH);
+  const frontPath = useFinger ? buildFingerContour(W, wallH, toFingerConfig(frontEdges)) : rectPath(W, wallH);
   pieces.push({ id: "front", label: "Frente", width: W, height: wallH, quantity: 1, paths: [frontPath], edges: frontEdges });
 
   const backEdges = pieceEdges.back;
-  const backPath = useFinger
-    ? buildFingerContour(W, wallH, toFingerConfig(backEdges))
-    : rectPath(W, wallH);
+  const backPath = useFinger ? buildFingerContour(W, wallH, toFingerConfig(backEdges)) : rectPath(W, wallH);
   pieces.push({ id: "back", label: "Traseira", width: W, height: wallH, quantity: 1, paths: [backPath], edges: backEdges });
 
   // ─── Left & Right sides ───────────────────────────
   const leftEdges = pieceEdges.left;
-  const leftPath = useFinger
-    ? buildFingerContour(sideW, wallH, toFingerConfig(leftEdges))
-    : rectPath(sideW, wallH);
+  const leftPath = useFinger ? buildFingerContour(sideW, wallH, toFingerConfig(leftEdges)) : rectPath(sideW, wallH);
   pieces.push({ id: "left", label: "Lateral Esquerda", width: sideW, height: wallH, quantity: 1, paths: [leftPath], edges: leftEdges });
 
   const rightEdges = pieceEdges.right;
-  const rightPath = useFinger
-    ? buildFingerContour(sideW, wallH, toFingerConfig(rightEdges))
-    : rectPath(sideW, wallH);
+  const rightPath = useFinger ? buildFingerContour(sideW, wallH, toFingerConfig(rightEdges)) : rectPath(sideW, wallH);
   pieces.push({ id: "right", label: "Lateral Direita", width: sideW, height: wallH, quantity: 1, paths: [rightPath], edges: rightEdges });
 
   // ─── Bottom ────────────────────────────────────────
   const bottomEdges = pieceEdges.bottom;
-  const bottomPath = useFinger
-    ? buildFingerContour(W, sideW, toFingerConfig(bottomEdges))
-    : rectPath(W, sideW);
+  const bottomPath = useFinger ? buildFingerContour(W, sideW, toFingerConfig(bottomEdges)) : rectPath(W, sideW);
   pieces.push({ id: "bottom", label: "Fundo", width: W, height: sideW, quantity: 1, paths: [bottomPath], edges: bottomEdges });
 
   // ─── Top / Lid ─────────────────────────────────────
   if (!isOpen) {
     if (hasLid) {
       const lidW = params.boxType === "lid_sliding" ? W + params.lidClearance : W;
-      pieces.push({ id: "lid", label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
-        width: lidW, height: sideW, quantity: 1, paths: [rectPath(lidW, sideW)], edges: defaultEdges });
+      pieces.push({
+        id: "lid",
+        label: params.boxType === "lid_sliding" ? "Tampa Deslizante" : "Tampa",
+        width: lidW, height: sideW, quantity: 1, paths: [rectPath(lidW, sideW)], edges: defaultEdges,
+      });
       if (params.boxType === "lid_sliding") {
-        pieces.push({ id: "track_left", label: "Trilho Esquerdo",
-          width: sideW, height: params.slidingTrackDepth, quantity: 1,
-          paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
-        pieces.push({ id: "track_right", label: "Trilho Direito",
-          width: sideW, height: params.slidingTrackDepth, quantity: 1,
-          paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
+        pieces.push({ id: "track_left", label: "Trilho Esquerdo", width: sideW, height: params.slidingTrackDepth, quantity: 1, paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
+        pieces.push({ id: "track_right", label: "Trilho Direito", width: sideW, height: params.slidingTrackDepth, quantity: 1, paths: [rectPath(sideW, params.slidingTrackDepth)], edges: defaultEdges });
       }
     } else {
       const topEdges = pieceEdges.top || defaultEdges;
-      const topPath = useFinger
-        ? buildFingerContour(W, sideW, toFingerConfig(topEdges))
-        : rectPath(W, sideW);
+      const topPath = useFinger ? buildFingerContour(W, sideW, toFingerConfig(topEdges)) : rectPath(W, sideW);
       pieces.push({ id: "top", label: "Topo", width: W, height: sideW, quantity: 1, paths: [topPath], edges: topEdges });
     }
   }
@@ -516,14 +572,10 @@ export function generateBox(params: BoxParams): BoxResult {
   // ─── Dividers ──────────────────────────────────────
   if (hasDividers) {
     for (let i = 0; i < params.dividersV; i++) {
-      pieces.push({ id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`,
-        width: sideW, height: wallH - t, quantity: 1,
-        paths: [rectPath(sideW, wallH - t)], edges: defaultEdges });
+      pieces.push({ id: `div_v_${i}`, label: `Divisória Vertical ${i + 1}`, width: sideW, height: wallH - t, quantity: 1, paths: [rectPath(sideW, wallH - t)], edges: defaultEdges });
     }
     for (let i = 0; i < params.dividersH; i++) {
-      pieces.push({ id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`,
-        width: iW, height: wallH - t, quantity: 1,
-        paths: [rectPath(iW, wallH - t)], edges: defaultEdges });
+      pieces.push({ id: `div_h_${i}`, label: `Divisória Horizontal ${i + 1}`, width: iW, height: wallH - t, quantity: 1, paths: [rectPath(iW, wallH - t)], edges: defaultEdges });
     }
   }
 
@@ -531,56 +583,34 @@ export function generateBox(params: BoxParams): BoxResult {
   const totalArea = pieces.reduce((sum, p) => sum + p.width * p.height * p.quantity, 0);
   const conflicts = validateBoxJoints(jc);
 
-  return {
-    pieces,
-    totalPieces,
-    stats: { totalArea, materialSheets: 1 },
-    jointConfig: jc,
-    conflicts,
-  };
+  return { pieces, totalPieces, stats: { totalArea, materialSheets: 1 }, jointConfig: jc, conflicts };
 }
 
 // ─── SVG Export ──────────────────────────────────────────────────
 
 export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
-  let x = gap;
-  let y = gap;
-  let maxRowH = 0;
+  let x = gap, y = gap, maxRowH = 0;
   const maxWidth = 800;
   const elements: string[] = [];
 
   for (const piece of pieces) {
     for (let q = 0; q < piece.quantity; q++) {
-      if (x + piece.width + gap > maxWidth) {
-        x = gap;
-        y += maxRowH + gap;
-        maxRowH = 0;
-      }
-
-      if (piece.paths && piece.paths.length > 0) {
+      if (x + piece.width + gap > maxWidth) { x = gap; y += maxRowH + gap; maxRowH = 0; }
+      if (piece.paths?.length) {
         for (const contour of piece.paths) {
           let d = `M ${x} ${y}`;
-          for (const seg of contour) {
-            d += ` L ${x + seg.x} ${y + seg.y}`;
-          }
+          for (const seg of contour) d += ` L ${x + seg.x} ${y + seg.y}`;
           d += " Z";
-          elements.push(
-            `<path d="${d}" fill="none" stroke="#000" stroke-width="0.5"/>`
-          );
+          elements.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="0.5"/>`);
         }
       }
-
       elements.push(
-        `<text x="${x + piece.width / 2}" y="${y + piece.height / 2}" ` +
-        `font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#666">` +
-        `${piece.label}</text>`
+        `<text x="${x + piece.width / 2}" y="${y + piece.height / 2}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#666">${piece.label}</text>`
       );
-
       maxRowH = Math.max(maxRowH, piece.height);
       x += piece.width + gap;
     }
   }
-
   const totalH = y + maxRowH + gap;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${maxWidth}" height="${totalH}" viewBox="0 0 ${maxWidth} ${totalH}">\n${elements.join("\n")}\n</svg>`;
 }
@@ -589,43 +619,30 @@ export function boxPiecesToSVG(pieces: BoxPiece[], gap: number = 10): string {
 
 export function boxPiecesToDXF(pieces: BoxPiece[], gap: number = 10): string {
   let lines = "0\nSECTION\n2\nENTITIES\n";
-  let offsetX = 0;
-  let offsetY = 0;
-  let maxRowH = 0;
+  let offsetX = 0, offsetY = 0, maxRowH = 0;
   const maxWidth = 800;
 
   for (const piece of pieces) {
     for (let q = 0; q < piece.quantity; q++) {
-      if (offsetX + piece.width + gap > maxWidth) {
-        offsetX = 0;
-        offsetY += maxRowH + gap;
-        maxRowH = 0;
-      }
-
+      if (offsetX + piece.width + gap > maxWidth) { offsetX = 0; offsetY += maxRowH + gap; maxRowH = 0; }
       const addLine = (ax: number, ay: number, bx: number, by: number) => {
         lines += `0\nLINE\n8\n0\n10\n${ax}\n20\n${ay}\n30\n0\n11\n${bx}\n21\n${by}\n31\n0\n`;
       };
-
-      if (piece.paths && piece.paths.length > 0) {
+      if (piece.paths?.length) {
         for (const contour of piece.paths) {
-          let prevX = offsetX;
-          let prevY = offsetY;
+          let prevX = offsetX, prevY = offsetY;
           for (const seg of contour) {
-            const nx = offsetX + seg.x;
-            const ny = offsetY + seg.y;
+            const nx = offsetX + seg.x, ny = offsetY + seg.y;
             addLine(prevX, prevY, nx, ny);
-            prevX = nx;
-            prevY = ny;
+            prevX = nx; prevY = ny;
           }
           addLine(prevX, prevY, offsetX, offsetY);
         }
       }
-
       maxRowH = Math.max(maxRowH, piece.height);
       offsetX += piece.width + gap;
     }
   }
-
   lines += "0\nENDSEC\n0\nEOF\n";
   return lines;
 }
