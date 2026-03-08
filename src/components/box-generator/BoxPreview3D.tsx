@@ -449,9 +449,9 @@ export function BoxPreview3D({ params, className }: Props) {
       [[-hw, yBot, hd], [hw, yBot, hd], [hw, yTop, hd], [-hw, yTop, hd]],
       [0, 0, 1], woodFront, woodSide, woodEdge, "Frente",
       [
-        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] },
+        { c0i: 0, c1i: 1, fc: fcW, isTabs: true, tabDir: [0, -1, 0] as Vec3 },
         { c0i: 1, c1i: 2, fc: fcWallH, isTabs: false },
-        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcW, isTabs: true, tabDir: [0, 1, 0] }] : []),
+        ...(!isOpen && !hasLid ? [{ c0i: 2, c1i: 3, fc: fcW, isTabs: true, tabDir: [0, 1, 0] as Vec3 }] : []),
         { c0i: 3, c1i: 0, fc: fcWallH, isTabs: false },
       ],
     );
