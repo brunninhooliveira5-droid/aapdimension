@@ -340,6 +340,114 @@ function buildFingerContour(
   return segments;
 }
 
+// ─── Joint Configuration (Single Source of Truth) ────────────────
+
+export function computeBoxJoints(params: BoxParams): BoxJointConfig {
+  const t = params.materialThickness;
+  let W = params.width, H = params.height, D = params.depth;
+  if (params.dimensionMode === "internal") { W += 2 * t; H += 2 * t; D += 2 * t; }
+
+  const isOpen = params.boxType === "open";
+  const hasLid = params.boxType === "lid_simple" || params.boxType === "lid_sliding";
+  const wallH = isOpen || hasLid ? H - t : H;
+  const sideW = D - 2 * t;
+  const hasTop = !isOpen && !hasLid;
+
+  // Finger counts computed from REAL edge lengths
+  const fcW = computeFingerCount(W, params.fingerMinSize, params.fingerMaxSize);
+  const fcWallH = computeFingerCount(wallH, params.fingerMinSize, params.fingerMaxSize);
+  const fcSideW = computeFingerCount(sideW, params.fingerMinSize, params.fingerMaxSize);
+
+  // Unified joint pattern:
+  //   Front/Back: top=tabs, bottom=tabs, left=slots, right=slots
+  //   Sides:      ALL edges = tabs
+  //   Bottom/Top: ALL edges = slots
+  const joints: JointDef[] = [
+    // Front/Back ↔ Sides (vertical edges)
+    { pieceA: "front", edgeA: "left",  pieceB: "left",  edgeB: "left",  fingerCount: fcWallH, pieceA_isTabs: false },
+    { pieceA: "front", edgeA: "right", pieceB: "right", edgeB: "right", fingerCount: fcWallH, pieceA_isTabs: false },
+    { pieceA: "back",  edgeA: "left",  pieceB: "left",  edgeB: "right", fingerCount: fcWallH, pieceA_isTabs: false },
+    { pieceA: "back",  edgeA: "right", pieceB: "right", edgeB: "left",  fingerCount: fcWallH, pieceA_isTabs: false },
+    // Front/Back ↔ Bottom
+    { pieceA: "front", edgeA: "bottom", pieceB: "bottom", edgeB: "top",    fingerCount: fcW,    pieceA_isTabs: true },
+    { pieceA: "back",  edgeA: "bottom", pieceB: "bottom", edgeB: "bottom", fingerCount: fcW,    pieceA_isTabs: true },
+    // Sides ↔ Bottom
+    { pieceA: "left",  edgeA: "bottom", pieceB: "bottom", edgeB: "left",  fingerCount: fcSideW, pieceA_isTabs: true },
+    { pieceA: "right", edgeA: "bottom", pieceB: "bottom", edgeB: "right", fingerCount: fcSideW, pieceA_isTabs: true },
+  ];
+
+  if (hasTop) {
+    joints.push(
+      { pieceA: "front", edgeA: "top", pieceB: "top", edgeB: "bottom", fingerCount: fcW,    pieceA_isTabs: true },
+      { pieceA: "back",  edgeA: "top", pieceB: "top", edgeB: "top",    fingerCount: fcW,    pieceA_isTabs: true },
+      { pieceA: "left",  edgeA: "top", pieceB: "top", edgeB: "left",   fingerCount: fcSideW, pieceA_isTabs: true },
+      { pieceA: "right", edgeA: "top", pieceB: "top", edgeB: "right",  fingerCount: fcSideW, pieceA_isTabs: true },
+    );
+  }
+
+  // Build per-piece edge maps from joint definitions
+  const edgeLengths: Record<string, Record<string, number>> = {
+    front: { top: W, bottom: W, left: wallH, right: wallH },
+    back:  { top: W, bottom: W, left: wallH, right: wallH },
+    left:  { top: sideW, bottom: sideW, left: wallH, right: wallH },
+    right: { top: sideW, bottom: sideW, left: wallH, right: wallH },
+    bottom: { top: W, bottom: W, left: sideW, right: sideW },
+  };
+  if (hasTop) edgeLengths.top = { top: W, bottom: W, left: sideW, right: sideW };
+
+  const pieceEdges: Record<string, PieceEdgeMap> = {};
+  const pieceIds = ["front", "back", "left", "right", "bottom"];
+  if (hasTop) pieceIds.push("top");
+  for (const id of pieceIds) {
+    pieceEdges[id] = { top: null, bottom: null, left: null, right: null };
+  }
+
+  for (const j of joints) {
+    if (pieceEdges[j.pieceA]) {
+      (pieceEdges[j.pieceA] as any)[j.edgeA] = {
+        isTabs: j.pieceA_isTabs,
+        fingerCount: j.fingerCount,
+        edgeLength: edgeLengths[j.pieceA]?.[j.edgeA] || 0,
+      };
+    }
+    if (pieceEdges[j.pieceB]) {
+      (pieceEdges[j.pieceB] as any)[j.edgeB] = {
+        isTabs: !j.pieceA_isTabs,
+        fingerCount: j.fingerCount,
+        edgeLength: edgeLengths[j.pieceB]?.[j.edgeB] || 0,
+      };
+    }
+  }
+
+  return { fcW, fcWallH, fcSideW, wallH, sideW, W, H, D, joints, pieceEdges };
+}
+
+export function validateBoxJoints(config: BoxJointConfig): JointConflict[] {
+  const conflicts: JointConflict[] = [];
+  const pe = config.pieceEdges;
+
+  for (const j of config.joints) {
+    const edgeA = pe[j.pieceA]?.[j.edgeA as keyof PieceEdgeMap];
+    const edgeB = pe[j.pieceB]?.[j.edgeB as keyof PieceEdgeMap];
+
+    if (edgeA && edgeB) {
+      if (edgeA.isTabs === edgeB.isTabs) {
+        conflicts.push({
+          joint: j,
+          message: `Conflito ${edgeA.isTabs ? 'macho/macho' : 'fêmea/fêmea'} entre ${j.pieceA}.${j.edgeA} e ${j.pieceB}.${j.edgeB}`,
+        });
+      }
+      if (edgeA.fingerCount !== edgeB.fingerCount) {
+        conflicts.push({
+          joint: j,
+          message: `fingerCount diferente: ${j.pieceA}.${j.edgeA}(${edgeA.fingerCount}) ≠ ${j.pieceB}.${j.edgeB}(${edgeB.fingerCount})`,
+        });
+      }
+    }
+  }
+  return conflicts;
+}
+
 // ─── Main Generator ──────────────────────────────────────────────
 
 export function generateBox(params: BoxParams): BoxResult {
