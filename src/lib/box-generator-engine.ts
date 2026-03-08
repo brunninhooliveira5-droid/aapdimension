@@ -142,60 +142,147 @@ function rectPath(w: number, h: number): Path2D_Segment[] {
 }
 
 /**
- * Generate a finger-joint edge profile along an axis.
- * Returns path segments for one edge (bottom or top, left or right).
- * 
- * @param length - total edge length
- * @param thickness - material thickness (depth of fingers)
+ * Generate a finger-joint edge contour along one side of a piece.
+ * Returns an array of {x,y} points tracing the edge with finger tabs/slots.
+ *
+ * @param edge - which edge: 'top','bottom','left','right'
+ * @param pieceW - piece total width
+ * @param pieceH - piece total height
+ * @param length - length of the edge
+ * @param thickness - material thickness (depth of tabs)
  * @param fingerCount - number of fingers
- * @param isTabs - true if this edge has tabs (protrusions), false if slots
- * @param direction - 'h' horizontal (along x), 'v' vertical (along y)
- * @param startX - starting x coordinate
- * @param startY - starting y coordinate
- * @param clearance - joint clearance
- * @param cornerRelief - type of corner relief for CNC
- * @param reliefR - radius for dogbone/fillet relief
+ * @param isTabs - true → starts with protruding tab; false → starts with slot
  */
-function fingerEdge(
+function fingerEdgePoints(
+  edge: "top" | "bottom" | "left" | "right",
+  pieceW: number,
+  pieceH: number,
   length: number,
   thickness: number,
   fingerCount: number,
   isTabs: boolean,
-  direction: "h" | "v",
-  startX: number,
-  startY: number,
-  clearance: number,
-  cornerRelief: CornerRelief = "none",
-  reliefR: number = 0,
-): Path2D_Segment[] {
-  const segments: Path2D_Segment[] = [];
-  const fingerSize = length / fingerCount;
-  const cl = clearance / 2;
+): { x: number; y: number }[] {
+  const pts: { x: number; y: number }[] = [];
+  const fSize = length / fingerCount;
 
   for (let i = 0; i < fingerCount; i++) {
     const isTab = (i % 2 === 0) === isTabs;
-    const pos = i * fingerSize;
-    const nextPos = (i + 1) * fingerSize;
+    const p0 = i * fSize;
+    const p1 = (i + 1) * fSize;
 
-    if (direction === "h") {
+    if (edge === "bottom") {
+      // Along bottom edge, y=pieceH. Tabs go downward (+y).
+      const baseY = pieceH;
       if (isTab) {
-        // Go out (down) then across then back up
-        segments.push({ type: "L", x: startX + pos, y: startY + thickness });
-        segments.push({ type: "L", x: startX + nextPos, y: startY + thickness });
-        segments.push({ type: "L", x: startX + nextPos, y: startY });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY + thickness });
+        pts.push({ x: p1, y: baseY + thickness });
+        pts.push({ x: p1, y: baseY });
       } else {
-        segments.push({ type: "L", x: startX + nextPos, y: startY });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p1, y: baseY });
       }
-    } else {
+    } else if (edge === "top") {
+      // Along top edge, y=0. Tabs go upward (-y).
+      const baseY = 0;
       if (isTab) {
-        segments.push({ type: "L", x: startX + thickness, y: startY + pos });
-        segments.push({ type: "L", x: startX + thickness, y: startY + nextPos });
-        segments.push({ type: "L", x: startX, y: startY + nextPos });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p0, y: baseY - thickness });
+        pts.push({ x: p1, y: baseY - thickness });
+        pts.push({ x: p1, y: baseY });
       } else {
-        segments.push({ type: "L", x: startX, y: startY + nextPos });
+        pts.push({ x: p0, y: baseY });
+        pts.push({ x: p1, y: baseY });
+      }
+    } else if (edge === "right") {
+      // Along right edge, x=pieceW. Tabs go rightward (+x).
+      const baseX = pieceW;
+      if (isTab) {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX + thickness, y: p0 });
+        pts.push({ x: baseX + thickness, y: p1 });
+        pts.push({ x: baseX, y: p1 });
+      } else {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX, y: p1 });
+      }
+    } else if (edge === "left") {
+      // Along left edge, x=0. Tabs go leftward (-x).
+      const baseX = 0;
+      if (isTab) {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX - thickness, y: p0 });
+        pts.push({ x: baseX - thickness, y: p1 });
+        pts.push({ x: baseX, y: p1 });
+      } else {
+        pts.push({ x: baseX, y: p0 });
+        pts.push({ x: baseX, y: p1 });
       }
     }
   }
+  return pts;
+}
+
+/**
+ * Build a full piece contour with finger joints on specified edges.
+ * edges: { top, bottom, left, right } each can be:
+ *   null → straight edge
+ *   { fingerCount, thickness, isTabs } → finger joint
+ */
+interface FingerEdgeConfig {
+  fingerCount: number;
+  thickness: number;
+  isTabs: boolean;
+}
+
+function buildFingerContour(
+  pieceW: number,
+  pieceH: number,
+  edges: {
+    top?: FingerEdgeConfig | null;
+    bottom?: FingerEdgeConfig | null;
+    left?: FingerEdgeConfig | null;
+    right?: FingerEdgeConfig | null;
+  },
+): Path2D_Segment[] {
+  const segments: Path2D_Segment[] = [];
+
+  // Top edge: left to right (y=0)
+  if (edges.top) {
+    const pts = fingerEdgePoints("top", pieceW, pieceH, pieceW, edges.top.thickness, edges.top.fingerCount, edges.top.isTabs);
+    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: pieceW, y: 0 });
+  }
+
+  // Right edge: top to bottom (x=pieceW)
+  if (edges.right) {
+    const pts = fingerEdgePoints("right", pieceW, pieceH, pieceH, edges.right.thickness, edges.right.fingerCount, edges.right.isTabs);
+    for (const p of pts) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: pieceW, y: pieceH });
+  }
+
+  // Bottom edge: right to left (y=pieceH)
+  if (edges.bottom) {
+    const pts = fingerEdgePoints("bottom", pieceW, pieceH, pieceW, edges.bottom.thickness, edges.bottom.fingerCount, edges.bottom.isTabs);
+    // Reverse so we go right→left
+    const reversed = [...pts].reverse();
+    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: 0, y: pieceH });
+  }
+
+  // Left edge: bottom to top (x=0)
+  if (edges.left) {
+    const pts = fingerEdgePoints("left", pieceW, pieceH, pieceH, edges.left.thickness, edges.left.fingerCount, edges.left.isTabs);
+    // Reverse so we go bottom→top
+    const reversed = [...pts].reverse();
+    for (const p of reversed) segments.push({ type: "L", x: p.x, y: p.y });
+  } else {
+    segments.push({ type: "L", x: 0, y: 0 });
+  }
+
   return segments;
 }
 
