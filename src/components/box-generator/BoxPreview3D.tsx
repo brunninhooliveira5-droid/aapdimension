@@ -89,9 +89,10 @@ export function BoxPreview3D({ params, className }: Props) {
     dragging.current = false;
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.001)));
+    e.stopPropagation();
+    setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.002)));
   }, []);
 
   useEffect(() => {
@@ -248,23 +249,24 @@ export function BoxPreview3D({ params, className }: Props) {
     const fcD = computeFingerCount(D, params.fingerMinSize, params.fingerMaxSize);
 
     if (jt === "finger" || jt === "tslot") {
-      const tabColor = woodLight;
+      const tabColor = "#e8a020";
+      const tabEdge = "#c47a10";
       const tabQuads = [
-        ...fingerTabsAlongEdge([-hw, -hh, hd], [hw, -hh, hd], [0, 0, 1], materialT, fcW, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, hd], [hw, hh, hd], [0, 0, 1], materialT, fcW, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, hd], [-hw, hh, hd], [-1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([hw, -hh, hd], [hw, hh, hd], [1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [hw, -hh, -hd], [0, 0, -1], materialT, fcW, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [hw, hh, -hd], [0, 0, -1], materialT, fcW, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, -hh, hd], [0, -1, 0], materialT, fcD, true),
-        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, -hh, hd], [0, -1, 0], materialT, fcD, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [-hw, hh, hd], [0, 1, 0], materialT, fcD, true) : []),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([hw, hh, -hd], [hw, hh, hd], [0, 1, 0], materialT, fcD, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, hh, -hd], [-1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, hh, -hd], [1, 0, 0], materialT, fcH, false),
+        ...fingerTabsAlongEdge([-hw, -hh, hd], [hw, -hh, hd], [0, 0, 1], materialT * 1.2, fcW, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, hd], [hw, hh, hd], [0, 0, 1], materialT * 1.2, fcW, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, hd], [-hw, hh, hd], [-1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([hw, -hh, hd], [hw, hh, hd], [1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [hw, -hh, -hd], [0, 0, -1], materialT * 1.2, fcW, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [hw, hh, -hd], [0, 0, -1], materialT * 1.2, fcW, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, -hh, hd], [0, -1, 0], materialT * 1.2, fcD, true),
+        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, -hh, hd], [0, -1, 0], materialT * 1.2, fcD, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [-hw, hh, hd], [0, 1, 0], materialT * 1.2, fcD, true) : []),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([hw, hh, -hd], [hw, hh, hd], [0, 1, 0], materialT * 1.2, fcD, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, hh, -hd], [-1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, hh, -hd], [1, 0, 0], materialT * 1.2, fcH, false),
       ];
       for (const quad of tabQuads) {
-        faces.push({ pts: quad, fill: tabColor, opacity: 0.85, label: "", isJoint: true });
+        faces.push({ pts: quad, fill: tabColor, opacity: 0.95, label: "", isJoint: true });
       }
     } else if (jt === "slot") {
       const slotQuads = [
@@ -306,9 +308,9 @@ export function BoxPreview3D({ params, className }: Props) {
       ctx.fill();
 
       if (face.isJoint) {
-        ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = "#8b6914";
-        ctx.lineWidth = 0.6;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = "#5a3000";
+        ctx.lineWidth = 1.5;
         ctx.stroke();
       } else {
         // Edge lines — dark wood tone
@@ -398,16 +400,23 @@ export function BoxPreview3D({ params, className }: Props) {
     ctx.fillText("Clique e arraste para rotacionar · Scroll para zoom", cw / 2, ch - 10);
   }, [params, rotation, zoom]);
 
+  // Register native wheel listener with passive:false to prevent page scroll
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
   return (
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: "100%", height: "100%", cursor: dragging.current ? "grabbing" : "grab" }}
+      style={{ width: "100%", height: "100%", cursor: dragging.current ? "grabbing" : "grab", touchAction: "none" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
     />
   );
 }
