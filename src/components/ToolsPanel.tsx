@@ -11,6 +11,7 @@ interface ToolsPanelProps {
 const toolTabs = [
   { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", disabled: false },
   { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", disabled: false },
+  { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d", disabled: false },
 ];
 
 export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
