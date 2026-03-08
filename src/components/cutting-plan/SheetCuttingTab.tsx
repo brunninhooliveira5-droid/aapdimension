@@ -505,13 +505,13 @@ export function SheetCuttingTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
+                      <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.height} onChange={(e) => updatePiece(piece.id, "height", e.target.value)} className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
+                      <Input type="number" value={piece.height} onChange={(e) => updatePiece(piece.id, "height", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "height")} data-piece-id={piece.id} data-field="height" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} className="h-8 w-20" min="1" placeholder="1" />
+                      <Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "quantity")} data-piece-id={piece.id} data-field="quantity" className="h-8 w-20" min="1" placeholder="1" />
                     </TableCell>
                     <TableCell>
                       <Checkbox checked={piece.allowRotation} onCheckedChange={(v) => updatePiece(piece.id, "allowRotation", !!v)} />

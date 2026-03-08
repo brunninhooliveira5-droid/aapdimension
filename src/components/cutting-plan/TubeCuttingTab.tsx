@@ -280,8 +280,8 @@ export function TubeCuttingTab() {
                 return (
                   <TableRow key={piece.id} className={isInvalid ? "bg-destructive/10" : ""}>
                     <TableCell><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getPieceColor(index) }} /><span className="text-sm font-medium">P{index + 1}</span></div></TableCell>
-                    <TableCell><Input type="number" value={piece.length} onChange={(e) => updatePiece(piece.id, "length", e.target.value)} className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" /></TableCell>
-                    <TableCell><Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} className="h-8 w-20" min="1" placeholder="1" /></TableCell>
+                    <TableCell><Input type="number" value={piece.length} onChange={(e) => updatePiece(piece.id, "length", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "length")} data-piece-id={piece.id} data-field="length" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" /></TableCell>
+                    <TableCell><Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "quantity")} data-piece-id={piece.id} data-field="quantity" className="h-8 w-20" min="1" placeholder="1" /></TableCell>
                     <TableCell>
                       <div className="flex gap-0.5">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => duplicatePiece(piece.id)} title="Duplicar"><Copy className="h-3.5 w-3.5" /></Button>
