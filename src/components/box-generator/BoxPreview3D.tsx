@@ -249,23 +249,24 @@ export function BoxPreview3D({ params, className }: Props) {
     const fcD = computeFingerCount(D, params.fingerMinSize, params.fingerMaxSize);
 
     if (jt === "finger" || jt === "tslot") {
-      const tabColor = woodLight;
+      const tabColor = "#e8a020";
+      const tabEdge = "#c47a10";
       const tabQuads = [
-        ...fingerTabsAlongEdge([-hw, -hh, hd], [hw, -hh, hd], [0, 0, 1], materialT, fcW, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, hd], [hw, hh, hd], [0, 0, 1], materialT, fcW, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, hd], [-hw, hh, hd], [-1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([hw, -hh, hd], [hw, hh, hd], [1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [hw, -hh, -hd], [0, 0, -1], materialT, fcW, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [hw, hh, -hd], [0, 0, -1], materialT, fcW, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, -hh, hd], [0, -1, 0], materialT, fcD, true),
-        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, -hh, hd], [0, -1, 0], materialT, fcD, true),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [-hw, hh, hd], [0, 1, 0], materialT, fcD, true) : []),
-        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([hw, hh, -hd], [hw, hh, hd], [0, 1, 0], materialT, fcD, true) : []),
-        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, hh, -hd], [-1, 0, 0], materialT, fcH, false),
-        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, hh, -hd], [1, 0, 0], materialT, fcH, false),
+        ...fingerTabsAlongEdge([-hw, -hh, hd], [hw, -hh, hd], [0, 0, 1], materialT * 1.2, fcW, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, hd], [hw, hh, hd], [0, 0, 1], materialT * 1.2, fcW, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, hd], [-hw, hh, hd], [-1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([hw, -hh, hd], [hw, hh, hd], [1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [hw, -hh, -hd], [0, 0, -1], materialT * 1.2, fcW, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [hw, hh, -hd], [0, 0, -1], materialT * 1.2, fcW, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, -hh, hd], [0, -1, 0], materialT * 1.2, fcD, true),
+        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, -hh, hd], [0, -1, 0], materialT * 1.2, fcD, true),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([-hw, hh, -hd], [-hw, hh, hd], [0, 1, 0], materialT * 1.2, fcD, true) : []),
+        ...(!isOpen && !hasLid ? fingerTabsAlongEdge([hw, hh, -hd], [hw, hh, hd], [0, 1, 0], materialT * 1.2, fcD, true) : []),
+        ...fingerTabsAlongEdge([-hw, -hh, -hd], [-hw, hh, -hd], [-1, 0, 0], materialT * 1.2, fcH, false),
+        ...fingerTabsAlongEdge([hw, -hh, -hd], [hw, hh, -hd], [1, 0, 0], materialT * 1.2, fcH, false),
       ];
       for (const quad of tabQuads) {
-        faces.push({ pts: quad, fill: tabColor, opacity: 0.85, label: "", isJoint: true });
+        faces.push({ pts: quad, fill: tabColor, opacity: 0.95, label: "", isJoint: true });
       }
     } else if (jt === "slot") {
       const slotQuads = [
