@@ -27,12 +27,12 @@ export interface ExportOptions {
   folderName: string;
 }
 
-export function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData, "scale">, options: ExportOptions) {
+export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData, "scale">, options: ExportOptions) {
   if (options.exportA4) {
     exportCuttingPlanPdf({ ...data, scale: "a4" });
   }
   if (options.exportRealScale) {
-    exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName });
+    await exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName });
   }
 }
 
