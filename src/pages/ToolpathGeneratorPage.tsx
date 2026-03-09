@@ -102,6 +102,8 @@ export default function ToolpathGeneratorPage() {
   // Layout
   const [bottomPanel, setBottomPanel] = useState<BottomPanel>("operations");
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   // Drawing
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -454,8 +456,8 @@ export default function ToolpathGeneratorPage() {
   }, [toolpaths3D]);
 
   // Determine visibility based on layout
-  const showLeftPanel = !isPreviewExpanded && layoutMode !== "preview" && layoutMode !== "cam";
-  const showRightPanel = !isPreviewExpanded && layoutMode !== "preview" && layoutMode !== "vectors";
+  const showLeftPanel = leftPanelOpen && !isPreviewExpanded && layoutMode !== "preview";
+  const showRightPanel = rightPanelOpen && !isPreviewExpanded && layoutMode !== "preview";
   const showBottomPanel = !isPreviewExpanded && bottomPanel !== null;
 
   // Toggle bottom panel
@@ -659,6 +661,17 @@ export default function ToolpathGeneratorPage() {
 
       {/* ===== MAIN CONTENT ===== */}
       <div className="flex-1 flex min-h-0">
+        {/* LEFT PANEL TOGGLE */}
+        {!isPreviewExpanded && layoutMode !== "preview" && (
+          <button
+            onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+            className="shrink-0 w-5 flex items-center justify-center border-r border-border bg-muted/30 hover:bg-accent transition-colors"
+            title={leftPanelOpen ? "Recolher vetores" : "Expandir vetores"}
+          >
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${leftPanelOpen ? "-rotate-90" : "rotate-90"}`} />
+          </button>
+        )}
+
         {/* LEFT PANEL */}
         {showLeftPanel && (
           <div className="w-56 border-r border-border overflow-auto shrink-0 p-2 space-y-2">
@@ -805,6 +818,17 @@ export default function ToolpathGeneratorPage() {
             )}
           </div>
         </div>
+
+        {/* RIGHT PANEL TOGGLE */}
+        {!isPreviewExpanded && layoutMode !== "preview" && (
+          <button
+            onClick={() => setRightPanelOpen(!rightPanelOpen)}
+            className="shrink-0 w-5 flex items-center justify-center border-l border-border bg-muted/30 hover:bg-accent transition-colors"
+            title={rightPanelOpen ? "Recolher material" : "Expandir material"}
+          >
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${rightPanelOpen ? "rotate-90" : "-rotate-90"}`} />
+          </button>
+        )}
 
         {/* RIGHT PANEL */}
         {showRightPanel && (
