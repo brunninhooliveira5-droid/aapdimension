@@ -37,10 +37,11 @@ export function SvgCanvas({
   const [showGrid, setShowGrid] = useState(true);
   const [showDirectionArrows, setShowDirectionArrows] = useState(true);
   const [showGeoColors, setShowGeoColors] = useState(true);
-  const [colorProfile, setColorProfile] = useState<"default" | "blueprint" | "highContrast" | "warmShop" | "cnc">("default");
+  const [colorProfile, setColorProfile] = useState<"default" | "white" | "blueprint" | "highContrast" | "warmShop" | "cnc">("default");
 
   const COLOR_PROFILES = {
     default: { bg: "hsl(var(--card))", grid: "hsl(var(--foreground))", border: "hsl(var(--border))", vector: "#3b82f6", selected: "hsl(var(--primary))", toolpath: "#f59e0b", toolpathInactive: "#64748b", label: "Padrão" },
+    white: { bg: "#ffffff", grid: "#d1d5db", border: "#e5e7eb", vector: "#2563eb", selected: "#7c3aed", toolpath: "#d97706", toolpathInactive: "#9ca3af", label: "Branco" },
     blueprint: { bg: "#0a1628", grid: "#1e3a5f", border: "#1e3a5f", vector: "#38bdf8", selected: "#22d3ee", toolpath: "#facc15", toolpathInactive: "#3b82f6", label: "Blueprint" },
     highContrast: { bg: "#000000", grid: "#333333", border: "#444444", vector: "#00ff00", selected: "#ff00ff", toolpath: "#ffff00", toolpathInactive: "#888888", label: "Alto Contraste" },
     warmShop: { bg: "#1c1410", grid: "#3d2e1f", border: "#4a3728", vector: "#f97316", selected: "#fb923c", toolpath: "#eab308", toolpathInactive: "#78716c", label: "Oficina" },
