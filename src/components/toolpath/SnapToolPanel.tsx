@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Crosshair, Plus, Trash2, Save, FolderOpen, AlertTriangle, Wrench,
   ToggleLeft, Download, Upload, Sparkles, CheckCircle2, AlertCircle,
-  FileText, ArrowRight, Info
+  FileText, ArrowRight, Info, ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
