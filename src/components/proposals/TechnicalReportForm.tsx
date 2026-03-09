@@ -185,7 +185,7 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
           mime_type: file.type,
           file_type: fileType,
           sort_order: files.length,
-          uploaded_by: user?.id!,
+          uploaded_by: session?.user?.id!,
         });
       }
       queryClient.invalidateQueries({ queryKey: ["technical-report-files", reportId] });
