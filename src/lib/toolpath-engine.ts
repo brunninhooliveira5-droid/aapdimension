@@ -1,5 +1,5 @@
-// ── Toolpath Generator Engine V4 ──
-// Material-intelligent CAM with helical entry, roughing/finishing, material presets
+// ── Toolpath Generator Engine V4.2 ──
+// Material-intelligent CAM with helical entry, adaptive roughing, trochoidal milling
 
 export type Unit = "mm" | "in";
 export type ZeroOrigin = "bottom-left" | "center" | "top-left";
@@ -7,7 +7,7 @@ export type ZZero = "top" | "bed";
 export type CutDirection = "climb" | "conventional";
 export type CutSide = "inside" | "outside" | "on-line";
 
-export type ToolType = "flat-end" | "v-bit" | "ball-nose" | "finishing" | "straight";
+export type ToolType = "flat-end" | "v-bit" | "ball-nose" | "finishing" | "straight" | "compression" | "downcut" | "upcut";
 
 export type EntryMode = "plunge" | "ramp-linear" | "ramp-helicoidal";
 export type LeadType = "none" | "line" | "arc";
@@ -16,7 +16,7 @@ export type GeometryClass = "hole" | "pocket" | "island" | "contour-inner" | "co
 
 export type MaterialCategory = "wood" | "composite" | "plastic" | "soft-metal" | "hard-metal";
 
-export type PocketStrategy = "standard" | "spiral" | "helical";
+export type PocketStrategy = "standard" | "spiral" | "helical" | "adaptive" | "trochoidal";
 
 export interface CncTool {
   id: string;
@@ -31,6 +31,8 @@ export interface CncTool {
   stepOver: number;
   fluteLength: number;
   notes: string;
+  flutes?: number;
+  coating?: string;
 }
 
 export type OperationType =
@@ -42,7 +44,10 @@ export type OperationType =
   | "groove"
   | "v-carve"
   | "roughing"
-  | "finishing";
+  | "finishing"
+  | "adaptive"
+  | "trochoidal"
+  | "spiral-pocket";
 
 export const OPERATION_LABELS: Record<OperationType, string> = {
   "profile-outside": "Perfil Externo",
@@ -54,6 +59,9 @@ export const OPERATION_LABELS: Record<OperationType, string> = {
   "v-carve": "V-Carve",
   roughing: "Desbaste",
   finishing: "Acabamento",
+  adaptive: "Adaptive Roughing",
+  trochoidal: "Fresamento Trocoidal",
+  "spiral-pocket": "Pocket Espiral",
 };
 
 export interface TabSettings {
@@ -86,6 +94,21 @@ export interface RoughFinishSettings {
   finishFeedRate: number;
 }
 
+export interface TrochoidalSettings {
+  enabled: boolean;
+  radius: number;
+  stepDistance: number;
+  feedRate: number;
+}
+
+export interface AdaptiveSettings {
+  enabled: boolean;
+  maxStepOver: number;
+  maxEngagementAngle: number;
+  minWallDistance: number;
+  stockToLeaveSide: number;
+}
+
 export interface ToolpathOperation {
   id: string;
   name: string;
@@ -106,6 +129,8 @@ export interface ToolpathOperation {
   enabled: boolean;
   pocketStrategy: PocketStrategy;
   roughFinish: RoughFinishSettings;
+  trochoidal: TrochoidalSettings;
+  adaptive: AdaptiveSettings;
 }
 
 export interface MaterialConfig {
@@ -133,6 +158,9 @@ export interface MaterialPreset {
   entryMode: EntryMode;
   pocketStrategy: PocketStrategy;
   notes: string;
+  coolantRequired?: boolean;
+  maxRpm?: number;
+  chipload?: number;
 }
 
 export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
@@ -144,17 +172,22 @@ export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
 };
 
 export const DEFAULT_MATERIAL_PRESETS: MaterialPreset[] = [
-  { id: "mdf", name: "MDF", category: "wood", hardness: "média", feedXY: 2500, feedZ: 800, spindleRpm: 18000, stepDown: 4, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Avanço alto, step-down maior. Entrada plunge ou rampa curta." },
-  { id: "compensado", name: "Compensado", category: "wood", hardness: "média", feedXY: 2200, feedZ: 700, spindleRpm: 18000, stepDown: 3.5, stepOver: 50, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Similar ao MDF, porém camadas podem exigir mais cuidado." },
-  { id: "acm", name: "ACM", category: "composite", hardness: "baixa-média", feedXY: 2000, feedZ: 500, spindleRpm: 16000, stepDown: 1.5, stepOver: 45, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Perfil e pocket leve. Acabamento simples." },
-  { id: "acrilico", name: "Acrílico", category: "plastic", hardness: "média", feedXY: 1500, feedZ: 400, spindleRpm: 14000, stepDown: 1.5, stepOver: 40, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Plunge leve, rampa curta. Evitar aquecimento excessivo." },
-  { id: "pvc", name: "PVC Expandido", category: "plastic", hardness: "baixa", feedXY: 2000, feedZ: 600, spindleRpm: 15000, stepDown: 2, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Material macio, aceita avanços moderados." },
-  { id: "aluminio", name: "Alumínio", category: "soft-metal", hardness: "média-alta", feedXY: 800, feedZ: 200, spindleRpm: 12000, stepDown: 0.5, stepOver: 30, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal obrigatória. Step-down reduzido. Acabamento recomendado." },
-  { id: "latao", name: "Latão", category: "soft-metal", hardness: "média-alta", feedXY: 600, feedZ: 150, spindleRpm: 10000, stepDown: 0.4, stepOver: 25, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Avanço moderado-baixo." },
-  { id: "cobre", name: "Cobre", category: "soft-metal", hardness: "média", feedXY: 700, feedZ: 180, spindleRpm: 11000, stepDown: 0.4, stepOver: 28, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Material grudento, use lubrificação." },
-  { id: "aco-carbono", name: "Aço Carbono Leve", category: "hard-metal", hardness: "alta", feedXY: 400, feedZ: 100, spindleRpm: 8000, stepDown: 0.2, stepOver: 20, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal obrigatória. Profundidade reduzida. Acabamento obrigatório." },
-  { id: "inox", name: "Inox Leve", category: "hard-metal", hardness: "muito alta", feedXY: 300, feedZ: 80, spindleRpm: 6000, stepDown: 0.15, stepOver: 15, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Helicoidal obrigatório. Parâmetros conservadores. Refrigeração necessária." },
+  { id: "mdf", name: "MDF", category: "wood", hardness: "média", feedXY: 2500, feedZ: 800, spindleRpm: 18000, stepDown: 4, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Avanço alto, step-down maior. Entrada plunge ou rampa curta.", chipload: 0.1 },
+  { id: "compensado", name: "Compensado", category: "wood", hardness: "média", feedXY: 2200, feedZ: 700, spindleRpm: 18000, stepDown: 3.5, stepOver: 50, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Similar ao MDF, porém camadas podem exigir mais cuidado.", chipload: 0.08 },
+  { id: "acm", name: "ACM", category: "composite", hardness: "baixa-média", feedXY: 2000, feedZ: 500, spindleRpm: 16000, stepDown: 1.5, stepOver: 45, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Perfil e pocket leve. Acabamento simples. Evitar aquecimento.", chipload: 0.06 },
+  { id: "acrilico", name: "Acrílico", category: "plastic", hardness: "média", feedXY: 1500, feedZ: 400, spindleRpm: 14000, stepDown: 1.5, stepOver: 40, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Plunge leve, rampa curta. Fresa de fio único recomendada.", chipload: 0.05 },
+  { id: "pvc", name: "PVC Expandido", category: "plastic", hardness: "baixa", feedXY: 2000, feedZ: 600, spindleRpm: 15000, stepDown: 2, stepOver: 50, entryMode: "plunge", pocketStrategy: "standard", notes: "Material macio, aceita avanços moderados.", chipload: 0.07 },
+  { id: "nylon", name: "Nylon", category: "plastic", hardness: "média", feedXY: 1800, feedZ: 400, spindleRpm: 10000, stepDown: 1, stepOver: 35, entryMode: "ramp-linear", pocketStrategy: "standard", notes: "Material flexível, fixação crítica. Fresa afiada.", chipload: 0.04 },
+  { id: "aluminio", name: "Alumínio", category: "soft-metal", hardness: "média-alta", feedXY: 800, feedZ: 200, spindleRpm: 12000, stepDown: 0.5, stepOver: 30, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal obrigatória. Desbaste adaptativo recomendado.", coolantRequired: true, chipload: 0.02 },
+  { id: "latao", name: "Latão", category: "soft-metal", hardness: "média-alta", feedXY: 600, feedZ: 150, spindleRpm: 10000, stepDown: 0.4, stepOver: 25, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Boa usinabilidade.", chipload: 0.015 },
+  { id: "cobre", name: "Cobre", category: "soft-metal", hardness: "média", feedXY: 700, feedZ: 180, spindleRpm: 11000, stepDown: 0.4, stepOver: 28, entryMode: "ramp-helicoidal", pocketStrategy: "helical", notes: "Entrada helicoidal. Material grudento, use lubrificação.", coolantRequired: true, chipload: 0.012 },
+  { id: "aco-carbono", name: "Aço Carbono Leve", category: "hard-metal", hardness: "alta", feedXY: 400, feedZ: 100, spindleRpm: 8000, stepDown: 0.2, stepOver: 20, entryMode: "ramp-helicoidal", pocketStrategy: "trochoidal", notes: "Helicoidal obrigatória. Trocoidal recomendado. Ferramenta coated.", coolantRequired: true, chipload: 0.008 },
+  { id: "inox", name: "Inox Leve (304)", category: "hard-metal", hardness: "muito alta", feedXY: 300, feedZ: 80, spindleRpm: 6000, stepDown: 0.15, stepOver: 15, entryMode: "ramp-helicoidal", pocketStrategy: "trochoidal", notes: "Helicoidal obrigatório. Trocoidal. Refrigeração necessária.", coolantRequired: true, chipload: 0.005 },
 ];
+
+export function getDefaultPresets(): MaterialPreset[] {
+  return DEFAULT_MATERIAL_PRESETS;
+}
 
 export function isMetal(category: MaterialCategory): boolean {
   return category === "soft-metal" || category === "hard-metal";
@@ -230,10 +263,13 @@ export const DEFAULT_MATERIAL: MaterialConfig = {
 };
 
 export const DEFAULT_TOOLS: CncTool[] = [
-  { id: "t1", name: "Fresa Reta 3mm", type: "straight", diameter: 3, feedXY: 1200, feedZ: 300, spindleRpm: 18000, depthPerPass: 1, stepOver: 40, fluteLength: 15, notes: "" },
-  { id: "t2", name: "Fresa Reta 6mm", type: "flat-end", diameter: 6, feedXY: 1500, feedZ: 400, spindleRpm: 16000, depthPerPass: 2, stepOver: 45, fluteLength: 20, notes: "" },
+  { id: "t1", name: "Fresa Reta 3mm", type: "straight", diameter: 3, feedXY: 1200, feedZ: 300, spindleRpm: 18000, depthPerPass: 1, stepOver: 40, fluteLength: 15, notes: "", flutes: 2 },
+  { id: "t2", name: "Fresa Reta 6mm", type: "flat-end", diameter: 6, feedXY: 1500, feedZ: 400, spindleRpm: 16000, depthPerPass: 2, stepOver: 45, fluteLength: 20, notes: "", flutes: 2 },
   { id: "t3", name: "V-Bit 90° 6mm", type: "v-bit", diameter: 6, angle: 90, feedXY: 800, feedZ: 200, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 30, fluteLength: 10, notes: "" },
-  { id: "t4", name: "Fresa Esférica 3mm", type: "ball-nose", diameter: 3, feedXY: 1000, feedZ: 250, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 15, fluteLength: 12, notes: "" },
+  { id: "t4", name: "Fresa Esférica 3mm", type: "ball-nose", diameter: 3, feedXY: 1000, feedZ: 250, spindleRpm: 18000, depthPerPass: 0.5, stepOver: 15, fluteLength: 12, notes: "", flutes: 2 },
+  { id: "t5", name: "Fresa Acabamento 3mm", type: "finishing", diameter: 3, feedXY: 800, feedZ: 200, spindleRpm: 22000, depthPerPass: 0.3, stepOver: 10, fluteLength: 15, notes: "Acabamento fino", flutes: 4 },
+  { id: "t6", name: "Fresa Compressão 6mm", type: "compression", diameter: 6, feedXY: 2200, feedZ: 400, spindleRpm: 14000, depthPerPass: 2.5, stepOver: 50, fluteLength: 25, notes: "Ideal MDF/compensado", flutes: 2, coating: "TiN" },
+  { id: "t7", name: "Fresa Alumínio 3mm", type: "flat-end", diameter: 3, feedXY: 800, feedZ: 200, spindleRpm: 8000, depthPerPass: 0.5, stepOver: 20, fluteLength: 20, notes: "Revestida TiAlN para metais", flutes: 3, coating: "TiAlN" },
 ];
 
 // ── Default operation factory ──
@@ -259,6 +295,8 @@ export function createDefaultOperation(order: number): ToolpathOperation {
     enabled: true,
     pocketStrategy: "standard",
     roughFinish: { stockToLeaveSide: 0, stockToLeaveBottom: 0, finishPassSide: false, finishPassBottom: false, finishFeedRate: 800 },
+    trochoidal: { enabled: false, radius: 1, stepDistance: 2, feedRate: 800 },
+    adaptive: { enabled: false, maxStepOver: 40, maxEngagementAngle: 90, minWallDistance: 0.5, stockToLeaveSide: 0.1 },
   };
 }
 
@@ -573,7 +611,7 @@ function estimatePathLength(d: string): number {
   return computePerimeter(pts);
 }
 
-// ── Auto-CAM V4: Material-Intelligent ──
+// ── Auto-CAM V4.2: Material-Intelligent with Advanced Strategies ──
 
 export interface AutoCamResult {
   operations: ToolpathOperation[];
@@ -596,8 +634,18 @@ function selectToolForGeometry(
     const fitting = sorted.filter((t) => t.diameter < size * 0.8);
     return fitting.length > 0 ? fitting[fitting.length - 1] : sorted[0];
   }
+  // For metals, prefer coated tools
+  const coated = sorted.filter(t => t.coating);
+  if (coated.length > 0) {
+    const mid = Math.floor(coated.length / 2);
+    return coated[mid];
+  }
   const mid = Math.floor(sorted.length / 2);
   return sorted[mid] || sorted[0];
+}
+
+function selectFinishingTool(tools: CncTool[]): CncTool | undefined {
+  return tools.find(t => t.type === "finishing") || tools.find(t => t.diameter <= 3) || tools[0];
 }
 
 export function generateAutoCam(
@@ -612,6 +660,7 @@ export function generateAutoCam(
 
   const preset = getPresetById(material.presetId, materialPresets);
   const metalMaterial = preset ? isMetal(preset.category) : false;
+  const hardMetal = preset?.category === "hard-metal";
   const entryMode: EntryMode = preset?.entryMode || "ramp-linear";
   const pocketStrat: PocketStrategy = preset?.pocketStrategy || "standard";
 
@@ -640,7 +689,6 @@ export function generateAutoCam(
       ? (isFinishing ? preset.feedXY * 0.6 : preset.feedXY)
       : (tool?.feedXY || 1200);
 
-    // Apply preset params to tool if preset exists
     const effectiveTool = tool ? { ...tool } : undefined;
     if (effectiveTool && preset) {
       effectiveTool.feedXY = feedXY;
@@ -649,6 +697,9 @@ export function generateAutoCam(
     }
 
     const eMode = overrideEntry || entryMode;
+    const useTrochoidal = (type === "trochoidal" || (hardMetal && (type === "pocket" || type === "roughing")));
+    const useAdaptive = type === "adaptive";
+
     return {
       id: `op-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name,
@@ -656,7 +707,7 @@ export function generateAutoCam(
       vectorIds: vids,
       toolId: tool?.id || "",
       startDepth: 0,
-      finalDepth: isFinishing ? material.thickness : material.thickness,
+      finalDepth: material.thickness,
       depthPerPass,
       cutSide,
       cutDirection: "climb",
@@ -679,6 +730,12 @@ export function generateAutoCam(
       roughFinish: metalMaterial
         ? { stockToLeaveSide: 0.2, stockToLeaveBottom: 0.1, finishPassSide: true, finishPassBottom: true, finishFeedRate: preset ? preset.feedXY * 0.5 : 400 }
         : { stockToLeaveSide: 0, stockToLeaveBottom: 0, finishPassSide: false, finishPassBottom: false, finishFeedRate: 800 },
+      trochoidal: useTrochoidal
+        ? { enabled: true, radius: tool ? tool.diameter * 0.1 : 0.5, stepDistance: tool ? tool.diameter * 0.8 : 2, feedRate: preset?.feedXY || 800 }
+        : { enabled: false, radius: 1, stepDistance: 2, feedRate: 800 },
+      adaptive: useAdaptive
+        ? { enabled: true, maxStepOver: 40, maxEngagementAngle: 90, minWallDistance: 0.5, stockToLeaveSide: 0.15 }
+        : { enabled: false, maxStepOver: 40, maxEngagementAngle: 90, minWallDistance: 0.5, stockToLeaveSide: 0.1 },
     };
   };
 
@@ -692,19 +749,35 @@ export function generateAutoCam(
     ));
   }
 
-  // 2. Pockets
+  // 2. Pockets - use trochoidal for hard metals, adaptive for soft metals
   if (pockets.length > 0) {
     const avgSize = pockets.reduce((s, p) => s + Math.min(p.boundingBox.w, p.boundingBox.h), 0) / pockets.length;
     const tool = selectToolForGeometry("pocket", avgSize, tools);
-    operations.push(makeOp(
-      `Pocket Auto (${pockets.length})`, "pocket", pockets.map((p) => p.id), "inside", tool, false,
-      undefined, pocketStrat
-    ));
 
-    // For metals, add finishing pass for pockets
-    if (metalMaterial) {
+    if (hardMetal) {
+      // Hard metal: trochoidal pocket
       operations.push(makeOp(
-        `Acabamento Pocket (${pockets.length})`, "finishing", pockets.map((p) => p.id), "inside", tool, false,
+        `Pocket Trocoidal (${pockets.length})`, "trochoidal", pockets.map((p) => p.id), "inside", tool, false,
+        "ramp-helicoidal", "trochoidal"
+      ));
+    } else if (metalMaterial) {
+      // Soft metal: adaptive roughing + finishing
+      operations.push(makeOp(
+        `Adaptive Roughing (${pockets.length})`, "adaptive", pockets.map((p) => p.id), "inside", tool, false,
+        "ramp-helicoidal", "adaptive"
+      ));
+    } else {
+      operations.push(makeOp(
+        `Pocket Auto (${pockets.length})`, "pocket", pockets.map((p) => p.id), "inside", tool, false,
+        undefined, pocketStrat
+      ));
+    }
+
+    // For metals, add finishing pass
+    if (metalMaterial) {
+      const finishTool = selectFinishingTool(tools);
+      operations.push(makeOp(
+        `Acabamento Pocket (${pockets.length})`, "finishing", pockets.map((p) => p.id), "inside", finishTool, false,
         entryMode, "standard", true
       ));
     }
@@ -717,6 +790,15 @@ export function generateAutoCam(
     operations.push(makeOp(
       `Perfil Interno Auto (${innerContours.length})`, "profile-inside", innerContours.map((c) => c.id), "inside", tool, false
     ));
+
+    // Finishing pass for metals
+    if (metalMaterial) {
+      const finishTool = selectFinishingTool(tools);
+      operations.push(makeOp(
+        `Acabamento Interno (${innerContours.length})`, "finishing", innerContours.map((c) => c.id), "inside", finishTool, false,
+        entryMode, "standard", true
+      ));
+    }
   }
 
   // 4. External contours (last)
@@ -733,6 +815,15 @@ export function generateAutoCam(
     operations.push(makeOp(
       `Perfil Externo Auto (${outerContours.length})`, "profile-outside", outerContours.map((c) => c.id), "outside", tool, true
     ));
+
+    // Finishing pass for metals
+    if (metalMaterial) {
+      const finishTool = selectFinishingTool(tools);
+      operations.push(makeOp(
+        `Acabamento Externo (${outerContours.length})`, "finishing", outerContours.map((c) => c.id), "outside", finishTool, false,
+        entryMode, "standard", true
+      ));
+    }
   }
 
   // 5. Open paths
@@ -799,7 +890,7 @@ function optimizeVectorOrder(vectorIds: string[], vectors: SvgVector[]): string[
   return ordered;
 }
 
-// ── Validation V4 ──
+// ── Validation V4.2 ──
 
 export function validateProject(project: ToolpathProject, materialPresets: MaterialPreset[] = []): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -825,7 +916,7 @@ export function validateProject(project: ToolpathProject, materialPresets: Mater
     }
 
     // Metal-specific: plunge entry warning
-    if (metalMat && op.entry.mode === "plunge" && (op.type === "pocket" || op.type === "roughing" || op.type === "drill")) {
+    if (metalMat && op.entry.mode === "plunge" && (op.type === "pocket" || op.type === "roughing" || op.type === "drill" || op.type === "adaptive")) {
       issues.push({
         severity: "warning",
         message: `"${op.name}": para ${preset?.name || "metal"}, entrada helicoidal é mais recomendada que plunge direto.`,
@@ -843,10 +934,28 @@ export function validateProject(project: ToolpathProject, materialPresets: Mater
     }
 
     // Metal-specific: no finishing pass for pockets
-    if (metalMat && op.type === "pocket" && !op.roughFinish.finishPassSide && !op.roughFinish.finishPassBottom) {
+    if (metalMat && (op.type === "pocket" || op.type === "adaptive" || op.type === "trochoidal") && !op.roughFinish.finishPassSide && !op.roughFinish.finishPassBottom) {
       issues.push({
         severity: "warning",
-        message: `"${op.name}": para ${preset?.name || "metal"}, acabamento de pocket é recomendado.`,
+        message: `"${op.name}": para ${preset?.name || "metal"}, acabamento é recomendado após desbaste.`,
+        operationId: op.id,
+      });
+    }
+
+    // Hard metal without trochoidal
+    if (preset?.category === "hard-metal" && op.type === "pocket" && !op.trochoidal.enabled) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": para ${preset.name}, fresamento trocoidal é altamente recomendado.`,
+        operationId: op.id,
+      });
+    }
+
+    // Coolant warning
+    if (preset?.coolantRequired && !op.name.includes("Acabamento")) {
+      issues.push({
+        severity: "warning",
+        message: `"${op.name}": ${preset.name} requer refrigeração/lubrificação.`,
         operationId: op.id,
       });
     }
@@ -865,7 +974,7 @@ export function validateProject(project: ToolpathProject, materialPresets: Mater
       const v = project.vectors.find((vv) => vv.id === vid);
       if (!v) continue;
 
-      if (!v.closed && (op.type === "profile-inside" || op.type === "profile-outside" || op.type === "pocket")) {
+      if (!v.closed && (op.type === "profile-inside" || op.type === "profile-outside" || op.type === "pocket" || op.type === "adaptive" || op.type === "trochoidal")) {
         issues.push({
           severity: "error",
           message: `"${op.name}": vetor "${v.label}" é aberto, incompatível com ${OPERATION_LABELS[op.type]}.`,
@@ -908,12 +1017,22 @@ export function calculateOperationAdvanced(
     if (v) pathLength += estimatePathLength(v.pathData);
   }
 
-  if (op.type === "pocket") {
+  if (op.type === "pocket" || op.type === "adaptive" || op.type === "trochoidal" || op.type === "spiral-pocket") {
     const stepOverMm = tool.diameter * (tool.stepOver / 100);
     if (stepOverMm > 0) {
       const avgWidth = pathLength > 0 ? pathLength / 4 : 50;
       pathLength = pathLength * (avgWidth / stepOverMm) * 0.6;
     }
+  }
+
+  // Trochoidal adds ~40% more path length
+  if (op.trochoidal.enabled) {
+    pathLength *= 1.4;
+  }
+
+  // Adaptive adds ~20% more path length but reduces feed penalties
+  if (op.adaptive.enabled) {
+    pathLength *= 1.2;
   }
 
   const totalCutPath = pathLength * passes;
@@ -929,8 +1048,10 @@ export function calculateOperationAdvanced(
   const accelPenalty = cutTime * 0.1;
   // Finishing pass time
   const finishPenalty = (op.roughFinish.finishPassSide || op.roughFinish.finishPassBottom) ? pathLength / (op.roughFinish.finishFeedRate || feedRate) : 0;
+  // Tool change time
+  const toolChangePenalty = 0.5; // 30 seconds per tool change
 
-  const estimatedTime = cutTime + rapidTime + plungeTime + accelPenalty + helicalPenalty + finishPenalty;
+  const estimatedTime = cutTime + rapidTime + plungeTime + accelPenalty + helicalPenalty + finishPenalty + toolChangePenalty;
 
   return {
     passes,
@@ -946,7 +1067,7 @@ export function calculateOperation(op: ToolpathOperation, tool: CncTool | undefi
   return { passes: result.passes, pathLength: result.pathLength, estimatedTime: result.estimatedTime };
 }
 
-// ── G-code Generation V4 ──
+// ── G-code Generation V4.2 ──
 
 const HEADERS: Record<PostProcessor, string[]> = {
   mach3: ["%", "O0001", "G90 G94 G21", "G17"],
@@ -991,9 +1112,9 @@ function generateHelicalEntry(
   const pitchPerRev = entry.helixPitchPerRev || 0.5;
   const totalDrop = Math.abs(currentZ - targetZ);
   const revolutions = Math.ceil(totalDrop / pitchPerRev);
-  const segments = 8; // segments per revolution
+  const segments = 8;
 
-  lines.push(`(Helical entry: D${(helixR * 2).toFixed(1)}mm, ${revolutions} rev)`);
+  lines.push(`(Helical entry: D${(helixR * 2).toFixed(1)}mm, ${revolutions} rev, pitch=${pitchPerRev}mm)`);
 
   for (let rev = 0; rev < revolutions; rev++) {
     for (let seg = 0; seg < segments; seg++) {
@@ -1006,8 +1127,51 @@ function generateHelicalEntry(
       lines.push(`G1 X${rx.toFixed(3)} Y${ry.toFixed(3)} Z${zClamped.toFixed(3)} F${feedZ}`);
     }
   }
-  // Return to center at target depth
   lines.push(`G1 X${fx.toFixed(3)} Y${fy.toFixed(3)} Z${targetZ.toFixed(3)} F${feedZ}`);
+  return lines;
+}
+
+function generateTrochoidalPath(
+  points: [number, number][],
+  trochoidal: TrochoidalSettings,
+  z: number,
+  feedXY: number,
+  offset: number
+): string[] {
+  const lines: string[] = [];
+  const trochR = trochoidal.radius;
+  const stepDist = trochoidal.stepDistance;
+  const segments = 12;
+
+  lines.push(`(Trochoidal path: R${trochR.toFixed(1)}mm, step=${stepDist.toFixed(1)}mm)`);
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x1, y1] = applyOffset(points[i], offset);
+    const [x2, y2] = applyOffset(points[i + 1], offset);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const segLen = Math.sqrt(dx * dx + dy * dy);
+    if (segLen < 0.1) continue;
+
+    const nx = -dy / segLen;
+    const ny = dx / segLen;
+    const steps = Math.ceil(segLen / stepDist);
+
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const cx = x1 + dx * t;
+      const cy = y1 + dy * t;
+
+      // Generate circular trochoidal motion
+      for (let seg = 0; seg <= segments; seg++) {
+        const angle = (seg / segments) * Math.PI * 2;
+        const tx = cx + Math.cos(angle) * trochR;
+        const ty = cy + Math.sin(angle) * trochR;
+        lines.push(`G1 X${tx.toFixed(3)} Y${ty.toFixed(3)} Z${z.toFixed(3)} F${trochoidal.feedRate || feedXY}`);
+      }
+    }
+  }
+
   return lines;
 }
 
@@ -1050,9 +1214,11 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
 export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor): string {
   const lines: string[] = [...HEADERS[postProcessor]];
   const preset = getPresetById(project.material.presetId);
+
   lines.push(`(Project: ${project.name})`);
   lines.push(`(Material: ${preset?.name || "Custom"} ${project.material.width}x${project.material.height}x${project.material.thickness} ${project.material.unit})`);
-  lines.push(`(Generator: Dimension CNC Toolpath V4)`);
+  lines.push(`(Generator: Dimension CNC Toolpath V4.2)`);
+  if (preset?.coolantRequired) lines.push(`(*** REFRIGERAÇÃO NECESSÁRIA ***)`);
   lines.push("");
 
   const sortedOps = [...project.operations].filter((o) => o.enabled).sort((a, b) => a.order - b.order);
@@ -1076,6 +1242,12 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
     lines.push(`(Tool: ${tool.name} D${tool.diameter})`);
     if (op.entry.mode === "ramp-helicoidal") {
       lines.push(`(Entry: Helical D${op.entry.helixDiameter}mm pitch=${op.entry.helixPitchPerRev}mm/rev)`);
+    }
+    if (op.trochoidal.enabled) {
+      lines.push(`(Strategy: Trochoidal R${op.trochoidal.radius}mm step=${op.trochoidal.stepDistance}mm)`);
+    }
+    if (op.adaptive.enabled) {
+      lines.push(`(Strategy: Adaptive maxStepOver=${op.adaptive.maxStepOver}% maxAngle=${op.adaptive.maxEngagementAngle}°)`);
     }
     if (op.roughFinish.stockToLeaveSide > 0 || op.roughFinish.stockToLeaveBottom > 0) {
       lines.push(`(Stock to leave: side=${op.roughFinish.stockToLeaveSide}mm bottom=${op.roughFinish.stockToLeaveBottom}mm)`);
@@ -1109,23 +1281,28 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
         lines.push(...leadInLines);
         lines.push(...generateRampEntry(op.entry, points[0], zClamped, prevZ > 0 ? 0 : prevZ, tool.feedZ, offset));
 
-        for (let i = 1; i < points.length; i++) {
-          const [px, py] = applyOffset(points[i], offset);
+        // Use trochoidal path if enabled
+        if (op.trochoidal.enabled) {
+          lines.push(...generateTrochoidalPath(points, op.trochoidal, zClamped, tool.feedXY, offset));
+        } else {
+          for (let i = 1; i < points.length; i++) {
+            const [px, py] = applyOffset(points[i], offset);
 
-          if (op.tabs.enabled && op.type.startsWith("profile")) {
-            const tabZ = zClamped + op.tabs.height;
-            const segFrac = i / points.length;
-            const tabInt = 1 / (op.tabs.count + 1);
-            const isTab = op.tabs.count > 0 && Math.abs(segFrac % tabInt - tabInt / 2) < 0.02;
-            if (isTab && pass === passes - 1) {
-              lines.push(`G1 Z${Math.min(tabZ, -0.1).toFixed(3)} F${tool.feedZ}`);
-              lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
-              lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
-              continue;
+            if (op.tabs.enabled && op.type.startsWith("profile")) {
+              const tabZ = zClamped + op.tabs.height;
+              const segFrac = i / points.length;
+              const tabInt = 1 / (op.tabs.count + 1);
+              const isTab = op.tabs.count > 0 && Math.abs(segFrac % tabInt - tabInt / 2) < 0.02;
+              if (isTab && pass === passes - 1) {
+                lines.push(`G1 Z${Math.min(tabZ, -0.1).toFixed(3)} F${tool.feedZ}`);
+                lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
+                lines.push(`G1 Z${zClamped.toFixed(3)} F${tool.feedZ}`);
+                continue;
+              }
             }
-          }
 
-          lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
+            lines.push(`G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${tool.feedXY}`);
+          }
         }
 
         if (op.leadOut.type === "line" && points.length >= 2) {
@@ -1144,7 +1321,7 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
       // Finishing pass (if enabled)
       if (op.roughFinish.finishPassSide || op.roughFinish.finishPassBottom) {
         lines.push(`(Finishing pass)`);
-        const finishOffset = baseOffset; // No stock offset for finish
+        const finishOffset = baseOffset;
         const finishZ = -Math.abs(op.finalDepth);
         const finishFeed = op.roughFinish.finishFeedRate || tool.feedXY * 0.6;
 
@@ -1188,6 +1365,8 @@ export function saveTemplate(name: string, materialName: string, material: Mater
       tabs: { ...op.tabs },
       pocketStrategy: op.pocketStrategy,
       roughFinish: { ...op.roughFinish },
+      trochoidal: { ...op.trochoidal },
+      adaptive: { ...op.adaptive },
     })),
     createdAt: new Date().toISOString(),
   };

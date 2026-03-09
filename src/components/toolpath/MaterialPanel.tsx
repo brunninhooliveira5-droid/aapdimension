@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Sparkles, Plus, Pencil, Copy, Trash2, Info } from "lucide-react";
-import type { MaterialConfig, Unit, ZeroOrigin, ZZero, MaterialPreset, MaterialCategory, CncTool } from "@/lib/toolpath-engine";
+import { Package, Sparkles, Plus, Pencil, Copy, Trash2, Info, Droplets, Zap, AlertTriangle } from "lucide-react";
+import type { MaterialConfig, Unit, ZeroOrigin, ZZero, MaterialPreset, MaterialCategory, CncTool, PocketStrategy, EntryMode } from "@/lib/toolpath-engine";
 import {
   DEFAULT_MATERIAL_PRESETS,
   MATERIAL_CATEGORY_LABELS,
@@ -51,10 +51,8 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
   const handleSaveCustomPreset = () => {
     if (!editPreset) return;
     if (editPreset.id.startsWith("custom-")) {
-      // Editing existing
       onChangeCustomPresets(customPresets.map((p) => (p.id === editPreset.id ? editPreset : p)));
     } else {
-      // New custom
       const newP = { ...editPreset, id: `custom-${Date.now()}` };
       onChangeCustomPresets([...customPresets, newP]);
     }
@@ -75,7 +73,8 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
     setEditPreset(p || {
       id: `custom-${Date.now()}`, name: "", category: "wood" as MaterialCategory, hardness: "",
       feedXY: 1500, feedZ: 400, spindleRpm: 16000, stepDown: 2, stepOver: 40,
-      entryMode: "ramp-linear", pocketStrategy: "standard", notes: "",
+      entryMode: "ramp-linear" as EntryMode, pocketStrategy: "standard" as PocketStrategy, notes: "",
+      coolantRequired: false, chipload: 0.05,
     });
     setShowEditDialog(true);
   };
@@ -93,7 +92,7 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
       <Card className="border-border">
         <CardHeader className="pb-3 pt-4 px-3">
           <CardTitle className="text-sm flex items-center gap-1.5">
-            <Package className="h-3.5 w-3.5 text-primary" /> Material / Peça
+            <Package className="h-3.5 w-3.5 text-primary" /> Material V4.2
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-3 space-y-2.5">
@@ -113,7 +112,13 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
                       <div key={cat}>
                         <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase">{label}</div>
                         {catPresets.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          <SelectItem key={p.id} value={p.id}>
+                            <div className="flex items-center gap-1">
+                              {p.name}
+                              {isMetal(p.category) && <Zap className="h-3 w-3 text-amber-500" />}
+                              {p.coolantRequired && <Droplets className="h-3 w-3 text-blue-500" />}
+                            </div>
+                          </SelectItem>
                         ))}
                       </div>
                     );
@@ -132,9 +137,22 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
               <Badge variant="outline" className="text-[9px] h-5 px-1.5" style={{ borderColor: categoryColors[activePreset.category] }}>
                 {MATERIAL_CATEGORY_LABELS[activePreset.category]}
               </Badge>
+              <Badge variant="outline" className="text-[9px] h-5 px-1.5 text-muted-foreground">
+                {activePreset.hardness}
+              </Badge>
               {isMetal(activePreset.category) && (
                 <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-amber-500 text-amber-600">
-                  Helicoidal
+                  ⚡ Helicoidal
+                </Badge>
+              )}
+              {activePreset.coolantRequired && (
+                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-blue-500 text-blue-600">
+                  💧 Refrigeração
+                </Badge>
+              )}
+              {activePreset.pocketStrategy === "trochoidal" && (
+                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-purple-500 text-purple-600">
+                  Trocoidal
                 </Badge>
               )}
               <Badge variant="outline" className="text-[9px] h-5 px-1.5 text-muted-foreground">
@@ -145,6 +163,16 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
 
           {activePreset?.notes && (
             <p className="text-[10px] text-muted-foreground bg-muted/50 rounded p-1.5">{activePreset.notes}</p>
+          )}
+
+          {/* Metal safety warning */}
+          {activePreset && isMetal(activePreset.category) && (
+            <div className="flex items-start gap-1.5 p-1.5 rounded bg-amber-500/10 border border-amber-500/20">
+              <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+              <span className="text-[9px] text-amber-700 dark:text-amber-400">
+                Material metálico: estratégias avançadas (helicoidal, trocoidal, adaptativo) serão aplicadas automaticamente.
+              </span>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">
@@ -188,7 +216,7 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
       {/* Material Library Dialog */}
       <Dialog open={showLibrary} onOpenChange={setShowLibrary}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Biblioteca de Materiais</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Biblioteca de Materiais V4.2</DialogTitle></DialogHeader>
           <div className="flex justify-end">
             <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setShowLibrary(false); openEditPreset(); }}>
               <Plus className="h-3 w-3" /> Novo Material
@@ -200,9 +228,14 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
                 <div key={p.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 text-xs">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: categoryColors[p.category] }} />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">{p.name}</div>
+                    <div className="font-medium flex items-center gap-1">
+                      {p.name}
+                      {isMetal(p.category) && <Zap className="h-3 w-3 text-amber-500" />}
+                      {p.coolantRequired && <Droplets className="h-3 w-3 text-blue-500" />}
+                    </div>
                     <div className="text-[10px] text-muted-foreground">
-                      F{p.feedXY} Z{p.feedZ} S{p.spindleRpm} | SD:{p.stepDown}mm SO:{p.stepOver}% | {p.entryMode}
+                      F{p.feedXY} Z{p.feedZ} S{p.spindleRpm} | SD:{p.stepDown}mm SO:{p.stepOver}% | {p.entryMode} | {p.pocketStrategy}
+                      {p.chipload ? ` | CL:${p.chipload}mm` : ""}
                     </div>
                   </div>
                   <div className="flex gap-0.5 shrink-0">
@@ -239,7 +272,10 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
                   </Select>
                 </div>
               </div>
-              <div><Label className="text-xs">Dureza</Label><Input value={editPreset.hardness} onChange={(e) => setEditPreset({ ...editPreset, hardness: e.target.value })} className="h-8 text-xs" placeholder="Ex: média, alta..." /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-xs">Dureza</Label><Input value={editPreset.hardness} onChange={(e) => setEditPreset({ ...editPreset, hardness: e.target.value })} className="h-8 text-xs" placeholder="Ex: média, alta..." /></div>
+                <div><Label className="text-xs">Chipload (mm)</Label><Input type="number" step={0.001} value={editPreset.chipload || 0} onChange={(e) => setEditPreset({ ...editPreset, chipload: +e.target.value })} className="h-8 text-xs" /></div>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div><Label className="text-xs">Avanço XY</Label><Input type="number" value={editPreset.feedXY} onChange={(e) => setEditPreset({ ...editPreset, feedXY: +e.target.value })} className="h-8 text-xs" /></div>
                 <div><Label className="text-xs">Avanço Z</Label><Input type="number" value={editPreset.feedZ} onChange={(e) => setEditPreset({ ...editPreset, feedZ: +e.target.value })} className="h-8 text-xs" /></div>
@@ -269,9 +305,17 @@ export function MaterialPanel({ material, onChange, customPresets, onChangeCusto
                       <SelectItem value="standard">Padrão</SelectItem>
                       <SelectItem value="spiral">Espiral</SelectItem>
                       <SelectItem value="helical">Helicoidal</SelectItem>
+                      <SelectItem value="adaptive">Adaptativo</SelectItem>
+                      <SelectItem value="trochoidal">Trocoidal</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input type="checkbox" checked={editPreset.coolantRequired || false} onChange={(e) => setEditPreset({ ...editPreset, coolantRequired: e.target.checked })} />
+                  Refrigeração necessária
+                </label>
               </div>
               <div><Label className="text-xs">Observações</Label><Textarea value={editPreset.notes} onChange={(e) => setEditPreset({ ...editPreset, notes: e.target.value })} className="text-xs min-h-[60px]" /></div>
             </div>
