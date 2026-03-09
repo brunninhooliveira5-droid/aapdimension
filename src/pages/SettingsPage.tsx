@@ -657,6 +657,35 @@ const SettingsPage = () => {
           <div><p className="text-muted-foreground text-xs">Perfil</p><p className="text-foreground font-medium">{user ? roleLabels[user.role] : "—"}</p></div>
           <div><p className="text-muted-foreground text-xs">Empresa</p><p className="text-foreground font-medium">{user?.company || "—"}</p></div>
         </div>
+
+        {/* Assinatura Digital */}
+        <div className="border-t border-border pt-4 space-y-3">
+          <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Assinatura Digital</Label>
+          <p className="text-xs text-muted-foreground">Envie uma imagem PNG da sua assinatura (preferencialmente com fundo transparente). Ela será inserida automaticamente nos PDFs que você gerar.</p>
+          {signatureUrl && (
+            <div className="relative inline-block border border-border rounded-lg p-2 bg-white">
+              <img src={signatureUrl} alt="Assinatura" className="h-16 object-contain" />
+              <button
+                onClick={handleRemoveSignature}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => signatureInputRef.current?.click()} disabled={uploadingSignature}>
+              {uploadingSignature ? "Enviando..." : signatureUrl ? "Trocar Assinatura" : "Enviar Assinatura"}
+            </Button>
+            <input
+              ref={signatureInputRef}
+              type="file"
+              accept="image/png"
+              onChange={handleSignatureUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Notifications */}
