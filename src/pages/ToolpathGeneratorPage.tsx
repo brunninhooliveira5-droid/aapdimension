@@ -819,6 +819,17 @@ export default function ToolpathGeneratorPage() {
           </div>
         </div>
 
+        {/* RIGHT PANEL TOGGLE */}
+        {!isPreviewExpanded && layoutMode !== "preview" && (
+          <button
+            onClick={() => setRightPanelOpen(!rightPanelOpen)}
+            className="shrink-0 w-5 flex items-center justify-center border-l border-border bg-muted/30 hover:bg-accent transition-colors"
+            title={rightPanelOpen ? "Recolher material" : "Expandir material"}
+          >
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${rightPanelOpen ? "rotate-90" : "-rotate-90"}`} />
+          </button>
+        )}
+
         {/* RIGHT PANEL */}
         {showRightPanel && (
           <div className="w-60 border-l border-border overflow-auto shrink-0 p-2 space-y-2">
