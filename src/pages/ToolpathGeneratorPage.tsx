@@ -13,7 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
   BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
-  Bot, Wrench
+  Bot, Wrench, Mic
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,9 +34,10 @@ import { Tools3DLibrary } from "@/components/toolpath/Tools3DLibrary";
 import { Simulation3DAdvanced } from "@/components/toolpath/Simulation3DAdvanced";
 import { GcodePanel3D } from "@/components/toolpath/GcodePanel3D";
 
-// V6 Intelligent CAM Components
+// V6+ Intelligent CAM Components
 import { AutomaticCamWizard } from "@/components/toolpath/AutomaticCamWizard";
 import { IntelligentSummary } from "@/components/toolpath/IntelligentSummary";
+import { VoiceCamAssistant } from "@/components/toolpath/VoiceCamAssistant";
 
 // 2D Engine
 import {
@@ -85,7 +86,7 @@ import {
 } from "@/lib/intelligent-cam-engine";
 
 type WorkMode = "2d" | "3d";
-type CamMode = "manual" | "automatic";
+type CamMode = "manual" | "automatic" | "voice";
 
 export default function ToolpathGeneratorPage() {
   // Mode
