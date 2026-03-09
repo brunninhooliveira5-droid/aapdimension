@@ -13,7 +13,7 @@ interface GcodePanelProps {
   snapToolConfig?: SnapToolConfig;
 }
 
-export function GcodePanel({ project, customGcode }: GcodePanelProps) {
+export function GcodePanel({ project, customGcode, snapToolConfig }: GcodePanelProps) {
   const [postProcessor, setPostProcessor] = useState<PostProcessor>("grbl");
   const [gcode, setGcode] = useState("");
   const [generated, setGenerated] = useState(false);
