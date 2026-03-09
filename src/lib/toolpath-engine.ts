@@ -1273,7 +1273,44 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   return lines;
 }
 
-export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig): string {
+function generateSnapToolChange(
+  slot: SnapToolSlot,
+  config: SnapToolConfig,
+  postProcessor: PostProcessor
+): string[] {
+  const lines: string[] = [];
+  lines.push(`(=== TROCA SNAPTOOL: T${slot.slotNumber} - ${slot.name || "Sem nome"} ===)`);
+  lines.push(`M05`);
+  lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+
+  // Move to tool change position if defined, otherwise to tool slot position
+  if (config.changeX !== undefined && config.changeY !== undefined) {
+    lines.push(`G0 X${config.changeX.toFixed(4)} Y${config.changeY.toFixed(4)} (posição de troca)`);
+  }
+
+  // Move to tool slot position
+  lines.push(`G0 X${slot.posX.toFixed(4)} Y${slot.posY.toFixed(4)} (slot T${slot.slotNumber})`);
+  lines.push(`M00 (Troque para T${slot.slotNumber}: ${slot.name} D${slot.diameter}mm)`);
+
+  // Auto probing
+  if (config.autoProbe) {
+    lines.push(`(Probing automático)`);
+    lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+    lines.push(`G0 X${config.probeX.toFixed(4)} Y${config.probeY.toFixed(4)} (posição probe)`);
+    lines.push(`G38.2 Z-50 F${config.probeFeedRate} (probe descida)`);
+    if (config.probeZeroValue !== 0) {
+      lines.push(`G10 L20 P1 Z${config.probeZeroValue.toFixed(4)} (zeramento probe)`);
+    } else {
+      lines.push(`G10 L20 P1 Z0 (zeramento probe)`);
+    }
+    lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+  }
+
+  lines.push(`(=== FIM TROCA T${slot.slotNumber} ===)`);
+  return lines;
+}
+
+export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig, snapToolConfig?: SnapToolConfig): string {
   const lines: string[] = [];
 
   // Start block
