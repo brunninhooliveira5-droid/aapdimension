@@ -37,6 +37,7 @@ export function SvgCanvas({
   const [showGrid, setShowGrid] = useState(true);
   const [showDirectionArrows, setShowDirectionArrows] = useState(true);
   const [showGeoColors, setShowGeoColors] = useState(true);
+  const [colorProfile, setColorProfile] = useState<"default" | "dark" | "light" | "blueprint" | "highContrast">("default");
 
   const errorVectorIds = new Set(issues.filter((i) => i.severity === "error" && i.vectorId).map((i) => i.vectorId));
 
