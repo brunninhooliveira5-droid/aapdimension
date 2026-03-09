@@ -98,6 +98,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
   drawField("Data", dateStr);
   drawField("Horário", `${report.time_start || "--:--"} às ${report.time_end || "--:--"}`);
   drawField("Técnico Responsável", report.technician_name);
+  drawField("Status", statusLabels[report.status] || report.status || "—");
 
   // ====== DADOS DO CLIENTE ======
   drawSectionTitle("DADOS DO CLIENTE");
