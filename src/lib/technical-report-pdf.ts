@@ -2,6 +2,12 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { format } from "date-fns";
 
+const statusLabels: Record<string, string> = {
+  rascunho: "Rascunho",
+  em_andamento: "Em Andamento",
+  finalizado: "Finalizado",
+  enviado: "Enviado",
+};
 export async function generateTechnicalReportPdf(report: any, files?: any[]) {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -81,6 +87,8 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
     ? format(new Date(report.attendance_date), "dd/MM/yyyy")
     : format(new Date(), "dd/MM/yyyy");
   addText(dateStr, pageWidth - margin - doc.getTextWidth(dateStr), 18);
+  const statusText = `Status: ${statusLabels[report.status] || report.status || "—"}`;
+  addText(statusText, pageWidth - margin - doc.getTextWidth(statusText), 24);
 
   doc.setTextColor(0, 0, 0);
   y = 33;
@@ -90,6 +98,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
   drawField("Data", dateStr);
   drawField("Horário", `${report.time_start || "--:--"} às ${report.time_end || "--:--"}`);
   drawField("Técnico Responsável", report.technician_name);
+  drawField("Status", statusLabels[report.status] || report.status || "—");
 
   // ====== DADOS DO CLIENTE ======
   drawSectionTitle("DADOS DO CLIENTE");
