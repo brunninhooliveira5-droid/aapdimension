@@ -315,7 +315,10 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
     <div className="h-full grid grid-cols-[380px_1fr_1fr] min-h-0">
       {/* ── COLUNA 1: Configuração ── */}
       <div className="border-r border-border flex flex-col min-h-0">
-        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <img src={snapToolLogo} alt="SnapTool" className="h-6 w-auto dark:invert" />
+          </div>
           <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
             <Button
               variant={activeTab === "processor" ? "default" : "ghost"}
