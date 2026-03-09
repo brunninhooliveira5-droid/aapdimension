@@ -550,6 +550,15 @@ export default function ToolpathGeneratorPage() {
                 <Bot className="h-3.5 w-3.5" /> CAM Inteligente
               </Button>
               
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setCamMode("voice")}
+              >
+                <Mic className="h-3.5 w-3.5" /> Voz
+              </Button>
+              
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
                 onClick={handleAutoCam2D} disabled={vectors.length === 0}>
                 <Wand2 className="h-3.5 w-3.5" /> Auto CAM
