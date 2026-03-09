@@ -204,6 +204,11 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ["technical-report-files", reportId] });
   };
 
+  const updateFileDescription = async (fileId: string, description: string) => {
+    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, description } : f)));
+    await supabase.from("technical_report_files").update({ description }).eq("id", fileId);
+  };
+
   const updateField = (key: string, value: any) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const toggleChecklist = (index: number) => {
