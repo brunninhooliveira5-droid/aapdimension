@@ -151,6 +151,12 @@ export default function ToolpathGeneratorPage() {
     endGcode: "",
   });
   const [gcodePostProcessor, setGcodePostProcessor] = useState<PostProcessor>("grbl");
+  const [snapToolConfig, setSnapToolConfig] = useState<SnapToolConfig>(() => {
+    try {
+      const saved = localStorage.getItem("dimension-snaptool-global");
+      return saved ? JSON.parse(saved) : { ...DEFAULT_SNAPTOOL_CONFIG };
+    } catch { return { ...DEFAULT_SNAPTOOL_CONFIG }; }
+  });
 
   // ======================== V6 Intelligent CAM State ========================
   const [intelligentResult, setIntelligentResult] = useState<IntelligentCamResult | null>(null);
