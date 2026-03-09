@@ -919,7 +919,7 @@ export default function ToolpathGeneratorPage() {
                 {bottomPanel === "gcode" && (
                   <div className="p-2">
                     {workMode === "2d" ? (
-                      <GcodePanel project={buildProject2D()} customGcode={customGcode} />
+                      <GcodePanel project={buildProject2D()} customGcode={customGcode} snapToolConfig={snapToolConfig} />
                     ) : (
                       <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
                     )}
