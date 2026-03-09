@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Save, FileDown, Upload, X, Camera, Loader2, Plus, Trash2 } from "lucide-react";
+import { SignaturePad } from "@/components/SignaturePad";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
