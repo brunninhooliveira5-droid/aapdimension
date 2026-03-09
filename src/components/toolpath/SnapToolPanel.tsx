@@ -312,9 +312,9 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
   const warningCount = validation.filter(v => v.type === "warning").length;
 
   return (
-    <div className="h-full grid grid-cols-[380px_1fr_1fr] min-h-0">
+    <div className="h-full grid grid-cols-[380px_1fr_1fr] min-h-0 overflow-hidden">
       {/* ── COLUNA 1: Configuração ── */}
-      <div className="border-r border-border flex flex-col min-h-0">
+      <div className="border-r border-border flex flex-col min-h-0 overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0 space-y-2">
           <div className="flex items-center gap-2">
             <img src={snapToolLogo} alt="SnapTool" className="h-6 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(35%) sepia(85%) saturate(500%) hue-rotate(190deg) brightness(95%)" }} />
