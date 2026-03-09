@@ -25,6 +25,7 @@ import { ToolLibrary } from "@/components/toolpath/ToolLibrary";
 import { OperationPanel } from "@/components/toolpath/OperationPanel";
 import { OperationsList } from "@/components/toolpath/OperationsList";
 import { GcodePanel } from "@/components/toolpath/GcodePanel";
+import { StartEndGcodePanel } from "@/components/toolpath/StartEndGcodePanel";
 import { Simulation3D } from "@/components/toolpath/Simulation3D";
 
 // 3D Components
