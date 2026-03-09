@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import snapToolLogo from "@/assets/snaptool-logo.png";
+import snapToolDevice from "@/assets/snaptool-device.png";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -313,7 +315,10 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
     <div className="h-full grid grid-cols-[380px_1fr_1fr] min-h-0">
       {/* ── COLUNA 1: Configuração ── */}
       <div className="border-r border-border flex flex-col min-h-0">
-        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <img src={snapToolLogo} alt="SnapTool" className="h-6 w-auto dark:invert" />
+          </div>
           <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
             <Button
               variant={activeTab === "processor" ? "default" : "ghost"}
@@ -637,16 +642,15 @@ function ConfigSidebar({
       {/* Activation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Crosshair className="h-4 w-4 text-primary" />
-          <span className="font-semibold text-sm">SnapTool</span>
+          <img src={snapToolLogo} alt="SnapTool" className="h-5 w-auto dark:invert" />
           {config.enabled && <Badge variant="default" className="text-[9px] h-5">Ativo</Badge>}
         </div>
         <Switch checked={config.enabled} onCheckedChange={onToggle} />
       </div>
 
       {!config.enabled && (
-        <div className="rounded-lg border border-dashed border-border p-4 text-center">
-          <Crosshair className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+        <div className="rounded-lg border border-dashed border-border p-4 text-center space-y-3">
+          <img src={snapToolDevice} alt="SnapTool Device" className="h-24 mx-auto rounded-md object-contain" />
           <p className="text-xs text-muted-foreground">
             Ative o SnapTool para configurar troca automática de ferramentas com probing.
           </p>
