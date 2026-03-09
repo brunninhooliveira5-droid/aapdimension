@@ -16,14 +16,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
-  SnapToolConfig, SnapToolSlot, ToolpathOperation, ToolpathProject,
+  SnapToolConfig, SnapToolSlot, SnapToolSafetyConfig, ToolpathOperation, ToolpathProject,
   CncTool, CustomGcodeConfig, PostProcessor
 } from "@/lib/toolpath-engine";
 import { generateGcode, FILE_EXTENSIONS, DEFAULT_SNAPTOOL_SAFETY } from "@/lib/toolpath-engine";
-  ToolpathOperation, ToolpathProject,
-  CncTool, CustomGcodeConfig, PostProcessor
-} from "@/lib/toolpath-engine";
-import { generateGcode, FILE_EXTENSIONS } from "@/lib/toolpath-engine";
 
 // ── Types ──
 
