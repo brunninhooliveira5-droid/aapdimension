@@ -278,12 +278,12 @@ export default function ToolpathGeneratorPage() {
       {autoCamResult && (
         <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/30 text-xs">
           <Sparkles className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-          <span className="text-emerald-700 dark:text-emerald-400">
+          <span className="text-primary">
             Auto-CAM V4{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
             {autoCamResult.summary.islands} ilhas, {autoCamResult.summary.innerContours} int.,
             {autoCamResult.summary.outerContours} ext., {autoCamResult.summary.openPaths} abertos
             {activePreset && isMetal(activePreset.category) && " | ⚡ Estratégias avançadas"}
-            {activePreset?.coolantRequired && " | 💧 Refrigeração"}
+            {(activePreset as any)?.coolantRequired && " | 💧 Refrigeração"}
           </span>
           <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={() => setAutoCamResult(null)}>✕</Button>
         </div>

@@ -15,6 +15,9 @@ const TOOL_TYPE_LABELS: Record<ToolType, string> = {
   "v-bit": "V-Bit",
   "ball-nose": "Fresa Esférica",
   finishing: "Fresa de Acabamento",
+  compression: "Fresa Compressão",
+  downcut: "Fresa Downcut",
+  upcut: "Fresa Upcut",
 };
 
 interface ToolLibraryProps {
