@@ -856,6 +856,11 @@ export default function ToolpathGeneratorPage() {
               <TabButton active={bottomPanel === "gcode"} onClick={() => handleBottomTabClick("gcode")}>
                 G-Code
               </TabButton>
+              {workMode === "2d" && (
+                <TabButton active={bottomPanel === "start-end"} onClick={() => handleBottomTabClick("start-end")}>
+                  <Play className="h-3 w-3" /> Início/Fim
+                </TabButton>
+              )}
               {workMode === "2d" && intelligentResult && (
                 <TabButton active={bottomPanel === "intelligent"} onClick={() => handleBottomTabClick("intelligent")}>
                   <Bot className="h-3 w-3" /> Resumo V6
