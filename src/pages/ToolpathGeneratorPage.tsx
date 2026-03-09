@@ -457,9 +457,9 @@ export default function ToolpathGeneratorPage() {
       newOp.cutSide = "outside";
       newOp.name = `Perfil Externo Seleção (${ids.length})`;
     } else if (allOpen) {
-      newOp.type = "engrave";
+      newOp.type = "on-line";
       newOp.cutSide = "on-line";
-      newOp.name = `Gravação Seleção (${ids.length})`;
+      newOp.name = `Percurso Linha Seleção (${ids.length})`;
     } else {
       newOp.type = "pocket";
       newOp.name = `Bolso Seleção (${ids.length})`;
