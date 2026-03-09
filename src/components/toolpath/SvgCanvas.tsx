@@ -200,8 +200,8 @@ export function SvgCanvas({
         {vectors.map((v) => {
           const isSelected = selectedVectorIds.includes(v.id);
           const hasError = errorVectorIds.has(v.id);
-          const geoColor = showGeoColors ? GEOMETRY_CLASS_COLORS[v.geometryClass] : v.color;
-          const strokeColor = hasError ? "#ef4444" : isSelected ? "hsl(var(--primary))" : geoColor;
+          const geoColor = showGeoColors ? GEOMETRY_CLASS_COLORS[v.geometryClass] : (colorProfile === "default" ? v.color : cp.vector);
+          const strokeColor = hasError ? "#ef4444" : isSelected ? cp.selected : geoColor;
 
           return (
             <g key={v.id}>
