@@ -928,9 +928,6 @@ export default function ToolpathGeneratorPage() {
                     postProcessor={gcodePostProcessor}
                   />
                 )}
-                {bottomPanel === "snaptool" && workMode === "2d" && (
-                  <SnapToolPanel config={snapToolConfig} onChange={setSnapToolConfig} operations={operations} />
-                )}
                 {bottomPanel === "intelligent" && workMode === "2d" && intelligentResult && (
                   <div className="h-full overflow-hidden">
                     <IntelligentSummary result={intelligentResult} material={material} preset={activePreset} quality={intelligentQuality}
