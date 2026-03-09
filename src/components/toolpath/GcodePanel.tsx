@@ -4,21 +4,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, Code } from "lucide-react";
-import type { ToolpathProject, PostProcessor, CustomGcodeConfig } from "@/lib/toolpath-engine";
+import type { ToolpathProject, PostProcessor, CustomGcodeConfig, SnapToolConfig } from "@/lib/toolpath-engine";
 import { generateGcode, FILE_EXTENSIONS } from "@/lib/toolpath-engine";
 
 interface GcodePanelProps {
   project: ToolpathProject;
   customGcode?: CustomGcodeConfig;
+  snapToolConfig?: SnapToolConfig;
 }
 
-export function GcodePanel({ project, customGcode }: GcodePanelProps) {
+export function GcodePanel({ project, customGcode, snapToolConfig }: GcodePanelProps) {
   const [postProcessor, setPostProcessor] = useState<PostProcessor>("grbl");
   const [gcode, setGcode] = useState("");
   const [generated, setGenerated] = useState(false);
 
   const handleGenerate = () => {
-    const code = generateGcode(project, postProcessor, customGcode);
+    const code = generateGcode(project, postProcessor, customGcode, snapToolConfig);
     setGcode(code);
     setGenerated(true);
   };

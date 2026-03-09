@@ -131,6 +131,7 @@ export interface ToolpathOperation {
   roughFinish: RoughFinishSettings;
   trochoidal: TrochoidalSettings;
   adaptive: AdaptiveSettings;
+  snapToolSlot?: number;
 }
 
 export interface MaterialConfig {
@@ -243,6 +244,46 @@ export interface CustomGcodeConfig {
   startGcode: string;
   endGcode: string;
 }
+
+// ── SnapTool Types ──
+
+export interface SnapToolSlot {
+  slotNumber: number;
+  name: string;
+  toolType: string;
+  diameter: number;
+  posX: number;
+  posY: number;
+  active: boolean;
+}
+
+export interface SnapToolConfig {
+  enabled: boolean;
+  totalSlots: number;
+  probeX: number;
+  probeY: number;
+  probeZeroValue: number;
+  probeFeedRate: number;
+  safeZ: number;
+  changeX?: number;
+  changeY?: number;
+  autoProbe: boolean;
+  useManualT0: boolean;
+  slots: SnapToolSlot[];
+}
+
+export const DEFAULT_SNAPTOOL_CONFIG: SnapToolConfig = {
+  enabled: false,
+  totalSlots: 4,
+  probeX: 0,
+  probeY: 0,
+  probeZeroValue: 0,
+  probeFeedRate: 100,
+  safeZ: 25,
+  autoProbe: true,
+  useManualT0: false,
+  slots: [],
+};
 
 export const DEFAULT_START_GCODE: Record<PostProcessor, string> = {
   grbl: "$H\nG90 G21 G17\nM03 S12000\nG4 P2",
@@ -1232,7 +1273,44 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   return lines;
 }
 
-export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig): string {
+function generateSnapToolChange(
+  slot: SnapToolSlot,
+  config: SnapToolConfig,
+  postProcessor: PostProcessor
+): string[] {
+  const lines: string[] = [];
+  lines.push(`(=== TROCA SNAPTOOL: T${slot.slotNumber} - ${slot.name || "Sem nome"} ===)`);
+  lines.push(`M05`);
+  lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+
+  // Move to tool change position if defined, otherwise to tool slot position
+  if (config.changeX !== undefined && config.changeY !== undefined) {
+    lines.push(`G0 X${config.changeX.toFixed(4)} Y${config.changeY.toFixed(4)} (posição de troca)`);
+  }
+
+  // Move to tool slot position
+  lines.push(`G0 X${slot.posX.toFixed(4)} Y${slot.posY.toFixed(4)} (slot T${slot.slotNumber})`);
+  lines.push(`M00 (Troque para T${slot.slotNumber}: ${slot.name} D${slot.diameter}mm)`);
+
+  // Auto probing
+  if (config.autoProbe) {
+    lines.push(`(Probing automático)`);
+    lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+    lines.push(`G0 X${config.probeX.toFixed(4)} Y${config.probeY.toFixed(4)} (posição probe)`);
+    lines.push(`G38.2 Z-50 F${config.probeFeedRate} (probe descida)`);
+    if (config.probeZeroValue !== 0) {
+      lines.push(`G10 L20 P1 Z${config.probeZeroValue.toFixed(4)} (zeramento probe)`);
+    } else {
+      lines.push(`G10 L20 P1 Z0 (zeramento probe)`);
+    }
+    lines.push(`G0 Z${config.safeZ.toFixed(3)}`);
+  }
+
+  lines.push(`(=== FIM TROCA T${slot.slotNumber} ===)`);
+  return lines;
+}
+
+export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig, snapToolConfig?: SnapToolConfig): string {
   const lines: string[] = [];
 
   // Start block
@@ -1256,13 +1334,22 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
   const sortedOps = [...project.operations].filter((o) => o.enabled).sort((a, b) => a.order - b.order);
 
   let lastToolId = "";
+  let lastSnapSlot: number | undefined;
   let toolNumber = 0;
 
   for (const op of sortedOps) {
     const tool = project.tools.find((t) => t.id === op.toolId);
     if (!tool) continue;
 
-    if (op.toolId !== lastToolId) {
+    // SnapTool tool change logic
+    if (snapToolConfig?.enabled && op.snapToolSlot !== undefined) {
+      const slot = snapToolConfig.slots.find(s => s.slotNumber === op.snapToolSlot && s.active);
+      if (slot && op.snapToolSlot !== lastSnapSlot) {
+        lines.push(...generateSnapToolChange(slot, snapToolConfig, postProcessor));
+        lastSnapSlot = op.snapToolSlot;
+        lastToolId = op.toolId;
+      }
+    } else if (op.toolId !== lastToolId) {
       toolNumber++;
       if (lastToolId !== "") {
         lines.push(...TOOL_CHANGE[postProcessor](toolNumber, tool.name));

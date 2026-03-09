@@ -13,7 +13,7 @@ import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
   BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
   Bot, Wrench, Mic, Upload, FilePlus, Maximize, Minimize,
-  ChevronDown, ChevronUp, PenTool, Play
+  ChevronDown, ChevronUp, PenTool, Play, Crosshair
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ import { OperationPanel } from "@/components/toolpath/OperationPanel";
 import { OperationsList } from "@/components/toolpath/OperationsList";
 import { GcodePanel } from "@/components/toolpath/GcodePanel";
 import { StartEndGcodePanel } from "@/components/toolpath/StartEndGcodePanel";
+import { SnapToolPanel } from "@/components/toolpath/SnapToolPanel";
 import { Simulation3D } from "@/components/toolpath/Simulation3D";
 
 // 3D Components
@@ -66,6 +67,8 @@ import {
   type MaterialPreset,
   type CustomGcodeConfig,
   type PostProcessor,
+  type SnapToolConfig,
+  DEFAULT_SNAPTOOL_CONFIG,
 } from "@/lib/toolpath-engine";
 
 // 3D Engine
@@ -95,7 +98,7 @@ import {
 
 type WorkMode = "2d" | "3d";
 type CamMode = "manual" | "automatic" | "voice";
-type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "intelligent" | "validation" | null;
+type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "snaptool" | "intelligent" | "validation" | null;
 
 export default function ToolpathGeneratorPage() {
   // Mode
@@ -148,6 +151,12 @@ export default function ToolpathGeneratorPage() {
     endGcode: "",
   });
   const [gcodePostProcessor, setGcodePostProcessor] = useState<PostProcessor>("grbl");
+  const [snapToolConfig, setSnapToolConfig] = useState<SnapToolConfig>(() => {
+    try {
+      const saved = localStorage.getItem("dimension-snaptool-global");
+      return saved ? JSON.parse(saved) : { ...DEFAULT_SNAPTOOL_CONFIG };
+    } catch { return { ...DEFAULT_SNAPTOOL_CONFIG }; }
+  });
 
   // ======================== V6 Intelligent CAM State ========================
   const [intelligentResult, setIntelligentResult] = useState<IntelligentCamResult | null>(null);
@@ -861,6 +870,11 @@ export default function ToolpathGeneratorPage() {
                   <Play className="h-3 w-3" /> Início/Fim
                 </TabButton>
               )}
+              {workMode === "2d" && (
+                <TabButton active={bottomPanel === "snaptool"} onClick={() => handleBottomTabClick("snaptool")}>
+                  <Crosshair className="h-3 w-3" /> SnapTool {snapToolConfig.enabled && <Badge variant="default" className="ml-1 h-4 text-[8px] px-1">ON</Badge>}
+                </TabButton>
+              )}
               {workMode === "2d" && intelligentResult && (
                 <TabButton active={bottomPanel === "intelligent"} onClick={() => handleBottomTabClick("intelligent")}>
                   <Bot className="h-3 w-3" /> Resumo V6
@@ -906,7 +920,7 @@ export default function ToolpathGeneratorPage() {
                 {bottomPanel === "gcode" && (
                   <div className="p-2">
                     {workMode === "2d" ? (
-                      <GcodePanel project={buildProject2D()} customGcode={customGcode} />
+                      <GcodePanel project={buildProject2D()} customGcode={customGcode} snapToolConfig={snapToolConfig} />
                     ) : (
                       <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
                     )}
@@ -918,6 +932,9 @@ export default function ToolpathGeneratorPage() {
                     onChange={setCustomGcode}
                     postProcessor={gcodePostProcessor}
                   />
+                )}
+                {bottomPanel === "snaptool" && workMode === "2d" && (
+                  <SnapToolPanel config={snapToolConfig} onChange={setSnapToolConfig} operations={operations} />
                 )}
                 {bottomPanel === "intelligent" && workMode === "2d" && intelligentResult && (
                   <div className="h-full overflow-hidden">
