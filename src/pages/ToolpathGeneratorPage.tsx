@@ -826,6 +826,8 @@ export default function ToolpathGeneratorPage() {
                 selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
                 showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
                 issues={issues} activePassLayer={activePassLayer}
+                drawingTool={drawingTool} isDrawingMode={isDrawingMode} snapGrid={snapGrid}
+                onAddVector={handleAddVector} onMoveVectors={handleMoveVectors} onDeleteVectors={handleDeleteVectors}
               />
             ) : (
               <Simulation3DAdvanced model={model3D} materialBlock={materialBlock} operations={operations3D} tools={tools3D} toolpaths={toolpaths3D} />
