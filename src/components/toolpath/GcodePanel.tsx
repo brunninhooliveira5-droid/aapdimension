@@ -19,7 +19,7 @@ export function GcodePanel({ project, customGcode, snapToolConfig }: GcodePanelP
   const [generated, setGenerated] = useState(false);
 
   const handleGenerate = () => {
-    const code = generateGcode(project, postProcessor, customGcode);
+    const code = generateGcode(project, postProcessor, customGcode, snapToolConfig);
     setGcode(code);
     setGenerated(true);
   };
