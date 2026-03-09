@@ -453,13 +453,13 @@ export default function ToolpathGeneratorPage() {
       newOp.type = "drill";
       newOp.name = `Furação Seleção (${ids.length})`;
     } else if (hasClosedOuter) {
-      newOp.type = "profile";
+      newOp.type = "profile-outside";
       newOp.cutSide = "outside";
       newOp.name = `Perfil Externo Seleção (${ids.length})`;
     } else if (allOpen) {
-      newOp.type = "profile";
+      newOp.type = "engrave";
       newOp.cutSide = "on-line";
-      newOp.name = `Perfil Linha Seleção (${ids.length})`;
+      newOp.name = `Gravação Seleção (${ids.length})`;
     } else {
       newOp.type = "pocket";
       newOp.name = `Bolso Seleção (${ids.length})`;
