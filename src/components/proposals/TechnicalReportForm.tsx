@@ -170,7 +170,20 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
       } else {
         const { data: inserted, error } = await supabase.from("technical_reports").insert(payload).select("id").single();
         if (error) throw error;
-        return inserted.id;
+        const newId = inserted.id;
+
+        // If client signature was drawn before first save, upload it now
+        if (clientSignatureImage && clientSignatureImage.startsWith("data:")) {
+          try {
+            const blob = await (await fetch(clientSignatureImage)).blob();
+            const path = `${newId}/client-signature-${Date.now()}.png`;
+            await supabase.storage.from("technical-report-files").upload(path, blob);
+            const { data: { publicUrl } } = supabase.storage.from("technical-report-files").getPublicUrl(path);
+            await supabase.from("technical_reports").update({ client_signature_image_url: publicUrl } as any).eq("id", newId);
+          } catch { /* ignore */ }
+        }
+
+        return newId;
       }
     },
     onSuccess: () => {
