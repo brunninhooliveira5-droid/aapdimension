@@ -13,7 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
   BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
-  Bot, Wrench
+  Bot, Wrench, Mic
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,9 +34,10 @@ import { Tools3DLibrary } from "@/components/toolpath/Tools3DLibrary";
 import { Simulation3DAdvanced } from "@/components/toolpath/Simulation3DAdvanced";
 import { GcodePanel3D } from "@/components/toolpath/GcodePanel3D";
 
-// V6 Intelligent CAM Components
+// V6+ Intelligent CAM Components
 import { AutomaticCamWizard } from "@/components/toolpath/AutomaticCamWizard";
 import { IntelligentSummary } from "@/components/toolpath/IntelligentSummary";
+import { VoiceCamAssistant } from "@/components/toolpath/VoiceCamAssistant";
 
 // 2D Engine
 import {
@@ -85,7 +86,7 @@ import {
 } from "@/lib/intelligent-cam-engine";
 
 type WorkMode = "2d" | "3d";
-type CamMode = "manual" | "automatic";
+type CamMode = "manual" | "automatic" | "voice";
 
 export default function ToolpathGeneratorPage() {
   // Mode
@@ -436,6 +437,48 @@ export default function ToolpathGeneratorPage() {
 
   // ======================== Render ========================
   
+  // If in voice mode for 2D, show voice assistant alongside preview
+  if (camMode === "voice" && workMode === "2d") {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
+            <Badge variant="default" className="text-[9px] h-5">
+              V8 Voz
+            </Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
+            <Wrench className="h-4 w-4 mr-1" /> Modo Manual
+          </Button>
+        </div>
+        <div className="flex-1 flex">
+          <div className="w-[400px] border-r border-border overflow-auto">
+            <VoiceCamAssistant
+              vectors={vectors}
+              material={material}
+              tools={tools}
+              operations={operations}
+              customPresets={customPresets}
+              onMaterialChange={setMaterial}
+              onOperationsChange={setOperations}
+              onGenerateCam={handleAutoCam2D}
+              onClose={() => setCamMode("manual")}
+            />
+          </div>
+          <div className="flex-1 p-2">
+            <SvgCanvas
+              vectors={vectors} material={material} operations={operations} tools={tools}
+              selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
+              showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
+              issues={issues} activePassLayer={activePassLayer}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // If in automatic mode for 2D, show the wizard
   if (camMode === "automatic" && workMode === "2d") {
     return (
@@ -443,8 +486,8 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-            <Badge variant="default" className="text-[9px] h-5 bg-gradient-to-r from-purple-500 to-pink-500 border-0">
-              V6 Automático
+            <Badge variant="default" className="text-[9px] h-5">
+              V8 Automático
             </Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
@@ -470,7 +513,7 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
           <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">
-            V6
+            V8
           </Badge>
           
           {/* Dimension Mode Toggle */}
@@ -505,6 +548,15 @@ export default function ToolpathGeneratorPage() {
                 onClick={() => setCamMode("automatic")}
               >
                 <Bot className="h-3.5 w-3.5" /> CAM Inteligente
+              </Button>
+              
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setCamMode("voice")}
+              >
+                <Mic className="h-3.5 w-3.5" /> Voz
               </Button>
               
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
