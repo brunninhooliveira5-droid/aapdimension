@@ -227,8 +227,10 @@ export function SvgCanvas({
             area: bw * bh,
             perimeter: 2 * (bw + bh),
             boundingBox: { x: bx, y: by, w: bw, h: bh },
-            containedBy: null,
-            contains: [],
+            parentId: null,
+            groupId: "",
+            selected: false,
+            isCircular: drawingTool === "circle",
           };
           onAddVector(newVector);
         }
