@@ -157,7 +157,7 @@ export function SvgCanvas({
       >
         {/* Material boundary */}
         <rect x={0} y={0} width={material.width} height={material.height}
-          fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth={1 / zoom} strokeDasharray={`${4 / zoom}`} />
+          fill={cp.bg} stroke={cp.border} strokeWidth={1 / zoom} strokeDasharray={`${4 / zoom}`} />
 
         {/* Grid */}
         {showGrid && (
