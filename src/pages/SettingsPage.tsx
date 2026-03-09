@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
