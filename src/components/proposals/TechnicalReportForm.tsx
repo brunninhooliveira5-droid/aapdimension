@@ -132,7 +132,7 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
       const payload = {
         ...data,
         checklist: data.checklist as any,
-        created_by: user?.id,
+        created_by: session?.user?.id,
       };
 
       if (reportId) {
