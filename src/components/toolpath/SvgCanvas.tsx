@@ -249,10 +249,10 @@ export function SvgCanvas({
                 if (!v) return null;
                 return (
                   <g key={`tp-${op.id}-${vid}`}>
-                    <path d={v.pathData} fill="none" stroke={isActive ? "#f59e0b" : "#94a3b8"}
+                    <path d={v.pathData} fill="none" stroke={isActive ? cp.toolpath : cp.toolpathInactive}
                       strokeWidth={(tool.diameter * 0.8) / zoom} strokeLinecap="round" strokeLinejoin="round" opacity={0.3}
                       transform={`translate(${offset}, 0)`} />
-                    <path d={v.pathData} fill="none" stroke={isActive ? "#f59e0b" : "#64748b"}
+                    <path d={v.pathData} fill="none" stroke={isActive ? cp.toolpath : cp.toolpathInactive}
                       strokeWidth={1 / zoom} strokeDasharray={`${3 / zoom}`} transform={`translate(${offset}, 0)`} />
                     {showDirectionArrows && isActive && getArrowPoints(v.pathData, offset).map((arrow, ai) => (
                       <g key={`arrow-${ai}`} transform={`translate(${arrow.x},${arrow.y}) rotate(${arrow.angle})`}>
