@@ -163,10 +163,10 @@ export function SvgCanvas({
         {showGrid && (
           <g opacity={0.15}>
             {Array.from({ length: Math.ceil(material.width / gridSpacing) }).map((_, i) => (
-              <line key={`gx-${i}`} x1={(i + 1) * gridSpacing} y1={0} x2={(i + 1) * gridSpacing} y2={material.height} stroke="hsl(var(--foreground))" strokeWidth={0.5 / zoom} />
+              <line key={`gx-${i}`} x1={(i + 1) * gridSpacing} y1={0} x2={(i + 1) * gridSpacing} y2={material.height} stroke={cp.grid} strokeWidth={0.5 / zoom} />
             ))}
             {Array.from({ length: Math.ceil(material.height / gridSpacing) }).map((_, i) => (
-              <line key={`gy-${i}`} x1={0} y1={(i + 1) * gridSpacing} x2={material.width} y2={(i + 1) * gridSpacing} stroke="hsl(var(--foreground))" strokeWidth={0.5 / zoom} />
+              <line key={`gy-${i}`} x1={0} y1={(i + 1) * gridSpacing} x2={material.width} y2={(i + 1) * gridSpacing} stroke={cp.grid} strokeWidth={0.5 / zoom} />
             ))}
           </g>
         )}
