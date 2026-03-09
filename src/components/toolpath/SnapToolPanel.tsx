@@ -854,7 +854,7 @@ function extractToolNumbers(gcode: string): number[] {
   return Array.from(tools).sort((a, b) => a - b);
 }
 
-/** Generate a full tool change block: release current → move to new → clamp → probe */
+/** Generate a full tool change block with safety pauses */
 function generateFullToolChange(
   fromToolNum: number,
   toToolNum: number,
@@ -863,6 +863,8 @@ function generateFullToolChange(
   config: SnapToolConfig,
 ): string[] {
   const lines: string[] = [];
+  const safety = config.safety ?? DEFAULT_SNAPTOOL_SAFETY;
+  const pauseCmd = safety.pauseCommand || "M0";
 
   lines.push(``);
   lines.push(`(========================================)`);
@@ -875,15 +877,21 @@ function generateFullToolChange(
   // 2) Raise to safe Z
   lines.push(`G0 Z${config.safeZ.toFixed(3)} (Altura segura)`);
 
-  // 3) Release current tool — go to current slot position
+  // 3) Release current tool
   if (fromSlot) {
     lines.push(`(--- Soltar T${fromToolNum}: ${fromSlot.name || ""} ---)`);
     lines.push(`G0 X${fromSlot.posX.toFixed(4)} Y${fromSlot.posY.toFixed(4)} (Posição slot T${fromToolNum})`);
     lines.push(`M00 (Soltar ferramenta T${fromToolNum})`);
     lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após soltura)`);
+
+    if (safety.enabled && safety.pauseAfterRelease) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO DO OPERADOR )`);
+      lines.push(`( Ferramenta T${fromToolNum} devolvida. Verifique e pressione START )`);
+      lines.push(`${pauseCmd}`);
+    }
   }
 
-  // 4) Pick new tool — go to new slot position
+  // 4) Pick new tool
   lines.push(`(--- Pegar T${toToolNum}: ${toSlot.name || ""} D${toSlot.diameter}mm ---)`);
   lines.push(`G0 X${toSlot.posX.toFixed(4)} Y${toSlot.posY.toFixed(4)} (Posição slot T${toToolNum})`);
   lines.push(`M00 (Acoplar ferramenta T${toToolNum})`);
@@ -891,8 +899,20 @@ function generateFullToolChange(
   // 5) Raise after clamping
   lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após acoplamento)`);
 
+  if (safety.enabled && safety.pauseAfterPickup) {
+    lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO DO OPERADOR )`);
+    lines.push(`( Ferramenta T${toToolNum} acoplada. Verifique e pressione START )`);
+    lines.push(`${pauseCmd}`);
+  }
+
   // 6) Auto probing
   if (config.autoProbe) {
+    if (safety.enabled && safety.pauseBeforeProbing) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO ANTES DO PROBING )`);
+      lines.push(`( Confirmar posicionamento e pressionar START )`);
+      lines.push(`${pauseCmd}`);
+    }
+
     lines.push(`(--- Probing automático ---)`);
     lines.push(`G0 X${config.probeX.toFixed(4)} Y${config.probeY.toFixed(4)} (Posição probe)`);
     lines.push(`G38.2 Z-50 F${config.probeFeedRate} (Probe descida)`);
@@ -902,6 +922,12 @@ function generateFullToolChange(
       lines.push(`G10 L20 P1 Z0 (Zeramento probe)`);
     }
     lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após probe)`);
+
+    if (safety.enabled && safety.pauseAfterProbing) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO APOS PROBING )`);
+      lines.push(`( Probing concluído. Pressione START para continuar )`);
+      lines.push(`${pauseCmd}`);
+    }
   }
 
   lines.push(`(=== FIM TROCA T${toToolNum} ===)`);
