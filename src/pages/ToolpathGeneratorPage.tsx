@@ -456,8 +456,8 @@ export default function ToolpathGeneratorPage() {
   }, [toolpaths3D]);
 
   // Determine visibility based on layout
-  const showLeftPanel = !isPreviewExpanded && layoutMode !== "preview" && layoutMode !== "cam";
-  const showRightPanel = !isPreviewExpanded && layoutMode !== "preview" && layoutMode !== "vectors";
+  const showLeftPanel = leftPanelOpen && !isPreviewExpanded && layoutMode !== "preview";
+  const showRightPanel = rightPanelOpen && !isPreviewExpanded && layoutMode !== "preview";
   const showBottomPanel = !isPreviewExpanded && bottomPanel !== null;
 
   // Toggle bottom panel
