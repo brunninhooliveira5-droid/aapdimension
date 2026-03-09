@@ -717,6 +717,14 @@ export default function ToolpathGeneratorPage() {
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate2D} disabled={operations.length === 0}>
                 <AlertTriangle className="h-3.5 w-3.5" />
               </Button>
+              <Button
+                variant={snapToolConfig.enabled ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setCamMode("snaptool")}
+              >
+                <Crosshair className="h-3.5 w-3.5" /> SnapTool
+              </Button>
             </>
           )}
           {workMode === "3d" && (
