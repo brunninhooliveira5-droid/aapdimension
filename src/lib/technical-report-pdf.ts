@@ -4,7 +4,9 @@ import { format } from "date-fns";
 
 const statusLabels: Record<string, string> = {
   rascunho: "Rascunho",
+  orcamento: "Orçamento",
   em_andamento: "Em Andamento",
+  executado: "Executado",
   finalizado: "Finalizado",
   enviado: "Enviado",
 };
