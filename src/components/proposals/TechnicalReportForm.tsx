@@ -33,7 +33,7 @@ interface Props {
 }
 
 export function TechnicalReportForm({ reportId, onClose }: Props) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
