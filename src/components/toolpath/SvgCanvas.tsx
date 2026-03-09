@@ -39,6 +39,15 @@ export function SvgCanvas({
   const [showGeoColors, setShowGeoColors] = useState(true);
   const [colorProfile, setColorProfile] = useState<"default" | "dark" | "light" | "blueprint" | "highContrast">("default");
 
+  const COLOR_PROFILES = {
+    default: { bg: "hsl(var(--card))", grid: "hsl(var(--foreground))", border: "hsl(var(--border))", vector: "#3b82f6", selected: "hsl(var(--primary))", toolpath: "#f59e0b", toolpathInactive: "#64748b", label: "Padrão" },
+    dark: { bg: "#1a1a2e", grid: "#334155", border: "#334155", vector: "#60a5fa", selected: "#818cf8", toolpath: "#fbbf24", toolpathInactive: "#475569", label: "Escuro" },
+    light: { bg: "#ffffff", grid: "#e2e8f0", border: "#cbd5e1", vector: "#2563eb", selected: "#7c3aed", toolpath: "#d97706", toolpathInactive: "#94a3b8", label: "Claro" },
+    blueprint: { bg: "#0a1628", grid: "#1e3a5f", border: "#1e3a5f", vector: "#38bdf8", selected: "#22d3ee", toolpath: "#facc15", toolpathInactive: "#3b82f6", label: "Blueprint" },
+    highContrast: { bg: "#000000", grid: "#333333", border: "#444444", vector: "#00ff00", selected: "#ff00ff", toolpath: "#ffff00", toolpathInactive: "#888888", label: "Alto Contraste" },
+  };
+  const cp = COLOR_PROFILES[colorProfile];
+
   const errorVectorIds = new Set(issues.filter((i) => i.severity === "error" && i.vectorId).map((i) => i.vectorId));
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
