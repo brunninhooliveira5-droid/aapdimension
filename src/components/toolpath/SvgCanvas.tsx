@@ -37,7 +37,7 @@ export function SvgCanvas({
   const [showGrid, setShowGrid] = useState(true);
   const [showDirectionArrows, setShowDirectionArrows] = useState(true);
   const [showGeoColors, setShowGeoColors] = useState(true);
-  const [colorProfile, setColorProfile] = useState<"default" | "blueprint" | "highContrast" | "warmShop" | "cnc">("default");
+  const [colorProfile, setColorProfile] = useState<"default" | "white" | "blueprint" | "highContrast" | "warmShop" | "cnc">("default");
 
   const COLOR_PROFILES = {
     default: { bg: "hsl(var(--card))", grid: "hsl(var(--foreground))", border: "hsl(var(--border))", vector: "#3b82f6", selected: "hsl(var(--primary))", toolpath: "#f59e0b", toolpathInactive: "#64748b", label: "Padrão" },
