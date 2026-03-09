@@ -102,6 +102,8 @@ export default function ToolpathGeneratorPage() {
   // Layout
   const [bottomPanel, setBottomPanel] = useState<BottomPanel>("operations");
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   // Drawing
   const [isDrawingMode, setIsDrawingMode] = useState(false);
