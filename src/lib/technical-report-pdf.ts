@@ -2,6 +2,12 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { format } from "date-fns";
 
+const statusLabels: Record<string, string> = {
+  rascunho: "Rascunho",
+  em_andamento: "Em Andamento",
+  finalizado: "Finalizado",
+  enviado: "Enviado",
+};
 export async function generateTechnicalReportPdf(report: any, files?: any[]) {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
