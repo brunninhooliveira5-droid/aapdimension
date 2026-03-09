@@ -161,7 +161,14 @@ export function TechnicalReportsList() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => generateTechnicalReportPdf(r)}
+                        onClick={async () => {
+                          const { data: reportFiles } = await supabase
+                            .from("technical_report_files")
+                            .select("*")
+                            .eq("report_id", r.id)
+                            .order("sort_order");
+                          generateTechnicalReportPdf(r, reportFiles || []);
+                        }}
                         title="Gerar PDF"
                       >
                         <FileDown className="h-4 w-4" />
