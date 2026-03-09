@@ -762,20 +762,30 @@ function ConfigSidebar({
                 </p>
               ) : (
                 <div className="space-y-1">
+                  {/* Header labels */}
+                  <div className="flex items-center gap-1 px-1.5 text-[8px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="shrink-0 w-8">Slot</span>
+                    <span className="flex-1 min-w-0">Nome da Ferramenta</span>
+                    <span className="w-12 text-center">Ø mm</span>
+                    <span className="w-16 text-center">Pos X (mm)</span>
+                    <span className="w-16 text-center">Pos Y (mm)</span>
+                    <span className="w-9 text-center">Ativo</span>
+                    <span className="w-6" />
+                  </div>
                   {config.slots.map((slot, idx) => (
                     <div key={idx} className={`flex items-center gap-1 p-1.5 rounded-md border border-border ${!slot.active ? "opacity-40" : ""}`}>
                       <Badge variant="outline" className="text-[9px] h-5 shrink-0">T{slot.slotNumber}</Badge>
                       <Input value={slot.name} onChange={e => updateSlot(idx, { name: e.target.value })}
-                        className="h-6 text-[10px] px-1 flex-1 min-w-0" placeholder="Nome" />
+                        className="h-6 text-[10px] px-1 flex-1 min-w-0" placeholder="Ex: Fresa 6mm" />
                       <Input type="number" step={0.1} value={slot.diameter}
                         onChange={e => updateSlot(idx, { diameter: parseFloat(e.target.value) || 0 })}
                         className="h-6 text-[10px] px-1 w-12" placeholder="Ø" />
                       <Input type="number" step={0.0001} value={slot.posX}
                         onChange={e => updateSlot(idx, { posX: parseFloat(e.target.value) || 0 })}
-                        className="h-6 text-[10px] px-1 w-16" placeholder="X" />
+                        className="h-6 text-[10px] px-1 w-16" placeholder="Pos X" />
                       <Input type="number" step={0.0001} value={slot.posY}
                         onChange={e => updateSlot(idx, { posY: parseFloat(e.target.value) || 0 })}
-                        className="h-6 text-[10px] px-1 w-16" placeholder="Y" />
+                        className="h-6 text-[10px] px-1 w-16" placeholder="Pos Y" />
                       <Switch checked={slot.active} onCheckedChange={v => updateSlot(idx, { active: v })} />
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0" onClick={() => removeSlot(idx)}>
                         <Trash2 className="h-3 w-3 text-destructive" />
