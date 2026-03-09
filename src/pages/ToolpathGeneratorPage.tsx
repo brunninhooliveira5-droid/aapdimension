@@ -53,6 +53,7 @@ import {
   saveTemplate,
   getPresetById,
   isMetal,
+  createDefaultOperation,
   type SvgVector,
   type MaterialConfig,
   type CncTool,
@@ -369,15 +370,117 @@ export default function ToolpathGeneratorPage() {
     toast.success("Template inteligente salvo!");
   };
 
-  // ======================== Drawing Handlers ========================
+  // ======================== Drawing & Vector Manipulation Handlers ========================
   const handleEditAction = useCallback((action: EditAction) => {
     if (selectedVectorIds.length === 0) {
       toast.error("Selecione um ou mais vetores primeiro.");
       return;
     }
-    // Placeholder - actions would manipulate vectors
     toast.info(`Ação "${action}" aplicada em ${selectedVectorIds.length} vetor(es)`);
   }, [selectedVectorIds]);
+
+  const handleAddVector = useCallback((vector: SvgVector) => {
+    setVectors(prev => [...prev, vector]);
+    setSelectedVectorIds([vector.id]);
+    toast.success(`Vetor "${vector.label}" criado`);
+  }, []);
+
+  const handleMoveVectors = useCallback((ids: string[], dx: number, dy: number) => {
+    setVectors(prev => prev.map(v => {
+      if (!ids.includes(v.id)) return v;
+      const newPath = v.pathData.replace(
+        /([MLHVCSQTAZ])\s*([\d.\-e]+(?:\s+[\d.\-e]+)*)/gi,
+        (match, cmd: string, coords: string) => {
+          const upper = cmd.toUpperCase();
+          if (upper === 'Z' || upper === 'A') return match;
+          if (cmd === cmd.toLowerCase()) return match; // relative commands unchanged
+          const nums = coords.trim().split(/[\s,]+/).map(Number);
+          if (upper === 'H') return `${cmd} ${nums[0] + dx}`;
+          if (upper === 'V') return `${cmd} ${nums[0] + dy}`;
+          const shifted = nums.map((n, i) => i % 2 === 0 ? n + dx : n + dy);
+          return `${cmd} ${shifted.join(' ')}`;
+        }
+      );
+      return {
+        ...v,
+        pathData: newPath,
+        boundingBox: {
+          ...v.boundingBox,
+          x: v.boundingBox.x + dx,
+          y: v.boundingBox.y + dy,
+        },
+      };
+    }));
+  }, []);
+
+  const handleDeleteVectors = useCallback((ids: string[]) => {
+    setVectors(prev => prev.filter(v => !ids.includes(v.id)));
+    setSelectedVectorIds(prev => prev.filter(id => !ids.includes(id)));
+    setOperations(prev => prev.map(op => ({
+      ...op,
+      vectorIds: op.vectorIds.filter(vid => !ids.includes(vid)),
+    })));
+    toast.success(`${ids.length} vetor(es) excluído(s)`);
+  }, []);
+
+  const handleGroupVectors = useCallback((ids: string[]) => {
+    const groupId = `group-${Date.now()}`;
+    setVectors(prev => prev.map(v =>
+      ids.includes(v.id) ? { ...v, groupId, layer: `Grupo ${groupId.slice(-4)}` } : v
+    ));
+    toast.success(`${ids.length} vetores agrupados`);
+  }, []);
+
+  const handleUngroupVectors = useCallback((ids: string[]) => {
+    setVectors(prev => prev.map(v =>
+      ids.includes(v.id) ? { ...v, groupId: "", layer: "Desenho" } : v
+    ));
+    toast.success("Vetores desagrupados");
+  }, []);
+
+  const handleCreateToolpathFromSelection = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const selectedVecs = vectors.filter(v => ids.includes(v.id));
+    const hasClosedOuter = selectedVecs.some(v => v.closed && (v.geometryClass === "contour-outer" || v.geometryClass === "pocket"));
+    const hasHoles = selectedVecs.some(v => v.geometryClass === "hole");
+    const allOpen = selectedVecs.every(v => !v.closed);
+
+    const newOp = createDefaultOperation(operations.length + 1);
+    newOp.vectorIds = [...ids];
+    if (tools.length > 0) newOp.toolId = tools[0].id;
+
+    if (hasHoles) {
+      newOp.type = "drill";
+      newOp.name = `Furação Seleção (${ids.length})`;
+    } else if (hasClosedOuter) {
+      newOp.type = "profile-outside";
+      newOp.cutSide = "outside";
+      newOp.name = `Perfil Externo Seleção (${ids.length})`;
+    } else if (allOpen) {
+      newOp.type = "on-line";
+      newOp.cutSide = "on-line";
+      newOp.name = `Percurso Linha Seleção (${ids.length})`;
+    } else {
+      newOp.type = "pocket";
+      newOp.name = `Bolso Seleção (${ids.length})`;
+    }
+
+    setOperations(prev => [...prev, newOp]);
+    setActiveOperationId(newOp.id);
+    toast.success(`Percurso "${newOp.name}" criado com ${ids.length} vetor(es)`);
+  }, [vectors, operations, tools]);
+
+  // Keyboard shortcut: Delete selected vectors
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedVectorIds.length > 0 && !isDrawingMode) {
+        handleDeleteVectors(selectedVectorIds);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedVectorIds, isDrawingMode, handleDeleteVectors]);
 
   // ======================== 3D Handlers ========================
   const handleAutoCam3D = useCallback(() => {
@@ -681,6 +784,10 @@ export default function ToolpathGeneratorPage() {
                 onSelectVector={handleSelectVector} onImportSvg={handleImportSvg}
                 onSelectAll={() => setSelectedVectorIds(vectors.map((v) => v.id))}
                 onDeselectAll={() => setSelectedVectorIds([])}
+                onDeleteVectors={handleDeleteVectors}
+                onGroupVectors={handleGroupVectors}
+                onUngroupVectors={handleUngroupVectors}
+                onCreateToolpathFromSelection={handleCreateToolpathFromSelection}
               />
             ) : (
               <Model3DPanel model={model3D} materialBlock={materialBlock} onModelChange={setModel3D} onMaterialBlockChange={setMaterialBlock} />
@@ -719,6 +826,8 @@ export default function ToolpathGeneratorPage() {
                 selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
                 showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
                 issues={issues} activePassLayer={activePassLayer}
+                drawingTool={drawingTool} isDrawingMode={isDrawingMode} snapGrid={snapGrid}
+                onAddVector={handleAddVector} onMoveVectors={handleMoveVectors} onDeleteVectors={handleDeleteVectors}
               />
             ) : (
               <Simulation3DAdvanced model={model3D} materialBlock={materialBlock} operations={operations3D} tools={tools3D} toolpaths={toolpaths3D} />

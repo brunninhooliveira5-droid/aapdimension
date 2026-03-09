@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import type { SvgVector, MaterialConfig, ToolpathOperation, CncTool } from "@/lib/toolpath-engine";
-import { extractPointsFromPath, GEOMETRY_CLASS_COLORS, type ValidationIssue } from "@/lib/toolpath-engine";
+import { extractPointsFromPath, GEOMETRY_CLASS_COLORS, type ValidationIssue, type GeometryClass } from "@/lib/toolpath-engine";
+import type { DrawingTool } from "@/components/toolpath/DrawingToolbar";
 
 interface SvgCanvasProps {
   vectors: SvgVector[];
@@ -14,6 +15,22 @@ interface SvgCanvasProps {
   viewBox: string;
   issues?: ValidationIssue[];
   activePassLayer?: number | null;
+  // Drawing & editing
+  drawingTool?: DrawingTool;
+  isDrawingMode?: boolean;
+  snapGrid?: boolean;
+  onAddVector?: (vector: SvgVector) => void;
+  onMoveVectors?: (ids: string[], dx: number, dy: number) => void;
+  onDeleteVectors?: (ids: string[]) => void;
+}
+
+function generateId() {
+  return `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function snapToGrid(val: number, spacing: number, enabled: boolean) {
+  if (!enabled) return val;
+  return Math.round(val / spacing) * spacing;
 }
 
 export function SvgCanvas({
@@ -28,6 +45,12 @@ export function SvgCanvas({
   viewBox,
   issues = [],
   activePassLayer = null,
+  drawingTool = "select",
+  isDrawingMode = false,
+  snapGrid: snapGridProp = true,
+  onAddVector,
+  onMoveVectors,
+  onDeleteVectors,
 }: SvgCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -38,6 +61,16 @@ export function SvgCanvas({
   const [showDirectionArrows, setShowDirectionArrows] = useState(true);
   const [showGeoColors, setShowGeoColors] = useState(true);
   const [colorProfile, setColorProfile] = useState<"default" | "white" | "blueprint" | "highContrast" | "warmShop" | "cnc">("default");
+
+  // Drawing state
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  // Move/drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const COLOR_PROFILES = {
     default: { bg: "hsl(var(--card))", grid: "hsl(var(--foreground))", border: "hsl(var(--border))", vector: "#3b82f6", selected: "hsl(var(--primary))", toolpath: "#f59e0b", toolpathInactive: "#64748b", label: "Padrão" },
@@ -51,6 +84,20 @@ export function SvgCanvas({
 
   const errorVectorIds = new Set(issues.filter((i) => i.severity === "error" && i.vectorId).map((i) => i.vectorId));
 
+  const vbParts = viewBox.split(/\s+/).map(Number);
+  const vbW = vbParts[2] || material.width;
+  const vbH = vbParts[3] || material.height;
+  const gridSpacing = material.unit === "mm" ? 10 : 25.4;
+
+  // Convert screen coords to SVG coords
+  const screenToSvg = useCallback((clientX: number, clientY: number) => {
+    if (!svgRef.current) return { x: 0, y: 0 };
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * (vbW / zoom) + (-pan.x / zoom);
+    const svgY = ((clientY - rect.top) / rect.height) * (vbH / zoom) + (-pan.y / zoom);
+    return { x: svgX, y: svgY };
+  }, [vbW, vbH, zoom, pan]);
+
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -58,31 +105,153 @@ export function SvgCanvas({
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const svgPt = screenToSvg(e.clientX, e.clientY);
+    const snappedX = snapToGrid(svgPt.x, gridSpacing, snapGridProp && isDrawingMode);
+    const snappedY = snapToGrid(svgPt.y, gridSpacing, snapGridProp && isDrawingMode);
+
+    // Pan with middle button or alt+click
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      return;
     }
-  }, [pan]);
+
+    if (!isDrawingMode || e.button !== 0) return;
+
+    // Move tool - start drag
+    if (drawingTool === "move" && selectedVectorIds.length > 0) {
+      setIsDragging(true);
+      setDragStart({ x: snappedX, y: snappedY });
+      setDragOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    // Erase tool
+    if (drawingTool === "erase") return; // handled by click on vector
+
+    // Drawing tools
+    if (["line", "rectangle", "circle"].includes(drawingTool)) {
+      setIsDrawing(true);
+      setDrawStart({ x: snappedX, y: snappedY });
+      setDrawCurrent({ x: snappedX, y: snappedY });
+    }
+  }, [screenToSvg, gridSpacing, snapGridProp, isDrawingMode, drawingTool, selectedVectorIds, pan]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
       setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
     }
-  }, [isPanning, panStart]);
 
-  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+    const svgPt = screenToSvg(e.clientX, e.clientY);
+    const snappedX = snapToGrid(svgPt.x, gridSpacing, snapGridProp && isDrawingMode);
+    const snappedY = snapToGrid(svgPt.y, gridSpacing, snapGridProp && isDrawingMode);
+
+    if (isDragging && dragStart) {
+      setDragOffset({ x: snappedX - dragStart.x, y: snappedY - dragStart.y });
+      return;
+    }
+
+    if (isDrawing && drawStart) {
+      setDrawCurrent({ x: snappedX, y: snappedY });
+    }
+  }, [isPanning, panStart, screenToSvg, gridSpacing, snapGridProp, isDrawingMode, isDragging, dragStart, isDrawing, drawStart]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+
+    // Finish drag/move
+    if (isDragging && dragStart && onMoveVectors) {
+      const svgPt = screenToSvg(e.clientX, e.clientY);
+      const snappedX = snapToGrid(svgPt.x, gridSpacing, snapGridProp && isDrawingMode);
+      const snappedY = snapToGrid(svgPt.y, gridSpacing, snapGridProp && isDrawingMode);
+      const dx = snappedX - dragStart.x;
+      const dy = snappedY - dragStart.y;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        onMoveVectors(selectedVectorIds, dx, dy);
+      }
+      setIsDragging(false);
+      setDragStart(null);
+      setDragOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    // Finish drawing
+    if (isDrawing && drawStart && drawCurrent && onAddVector) {
+      const dx = drawCurrent.x - drawStart.x;
+      const dy = drawCurrent.y - drawStart.y;
+      const minSize = 2;
+
+      if (Math.abs(dx) > minSize || Math.abs(dy) > minSize) {
+        let pathData = "";
+        let label = "";
+        let closed = false;
+        let geoClass: GeometryClass = "open-path";
+        const x1 = drawStart.x, y1 = drawStart.y;
+        const x2 = drawCurrent.x, y2 = drawCurrent.y;
+
+        if (drawingTool === "line") {
+          pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+          label = `Linha ${Math.sqrt(dx * dx + dy * dy).toFixed(0)}`;
+          geoClass = "open-path";
+        } else if (drawingTool === "rectangle") {
+          pathData = `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2} L ${x1} ${y2} Z`;
+          label = `Retângulo ${Math.abs(dx).toFixed(0)}×${Math.abs(dy).toFixed(0)}`;
+          closed = true;
+          geoClass = "contour-outer";
+        } else if (drawingTool === "circle") {
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const rx = Math.abs(dx) / 2;
+          const ry = Math.abs(dy) / 2;
+          pathData = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+          label = `Círculo ⌀${(Math.max(rx, ry) * 2).toFixed(0)}`;
+          closed = true;
+          geoClass = Math.max(rx, ry) < 5 ? "hole" : "contour-outer";
+        }
+
+        if (pathData) {
+          const bx = Math.min(x1, x2), by = Math.min(y1, y2);
+          const bw = Math.abs(dx), bh = Math.abs(dy);
+          const newVector: SvgVector = {
+            id: generateId(),
+            pathData,
+            label,
+            color: "#3b82f6",
+            layer: "Desenho",
+            closed,
+            geometryClass: geoClass,
+            area: bw * bh,
+            perimeter: 2 * (bw + bh),
+            boundingBox: { x: bx, y: by, w: bw, h: bh },
+            parentId: null,
+            groupId: "",
+            selected: false,
+            isCircular: drawingTool === "circle",
+          };
+          onAddVector(newVector);
+        }
+      }
+    }
+
+    setIsDrawing(false);
+    setDrawStart(null);
+    setDrawCurrent(null);
+  }, [isPanning, isDragging, dragStart, onMoveVectors, selectedVectorIds, isDrawing, drawStart, drawCurrent, drawingTool, onAddVector, screenToSvg, gridSpacing, snapGridProp, isDrawingMode]);
 
   const handleClickVector = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (isDrawingMode && drawingTool === "erase" && onDeleteVectors) {
+      onDeleteVectors([id]);
+      return;
+    }
     onSelectVector(id, e.ctrlKey || e.metaKey);
-  }, [onSelectVector]);
+  }, [onSelectVector, isDrawingMode, drawingTool, onDeleteVectors]);
 
   const resetView = useCallback(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, []);
-
-  const vbParts = viewBox.split(/\s+/).map(Number);
-  const vbW = vbParts[2] || material.width;
-  const vbH = vbParts[3] || material.height;
-  const gridSpacing = material.unit === "mm" ? 10 : 25.4;
 
   const getArrowPoints = (pathData: string, offset: number) => {
     const points = extractPointsFromPath(pathData);
@@ -95,6 +264,17 @@ export function SvgCanvas({
       arrows.push({ x: points[i][0] + offset, y: points[i][1], angle: Math.atan2(dy, dx) * (180 / Math.PI) });
     }
     return arrows;
+  };
+
+  // Cursor based on tool
+  const getCursor = () => {
+    if (!isDrawingMode) return "crosshair";
+    switch (drawingTool) {
+      case "move": return "move";
+      case "erase": return "pointer";
+      case "select": return "default";
+      default: return "crosshair";
+    }
   };
 
   return (
@@ -134,6 +314,15 @@ export function SvgCanvas({
         </div>
       )}
 
+      {/* Drawing mode indicator */}
+      {isDrawingMode && drawingTool !== "select" && (
+        <div className="absolute bottom-2 left-2 z-10 bg-primary/90 text-primary-foreground backdrop-blur rounded-md px-3 py-1 text-xs font-medium">
+          {drawingTool === "move" ? "🔄 Mover — arraste vetores selecionados" :
+           drawingTool === "erase" ? "🗑️ Apagar — clique no vetor" :
+           `✏️ Desenhando: ${drawingTool} — clique e arraste`}
+        </div>
+      )}
+
       {/* Rulers */}
       <div className="absolute top-0 left-8 right-0 h-5 bg-muted/80 border-b border-border flex items-end overflow-hidden z-[5]">
         {Array.from({ length: Math.ceil(vbW / gridSpacing) + 1 }).map((_, i) => (
@@ -148,14 +337,17 @@ export function SvgCanvas({
 
       <svg
         ref={svgRef}
-        className="w-full h-full cursor-crosshair"
+        className="w-full h-full"
+        style={{ cursor: getCursor() }}
         viewBox={`${-pan.x / zoom} ${-pan.y / zoom} ${vbW / zoom} ${vbH / zoom}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onClick={() => onSelectVector("", false)}
+        onMouseLeave={() => { setIsPanning(false); setIsDrawing(false); setIsDragging(false); }}
+        onClick={() => {
+          if (!isDrawing && !isDragging) onSelectVector("", false);
+        }}
       >
         {/* Material boundary */}
         <rect x={0} y={0} width={material.width} height={material.height}
@@ -204,10 +396,12 @@ export function SvgCanvas({
           const hasError = errorVectorIds.has(v.id);
           const geoColor = showGeoColors ? GEOMETRY_CLASS_COLORS[v.geometryClass] : (colorProfile === "default" ? v.color : cp.vector);
           const strokeColor = hasError ? "#ef4444" : isSelected ? cp.selected : geoColor;
+          // Apply drag offset for selected vectors being moved
+          const tx = isDragging && isSelected ? dragOffset.x : 0;
+          const ty = isDragging && isSelected ? dragOffset.y : 0;
 
           return (
-            <g key={v.id}>
-              {/* Error highlight glow */}
+            <g key={v.id} transform={tx || ty ? `translate(${tx},${ty})` : undefined}>
               {hasError && (
                 <path d={v.pathData} fill="none" stroke="#ef4444" strokeWidth={6 / zoom} opacity={0.3} />
               )}
@@ -220,15 +414,55 @@ export function SvgCanvas({
                 className="cursor-pointer hover:opacity-80"
                 onClick={(e) => handleClickVector(e, v.id)}
               />
-              {/* Start point */}
               {isSelected && (() => {
                 const pts = extractPointsFromPath(v.pathData);
                 if (pts.length === 0) return null;
                 return <circle cx={pts[0][0]} cy={pts[0][1]} r={4 / zoom} fill="#22c55e" stroke="white" strokeWidth={1 / zoom} />;
               })()}
+              {/* Bounding box for selected */}
+              {isSelected && (
+                <rect
+                  x={v.boundingBox.x} y={v.boundingBox.y}
+                  width={v.boundingBox.w} height={v.boundingBox.h}
+                  fill="none" stroke={cp.selected} strokeWidth={0.5 / zoom}
+                  strokeDasharray={`${3 / zoom}`} opacity={0.5}
+                />
+              )}
             </g>
           );
         })}
+
+        {/* Drawing preview */}
+        {isDrawing && drawStart && drawCurrent && (
+          <g opacity={0.7}>
+            {drawingTool === "line" && (
+              <line x1={drawStart.x} y1={drawStart.y} x2={drawCurrent.x} y2={drawCurrent.y}
+                stroke="#3b82f6" strokeWidth={1.5 / zoom} strokeDasharray={`${4 / zoom}`} />
+            )}
+            {drawingTool === "rectangle" && (
+              <rect
+                x={Math.min(drawStart.x, drawCurrent.x)} y={Math.min(drawStart.y, drawCurrent.y)}
+                width={Math.abs(drawCurrent.x - drawStart.x)} height={Math.abs(drawCurrent.y - drawStart.y)}
+                fill="none" stroke="#3b82f6" strokeWidth={1.5 / zoom} strokeDasharray={`${4 / zoom}`}
+              />
+            )}
+            {drawingTool === "circle" && (() => {
+              const cx = (drawStart.x + drawCurrent.x) / 2;
+              const cy = (drawStart.y + drawCurrent.y) / 2;
+              const rx = Math.abs(drawCurrent.x - drawStart.x) / 2;
+              const ry = Math.abs(drawCurrent.y - drawStart.y) / 2;
+              return <ellipse cx={cx} cy={cy} rx={rx} ry={ry}
+                fill="none" stroke="#3b82f6" strokeWidth={1.5 / zoom} strokeDasharray={`${4 / zoom}`} />;
+            })()}
+            {/* Dimensions label */}
+            <text
+              x={drawCurrent.x + 5 / zoom} y={drawCurrent.y - 5 / zoom}
+              fontSize={10 / zoom} fill="#3b82f6" fontFamily="monospace"
+            >
+              {Math.abs(drawCurrent.x - drawStart.x).toFixed(1)} × {Math.abs(drawCurrent.y - drawStart.y).toFixed(1)}
+            </text>
+          </g>
+        )}
 
         {/* Toolpath previews */}
         {operations.filter((op) => op.enabled && showToolpath[op.id] !== false).map((op) => {
@@ -237,7 +471,6 @@ export function SvgCanvas({
           if (!tool) return null;
           const offset = op.cutSide === "outside" ? tool.diameter / 2 : op.cutSide === "inside" ? -tool.diameter / 2 : 0;
 
-          // If layer filter active, compute passes and only show relevant
           const totalDepth = Math.abs(op.finalDepth - op.startDepth);
           const passes = Math.ceil(totalDepth / (op.depthPerPass || tool.depthPerPass || 1));
           if (activePassLayer !== null && activePassLayer >= passes) return null;
