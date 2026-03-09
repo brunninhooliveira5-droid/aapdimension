@@ -647,6 +647,33 @@ export default function ToolpathGeneratorPage() {
     );
   }
 
+  // SnapTool mode
+  if (camMode === "snaptool") {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
+            <Badge variant="default" className="text-[9px] h-5 gap-1"><Crosshair className="h-3 w-3" /> SnapTool</Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
+            <Wrench className="h-4 w-4 mr-1" /> Modo Manual
+          </Button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <SnapToolPanel
+            config={snapToolConfig}
+            onChange={setSnapToolConfig}
+            operations={operations}
+            tools={tools}
+            project={buildProject2D()}
+            customGcode={customGcode}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       {/* ===== HEADER BAR ===== */}
