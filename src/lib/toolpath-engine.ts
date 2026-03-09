@@ -244,6 +244,46 @@ export interface CustomGcodeConfig {
   endGcode: string;
 }
 
+// ── SnapTool Types ──
+
+export interface SnapToolSlot {
+  slotNumber: number;
+  name: string;
+  toolType: string;
+  diameter: number;
+  posX: number;
+  posY: number;
+  active: boolean;
+}
+
+export interface SnapToolConfig {
+  enabled: boolean;
+  totalSlots: number;
+  probeX: number;
+  probeY: number;
+  probeZeroValue: number;
+  probeFeedRate: number;
+  safeZ: number;
+  changeX?: number;
+  changeY?: number;
+  autoProbe: boolean;
+  useManualT0: boolean;
+  slots: SnapToolSlot[];
+}
+
+export const DEFAULT_SNAPTOOL_CONFIG: SnapToolConfig = {
+  enabled: false,
+  totalSlots: 4,
+  probeX: 0,
+  probeY: 0,
+  probeZeroValue: 0,
+  probeFeedRate: 100,
+  safeZ: 25,
+  autoProbe: true,
+  useManualT0: false,
+  slots: [],
+};
+
 export const DEFAULT_START_GCODE: Record<PostProcessor, string> = {
   grbl: "$H\nG90 G21 G17\nM03 S12000\nG4 P2",
   mach3: "%\nO0001\nG90 G94 G21\nG17\nM03 S12000\nG4 P2",
