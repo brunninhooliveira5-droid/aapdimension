@@ -1,6 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ToolsPanelProps {
@@ -8,13 +10,16 @@ interface ToolsPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const toolTabs = [
-  { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", disabled: false },
-  { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", disabled: false },
-  { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d", disabled: false },
-  { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", disabled: false },
-  { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", disabled: false },
-  { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso", disabled: false },
+const productionTools = [
+  { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento" },
+  { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte" },
+];
+
+const labTools = [
+  { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d" },
+  { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas" },
+  { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm" },
+  { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso" },
 ];
 
 export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
@@ -36,12 +41,13 @@ export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
         </SheetHeader>
 
         <div className="flex flex-col gap-1 p-3">
-          {toolTabs.map((tab) => (
+          {/* Production tools */}
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1">Produção</p>
+          {productionTools.map((tab) => (
             <Button
               key={tab.id}
               variant="ghost"
-              disabled={tab.disabled}
-              onClick={() => !tab.disabled && handleClick(tab.route)}
+              onClick={() => handleClick(tab.route)}
               className="justify-between h-10 text-sm font-normal hover:bg-accent"
             >
               <span className="flex items-center gap-2">
@@ -51,6 +57,37 @@ export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           ))}
+
+          <Separator className="my-2" />
+
+          {/* Lab / Beta tools */}
+          <div className="flex items-center gap-2 px-2 mb-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Laboratório</p>
+            <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-amber-500/50 text-amber-500 bg-amber-500/10 gap-0.5">
+              <FlaskConical className="h-2.5 w-2.5" /> Em desenvolvimento
+            </Badge>
+          </div>
+
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-1">
+            {labTools.map((tab) => (
+              <Button
+                key={tab.id}
+                variant="ghost"
+                onClick={() => handleClick(tab.route)}
+                className="justify-between h-10 text-sm font-normal hover:bg-accent w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <tab.icon className="h-4 w-4 text-muted-foreground" />
+                  {tab.label}
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            ))}
+          </div>
+
+          <p className="text-[9px] text-muted-foreground px-2 mt-1">
+            Estas ferramentas estão em fase de desenvolvimento e podem sofrer alterações.
+          </p>
         </div>
       </SheetContent>
     </Sheet>
