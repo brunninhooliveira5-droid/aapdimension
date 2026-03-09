@@ -257,6 +257,24 @@ export interface SnapToolSlot {
   active: boolean;
 }
 
+export interface SnapToolSafetyConfig {
+  enabled: boolean;
+  pauseCommand: string; // "M0", "M1", or custom
+  pauseAfterRelease: boolean;
+  pauseAfterPickup: boolean;
+  pauseBeforeProbing: boolean;
+  pauseAfterProbing: boolean;
+}
+
+export const DEFAULT_SNAPTOOL_SAFETY: SnapToolSafetyConfig = {
+  enabled: true,
+  pauseCommand: "M0",
+  pauseAfterRelease: true,
+  pauseAfterPickup: true,
+  pauseBeforeProbing: false,
+  pauseAfterProbing: true,
+};
+
 export interface SnapToolConfig {
   enabled: boolean;
   totalSlots: number;
@@ -270,6 +288,7 @@ export interface SnapToolConfig {
   autoProbe: boolean;
   useManualT0: boolean;
   slots: SnapToolSlot[];
+  safety: SnapToolSafetyConfig;
 }
 
 export const DEFAULT_SNAPTOOL_CONFIG: SnapToolConfig = {
@@ -283,6 +302,7 @@ export const DEFAULT_SNAPTOOL_CONFIG: SnapToolConfig = {
   autoProbe: true,
   useManualT0: false,
   slots: [],
+  safety: DEFAULT_SNAPTOOL_SAFETY,
 };
 
 export const DEFAULT_START_GCODE: Record<PostProcessor, string> = {
