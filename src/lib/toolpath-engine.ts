@@ -1373,7 +1373,15 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
     lines.push("");
   }
 
-  lines.push(...FOOTERS[postProcessor]);
+  // End block
+  if (customGcode?.useCustomStartEnd && customGcode.endGcode.trim()) {
+    lines.push(`(=== FIM DO PROGRAMA ===)`);
+    lines.push(...customGcode.endGcode.split("\n").filter(l => l.trim()));
+    lines.push(`(=== FIM ===)`);
+  } else {
+    lines.push(...FOOTERS[postProcessor]);
+  }
+
   return lines.join("\n");
 }
 
