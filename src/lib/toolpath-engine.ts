@@ -238,6 +238,26 @@ export interface ToolpathProject {
 
 export type PostProcessor = "mach3" | "grbl" | "ddcs" | "linuxcnc";
 
+export interface CustomGcodeConfig {
+  useCustomStartEnd: boolean;
+  startGcode: string;
+  endGcode: string;
+}
+
+export const DEFAULT_START_GCODE: Record<PostProcessor, string> = {
+  grbl: "$H\nG90 G21 G17\nM03 S12000\nG4 P2",
+  mach3: "%\nO0001\nG90 G94 G21\nG17\nM03 S12000\nG4 P2",
+  ddcs: "%\nG90 G21 G17\nM03 S12000\nG4 P2",
+  linuxcnc: "%\nG90 G94 G21 G17\nG40 G49 G80\nM03 S12000\nG4 P2",
+};
+
+export const DEFAULT_END_GCODE: Record<PostProcessor, string> = {
+  grbl: "M05\nG0 Z10\nG0 X0 Y0\nM2",
+  mach3: "M05\nG28 G91 Z0\nG28 X0 Y0\nM30\n%",
+  ddcs: "M05\nG0 Z10\nG0 X0 Y0\nM30\n%",
+  linuxcnc: "M05\nG53 G0 Z0\nG53 G0 X0 Y0\nM2\n%",
+};
+
 export interface MachiningTemplate {
   id: string;
   name: string;
@@ -245,6 +265,7 @@ export interface MachiningTemplate {
   material: MaterialConfig;
   tools: CncTool[];
   defaultOperations: Partial<ToolpathOperation>[];
+  customGcode?: CustomGcodeConfig;
   createdAt: string;
 }
 
