@@ -68,13 +68,6 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
   const [newCheckItem, setNewCheckItem] = useState("");
   const [clientSignatureImage, setClientSignatureImage] = useState<string | null>(null);
 
-  // Load existing client signature image
-  useEffect(() => {
-    if (existingReport?.client_signature_image_url) {
-      setClientSignatureImage(existingReport.client_signature_image_url);
-    }
-  }, [existingReport]);
-
   const handleClientSignatureSave = async (dataUrl: string) => {
     setClientSignatureImage(dataUrl);
     // If report already saved, upload to storage and save URL
