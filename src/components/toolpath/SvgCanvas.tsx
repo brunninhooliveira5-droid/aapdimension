@@ -113,6 +113,16 @@ export function SvgCanvas({
         <label className="flex items-center gap-1 ml-1 cursor-pointer">
           <input type="checkbox" checked={showGeoColors} onChange={(e) => setShowGeoColors(e.target.checked)} className="w-3 h-3" />Tipo
         </label>
+        <span className="ml-2 text-muted-foreground">|</span>
+        <select
+          value={colorProfile}
+          onChange={(e) => setColorProfile(e.target.value as typeof colorProfile)}
+          className="ml-1 bg-transparent border border-border rounded px-1.5 py-0.5 text-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          {Object.entries(COLOR_PROFILES).map(([key, profile]) => (
+            <option key={key} value={key}>{profile.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Pass layer indicator */}
