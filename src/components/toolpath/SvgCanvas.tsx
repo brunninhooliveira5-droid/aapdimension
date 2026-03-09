@@ -256,7 +256,7 @@ export function SvgCanvas({
                       strokeWidth={1 / zoom} strokeDasharray={`${3 / zoom}`} transform={`translate(${offset}, 0)`} />
                     {showDirectionArrows && isActive && getArrowPoints(v.pathData, offset).map((arrow, ai) => (
                       <g key={`arrow-${ai}`} transform={`translate(${arrow.x},${arrow.y}) rotate(${arrow.angle})`}>
-                        <polygon points={`0,${-3 / zoom} ${6 / zoom},0 0,${3 / zoom}`} fill="#f59e0b" />
+                        <polygon points={`0,${-3 / zoom} ${6 / zoom},0 0,${3 / zoom}`} fill={cp.toolpath} />
                       </g>
                     ))}
                     {isActive && (() => {
