@@ -131,6 +131,7 @@ export interface ToolpathOperation {
   roughFinish: RoughFinishSettings;
   trochoidal: TrochoidalSettings;
   adaptive: AdaptiveSettings;
+  snapToolSlot?: number;
 }
 
 export interface MaterialConfig {
