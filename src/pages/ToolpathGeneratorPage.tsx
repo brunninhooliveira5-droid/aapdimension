@@ -98,7 +98,7 @@ import {
 
 type WorkMode = "2d" | "3d";
 type CamMode = "manual" | "automatic" | "voice";
-type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "intelligent" | "validation" | null;
+type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "snaptool" | "intelligent" | "validation" | null;
 
 export default function ToolpathGeneratorPage() {
   // Mode
