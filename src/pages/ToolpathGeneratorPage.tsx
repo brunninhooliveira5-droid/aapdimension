@@ -219,12 +219,12 @@ export default function ToolpathGeneratorPage() {
       <div className="flex items-center justify-between px-1 flex-wrap gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border-emerald-500/30 text-emerald-600">V4.2</Badge>
+          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">V4.2</Badge>
           {activePreset && (
             <Badge variant="outline" className="text-[9px] h-5">
               {activePreset.name}
               {isMetal(activePreset.category) && " ⚡"}
-              {activePreset.coolantRequired && " 💧"}
+              {(activePreset as any).coolantRequired && " 💧"}
             </Badge>
           )}
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-44 text-xs" />
