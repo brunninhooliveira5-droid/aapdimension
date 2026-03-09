@@ -441,9 +441,9 @@ export function VoiceCamAssistant({
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium">🎤 {cmd.transcript}</p>
                       {cmd.success ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                       )}
                     </div>
                     <p className="text-muted-foreground whitespace-pre-wrap">{cmd.response}</p>
