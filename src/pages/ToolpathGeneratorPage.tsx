@@ -468,16 +468,10 @@ export default function ToolpathGeneratorPage() {
           </div>
           <div className="flex-1 p-2">
             <SvgCanvas
-              svgContent={svgContent}
-              viewBox={viewBox}
-              vectors={vectors}
-              selectedVectorIds={selectedVectorIds}
-              operations={operations}
-              showToolpath={showToolpath}
-              tools={tools}
-              onSelectVector={handleSelectVector}
-              onImportSvg={handleImportSvg}
-              activePassLayer={activePassLayer}
+              vectors={vectors} material={material} operations={operations} tools={tools}
+              selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
+              showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
+              issues={issues} activePassLayer={activePassLayer}
             />
           </div>
         </div>
