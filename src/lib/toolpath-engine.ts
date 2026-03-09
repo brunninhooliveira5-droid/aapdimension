@@ -1232,8 +1232,19 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   return lines;
 }
 
-export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor): string {
-  const lines: string[] = [...HEADERS[postProcessor]];
+export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig): string {
+  const lines: string[] = [];
+
+  // Start block
+  if (customGcode?.useCustomStartEnd && customGcode.startGcode.trim()) {
+    lines.push(`(=== INÍCIO DO PROGRAMA ===)`);
+    lines.push(...customGcode.startGcode.split("\n").filter(l => l.trim()));
+    lines.push(`(=== FIM INÍCIO ===)`);
+  } else {
+    lines.push(...HEADERS[postProcessor]);
+  }
+
+  lines.push("");
   const preset = getPresetById(project.material.presetId);
 
   lines.push(`(Project: ${project.name})`);
