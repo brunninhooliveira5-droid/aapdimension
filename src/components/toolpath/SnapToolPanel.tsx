@@ -790,6 +790,73 @@ function ConfigSidebar({
             </CardContent>
           </Card>
 
+          {/* Safety Config */}
+          <Card className="border-border">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" /> Segurança na Troca
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px]">Exigir confirmação do operador</Label>
+                <Switch
+                  checked={config.safety?.enabled ?? true}
+                  onCheckedChange={v => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), enabled: v })}
+                />
+              </div>
+              {(config.safety?.enabled ?? true) && (
+                <>
+                  <div>
+                    <Label className="text-[10px]">Comando de pausa</Label>
+                    <Select
+                      value={config.safety?.pauseCommand ?? "M0"}
+                      onValueChange={v => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), pauseCommand: v })}
+                    >
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="M0">M0 (Parada obrigatória)</SelectItem>
+                        <SelectItem value="M1">M1 (Parada opcional)</SelectItem>
+                        <SelectItem value="custom">Personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {config.safety?.pauseCommand === "custom" && (
+                    <div>
+                      <Label className="text-[10px]">Comando personalizado</Label>
+                      <Input
+                        value={config.safety?.pauseCommand === "custom" ? "" : config.safety?.pauseCommand}
+                        onChange={e => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), pauseCommand: e.target.value })}
+                        className="h-7 text-xs" placeholder="Ex: M0 (pausa)"
+                      />
+                    </div>
+                  )}
+                  <Separator />
+                  <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Momentos da pausa</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { key: "pauseAfterRelease" as const, label: "Após devolver ferramenta atual" },
+                      { key: "pauseAfterPickup" as const, label: "Após pegar nova ferramenta" },
+                      { key: "pauseBeforeProbing" as const, label: "Antes do probing" },
+                      { key: "pauseAfterProbing" as const, label: "Após o probing" },
+                    ].map(item => (
+                      <div key={item.key} className="flex items-center justify-between">
+                        <Label className="text-[10px]">{item.label}</Label>
+                        <Switch
+                          checked={config.safety?.[item.key] ?? DEFAULT_SNAPTOOL_SAFETY[item.key]}
+                          onCheckedChange={v => updateField("safety", {
+                            ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY),
+                            [item.key]: v,
+                          })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Summary */}
           <Card className="border-border">
             <CardHeader className="pb-1 pt-3 px-3">
