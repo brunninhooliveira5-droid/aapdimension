@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Save, FileDown, Upload, X, Camera, Loader2, Plus, Trash2 } from "lucide-react";
+import { SignaturePad } from "@/components/SignaturePad";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
@@ -65,6 +66,25 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState("");
+  const [clientSignatureImage, setClientSignatureImage] = useState<string | null>(null);
+
+  const handleClientSignatureSave = async (dataUrl: string) => {
+    setClientSignatureImage(dataUrl);
+    // If report already saved, upload to storage and save URL
+    if (reportId && session?.user?.id) {
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const path = `${reportId}/client-signature-${Date.now()}.png`;
+        await supabase.storage.from("technical-report-files").upload(path, blob, { upsert: true });
+        const { data: { publicUrl } } = supabase.storage.from("technical-report-files").getPublicUrl(path);
+        await supabase.from("technical_reports").update({ client_signature_image_url: publicUrl } as any).eq("id", reportId);
+        setClientSignatureImage(publicUrl);
+        toast.success("Assinatura do cliente salva!");
+      } catch (err: any) {
+        toast.error("Erro ao salvar assinatura: " + err.message);
+      }
+    }
+  };
 
   // Load existing report
   const { data: existingReport } = useQuery({
@@ -123,6 +143,13 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
     }
   }, [existingReport]);
 
+  // Load existing client signature image
+  useEffect(() => {
+    if (existingReport?.client_signature_image_url) {
+      setClientSignatureImage(existingReport.client_signature_image_url);
+    }
+  }, [existingReport]);
+
   useEffect(() => {
     if (existingFiles.length > 0) setFiles(existingFiles);
   }, [existingFiles]);
@@ -143,7 +170,20 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
       } else {
         const { data: inserted, error } = await supabase.from("technical_reports").insert(payload).select("id").single();
         if (error) throw error;
-        return inserted.id;
+        const newId = inserted.id;
+
+        // If client signature was drawn before first save, upload it now
+        if (clientSignatureImage && clientSignatureImage.startsWith("data:")) {
+          try {
+            const blob = await (await fetch(clientSignatureImage)).blob();
+            const path = `${newId}/client-signature-${Date.now()}.png`;
+            await supabase.storage.from("technical-report-files").upload(path, blob);
+            const { data: { publicUrl } } = supabase.storage.from("technical-report-files").getPublicUrl(path);
+            await supabase.from("technical_reports").update({ client_signature_image_url: publicUrl } as any).eq("id", newId);
+          } catch { /* ignore */ }
+        }
+
+        return newId;
       }
     },
     onSuccess: () => {
@@ -260,7 +300,19 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
           <Save className="h-4 w-4 mr-1" /> Salvar
         </Button>
         {reportId && (
-          <Button variant="outline" onClick={() => generateTechnicalReportPdf({ ...existingReport, ...form }, files)}>
+          <Button variant="outline" onClick={async () => {
+            // Fetch technician signature from profile
+            let techSignatureUrl: string | null = null;
+            if (session?.user?.id) {
+              const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session.user.id).single();
+              techSignatureUrl = profile?.signature_url || null;
+            }
+            generateTechnicalReportPdf(
+              { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+              files,
+              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "" }
+            );
+          }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
         )}
@@ -466,22 +518,43 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Assinaturas</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs">Assinatura do Técnico (nome)</Label>
+                <Label className="text-xs font-medium">Assinatura do Técnico</Label>
+                <p className="text-xs text-muted-foreground mb-1">Será inserida automaticamente a partir do seu perfil.</p>
                 <Input
                   value={form.technician_signature}
                   onChange={(e) => updateField("technician_signature", e.target.value)}
                   placeholder="Nome completo do técnico"
                 />
               </div>
+              <Separator />
               <div>
-                <Label className="text-xs">Assinatura do Cliente (nome)</Label>
+                <Label className="text-xs font-medium">Assinatura do Cliente</Label>
                 <Input
                   value={form.client_signature}
                   onChange={(e) => updateField("client_signature", e.target.value)}
                   placeholder="Nome completo do cliente"
+                  className="mb-2"
                 />
+                <p className="text-xs text-muted-foreground mb-2">Ou desenhe a assinatura abaixo:</p>
+                {clientSignatureImage && (
+                  <div className="relative inline-block border border-border rounded-lg p-2 bg-white mb-2">
+                    <img src={clientSignatureImage} alt="Assinatura do Cliente" className="h-16 object-contain" />
+                    <button
+                      onClick={() => { setClientSignatureImage(null); }}
+                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                {!clientSignatureImage && (
+                  <SignaturePad
+                    onSave={handleClientSignatureSave}
+                    initialImage={null}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

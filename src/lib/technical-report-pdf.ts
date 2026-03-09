@@ -10,14 +10,19 @@ const statusLabels: Record<string, string> = {
   finalizado: "Finalizado",
   enviado: "Enviado",
 };
-export async function generateTechnicalReportPdf(report: any, files?: any[]) {
+
+interface SignatureOptions {
+  technicianSignatureUrl?: string | null;
+  technicianCompany?: string;
+}
+
+export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
   let y = 15;
 
-  // Helper
   const addText = (text: string, x: number, yPos: number, opts?: any) => {
     doc.text(text, x, yPos, opts);
   };
@@ -177,22 +182,102 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
   }
 
   // ====== ASSINATURAS ======
-  checkPage(35);
+  checkPage(60);
   drawSectionTitle("ASSINATURAS");
+  y += 3;
+
+  const sigColWidth = contentWidth / 2 - 5;
+  const sigLeftX = margin;
+  const sigRightX = margin + sigColWidth + 10;
+  const sigStartY = y;
+
+  // --- Technician Signature ---
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  addText("Assinatura do Técnico", sigLeftX + 2, y);
   y += 5;
+
+  // Try to load technician signature image
+  let techSigDrawn = false;
+  if (signatureOpts?.technicianSignatureUrl) {
+    try {
+      const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      const sigMaxW = sigColWidth - 10;
+      const sigMaxH = 20;
+      const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height);
+      const sigW = sigImg.width * sigRatio;
+      const sigH = sigImg.height * sigRatio;
+      doc.addImage(sigImg, "PNG", sigLeftX + 5, y, sigW, sigH);
+      y += sigH + 2;
+      techSigDrawn = true;
+    } catch {
+      // fallback to line
+    }
+  }
+
+  if (!techSigDrawn) {
+    y += 15;
+  }
+
+  // Line
   doc.setDrawColor(100);
-  // Técnico
-  doc.line(margin + 5, y + 12, margin + 75, y + 12);
+  doc.line(sigLeftX + 2, y, sigLeftX + sigColWidth - 2, y);
+  y += 4;
+
   doc.setFontSize(8);
-  addText(report.technician_signature || "Técnico Responsável", margin + 15, y + 17);
+  doc.setFont("helvetica", "normal");
+  addText(report.technician_signature || report.technician_name || "Técnico Responsável", sigLeftX + 5, y);
+  y += 4;
+  if (signatureOpts?.technicianCompany) {
+    doc.setFontSize(7);
+    addText(signatureOpts.technicianCompany, sigLeftX + 5, y);
+    y += 4;
+  }
   doc.setFontSize(7);
-  addText("Assinatura do Técnico", margin + 20, y + 21);
-  // Cliente
-  doc.line(margin + 95, y + 12, margin + 165, y + 12);
+  addText(`Data: ${dateStr}`, sigLeftX + 5, y);
+
+  const techEndY = y;
+
+  // --- Client Signature ---
+  let cy = sigStartY;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  addText("Assinatura do Cliente", sigRightX + 2, cy);
+  cy += 5;
+
+  let clientSigDrawn = false;
+  if (report.client_signature_image_url) {
+    try {
+      const clientImg = await loadImage(report.client_signature_image_url);
+      const cSigMaxW = sigColWidth - 10;
+      const cSigMaxH = 20;
+      const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
+      const cW = clientImg.width * cRatio;
+      const cH = clientImg.height * cRatio;
+      doc.addImage(clientImg, "PNG", sigRightX + 5, cy, cW, cH);
+      cy += cH + 2;
+      clientSigDrawn = true;
+    } catch {
+      // fallback
+    }
+  }
+
+  if (!clientSigDrawn) {
+    cy += 15;
+  }
+
+  doc.setDrawColor(100);
+  doc.line(sigRightX + 2, cy, sigRightX + sigColWidth - 2, cy);
+  cy += 4;
+
   doc.setFontSize(8);
-  addText(report.client_signature || "Cliente", margin + 115, y + 17);
+  doc.setFont("helvetica", "normal");
+  addText(report.client_signature || "Cliente", sigRightX + 5, cy);
+  cy += 4;
   doc.setFontSize(7);
-  addText("Assinatura do Cliente", margin + 112, y + 21);
+  addText(`Data: ${dateStr}`, sigRightX + 5, cy);
+
+  y = Math.max(techEndY, cy) + 8;
 
   // ====== FOOTER ======
   const totalPages = doc.getNumberOfPages();

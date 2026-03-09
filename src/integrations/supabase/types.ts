@@ -5050,6 +5050,7 @@ export type Database = {
           name: string
           phone: string | null
           rejected: boolean
+          signature_url: string | null
           state: string | null
           suspended_by: string | null
           suspended_reason: string | null
@@ -5069,6 +5070,7 @@ export type Database = {
           name: string
           phone?: string | null
           rejected?: boolean
+          signature_url?: string | null
           state?: string | null
           suspended_by?: string | null
           suspended_reason?: string | null
@@ -5088,6 +5090,7 @@ export type Database = {
           name?: string
           phone?: string | null
           rejected?: boolean
+          signature_url?: string | null
           state?: string | null
           suspended_by?: string | null
           suspended_reason?: string | null
@@ -5579,6 +5582,7 @@ export type Database = {
           client_company: string
           client_name: string
           client_signature: string | null
+          client_signature_image_url: string | null
           created_at: string
           created_by: string
           equipment_name: string
@@ -5608,6 +5612,7 @@ export type Database = {
           client_company?: string
           client_name?: string
           client_signature?: string | null
+          client_signature_image_url?: string | null
           created_at?: string
           created_by: string
           equipment_name?: string
@@ -5637,6 +5642,7 @@ export type Database = {
           client_company?: string
           client_name?: string
           client_signature?: string | null
+          client_signature_image_url?: string | null
           created_at?: string
           created_by?: string
           equipment_name?: string

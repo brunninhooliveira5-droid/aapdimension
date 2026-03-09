@@ -162,12 +162,22 @@ export function TechnicalReportsList() {
                         size="icon"
                         variant="ghost"
                         onClick={async () => {
-                          const { data: reportFiles } = await supabase
-                            .from("technical_report_files")
-                            .select("*")
-                            .eq("report_id", r.id)
-                            .order("sort_order");
-                          generateTechnicalReportPdf(r, reportFiles || []);
+                          const [{ data: reportFiles }, { data: profile }] = await Promise.all([
+                            supabase
+                              .from("technical_report_files")
+                              .select("*")
+                              .eq("report_id", r.id)
+                              .order("sort_order"),
+                            supabase
+                              .from("profiles")
+                              .select("signature_url, company")
+                              .eq("id", r.created_by)
+                              .single(),
+                          ]);
+                          generateTechnicalReportPdf(r, reportFiles || [], {
+                            technicianSignatureUrl: profile?.signature_url || null,
+                            technicianCompany: profile?.company || "",
+                          });
                         }}
                         title="Gerar PDF"
                       >
