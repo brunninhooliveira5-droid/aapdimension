@@ -437,6 +437,54 @@ export default function ToolpathGeneratorPage() {
 
   // ======================== Render ========================
   
+  // If in voice mode for 2D, show voice assistant alongside preview
+  if (camMode === "voice" && workMode === "2d") {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
+            <Badge variant="default" className="text-[9px] h-5">
+              V8 Voz
+            </Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
+            <Wrench className="h-4 w-4 mr-1" /> Modo Manual
+          </Button>
+        </div>
+        <div className="flex-1 flex">
+          <div className="w-[400px] border-r border-border overflow-auto">
+            <VoiceCamAssistant
+              vectors={vectors}
+              material={material}
+              tools={tools}
+              operations={operations}
+              customPresets={customPresets}
+              onMaterialChange={setMaterial}
+              onOperationsChange={setOperations}
+              onGenerateCam={handleAutoCam2D}
+              onClose={() => setCamMode("manual")}
+            />
+          </div>
+          <div className="flex-1 p-2">
+            <SvgCanvas
+              svgContent={svgContent}
+              viewBox={viewBox}
+              vectors={vectors}
+              selectedVectorIds={selectedVectorIds}
+              operations={operations}
+              showToolpath={showToolpath}
+              tools={tools}
+              onSelectVector={handleSelectVector}
+              onImportSvg={handleImportSvg}
+              activePassLayer={activePassLayer}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // If in automatic mode for 2D, show the wizard
   if (camMode === "automatic" && workMode === "2d") {
     return (
@@ -444,8 +492,8 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-            <Badge variant="default" className="text-[9px] h-5 bg-gradient-to-r from-purple-500 to-pink-500 border-0">
-              V6 Automático
+            <Badge variant="default" className="text-[9px] h-5">
+              V8 Automático
             </Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
