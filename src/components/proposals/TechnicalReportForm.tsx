@@ -466,22 +466,43 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Assinaturas</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs">Assinatura do Técnico (nome)</Label>
+                <Label className="text-xs font-medium">Assinatura do Técnico</Label>
+                <p className="text-xs text-muted-foreground mb-1">Será inserida automaticamente a partir do seu perfil.</p>
                 <Input
                   value={form.technician_signature}
                   onChange={(e) => updateField("technician_signature", e.target.value)}
                   placeholder="Nome completo do técnico"
                 />
               </div>
+              <Separator />
               <div>
-                <Label className="text-xs">Assinatura do Cliente (nome)</Label>
+                <Label className="text-xs font-medium">Assinatura do Cliente</Label>
                 <Input
                   value={form.client_signature}
                   onChange={(e) => updateField("client_signature", e.target.value)}
                   placeholder="Nome completo do cliente"
+                  className="mb-2"
                 />
+                <p className="text-xs text-muted-foreground mb-2">Ou desenhe a assinatura abaixo:</p>
+                {clientSignatureImage && (
+                  <div className="relative inline-block border border-border rounded-lg p-2 bg-white mb-2">
+                    <img src={clientSignatureImage} alt="Assinatura do Cliente" className="h-16 object-contain" />
+                    <button
+                      onClick={() => { setClientSignatureImage(null); }}
+                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                {!clientSignatureImage && (
+                  <SignaturePad
+                    onSave={handleClientSignatureSave}
+                    initialImage={null}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
