@@ -5521,6 +5521,143 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_report_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          mime_type: string
+          report_id: string
+          sort_order: number
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          mime_type?: string
+          report_id: string
+          sort_order?: number
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          mime_type?: string
+          report_id?: string
+          sort_order?: number
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_report_files_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "technical_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technical_reports: {
+        Row: {
+          attendance_date: string
+          checklist: Json
+          client_city: string
+          client_company: string
+          client_name: string
+          client_signature: string | null
+          created_at: string
+          created_by: string
+          equipment_name: string
+          final_observations: string
+          id: string
+          machine_model: string
+          parts_replaced: string
+          problem_reported: string
+          recommendations: string
+          related_ticket: string | null
+          report_number: number
+          serial_number: string
+          service_performed: string
+          status: string
+          technical_diagnosis: string
+          technician_name: string
+          technician_signature: string | null
+          tests_performed: string
+          time_end: string | null
+          time_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance_date?: string
+          checklist?: Json
+          client_city?: string
+          client_company?: string
+          client_name?: string
+          client_signature?: string | null
+          created_at?: string
+          created_by: string
+          equipment_name?: string
+          final_observations?: string
+          id?: string
+          machine_model?: string
+          parts_replaced?: string
+          problem_reported?: string
+          recommendations?: string
+          related_ticket?: string | null
+          report_number?: number
+          serial_number?: string
+          service_performed?: string
+          status?: string
+          technical_diagnosis?: string
+          technician_name?: string
+          technician_signature?: string | null
+          tests_performed?: string
+          time_end?: string | null
+          time_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          checklist?: Json
+          client_city?: string
+          client_company?: string
+          client_name?: string
+          client_signature?: string | null
+          created_at?: string
+          created_by?: string
+          equipment_name?: string
+          final_observations?: string
+          id?: string
+          machine_model?: string
+          parts_replaced?: string
+          problem_reported?: string
+          recommendations?: string
+          related_ticket?: string | null
+          report_number?: number
+          serial_number?: string
+          service_performed?: string
+          status?: string
+          technical_diagnosis?: string
+          technician_name?: string
+          technician_signature?: string | null
+          tests_performed?: string
+          time_end?: string | null
+          time_start?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ticket_files: {
         Row: {
           created_at: string
