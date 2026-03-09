@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
-  SnapToolConfig, SnapToolSlot, ToolpathOperation, ToolpathProject,
+  SnapToolConfig, SnapToolSlot, SnapToolSafetyConfig, DEFAULT_SNAPTOOL_SAFETY,
+  ToolpathOperation, ToolpathProject,
   CncTool, CustomGcodeConfig, PostProcessor
 } from "@/lib/toolpath-engine";
 import { generateGcode, FILE_EXTENSIONS } from "@/lib/toolpath-engine";
