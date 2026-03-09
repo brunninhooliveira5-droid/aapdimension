@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,12 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
-  BookTemplate, Layers as LayersIcon, Sparkles
+  BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 
+// 2D Components
 import { SvgCanvas } from "@/components/toolpath/SvgCanvas";
 import { VectorsList } from "@/components/toolpath/VectorsList";
 import { MaterialPanel } from "@/components/toolpath/MaterialPanel";
@@ -24,6 +26,14 @@ import { OperationsList } from "@/components/toolpath/OperationsList";
 import { GcodePanel } from "@/components/toolpath/GcodePanel";
 import { Simulation3D } from "@/components/toolpath/Simulation3D";
 
+// 3D Components
+import { Model3DPanel } from "@/components/toolpath/Model3DPanel";
+import { Operation3DPanel } from "@/components/toolpath/Operation3DPanel";
+import { Tools3DLibrary } from "@/components/toolpath/Tools3DLibrary";
+import { Simulation3DAdvanced } from "@/components/toolpath/Simulation3DAdvanced";
+import { GcodePanel3D } from "@/components/toolpath/GcodePanel3D";
+
+// 2D Engine
 import {
   parseSvgContent,
   DEFAULT_TOOLS,
@@ -44,8 +54,34 @@ import {
   type MaterialPreset,
 } from "@/lib/toolpath-engine";
 
+// 3D Engine
+import {
+  type Model3D,
+  type MaterialBlock3D,
+  type Tool3D,
+  type Operation3D,
+  type Toolpath3D,
+  type Project3D,
+  type TimeEstimate3D,
+  DEFAULT_TOOLS_3D,
+  DEFAULT_MATERIAL_BLOCK,
+  generateAutoCam3D,
+  generateRoughingToolpath,
+  generateFinishingToolpath,
+  estimate3DTime,
+} from "@/lib/toolpath-3d-engine";
+
+type WorkMode = "2d" | "3d";
+
 export default function ToolpathGeneratorPage() {
+  // Mode
+  const [workMode, setWorkMode] = useState<WorkMode>("2d");
+  
+  // Common state
   const [projectName, setProjectName] = useState("Novo Projeto");
+  const [bottomTab, setBottomTab] = useState("operations");
+  
+  // ======================== 2D State ========================
   const [svgContent, setSvgContent] = useState("");
   const [viewBox, setViewBox] = useState("0 0 500 500");
   const [vectors, setVectors] = useState<SvgVector[]>([]);
@@ -56,7 +92,6 @@ export default function ToolpathGeneratorPage() {
   const [operations, setOperations] = useState<ToolpathOperation[]>([]);
   const [activeOperationId, setActiveOperationId] = useState<string | null>(null);
   const [showToolpath, setShowToolpath] = useState<Record<string, boolean>>({});
-  const [bottomTab, setBottomTab] = useState("operations");
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [autoCamResult, setAutoCamResult] = useState<AutoCamResult | null>(null);
   const [templates, setTemplates] = useState<MachiningTemplate[]>(() => {
@@ -70,6 +105,17 @@ export default function ToolpathGeneratorPage() {
   const [templateMaterial, setTemplateMaterial] = useState("");
   const [activePassLayer, setActivePassLayer] = useState<number | null>(null);
 
+  // ======================== 3D State ========================
+  const [model3D, setModel3D] = useState<Model3D | null>(null);
+  const [materialBlock, setMaterialBlock] = useState<MaterialBlock3D>({ ...DEFAULT_MATERIAL_BLOCK });
+  const [tools3D, setTools3D] = useState<Tool3D[]>([...DEFAULT_TOOLS_3D]);
+  const [selectedTool3DId, setSelectedTool3DId] = useState(DEFAULT_TOOLS_3D[0]?.id || "");
+  const [operations3D, setOperations3D] = useState<Operation3D[]>([]);
+  const [activeOperation3DId, setActiveOperation3DId] = useState<string | null>(null);
+  const [toolpaths3D, setToolpaths3D] = useState<Toolpath3D[]>([]);
+  const [issues3D, setIssues3D] = useState<string[]>([]);
+
+  // ======================== 2D Handlers ========================
   const handleCustomPresetsChange = useCallback((presets: MaterialPreset[]) => {
     setCustomPresets(presets);
     localStorage.setItem("cam-material-presets", JSON.stringify(presets));
@@ -100,7 +146,7 @@ export default function ToolpathGeneratorPage() {
     setShowToolpath((prev) => ({ ...prev, [id]: prev[id] === false ? true : false }));
   }, []);
 
-  const handleAutoCam = useCallback(() => {
+  const handleAutoCam2D = useCallback(() => {
     if (vectors.length === 0) {
       toast.error("Importe um arquivo SVG primeiro.");
       return;
@@ -123,8 +169,8 @@ export default function ToolpathGeneratorPage() {
     );
   }, [vectors, tools, material, customPresets]);
 
-  const handleValidate = useCallback(() => {
-    const project = buildProject();
+  const handleValidate2D = useCallback(() => {
+    const project = buildProject2D();
     const validationIssues = validateProject(project, customPresets);
     setIssues(validationIssues);
     if (validationIssues.length === 0) {
@@ -134,13 +180,13 @@ export default function ToolpathGeneratorPage() {
     }
   }, [customPresets]);
 
-  const buildProject = (): ToolpathProject => ({
+  const buildProject2D = (): ToolpathProject => ({
     id: `proj-${Date.now()}`, name: projectName, svgContent, material, tools, operations, vectors,
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   });
 
-  const handleSave = () => {
-    const project = buildProject();
+  const handleSave2D = () => {
+    const project = buildProject2D();
     const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -149,7 +195,7 @@ export default function ToolpathGeneratorPage() {
     toast.success("Projeto salvo!");
   };
 
-  const handleLoad = () => {
+  const handleLoad2D = () => {
     const input = document.createElement("input");
     input.type = "file"; input.accept = ".dtp,.json";
     input.onchange = (e: any) => {
@@ -202,6 +248,97 @@ export default function ToolpathGeneratorPage() {
     localStorage.setItem("cam-templates", JSON.stringify(updated));
   };
 
+  // ======================== 3D Handlers ========================
+  const handleAutoCam3D = useCallback(() => {
+    if (!model3D) {
+      toast.error("Importe um modelo 3D primeiro.");
+      return;
+    }
+    
+    const result = generateAutoCam3D(model3D, materialBlock, tools3D);
+    setOperations3D(result.operations);
+    
+    // Generate toolpaths
+    const newToolpaths: Toolpath3D[] = [];
+    for (const op of result.operations) {
+      const tool = tools3D.find(t => t.id === op.toolId);
+      if (!tool) continue;
+      
+      if (op.type === "roughing-3d") {
+        newToolpaths.push(generateRoughingToolpath(model3D, materialBlock, op, tool));
+      } else {
+        newToolpaths.push(generateFinishingToolpath(model3D, materialBlock, op, tool));
+      }
+    }
+    setToolpaths3D(newToolpaths);
+    
+    if (result.operations.length > 0) {
+      setActiveOperation3DId(result.operations[0].id);
+    }
+    
+    const analysis = result.analysis;
+    toast.success(
+      `Auto-CAM 3D V5: ${result.operations.length} operações geradas\n` +
+      `Análise: ${analysis.flatAreas} áreas planas, ${analysis.steepAreas} inclinadas, ${analysis.verticalWalls} verticais`
+    );
+  }, [model3D, materialBlock, tools3D]);
+
+  const handleGenerateToolpaths3D = useCallback(() => {
+    if (!model3D) {
+      toast.error("Importe um modelo 3D primeiro.");
+      return;
+    }
+    
+    const enabledOps = operations3D.filter(op => op.enabled);
+    if (enabledOps.length === 0) {
+      toast.error("Nenhuma operação habilitada.");
+      return;
+    }
+    
+    const newToolpaths: Toolpath3D[] = [];
+    for (const op of enabledOps) {
+      const tool = tools3D.find(t => t.id === op.toolId);
+      if (!tool) continue;
+      
+      if (op.type === "roughing-3d") {
+        newToolpaths.push(generateRoughingToolpath(model3D, materialBlock, op, tool));
+      } else {
+        newToolpaths.push(generateFinishingToolpath(model3D, materialBlock, op, tool));
+      }
+    }
+    
+    setToolpaths3D(newToolpaths);
+    toast.success(`${newToolpaths.length} percursos gerados!`);
+  }, [model3D, materialBlock, operations3D, tools3D]);
+
+  const buildProject3D = (): Project3D => ({
+    id: `proj3d-${Date.now()}`,
+    name: projectName,
+    model: model3D,
+    materialBlock,
+    tools: tools3D,
+    operations: operations3D,
+    toolpaths: toolpaths3D,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  const handleSave3D = () => {
+    const project = buildProject3D();
+    // Remove geometry from model for saving (too large)
+    const saveProject = {
+      ...project,
+      model: project.model ? { ...project.model, geometry: null, vertices: null } : null,
+    };
+    const blob = new Blob([JSON.stringify(saveProject, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${projectName}_3d.dtp`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Projeto 3D salvo!");
+  };
+
+  // ======================== Computed values ========================
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warningCount = issues.filter((i) => i.severity === "warning").length;
   const activePreset = getPresetById(material.presetId, customPresets);
@@ -213,44 +350,81 @@ export default function ToolpathGeneratorPage() {
     return Math.max(max, passes);
   }, 0);
 
+  const timeEstimate3D = useMemo<TimeEstimate3D | null>(() => {
+    if (toolpaths3D.length === 0) return null;
+    return estimate3DTime(toolpaths3D);
+  }, [toolpaths3D]);
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col gap-2">
       {/* Header */}
       <div className="flex items-center justify-between px-1 flex-wrap gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">V4.2</Badge>
-          {activePreset && (
+          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">
+            V5
+          </Badge>
+          
+          {/* Mode Toggle */}
+          <ToggleGroup type="single" value={workMode} onValueChange={(v) => v && setWorkMode(v as WorkMode)} className="h-7">
+            <ToggleGroupItem value="2d" className="h-7 text-xs px-3 gap-1">
+              <FileImage className="h-3 w-3" /> 2D
+            </ToggleGroupItem>
+            <ToggleGroupItem value="3d" className="h-7 text-xs px-3 gap-1">
+              <Box className="h-3 w-3" /> 3D
+            </ToggleGroupItem>
+          </ToggleGroup>
+          
+          {workMode === "2d" && activePreset && (
             <Badge variant="outline" className="text-[9px] h-5">
               {activePreset.name}
               {isMetal(activePreset.category) && " ⚡"}
               {(activePreset as any).coolantRequired && " 💧"}
             </Badge>
           )}
+          
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-44 text-xs" />
         </div>
+        
         <div className="flex gap-1.5 flex-wrap">
-          <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white border-0"
-            onClick={handleAutoCam} disabled={vectors.length === 0}>
-            <Wand2 className="h-3.5 w-3.5" /> Auto CAM V4
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate} disabled={operations.length === 0}>
-            <AlertTriangle className="h-3.5 w-3.5" /> Validar
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => { setTemplateName(""); setTemplateMaterial(""); setShowTemplateDialog(true); }}>
-            <BookTemplate className="h-3.5 w-3.5" /> Template
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleLoad}>
-            <FolderOpen className="h-3.5 w-3.5" /> Abrir
-          </Button>
-          <Button size="sm" className="h-7 text-xs gap-1" onClick={handleSave}>
-            <Save className="h-3.5 w-3.5" /> Salvar
-          </Button>
+          {workMode === "2d" ? (
+            <>
+              <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white border-0"
+                onClick={handleAutoCam2D} disabled={vectors.length === 0}>
+                <Wand2 className="h-3.5 w-3.5" /> Auto CAM
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate2D} disabled={operations.length === 0}>
+                <AlertTriangle className="h-3.5 w-3.5" /> Validar
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => { setTemplateName(""); setTemplateMaterial(""); setShowTemplateDialog(true); }}>
+                <BookTemplate className="h-3.5 w-3.5" /> Template
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleLoad2D}>
+                <FolderOpen className="h-3.5 w-3.5" /> Abrir
+              </Button>
+              <Button size="sm" className="h-7 text-xs gap-1" onClick={handleSave2D}>
+                <Save className="h-3.5 w-3.5" /> Salvar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                onClick={handleAutoCam3D} disabled={!model3D}>
+                <Wand2 className="h-3.5 w-3.5" /> Auto CAM 3D
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleGenerateToolpaths3D} disabled={operations3D.length === 0}>
+                <Sparkles className="h-3.5 w-3.5" /> Gerar Percursos
+              </Button>
+              <Button size="sm" className="h-7 text-xs gap-1" onClick={handleSave3D}>
+                <Save className="h-3.5 w-3.5" /> Salvar
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Issues bar */}
-      {issues.length > 0 && (
+      {/* Issues bar (2D mode) */}
+      {workMode === "2d" && issues.length > 0 && (
         <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-md border border-border text-xs overflow-x-auto">
           {errorCount > 0 && (
             <Badge variant="destructive" className="text-[9px] h-5 gap-0.5 shrink-0">
@@ -258,14 +432,14 @@ export default function ToolpathGeneratorPage() {
             </Badge>
           )}
           {warningCount > 0 && (
-            <Badge variant="outline" className="text-[9px] h-5 gap-0.5 border-amber-500 text-amber-600 shrink-0">
+            <Badge variant="outline" className="text-[9px] h-5 gap-0.5 border-warning text-warning shrink-0">
               <AlertTriangle className="h-3 w-3" /> {warningCount} aviso(s)
             </Badge>
           )}
           <ScrollArea className="flex-1">
             <div className="flex gap-2">
               {issues.slice(0, 5).map((issue, i) => (
-                <span key={i} className={`shrink-0 ${issue.severity === "error" ? "text-destructive" : "text-amber-600"}`}>
+                <span key={i} className={`shrink-0 ${issue.severity === "error" ? "text-destructive" : "text-warning"}`}>
                   {issue.message}
                 </span>
               ))}
@@ -274,12 +448,12 @@ export default function ToolpathGeneratorPage() {
         </div>
       )}
 
-      {/* Auto-CAM summary */}
-      {autoCamResult && (
+      {/* Auto-CAM summary (2D mode) */}
+      {workMode === "2d" && autoCamResult && (
         <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/30 text-xs">
           <Sparkles className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
           <span className="text-primary">
-            Auto-CAM V4{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
+            Auto-CAM V5{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
             {autoCamResult.summary.islands} ilhas, {autoCamResult.summary.innerContours} int.,
             {autoCamResult.summary.outerContours} ext., {autoCamResult.summary.openPaths} abertos
             {activePreset && isMetal(activePreset.category) && " | ⚡ Estratégias avançadas"}
@@ -289,19 +463,46 @@ export default function ToolpathGeneratorPage() {
         </div>
       )}
 
+      {/* 3D Mode info bar */}
+      {workMode === "3d" && model3D && (
+        <div className="flex items-center gap-2 px-2 py-1 bg-purple-500/10 rounded-md border border-purple-500/30 text-xs">
+          <Box className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+          <span className="text-primary">
+            Modelo: {model3D.name} | 
+            {model3D.dimensions.width.toFixed(1)} x {model3D.dimensions.depth.toFixed(1)} x {model3D.dimensions.height.toFixed(1)} mm |
+            {model3D.faces.toLocaleString()} faces
+          </span>
+          {timeEstimate3D && (
+            <Badge variant="outline" className="text-[9px] h-5 gap-1 ml-auto">
+              <Clock className="h-3 w-3" />
+              {timeEstimate3D.totalTime.toFixed(1)} min
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Main layout */}
       <ResizablePanelGroup direction="horizontal" className="flex-1 rounded-lg border border-border">
         {/* Left panel */}
         <ResizablePanel defaultSize={18} minSize={14} maxSize={25}>
           <div className="h-full overflow-auto p-2 space-y-2">
-            <VectorsList
-              vectors={vectors}
-              selectedVectorIds={selectedVectorIds}
-              onSelectVector={handleSelectVector}
-              onImportSvg={handleImportSvg}
-              onSelectAll={() => setSelectedVectorIds(vectors.map((v) => v.id))}
-              onDeselectAll={() => setSelectedVectorIds([])}
-            />
+            {workMode === "2d" ? (
+              <VectorsList
+                vectors={vectors}
+                selectedVectorIds={selectedVectorIds}
+                onSelectVector={handleSelectVector}
+                onImportSvg={handleImportSvg}
+                onSelectAll={() => setSelectedVectorIds(vectors.map((v) => v.id))}
+                onDeselectAll={() => setSelectedVectorIds([])}
+              />
+            ) : (
+              <Model3DPanel
+                model={model3D}
+                materialBlock={materialBlock}
+                onModelChange={setModel3D}
+                onMaterialBlockChange={setMaterialBlock}
+              />
+            )}
           </div>
         </ResizablePanel>
 
@@ -312,7 +513,7 @@ export default function ToolpathGeneratorPage() {
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={60} minSize={35}>
               <div className="h-full flex flex-col">
-                {maxPasses > 1 && (
+                {workMode === "2d" && maxPasses > 1 && (
                   <div className="flex items-center gap-2 px-2 py-1 border-b border-border bg-background/80 shrink-0">
                     <LayersIcon className="h-3 w-3 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">Camada:</span>
@@ -330,12 +531,22 @@ export default function ToolpathGeneratorPage() {
                   </div>
                 )}
                 <div className="flex-1 min-h-0">
-                  <SvgCanvas
-                    vectors={vectors} material={material} operations={operations} tools={tools}
-                    selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
-                    showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
-                    issues={issues} activePassLayer={activePassLayer}
-                  />
+                  {workMode === "2d" ? (
+                    <SvgCanvas
+                      vectors={vectors} material={material} operations={operations} tools={tools}
+                      selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
+                      showToolpath={showToolpath} onSelectVector={handleSelectVector} viewBox={viewBox}
+                      issues={issues} activePassLayer={activePassLayer}
+                    />
+                  ) : (
+                    <Simulation3DAdvanced
+                      model={model3D}
+                      materialBlock={materialBlock}
+                      operations={operations3D}
+                      tools={tools3D}
+                      toolpaths={toolpaths3D}
+                    />
+                  )}
                 </div>
               </div>
             </ResizablePanel>
@@ -347,44 +558,78 @@ export default function ToolpathGeneratorPage() {
                 <Tabs value={bottomTab} onValueChange={setBottomTab} className="flex flex-col h-full">
                   <TabsList className="h-8 mx-2 mt-1 shrink-0">
                     <TabsTrigger value="operations" className="text-xs h-6">Operações</TabsTrigger>
-                    <TabsTrigger value="simulation" className="text-xs h-6">Simulação 3D</TabsTrigger>
+                    <TabsTrigger value="simulation" className="text-xs h-6">Simulação</TabsTrigger>
                     <TabsTrigger value="gcode" className="text-xs h-6">G-Code</TabsTrigger>
-                    <TabsTrigger value="validation" className="text-xs h-6">
-                      Validação {issues.length > 0 && <Badge variant="destructive" className="ml-1 h-4 text-[8px] px-1">{issues.length}</Badge>}
-                    </TabsTrigger>
+                    {workMode === "2d" && (
+                      <TabsTrigger value="validation" className="text-xs h-6">
+                        Validação {issues.length > 0 && <Badge variant="destructive" className="ml-1 h-4 text-[8px] px-1">{issues.length}</Badge>}
+                      </TabsTrigger>
+                    )}
                   </TabsList>
+                  
                   <TabsContent value="operations" className="flex-1 overflow-auto px-2 pb-2">
-                    <OperationsList operations={operations} tools={tools} vectors={vectors}
-                      activeOperationId={activeOperationId} showToolpath={showToolpath}
-                      onSetActive={setActiveOperationId} onChangeOperations={setOperations} onToggleToolpath={toggleToolpath} />
+                    {workMode === "2d" ? (
+                      <OperationsList operations={operations} tools={tools} vectors={vectors}
+                        activeOperationId={activeOperationId} showToolpath={showToolpath}
+                        onSetActive={setActiveOperationId} onChangeOperations={setOperations} onToggleToolpath={toggleToolpath} />
+                    ) : (
+                      <Operation3DPanel
+                        operations={operations3D}
+                        tools={tools3D}
+                        onOperationsChange={setOperations3D}
+                        activeOperationId={activeOperation3DId}
+                        onSetActiveOperation={setActiveOperation3DId}
+                      />
+                    )}
                   </TabsContent>
+                  
                   <TabsContent value="simulation" className="flex-1 min-h-0">
-                    <Simulation3D material={material} operations={operations} tools={tools} vectors={vectors} />
+                    {workMode === "2d" ? (
+                      <Simulation3D material={material} operations={operations} tools={tools} vectors={vectors} />
+                    ) : (
+                      <Simulation3DAdvanced
+                        model={model3D}
+                        materialBlock={materialBlock}
+                        operations={operations3D}
+                        tools={tools3D}
+                        toolpaths={toolpaths3D}
+                      />
+                    )}
                   </TabsContent>
-                  <TabsContent value="gcode" className="flex-1 overflow-auto px-2 pb-2">
-                    <GcodePanel project={buildProject()} />
+                  
+                  <TabsContent value="gcode" className="flex-1 overflow-auto">
+                    {workMode === "2d" ? (
+                      <div className="px-2 pb-2">
+                        <GcodePanel project={buildProject2D()} />
+                      </div>
+                    ) : (
+                      <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
+                    )}
                   </TabsContent>
-                  <TabsContent value="validation" className="flex-1 overflow-auto px-2 pb-2">
-                    <div className="space-y-2">
-                      {issues.length === 0 ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-green-500" /> Nenhum problema detectado.
-                        </div>
-                      ) : (
-                        issues.map((issue, i) => (
-                          <div key={i} className={`flex items-start gap-2 text-xs p-2 rounded-md ${issue.severity === "error" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
-                            {issue.severity === "error" ? <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
-                            <span>{issue.message}</span>
+                  
+                  {workMode === "2d" && (
+                    <TabsContent value="validation" className="flex-1 overflow-auto px-2 pb-2">
+                      <div className="space-y-2">
+                        {issues.length === 0 ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                            <CheckCircle2 className="h-4 w-4 text-green-500" /> Nenhum problema detectado.
                           </div>
-                        ))
-                      )}
-                      {issues.length > 0 && (
-                        <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={handleValidate}>
-                          Revalidar
-                        </Button>
-                      )}
-                    </div>
-                  </TabsContent>
+                        ) : (
+                          issues.map((issue, i) => (
+                            <div key={i} className={`flex items-start gap-2 text-xs p-2 rounded-md ${issue.severity === "error" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
+                              {issue.severity === "error" ? <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+                              <span>{issue.message}</span>
+                            </div>
+                          ))
+                        )}
+                        {issues.length > 0 && (
+                          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={handleValidate2D}>
+                            Revalidar
+                          </Button>
+                        )}
+                      </div>
+                    </TabsContent>
+                  )}
                 </Tabs>
               </div>
             </ResizablePanel>
@@ -396,44 +641,64 @@ export default function ToolpathGeneratorPage() {
         {/* Right panel */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
           <div className="h-full overflow-auto p-2 space-y-2">
-            <MaterialPanel
-              material={material}
-              onChange={setMaterial}
-              customPresets={customPresets}
-              onChangeCustomPresets={handleCustomPresetsChange}
-              tools={tools}
-              onToolsSuggestion={setTools}
-            />
+            {workMode === "2d" ? (
+              <>
+                <MaterialPanel
+                  material={material}
+                  onChange={setMaterial}
+                  customPresets={customPresets}
+                  onChangeCustomPresets={handleCustomPresetsChange}
+                  tools={tools}
+                  onToolsSuggestion={setTools}
+                />
 
-            {/* Templates quick access */}
-            {templates.length > 0 && (
-              <Card className="border-border">
-                <CardHeader className="pb-1 pt-3 px-3">
-                  <CardTitle className="text-xs flex items-center gap-1.5"><BookTemplate className="h-3 w-3 text-primary" /> Templates</CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-2">
-                  <div className="space-y-0.5">
-                    {templates.slice(0, 5).map((tpl) => (
-                      <div key={tpl.id} className="flex items-center justify-between text-[10px] hover:bg-accent/50 rounded px-1.5 py-0.5 cursor-pointer"
-                        onClick={() => handleLoadTemplate(tpl)}>
-                        <span className="truncate">{tpl.name}</span>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(tpl.id); }} className="text-muted-foreground hover:text-destructive">✕</button>
+                {/* Templates quick access */}
+                {templates.length > 0 && (
+                  <Card className="border-border">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                      <CardTitle className="text-xs flex items-center gap-1.5"><BookTemplate className="h-3 w-3 text-primary" /> Templates</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-3 pb-2">
+                      <div className="space-y-0.5">
+                        {templates.slice(0, 5).map((tpl) => (
+                          <div key={tpl.id} className="flex items-center justify-between text-[10px] hover:bg-accent/50 rounded px-1.5 py-0.5 cursor-pointer"
+                            onClick={() => handleLoadTemplate(tpl)}>
+                            <span className="truncate">{tpl.name}</span>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(tpl.id); }} className="text-muted-foreground hover:text-destructive">✕</button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                    </CardContent>
+                  </Card>
+                )}
 
-            <ToolLibrary tools={tools} onChange={setTools} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} />
-            <OperationPanel operations={operations} tools={tools} vectors={vectors}
-              selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
-              onChangeOperations={setOperations} onSetActive={setActiveOperationId} />
+                <ToolLibrary tools={tools} onChange={setTools} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} />
+                <OperationPanel operations={operations} tools={tools} vectors={vectors}
+                  selectedVectorIds={selectedVectorIds} activeOperationId={activeOperationId}
+                  onChangeOperations={setOperations} onSetActive={setActiveOperationId} />
+              </>
+            ) : (
+              <>
+                <Tools3DLibrary
+                  tools={tools3D}
+                  onToolsChange={setTools3D}
+                  selectedToolId={selectedTool3DId}
+                  onSelectTool={setSelectedTool3DId}
+                />
+                <Operation3DPanel
+                  operations={operations3D}
+                  tools={tools3D}
+                  onOperationsChange={setOperations3D}
+                  activeOperationId={activeOperation3DId}
+                  onSetActiveOperation={setActiveOperation3DId}
+                />
+              </>
+            )}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {/* Save Template Dialog */}
+      {/* Save Template Dialog (2D) */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Salvar Template de Usinagem</DialogTitle></DialogHeader>
