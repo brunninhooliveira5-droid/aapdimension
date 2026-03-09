@@ -906,11 +906,18 @@ export default function ToolpathGeneratorPage() {
                 {bottomPanel === "gcode" && (
                   <div className="p-2">
                     {workMode === "2d" ? (
-                      <GcodePanel project={buildProject2D()} />
+                      <GcodePanel project={buildProject2D()} customGcode={customGcode} />
                     ) : (
                       <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
                     )}
                   </div>
+                )}
+                {bottomPanel === "start-end" && workMode === "2d" && (
+                  <StartEndGcodePanel
+                    config={customGcode}
+                    onChange={setCustomGcode}
+                    postProcessor={gcodePostProcessor}
+                  />
                 )}
                 {bottomPanel === "intelligent" && workMode === "2d" && intelligentResult && (
                   <div className="h-full overflow-hidden">
