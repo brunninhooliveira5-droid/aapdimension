@@ -101,13 +101,13 @@ export function GcodePanel3D({ project, timeEstimate }: GcodePanel3DProps) {
       {/* Issues */}
       {issues.length > 0 && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-2">
-          <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 mb-1">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Atenção</span>
-          </div>
-          <ul className="text-[10px] text-muted-foreground space-y-0.5">
-            {issues.map((issue, i) => (
-              <li key={i}>• {issue}</li>
+        <div className="flex items-center gap-1.5 text-warning mb-1">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Atenção</span>
+        </div>
+        <ul className="text-[10px] text-muted-foreground space-y-0.5">
+          {issues.map((issue, i) => (
+            <li key={i}>• {issue}</li>
             ))}
           </ul>
         </div>

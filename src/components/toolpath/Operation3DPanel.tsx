@@ -124,7 +124,7 @@ export function Operation3DPanel({
   
   const updateOperation = useCallback((id: string, updates: Partial<Operation3D>) => {
     onOperationsChange(
-      operations.map((op) => (op.id === id ? { ...op, ...updates } : op))
+      operations.map((op) => (op.id === id ? { ...op, ...updates } as Operation3D : op))
     );
   }, [operations, onOperationsChange]);
   
