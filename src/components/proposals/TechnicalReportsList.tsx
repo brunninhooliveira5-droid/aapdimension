@@ -179,7 +179,6 @@ export function TechnicalReportsList() {
                             technicianCompany: profile?.company || "",
                           });
                         }}
-                        }}
                         title="Gerar PDF"
                       >
                         <FileDown className="h-4 w-4" />
