@@ -33,6 +33,43 @@ const SettingsPage = () => {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+
+  // Load signature on mount
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from("profiles").select("signature_url").eq("id", session.user.id).single()
+      .then(({ data }) => { if (data?.signature_url) setSignatureUrl(data.signature_url); });
+  }, [session?.user?.id]);
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session?.user?.id) return;
+    if (!file.type.includes("png")) { toast.error("Apenas arquivos PNG são aceitos"); return; }
+    setUploadingSignature(true);
+    try {
+      const path = `${session.user.id}/signature-${Date.now()}.png`;
+      const { error: upErr } = await supabase.storage.from("user-signatures").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("user-signatures").getPublicUrl(path);
+      await supabase.from("profiles").update({ signature_url: publicUrl } as any).eq("id", session.user.id);
+      setSignatureUrl(publicUrl);
+      toast.success("Assinatura salva!");
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    }
+    setUploadingSignature(false);
+    if (signatureInputRef.current) signatureInputRef.current.value = "";
+  };
+
+  const handleRemoveSignature = async () => {
+    if (!session?.user?.id) return;
+    await supabase.from("profiles").update({ signature_url: null } as any).eq("id", session.user.id);
+    setSignatureUrl(null);
+    toast.success("Assinatura removida");
+  };
 
   const [customBg, setCustomBg] = useState(() => localStorage.getItem("custom-bg-color") || "");
   const [customSidebar, setCustomSidebar] = useState(() => localStorage.getItem("custom-sidebar-color") || "");
