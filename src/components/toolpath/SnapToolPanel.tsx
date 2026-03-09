@@ -310,11 +310,10 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
   const warningCount = validation.filter(v => v.type === "warning").length;
 
   return (
-    <div className="h-full flex">
-      {/* ── LEFT SIDEBAR ── */}
-      <ScrollArea className="w-80 border-r border-border shrink-0">
-        <div className="p-3 space-y-2">
-          {/* Tab switcher */}
+    <div className="h-full grid grid-cols-[380px_1fr_1fr] min-h-0">
+      {/* ── COLUNA 1: Configuração ── */}
+      <div className="border-r border-border flex flex-col min-h-0">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0">
           <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
             <Button
               variant={activeTab === "processor" ? "default" : "ghost"}
@@ -331,48 +330,53 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
               <Wrench className="h-3 w-3 mr-1" /> Configuração
             </Button>
           </div>
-
-          {activeTab === "processor" ? (
-            <ProcessorSidebar
-              config={config}
-              currentTool={currentTool}
-              setCurrentTool={setCurrentTool}
-              postProcessor={postProcessor}
-              setPostProcessor={setPostProcessor}
-              validation={validation}
-              toolChangeAnalysis={toolChangeAnalysis}
-              errorCount={errorCount}
-              warningCount={warningCount}
-              activeSlots={activeSlots}
-              onImportFile={handleImportFile}
-              onProcess={handleProcessGcode}
-              onGenerateFromProject={handleGenerateFromProject}
-              onDownload={handleDownload}
-              hasImported={!!importedGcode.trim()}
-              hasProcessed={!!processedGcode}
-              operations={operations}
-              fileName={fileName}
-            />
-          ) : (
-            <ConfigSidebar
-              config={config}
-              onToggle={handleToggle}
-              updateField={updateField}
-              addSlot={addSlot}
-              removeSlot={removeSlot}
-              updateSlot={updateSlot}
-              onSaveGlobal={handleSaveGlobal}
-              onLoadGlobal={handleLoadGlobal}
-              activeSlots={activeSlots}
-            />
-          )}
         </div>
-      </ScrollArea>
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-3 space-y-2">
+            {activeTab === "processor" ? (
+              <ProcessorSidebar
+                config={config}
+                currentTool={currentTool}
+                setCurrentTool={setCurrentTool}
+                postProcessor={postProcessor}
+                setPostProcessor={setPostProcessor}
+                validation={validation}
+                toolChangeAnalysis={toolChangeAnalysis}
+                errorCount={errorCount}
+                warningCount={warningCount}
+                activeSlots={activeSlots}
+                onImportFile={handleImportFile}
+                onProcess={handleProcessGcode}
+                onGenerateFromProject={handleGenerateFromProject}
+                onDownload={handleDownload}
+                hasImported={!!importedGcode.trim()}
+                hasProcessed={!!processedGcode}
+                operations={operations}
+                fileName={fileName}
+              />
+            ) : (
+              <ConfigSidebar
+                config={config}
+                onToggle={handleToggle}
+                updateField={updateField}
+                addSlot={addSlot}
+                removeSlot={removeSlot}
+                updateSlot={updateSlot}
+                onSaveGlobal={handleSaveGlobal}
+                onLoadGlobal={handleLoadGlobal}
+                activeSlots={activeSlots}
+              />
+            )}
+          </div>
+        </ScrollArea>
+      </div>
 
-      {/* ── RIGHT: G-code panels ── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0 flex-wrap">
+      {/* ── COLUNA 2: G-code Original ── */}
+      <div className="border-r border-border flex flex-col min-h-0">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            G-code Original
+          </span>
           <Badge variant={config.enabled ? "default" : "secondary"} className="text-[9px] h-5 gap-1">
             <Crosshair className="h-3 w-3" /> {config.enabled ? "Ativo" : "Inativo"}
           </Badge>
@@ -380,10 +384,31 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
             T{currentTool} montada
           </Badge>
           {fileName && (
-            <Badge variant="outline" className="text-[9px] h-5 max-w-40 truncate">
+            <Badge variant="outline" className="text-[9px] h-5 max-w-32 truncate">
               {fileName}
             </Badge>
           )}
+          <div className="flex-1" />
+          {importedGcode && (
+            <Badge variant="outline" className="text-[8px] h-4">
+              {importedGcode.split("\n").length} linhas
+            </Badge>
+          )}
+        </div>
+        <Textarea
+          value={importedGcode}
+          onChange={e => { setImportedGcode(e.target.value); setProcessedGcode(""); }}
+          placeholder={"Carregue um arquivo G-code (.nc, .tap, .gcode, .txt) ou cole aqui.\n\nO processador detectará comandos M6/Tn e substituirá por blocos completos de troca SnapTool.\n\nExemplo de comandos detectados:\n  M6 T1\n  T2 M6\n  M06 T3\n  T4M6"}
+          className="flex-1 font-mono text-[10px] rounded-none border-0 resize-none min-h-0 bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
+        />
+      </div>
+
+      {/* ── COLUNA 3: G-code Processado ── */}
+      <div className="flex flex-col min-h-0">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            G-code Processado (SnapTool)
+          </span>
           <div className="flex-1" />
           {processedGcode && (
             <Badge variant="outline" className="text-[9px] h-5">
@@ -391,44 +416,12 @@ export function SnapToolPanel({ config, onChange, operations, tools, project, cu
             </Badge>
           )}
         </div>
-
-        {/* G-code panels */}
-        <div className="flex-1 flex min-h-0">
-          {/* Input */}
-          <div className="flex-1 flex flex-col border-r border-border min-w-0">
-            <div className="px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                G-code Original
-              </span>
-              {importedGcode && (
-                <Badge variant="outline" className="text-[8px] h-4">
-                  {importedGcode.split("\n").length} linhas
-                </Badge>
-              )}
-            </div>
-            <Textarea
-              value={importedGcode}
-              onChange={e => { setImportedGcode(e.target.value); setProcessedGcode(""); }}
-              placeholder={"Carregue um arquivo G-code (.nc, .tap, .gcode, .txt) ou cole aqui.\n\nO processador detectará comandos M6/Tn e substituirá por blocos completos de troca SnapTool.\n\nExemplo de comandos detectados:\n  M6 T1\n  T2 M6\n  M06 T3\n  T4M6"}
-              className="flex-1 font-mono text-[10px] rounded-none border-0 resize-none min-h-0 bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </div>
-
-          {/* Output */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                G-code Processado (SnapTool)
-              </span>
-            </div>
-            <Textarea
-              value={processedGcode}
-              readOnly
-              placeholder="O G-code processado com blocos de troca SnapTool aparecerá aqui após clicar em 'Processar'..."
-              className="flex-1 font-mono text-[10px] rounded-none border-0 resize-none min-h-0 bg-muted/10 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </div>
-        </div>
+        <Textarea
+          value={processedGcode}
+          readOnly
+          placeholder="O G-code processado com blocos de troca SnapTool aparecerá aqui após clicar em 'Processar'..."
+          className="flex-1 font-mono text-[10px] rounded-none border-0 resize-none min-h-0 bg-muted/10 focus-visible:ring-0 focus-visible:ring-offset-0"
+        />
       </div>
     </div>
   );
