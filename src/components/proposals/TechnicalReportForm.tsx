@@ -66,6 +66,32 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState("");
+  const [clientSignatureImage, setClientSignatureImage] = useState<string | null>(null);
+
+  // Load existing client signature image
+  useEffect(() => {
+    if (existingReport?.client_signature_image_url) {
+      setClientSignatureImage(existingReport.client_signature_image_url);
+    }
+  }, [existingReport]);
+
+  const handleClientSignatureSave = async (dataUrl: string) => {
+    setClientSignatureImage(dataUrl);
+    // If report already saved, upload to storage and save URL
+    if (reportId && session?.user?.id) {
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const path = `${reportId}/client-signature-${Date.now()}.png`;
+        await supabase.storage.from("technical-report-files").upload(path, blob, { upsert: true });
+        const { data: { publicUrl } } = supabase.storage.from("technical-report-files").getPublicUrl(path);
+        await supabase.from("technical_reports").update({ client_signature_image_url: publicUrl } as any).eq("id", reportId);
+        setClientSignatureImage(publicUrl);
+        toast.success("Assinatura do cliente salva!");
+      } catch (err: any) {
+        toast.error("Erro ao salvar assinatura: " + err.message);
+      }
+    }
+  };
 
   // Load existing report
   const { data: existingReport } = useQuery({
