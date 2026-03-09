@@ -142,6 +142,12 @@ export default function ToolpathGeneratorPage() {
   const [templateName, setTemplateName] = useState("");
   const [templateMaterial, setTemplateMaterial] = useState("");
   const [activePassLayer, setActivePassLayer] = useState<number | null>(null);
+  const [customGcode, setCustomGcode] = useState<CustomGcodeConfig>({
+    useCustomStartEnd: false,
+    startGcode: "",
+    endGcode: "",
+  });
+  const [gcodePostProcessor, setGcodePostProcessor] = useState<PostProcessor>("grbl");
 
   // ======================== V6 Intelligent CAM State ========================
   const [intelligentResult, setIntelligentResult] = useState<IntelligentCamResult | null>(null);
