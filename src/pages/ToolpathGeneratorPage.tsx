@@ -53,6 +53,7 @@ import {
   saveTemplate,
   getPresetById,
   isMetal,
+  createDefaultOperation,
   type SvgVector,
   type MaterialConfig,
   type CncTool,
