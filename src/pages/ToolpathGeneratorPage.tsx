@@ -97,8 +97,8 @@ import {
 } from "@/lib/intelligent-cam-engine";
 
 type WorkMode = "2d" | "3d";
-type CamMode = "manual" | "automatic" | "voice";
-type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "snaptool" | "intelligent" | "validation" | null;
+type CamMode = "manual" | "automatic" | "voice" | "snaptool";
+type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "intelligent" | "validation" | null;
 
 export default function ToolpathGeneratorPage() {
   // Mode
@@ -647,6 +647,33 @@ export default function ToolpathGeneratorPage() {
     );
   }
 
+  // SnapTool mode
+  if (camMode === "snaptool") {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
+            <Badge variant="default" className="text-[9px] h-5 gap-1"><Crosshair className="h-3 w-3" /> SnapTool</Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
+            <Wrench className="h-4 w-4 mr-1" /> Modo Manual
+          </Button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <SnapToolPanel
+            config={snapToolConfig}
+            onChange={setSnapToolConfig}
+            operations={operations}
+            tools={tools}
+            project={buildProject2D()}
+            customGcode={customGcode}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       {/* ===== HEADER BAR ===== */}
@@ -689,6 +716,14 @@ export default function ToolpathGeneratorPage() {
               </Button>
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate2D} disabled={operations.length === 0}>
                 <AlertTriangle className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={snapToolConfig.enabled ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setCamMode("snaptool")}
+              >
+                <Crosshair className="h-3.5 w-3.5" /> SnapTool
               </Button>
             </>
           )}
@@ -870,11 +905,6 @@ export default function ToolpathGeneratorPage() {
                   <Play className="h-3 w-3" /> Início/Fim
                 </TabButton>
               )}
-              {workMode === "2d" && (
-                <TabButton active={bottomPanel === "snaptool"} onClick={() => handleBottomTabClick("snaptool")}>
-                  <Crosshair className="h-3 w-3" /> SnapTool {snapToolConfig.enabled && <Badge variant="default" className="ml-1 h-4 text-[8px] px-1">ON</Badge>}
-                </TabButton>
-              )}
               {workMode === "2d" && intelligentResult && (
                 <TabButton active={bottomPanel === "intelligent"} onClick={() => handleBottomTabClick("intelligent")}>
                   <Bot className="h-3 w-3" /> Resumo V6
@@ -932,9 +962,6 @@ export default function ToolpathGeneratorPage() {
                     onChange={setCustomGcode}
                     postProcessor={gcodePostProcessor}
                   />
-                )}
-                {bottomPanel === "snaptool" && workMode === "2d" && (
-                  <SnapToolPanel config={snapToolConfig} onChange={setSnapToolConfig} operations={operations} />
                 )}
                 {bottomPanel === "intelligent" && workMode === "2d" && intelligentResult && (
                   <div className="h-full overflow-hidden">
