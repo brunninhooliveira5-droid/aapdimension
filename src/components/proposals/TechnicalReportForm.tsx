@@ -287,7 +287,19 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
           <Save className="h-4 w-4 mr-1" /> Salvar
         </Button>
         {reportId && (
-          <Button variant="outline" onClick={() => generateTechnicalReportPdf({ ...existingReport, ...form }, files)}>
+          <Button variant="outline" onClick={async () => {
+            // Fetch technician signature from profile
+            let techSignatureUrl: string | null = null;
+            if (session?.user?.id) {
+              const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session.user.id).single();
+              techSignatureUrl = profile?.signature_url || null;
+            }
+            generateTechnicalReportPdf(
+              { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+              files,
+              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "" }
+            );
+          }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
         )}
