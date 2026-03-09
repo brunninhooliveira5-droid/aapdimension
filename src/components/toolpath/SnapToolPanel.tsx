@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import snapToolLogo from "@/assets/snaptool-logo.png";
+import snapToolDevice from "@/assets/snaptool-device.png";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
