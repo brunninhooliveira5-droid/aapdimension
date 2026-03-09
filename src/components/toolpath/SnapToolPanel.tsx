@@ -641,8 +641,8 @@ function ConfigSidebar({
     <>
       {/* Activation */}
       <div className="flex items-center justify-between">
-        " style={{ filter: "brightness(0) saturate(100%) invert(35%) sepia(85%) saturate(500%) hue-rotate(190deg) brightness(95%)" }}e="flex items-center gap-2">
-          <img src={snapToolLogo} alt="SnapTool" className="h-5 w-auto dark:invert" />
+        <div className="flex items-center gap-2">
+          <img src={snapToolLogo} alt="SnapTool" className="h-5 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(35%) sepia(85%) saturate(500%) hue-rotate(190deg) brightness(95%)" }} />
           {config.enabled && <Badge variant="default" className="text-[9px] h-5">Ativo</Badge>}
         </div>
         <Switch checked={config.enabled} onCheckedChange={onToggle} />
