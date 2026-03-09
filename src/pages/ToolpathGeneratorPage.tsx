@@ -13,7 +13,7 @@ import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
   BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
   Bot, Wrench, Mic, Upload, FilePlus, Maximize, Minimize,
-  ChevronDown, ChevronUp, PenTool, Play
+  ChevronDown, ChevronUp, PenTool, Play, Crosshair
 } from "lucide-react";
 import { toast } from "sonner";
 
