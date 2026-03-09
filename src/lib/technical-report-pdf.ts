@@ -87,6 +87,8 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
     ? format(new Date(report.attendance_date), "dd/MM/yyyy")
     : format(new Date(), "dd/MM/yyyy");
   addText(dateStr, pageWidth - margin - doc.getTextWidth(dateStr), 18);
+  const statusText = `Status: ${statusLabels[report.status] || report.status || "—"}`;
+  addText(statusText, pageWidth - margin - doc.getTextWidth(statusText), 24);
 
   doc.setTextColor(0, 0, 0);
   y = 33;
