@@ -12,13 +12,13 @@ interface GcodePanelProps {
   customGcode?: CustomGcodeConfig;
 }
 
-export function GcodePanel({ project }: GcodePanelProps) {
+export function GcodePanel({ project, customGcode }: GcodePanelProps) {
   const [postProcessor, setPostProcessor] = useState<PostProcessor>("grbl");
   const [gcode, setGcode] = useState("");
   const [generated, setGenerated] = useState(false);
 
   const handleGenerate = () => {
-    const code = generateGcode(project, postProcessor);
+    const code = generateGcode(project, postProcessor, customGcode);
     setGcode(code);
     setGenerated(true);
   };
