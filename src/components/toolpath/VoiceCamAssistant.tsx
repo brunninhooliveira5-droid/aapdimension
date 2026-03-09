@@ -302,7 +302,7 @@ export function VoiceCamAssistant({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Assistente por Voz</h2>
-          <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-0">
+          <Badge className="bg-primary text-primary-foreground border-0">
             V8
           </Badge>
         </div>
