@@ -12,7 +12,8 @@ import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
-  BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock
+  BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
+  Bot, Wrench
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +33,10 @@ import { Operation3DPanel } from "@/components/toolpath/Operation3DPanel";
 import { Tools3DLibrary } from "@/components/toolpath/Tools3DLibrary";
 import { Simulation3DAdvanced } from "@/components/toolpath/Simulation3DAdvanced";
 import { GcodePanel3D } from "@/components/toolpath/GcodePanel3D";
+
+// V6 Intelligent CAM Components
+import { AutomaticCamWizard } from "@/components/toolpath/AutomaticCamWizard";
+import { IntelligentSummary } from "@/components/toolpath/IntelligentSummary";
 
 // 2D Engine
 import {
@@ -71,11 +76,21 @@ import {
   estimate3DTime,
 } from "@/lib/toolpath-3d-engine";
 
+// V6 Intelligent CAM Engine
+import {
+  type IntelligentCamResult,
+  type QualityLevel,
+  addCamHistoryEntry,
+  saveIntelligentTemplate,
+} from "@/lib/intelligent-cam-engine";
+
 type WorkMode = "2d" | "3d";
+type CamMode = "manual" | "automatic";
 
 export default function ToolpathGeneratorPage() {
   // Mode
   const [workMode, setWorkMode] = useState<WorkMode>("2d");
+  const [camMode, setCamMode] = useState<CamMode>("manual");
   
   // Common state
   const [projectName, setProjectName] = useState("Novo Projeto");
@@ -105,6 +120,12 @@ export default function ToolpathGeneratorPage() {
   const [templateMaterial, setTemplateMaterial] = useState("");
   const [activePassLayer, setActivePassLayer] = useState<number | null>(null);
 
+  // ======================== V6 Intelligent CAM State ========================
+  const [intelligentResult, setIntelligentResult] = useState<IntelligentCamResult | null>(null);
+  const [intelligentQuality, setIntelligentQuality] = useState<QualityLevel>("balanced");
+  const [showSaveIntelligentTemplate, setShowSaveIntelligentTemplate] = useState(false);
+  const [intelligentTemplateName, setIntelligentTemplateName] = useState("");
+
   // ======================== 3D State ========================
   const [model3D, setModel3D] = useState<Model3D | null>(null);
   const [materialBlock, setMaterialBlock] = useState<MaterialBlock3D>({ ...DEFAULT_MATERIAL_BLOCK });
@@ -131,6 +152,7 @@ export default function ToolpathGeneratorPage() {
     setActiveOperationId(null);
     setIssues([]);
     setAutoCamResult(null);
+    setIntelligentResult(null);
     toast.success(`${parsed.length} vetores importados com análise de geometria`);
   }, []);
 
@@ -248,6 +270,63 @@ export default function ToolpathGeneratorPage() {
     localStorage.setItem("cam-templates", JSON.stringify(updated));
   };
 
+  // ======================== V6 Intelligent CAM Handlers ========================
+  const handleIntelligentCamComplete = useCallback((result: IntelligentCamResult, newVectors: SvgVector[]) => {
+    setVectors(newVectors);
+    setOperations(result.operations);
+    setIntelligentResult(result);
+    setIssues([]);
+    setAutoCamResult(null);
+    setCamMode("manual"); // Switch back to manual to show results
+    
+    if (result.operations.length > 0) {
+      setActiveOperationId(result.operations[0].id);
+    }
+    
+    // Add to history
+    if (result.suggestedTool) {
+      addCamHistoryEntry({
+        materialPreset: material.presetId,
+        toolId: result.suggestedTool.id,
+        toolName: result.suggestedTool.name,
+        toolDiameter: result.suggestedTool.diameter,
+        feedXY: result.suggestedTool.feedXY,
+        feedZ: result.suggestedTool.feedZ,
+        spindleRpm: result.suggestedTool.spindleRpm,
+        workType: result.geometryAnalysis.detectedWorkType,
+        quality: intelligentQuality,
+        successful: true,
+      });
+    }
+    
+    toast.success(`CAM Inteligente V6: ${result.operations.length} operações geradas automaticamente!`);
+  }, [material.presetId, intelligentQuality]);
+
+  const handleSaveIntelligentTemplate = () => {
+    if (!intelligentTemplateName || !intelligentResult) return;
+    
+    const tool = intelligentResult.suggestedTool;
+    saveIntelligentTemplate({
+      name: intelligentTemplateName,
+      materialPreset: material.presetId,
+      thickness: material.thickness,
+      toolId: tool?.id || "",
+      toolSettings: tool ? {
+        feedXY: tool.feedXY,
+        feedZ: tool.feedZ,
+        spindleRpm: tool.spindleRpm,
+      } : {},
+      operationDefaults: {},
+      quality: intelligentQuality,
+      workType: intelligentResult.geometryAnalysis.detectedWorkType,
+      notes: "",
+    });
+    
+    setShowSaveIntelligentTemplate(false);
+    setIntelligentTemplateName("");
+    toast.success("Template inteligente salvo!");
+  };
+
   // ======================== 3D Handlers ========================
   const handleAutoCam3D = useCallback(() => {
     if (!model3D) {
@@ -355,6 +434,35 @@ export default function ToolpathGeneratorPage() {
     return estimate3DTime(toolpaths3D);
   }, [toolpaths3D]);
 
+  // ======================== Render ========================
+  
+  // If in automatic mode for 2D, show the wizard
+  if (camMode === "automatic" && workMode === "2d") {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
+            <Badge variant="default" className="text-[9px] h-5 bg-gradient-to-r from-purple-500 to-pink-500 border-0">
+              V6 Automático
+            </Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCamMode("manual")}>
+            <Wrench className="h-4 w-4 mr-1" /> Modo Manual
+          </Button>
+        </div>
+        <div className="flex-1">
+          <AutomaticCamWizard
+            onComplete={handleIntelligentCamComplete}
+            onCancel={() => setCamMode("manual")}
+            tools={tools}
+            customPresets={customPresets}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col gap-2">
       {/* Header */}
@@ -362,10 +470,10 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
           <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">
-            V5
+            V6
           </Badge>
           
-          {/* Mode Toggle */}
+          {/* Dimension Mode Toggle */}
           <ToggleGroup type="single" value={workMode} onValueChange={(v) => v && setWorkMode(v as WorkMode)} className="h-7">
             <ToggleGroupItem value="2d" className="h-7 text-xs px-3 gap-1">
               <FileImage className="h-3 w-3" /> 2D
@@ -389,7 +497,17 @@ export default function ToolpathGeneratorPage() {
         <div className="flex gap-1.5 flex-wrap">
           {workMode === "2d" ? (
             <>
-              <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white border-0"
+              {/* V6 Automatic Mode Button */}
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 text-xs gap-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                onClick={() => setCamMode("automatic")}
+              >
+                <Bot className="h-3.5 w-3.5" /> CAM Inteligente
+              </Button>
+              
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
                 onClick={handleAutoCam2D} disabled={vectors.length === 0}>
                 <Wand2 className="h-3.5 w-3.5" /> Auto CAM
               </Button>
@@ -449,17 +567,30 @@ export default function ToolpathGeneratorPage() {
       )}
 
       {/* Auto-CAM summary (2D mode) */}
-      {workMode === "2d" && autoCamResult && (
+      {workMode === "2d" && autoCamResult && !intelligentResult && (
         <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/30 text-xs">
           <Sparkles className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
           <span className="text-primary">
-            Auto-CAM V5{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
+            Auto-CAM V4{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
             {autoCamResult.summary.islands} ilhas, {autoCamResult.summary.innerContours} int.,
             {autoCamResult.summary.outerContours} ext., {autoCamResult.summary.openPaths} abertos
             {activePreset && isMetal(activePreset.category) && " | ⚡ Estratégias avançadas"}
             {(activePreset as any)?.coolantRequired && " | 💧 Refrigeração"}
           </span>
           <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={() => setAutoCamResult(null)}>✕</Button>
+        </div>
+      )}
+
+      {/* V6 Intelligent CAM summary (2D mode) */}
+      {workMode === "2d" && intelligentResult && (
+        <div className="flex items-center gap-2 px-2 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-md border border-purple-500/30 text-xs">
+          <Bot className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+          <span className="text-primary">
+            CAM Inteligente V6: {intelligentResult.operations.length} operações | 
+            {intelligentResult.timeEstimate.total.toFixed(1)} min estimados |
+            {intelligentResult.alerts.filter(a => a.type === "warning").length} avisos
+          </span>
+          <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={() => setIntelligentResult(null)}>✕</Button>
         </div>
       )}
 
@@ -560,6 +691,11 @@ export default function ToolpathGeneratorPage() {
                     <TabsTrigger value="operations" className="text-xs h-6">Operações</TabsTrigger>
                     <TabsTrigger value="simulation" className="text-xs h-6">Simulação</TabsTrigger>
                     <TabsTrigger value="gcode" className="text-xs h-6">G-Code</TabsTrigger>
+                    {workMode === "2d" && intelligentResult && (
+                      <TabsTrigger value="intelligent" className="text-xs h-6 gap-1">
+                        <Bot className="h-3 w-3" /> Resumo V6
+                      </TabsTrigger>
+                    )}
                     {workMode === "2d" && (
                       <TabsTrigger value="validation" className="text-xs h-6">
                         Validação {issues.length > 0 && <Badge variant="destructive" className="ml-1 h-4 text-[8px] px-1">{issues.length}</Badge>}
@@ -606,6 +742,20 @@ export default function ToolpathGeneratorPage() {
                       <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
                     )}
                   </TabsContent>
+
+                  {/* V6 Intelligent Summary Tab */}
+                  {workMode === "2d" && intelligentResult && (
+                    <TabsContent value="intelligent" className="flex-1 overflow-hidden">
+                      <IntelligentSummary
+                        result={intelligentResult}
+                        material={material}
+                        preset={activePreset}
+                        quality={intelligentQuality}
+                        onRegenerate={() => setCamMode("automatic")}
+                        onSaveTemplate={() => setShowSaveIntelligentTemplate(true)}
+                      />
+                    </TabsContent>
+                  )}
                   
                   {workMode === "2d" && (
                     <TabsContent value="validation" className="flex-1 overflow-auto px-2 pb-2">
@@ -709,6 +859,32 @@ export default function ToolpathGeneratorPage() {
           </div>
           <DialogFooter>
             <Button size="sm" onClick={handleSaveTemplate} disabled={!templateName}>Salvar Template</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save Intelligent Template Dialog */}
+      <Dialog open={showSaveIntelligentTemplate} onOpenChange={setShowSaveIntelligentTemplate}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Salvar Template Inteligente</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Nome do Template</Label>
+              <Input 
+                value={intelligentTemplateName} 
+                onChange={(e) => setIntelligentTemplateName(e.target.value)} 
+                placeholder="Ex: MDF 15mm Alta Qualidade" 
+                className="h-8 text-xs" 
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              O template salva: material, ferramenta recomendada, qualidade e configurações automáticas.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button size="sm" onClick={handleSaveIntelligentTemplate} disabled={!intelligentTemplateName}>
+              Salvar Template
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
