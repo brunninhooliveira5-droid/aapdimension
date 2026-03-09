@@ -145,10 +145,10 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
     drawSectionTitle("REGISTROS FOTOGRÁFICOS");
     for (const photo of photos) {
       try {
-        checkPage(55);
+        checkPage(75);
         const img = await loadImage(photo.file_path);
-        const maxW = contentWidth / 2;
-        const maxH = 45;
+        const maxW = contentWidth * 0.7;
+        const maxH = 65;
         const ratio = Math.min(maxW / img.width, maxH / img.height);
         const w = img.width * ratio;
         const h = img.height * ratio;
