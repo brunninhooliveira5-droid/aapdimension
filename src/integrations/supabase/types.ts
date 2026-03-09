@@ -5524,6 +5524,7 @@ export type Database = {
       technical_report_files: {
         Row: {
           created_at: string
+          description: string
           file_name: string
           file_path: string
           file_size: number
@@ -5536,6 +5537,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string
           file_name: string
           file_path: string
           file_size?: number
@@ -5548,6 +5550,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string
           file_name?: string
           file_path?: string
           file_size?: number
