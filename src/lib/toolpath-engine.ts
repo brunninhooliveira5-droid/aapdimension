@@ -1334,13 +1334,22 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
   const sortedOps = [...project.operations].filter((o) => o.enabled).sort((a, b) => a.order - b.order);
 
   let lastToolId = "";
+  let lastSnapSlot: number | undefined;
   let toolNumber = 0;
 
   for (const op of sortedOps) {
     const tool = project.tools.find((t) => t.id === op.toolId);
     if (!tool) continue;
 
-    if (op.toolId !== lastToolId) {
+    // SnapTool tool change logic
+    if (snapToolConfig?.enabled && op.snapToolSlot !== undefined) {
+      const slot = snapToolConfig.slots.find(s => s.slotNumber === op.snapToolSlot && s.active);
+      if (slot && op.snapToolSlot !== lastSnapSlot) {
+        lines.push(...generateSnapToolChange(slot, snapToolConfig, postProcessor));
+        lastSnapSlot = op.snapToolSlot;
+        lastToolId = op.toolId;
+      }
+    } else if (op.toolId !== lastToolId) {
       toolNumber++;
       if (lastToolId !== "") {
         lines.push(...TOOL_CHANGE[postProcessor](toolNumber, tool.name));
