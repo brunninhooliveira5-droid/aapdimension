@@ -519,7 +519,7 @@ export default function ToolpathGeneratorPage() {
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
           <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">
-            V6
+            V8
           </Badge>
           
           {/* Dimension Mode Toggle */}
