@@ -64,6 +64,8 @@ import {
   type MachiningTemplate,
   type AutoCamResult,
   type MaterialPreset,
+  type CustomGcodeConfig,
+  type PostProcessor,
 } from "@/lib/toolpath-engine";
 
 // 3D Engine
