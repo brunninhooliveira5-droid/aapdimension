@@ -870,6 +870,10 @@ export default function ToolpathGeneratorPage() {
                   <Play className="h-3 w-3" /> Início/Fim
                 </TabButton>
               )}
+              {workMode === "2d" && (
+                <TabButton active={bottomPanel === "snaptool"} onClick={() => handleBottomTabClick("snaptool")}>
+                  <Crosshair className="h-3 w-3" /> SnapTool {snapToolConfig.enabled && <Badge variant="default" className="ml-1 h-4 text-[8px] px-1">ON</Badge>}
+                </TabButton>
               {workMode === "2d" && intelligentResult && (
                 <TabButton active={bottomPanel === "intelligent"} onClick={() => handleBottomTabClick("intelligent")}>
                   <Bot className="h-3 w-3" /> Resumo V6
