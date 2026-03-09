@@ -1,72 +1,44 @@
 
 
-# Comandos Iniciais e Finais do Programa CNC
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-## Resumo
+### Resumo
 
-Adicionar ao Gerador de Percurso uma configuração para Start G-code e End G-code personalizados, com presets por pós-processador, checkbox para ativar/desativar, e visualização separada no G-code gerado.
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-## Arquitetura
+### Alteracoes
 
-### 1. Tipos e Dados (`src/lib/toolpath-engine.ts`)
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-- Criar interface `CustomGcodeConfig` com campos: `useCustomStartEnd: boolean`, `startGcode: string`, `endGcode: string`
-- Criar `DEFAULT_START_GCODE` e `DEFAULT_END_GCODE` como `Record<PostProcessor, string>` com presets para cada pós-processador (Mach3, GRBL, DDCS, LinuxCNC) baseados nos HEADERS/FOOTERS atuais, mas em formato multi-linha editável
-- Adicionar `customGcode?: CustomGcodeConfig` ao `ToolpathProject`
-- Modificar `generateGcode()` para aceitar um parâmetro opcional `customGcode` e, quando ativo, usar os comandos personalizados no lugar dos HEADERS/FOOTERS padrão
-- Separar visualmente no G-code gerado com comentários: `(=== INÍCIO DO PROGRAMA ===)`, `(=== OPERAÇÕES ===)`, `(=== FIM DO PROGRAMA ===)`
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-### 2. Novo Componente (`src/components/toolpath/StartEndGcodePanel.tsx`)
+#### 2. Editar limite de sub-usuarios (max_members)
 
-Painel com:
-- **Checkbox** "Usar comandos iniciais e finais personalizados"
-- **Select** para carregar preset do pós-processador selecionado
-- **Textarea** "Start G-code" com placeholder e exemplos
-- **Textarea** "End G-code" com placeholder e exemplos
-- **Botões de preset**: Mach3, GRBL, DDCS, LinuxCNC (preenchem automaticamente)
-- **Select de nível**: "Projeto Atual", "Template", "Global" (salva em localStorage)
-- Prioridade: Projeto > Template > Global
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-### 3. Integração na Página (`src/pages/ToolpathGeneratorPage.tsx`)
+#### 3. Personificar sub-usuarios
 
-- Adicionar estado `customGcode` com valores padrão
-- Criar nova aba no painel inferior chamada "Início/Fim" (ao lado de operations, simulation, gcode)
-- Passar `customGcode` para `GcodePanel` e para `generateGcode()`
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
 
-### 4. Modificação do GcodePanel (`src/components/toolpath/GcodePanel.tsx`)
+### Arquivos Modificados
 
-- Receber `customGcode` como prop
-- Passar para `generateGcode()` na geração
-- No preview do G-code, aplicar highlighting visual (cores distintas para blocos início/operações/fim) usando spans com classes CSS
+| Arquivo | Mudanca |
+|---|---|
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
 
-### 5. Persistência
+### Fluxo
 
-- **Global**: `localStorage` key `dimension-gcode-start-end-global`
-- **Template**: incluir `customGcode` no objeto `MachiningTemplate` ao salvar
-- **Projeto**: estado local do componente
-
-## Presets Padrão
-
-```text
-GRBL Start:    $H / G90 G21 G17 / M03 S12000 / G4 P2
-GRBL End:      M05 / G0 Z10 / G0 X0 Y0 / M2
-
-Mach3 Start:   % / O0001 / G90 G94 G21 / G17 / M03 S12000 / G4 P2
-Mach3 End:     M05 / G28 G91 Z0 / G28 X0 Y0 / M30 / %
-
-DDCS Start:    % / G90 G21 G17 / M03 S12000 / G4 P2
-DDCS End:      M05 / G0 Z10 / G0 X0 Y0 / M30 / %
-
-LinuxCNC Start: % / G90 G94 G21 G17 / G40 G49 G80 / M03 S12000 / G4 P2
-LinuxCNC End:   M05 / G53 G0 Z0 / G53 G0 X0 Y0 / M2 / %
-```
-
-## Arquivos Modificados
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/lib/toolpath-engine.ts` | Interface `CustomGcodeConfig`, presets, modificar `generateGcode()` |
-| `src/components/toolpath/StartEndGcodePanel.tsx` | **Novo** - UI de configuração |
-| `src/components/toolpath/GcodePanel.tsx` | Receber e usar `customGcode` |
-| `src/pages/ToolpathGeneratorPage.tsx` | Estado, nova aba "Início/Fim", integração |
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 

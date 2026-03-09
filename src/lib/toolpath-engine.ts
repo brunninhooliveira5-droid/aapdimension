@@ -238,6 +238,26 @@ export interface ToolpathProject {
 
 export type PostProcessor = "mach3" | "grbl" | "ddcs" | "linuxcnc";
 
+export interface CustomGcodeConfig {
+  useCustomStartEnd: boolean;
+  startGcode: string;
+  endGcode: string;
+}
+
+export const DEFAULT_START_GCODE: Record<PostProcessor, string> = {
+  grbl: "$H\nG90 G21 G17\nM03 S12000\nG4 P2",
+  mach3: "%\nO0001\nG90 G94 G21\nG17\nM03 S12000\nG4 P2",
+  ddcs: "%\nG90 G21 G17\nM03 S12000\nG4 P2",
+  linuxcnc: "%\nG90 G94 G21 G17\nG40 G49 G80\nM03 S12000\nG4 P2",
+};
+
+export const DEFAULT_END_GCODE: Record<PostProcessor, string> = {
+  grbl: "M05\nG0 Z10\nG0 X0 Y0\nM2",
+  mach3: "M05\nG28 G91 Z0\nG28 X0 Y0\nM30\n%",
+  ddcs: "M05\nG0 Z10\nG0 X0 Y0\nM30\n%",
+  linuxcnc: "M05\nG53 G0 Z0\nG53 G0 X0 Y0\nM2\n%",
+};
+
 export interface MachiningTemplate {
   id: string;
   name: string;
@@ -245,6 +265,7 @@ export interface MachiningTemplate {
   material: MaterialConfig;
   tools: CncTool[];
   defaultOperations: Partial<ToolpathOperation>[];
+  customGcode?: CustomGcodeConfig;
   createdAt: string;
 }
 
@@ -1211,8 +1232,19 @@ function generateLeadIn(lead: LeadSettings, pt: [number, number], nextPt: [numbe
   return lines;
 }
 
-export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor): string {
-  const lines: string[] = [...HEADERS[postProcessor]];
+export function generateGcode(project: ToolpathProject, postProcessor: PostProcessor, customGcode?: CustomGcodeConfig): string {
+  const lines: string[] = [];
+
+  // Start block
+  if (customGcode?.useCustomStartEnd && customGcode.startGcode.trim()) {
+    lines.push(`(=== INÍCIO DO PROGRAMA ===)`);
+    lines.push(...customGcode.startGcode.split("\n").filter(l => l.trim()));
+    lines.push(`(=== FIM INÍCIO ===)`);
+  } else {
+    lines.push(...HEADERS[postProcessor]);
+  }
+
+  lines.push("");
   const preset = getPresetById(project.material.presetId);
 
   lines.push(`(Project: ${project.name})`);
@@ -1341,7 +1373,15 @@ export function generateGcode(project: ToolpathProject, postProcessor: PostProce
     lines.push("");
   }
 
-  lines.push(...FOOTERS[postProcessor]);
+  // End block
+  if (customGcode?.useCustomStartEnd && customGcode.endGcode.trim()) {
+    lines.push(`(=== FIM DO PROGRAMA ===)`);
+    lines.push(...customGcode.endGcode.split("\n").filter(l => l.trim()));
+    lines.push(`(=== FIM ===)`);
+  } else {
+    lines.push(...FOOTERS[postProcessor]);
+  }
+
   return lines.join("\n");
 }
 

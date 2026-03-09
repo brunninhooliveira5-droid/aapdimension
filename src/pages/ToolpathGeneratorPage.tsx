@@ -13,7 +13,7 @@ import {
   Save, FolderOpen, Wand2, AlertTriangle, AlertCircle, CheckCircle2,
   BookTemplate, Layers as LayersIcon, Sparkles, Box, FileImage, Clock,
   Bot, Wrench, Mic, Upload, FilePlus, Maximize, Minimize,
-  ChevronDown, ChevronUp, PenTool
+  ChevronDown, ChevronUp, PenTool, Play
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ import { ToolLibrary } from "@/components/toolpath/ToolLibrary";
 import { OperationPanel } from "@/components/toolpath/OperationPanel";
 import { OperationsList } from "@/components/toolpath/OperationsList";
 import { GcodePanel } from "@/components/toolpath/GcodePanel";
+import { StartEndGcodePanel } from "@/components/toolpath/StartEndGcodePanel";
 import { Simulation3D } from "@/components/toolpath/Simulation3D";
 
 // 3D Components
@@ -63,6 +64,8 @@ import {
   type MachiningTemplate,
   type AutoCamResult,
   type MaterialPreset,
+  type CustomGcodeConfig,
+  type PostProcessor,
 } from "@/lib/toolpath-engine";
 
 // 3D Engine
@@ -92,7 +95,7 @@ import {
 
 type WorkMode = "2d" | "3d";
 type CamMode = "manual" | "automatic" | "voice";
-type BottomPanel = "operations" | "simulation" | "gcode" | "intelligent" | "validation" | null;
+type BottomPanel = "operations" | "simulation" | "gcode" | "start-end" | "intelligent" | "validation" | null;
 
 export default function ToolpathGeneratorPage() {
   // Mode
@@ -139,6 +142,12 @@ export default function ToolpathGeneratorPage() {
   const [templateName, setTemplateName] = useState("");
   const [templateMaterial, setTemplateMaterial] = useState("");
   const [activePassLayer, setActivePassLayer] = useState<number | null>(null);
+  const [customGcode, setCustomGcode] = useState<CustomGcodeConfig>({
+    useCustomStartEnd: false,
+    startGcode: "",
+    endGcode: "",
+  });
+  const [gcodePostProcessor, setGcodePostProcessor] = useState<PostProcessor>("grbl");
 
   // ======================== V6 Intelligent CAM State ========================
   const [intelligentResult, setIntelligentResult] = useState<IntelligentCamResult | null>(null);
@@ -847,6 +856,11 @@ export default function ToolpathGeneratorPage() {
               <TabButton active={bottomPanel === "gcode"} onClick={() => handleBottomTabClick("gcode")}>
                 G-Code
               </TabButton>
+              {workMode === "2d" && (
+                <TabButton active={bottomPanel === "start-end"} onClick={() => handleBottomTabClick("start-end")}>
+                  <Play className="h-3 w-3" /> Início/Fim
+                </TabButton>
+              )}
               {workMode === "2d" && intelligentResult && (
                 <TabButton active={bottomPanel === "intelligent"} onClick={() => handleBottomTabClick("intelligent")}>
                   <Bot className="h-3 w-3" /> Resumo V6
@@ -892,11 +906,18 @@ export default function ToolpathGeneratorPage() {
                 {bottomPanel === "gcode" && (
                   <div className="p-2">
                     {workMode === "2d" ? (
-                      <GcodePanel project={buildProject2D()} />
+                      <GcodePanel project={buildProject2D()} customGcode={customGcode} />
                     ) : (
                       <GcodePanel3D project={buildProject3D()} timeEstimate={timeEstimate3D} />
                     )}
                   </div>
+                )}
+                {bottomPanel === "start-end" && workMode === "2d" && (
+                  <StartEndGcodePanel
+                    config={customGcode}
+                    onChange={setCustomGcode}
+                    postProcessor={gcodePostProcessor}
+                  />
                 )}
                 {bottomPanel === "intelligent" && workMode === "2d" && intelligentResult && (
                   <div className="h-full overflow-hidden">
