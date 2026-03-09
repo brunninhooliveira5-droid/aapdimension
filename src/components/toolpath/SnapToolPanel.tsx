@@ -12,14 +12,14 @@ import { Separator } from "@/components/ui/separator";
 import {
   Crosshair, Plus, Trash2, Save, FolderOpen, AlertTriangle, Wrench,
   ToggleLeft, Download, Upload, Sparkles, CheckCircle2, AlertCircle,
-  FileText, ArrowRight, Info
+  FileText, ArrowRight, Info, ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
-  SnapToolConfig, SnapToolSlot, ToolpathOperation, ToolpathProject,
+  SnapToolConfig, SnapToolSlot, SnapToolSafetyConfig, ToolpathOperation, ToolpathProject,
   CncTool, CustomGcodeConfig, PostProcessor
 } from "@/lib/toolpath-engine";
-import { generateGcode, FILE_EXTENSIONS } from "@/lib/toolpath-engine";
+import { generateGcode, FILE_EXTENSIONS, DEFAULT_SNAPTOOL_SAFETY } from "@/lib/toolpath-engine";
 
 // ── Types ──
 
@@ -790,6 +790,73 @@ function ConfigSidebar({
             </CardContent>
           </Card>
 
+          {/* Safety Config */}
+          <Card className="border-border">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" /> Segurança na Troca
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px]">Exigir confirmação do operador</Label>
+                <Switch
+                  checked={config.safety?.enabled ?? true}
+                  onCheckedChange={v => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), enabled: v })}
+                />
+              </div>
+              {(config.safety?.enabled ?? true) && (
+                <>
+                  <div>
+                    <Label className="text-[10px]">Comando de pausa</Label>
+                    <Select
+                      value={config.safety?.pauseCommand ?? "M0"}
+                      onValueChange={v => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), pauseCommand: v })}
+                    >
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="M0">M0 (Parada obrigatória)</SelectItem>
+                        <SelectItem value="M1">M1 (Parada opcional)</SelectItem>
+                        <SelectItem value="custom">Personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {config.safety?.pauseCommand === "custom" && (
+                    <div>
+                      <Label className="text-[10px]">Comando personalizado</Label>
+                      <Input
+                        value={config.safety?.pauseCommand === "custom" ? "" : config.safety?.pauseCommand}
+                        onChange={e => updateField("safety", { ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY), pauseCommand: e.target.value })}
+                        className="h-7 text-xs" placeholder="Ex: M0 (pausa)"
+                      />
+                    </div>
+                  )}
+                  <Separator />
+                  <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Momentos da pausa</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { key: "pauseAfterRelease" as const, label: "Após devolver ferramenta atual" },
+                      { key: "pauseAfterPickup" as const, label: "Após pegar nova ferramenta" },
+                      { key: "pauseBeforeProbing" as const, label: "Antes do probing" },
+                      { key: "pauseAfterProbing" as const, label: "Após o probing" },
+                    ].map(item => (
+                      <div key={item.key} className="flex items-center justify-between">
+                        <Label className="text-[10px]">{item.label}</Label>
+                        <Switch
+                          checked={config.safety?.[item.key] ?? DEFAULT_SNAPTOOL_SAFETY[item.key]}
+                          onCheckedChange={v => updateField("safety", {
+                            ...(config.safety ?? DEFAULT_SNAPTOOL_SAFETY),
+                            [item.key]: v,
+                          })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Summary */}
           <Card className="border-border">
             <CardHeader className="pb-1 pt-3 px-3">
@@ -803,6 +870,7 @@ function ConfigSidebar({
                 <p>Probe: <span className="text-foreground font-medium">X{config.probeX} Y{config.probeY}</span></p>
                 <p>Altura segura: <span className="text-foreground font-medium">{config.safeZ}mm</span></p>
                 {config.autoProbe && <p className="text-primary">✓ Probing automático ativo</p>}
+                {config.safety?.enabled && <p className="text-primary">✓ Confirmação do operador ativa ({config.safety.pauseCommand})</p>}
               </div>
             </CardContent>
           </Card>
@@ -853,7 +921,7 @@ function extractToolNumbers(gcode: string): number[] {
   return Array.from(tools).sort((a, b) => a - b);
 }
 
-/** Generate a full tool change block: release current → move to new → clamp → probe */
+/** Generate a full tool change block with safety pauses */
 function generateFullToolChange(
   fromToolNum: number,
   toToolNum: number,
@@ -862,6 +930,8 @@ function generateFullToolChange(
   config: SnapToolConfig,
 ): string[] {
   const lines: string[] = [];
+  const safety = config.safety ?? DEFAULT_SNAPTOOL_SAFETY;
+  const pauseCmd = safety.pauseCommand || "M0";
 
   lines.push(``);
   lines.push(`(========================================)`);
@@ -874,15 +944,21 @@ function generateFullToolChange(
   // 2) Raise to safe Z
   lines.push(`G0 Z${config.safeZ.toFixed(3)} (Altura segura)`);
 
-  // 3) Release current tool — go to current slot position
+  // 3) Release current tool
   if (fromSlot) {
     lines.push(`(--- Soltar T${fromToolNum}: ${fromSlot.name || ""} ---)`);
     lines.push(`G0 X${fromSlot.posX.toFixed(4)} Y${fromSlot.posY.toFixed(4)} (Posição slot T${fromToolNum})`);
     lines.push(`M00 (Soltar ferramenta T${fromToolNum})`);
     lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após soltura)`);
+
+    if (safety.enabled && safety.pauseAfterRelease) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO DO OPERADOR )`);
+      lines.push(`( Ferramenta T${fromToolNum} devolvida. Verifique e pressione START )`);
+      lines.push(`${pauseCmd}`);
+    }
   }
 
-  // 4) Pick new tool — go to new slot position
+  // 4) Pick new tool
   lines.push(`(--- Pegar T${toToolNum}: ${toSlot.name || ""} D${toSlot.diameter}mm ---)`);
   lines.push(`G0 X${toSlot.posX.toFixed(4)} Y${toSlot.posY.toFixed(4)} (Posição slot T${toToolNum})`);
   lines.push(`M00 (Acoplar ferramenta T${toToolNum})`);
@@ -890,8 +966,20 @@ function generateFullToolChange(
   // 5) Raise after clamping
   lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após acoplamento)`);
 
+  if (safety.enabled && safety.pauseAfterPickup) {
+    lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO DO OPERADOR )`);
+    lines.push(`( Ferramenta T${toToolNum} acoplada. Verifique e pressione START )`);
+    lines.push(`${pauseCmd}`);
+  }
+
   // 6) Auto probing
   if (config.autoProbe) {
+    if (safety.enabled && safety.pauseBeforeProbing) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO ANTES DO PROBING )`);
+      lines.push(`( Confirmar posicionamento e pressionar START )`);
+      lines.push(`${pauseCmd}`);
+    }
+
     lines.push(`(--- Probing automático ---)`);
     lines.push(`G0 X${config.probeX.toFixed(4)} Y${config.probeY.toFixed(4)} (Posição probe)`);
     lines.push(`G38.2 Z-50 F${config.probeFeedRate} (Probe descida)`);
@@ -901,6 +989,12 @@ function generateFullToolChange(
       lines.push(`G10 L20 P1 Z0 (Zeramento probe)`);
     }
     lines.push(`G0 Z${config.safeZ.toFixed(3)} (Subir após probe)`);
+
+    if (safety.enabled && safety.pauseAfterProbing) {
+      lines.push(`( SNAPTOOL - AGUARDANDO CONFIRMACAO APOS PROBING )`);
+      lines.push(`( Probing concluído. Pressione START para continuar )`);
+      lines.push(`${pauseCmd}`);
+    }
   }
 
   lines.push(`(=== FIM TROCA T${toToolNum} ===)`);
