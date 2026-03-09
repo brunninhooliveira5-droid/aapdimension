@@ -143,6 +143,13 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
     }
   }, [existingReport]);
 
+  // Load existing client signature image
+  useEffect(() => {
+    if (existingReport?.client_signature_image_url) {
+      setClientSignatureImage(existingReport.client_signature_image_url);
+    }
+  }, [existingReport]);
+
   useEffect(() => {
     if (existingFiles.length > 0) setFiles(existingFiles);
   }, [existingFiles]);
