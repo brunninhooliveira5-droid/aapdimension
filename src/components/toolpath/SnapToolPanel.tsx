@@ -870,6 +870,7 @@ function ConfigSidebar({
                 <p>Probe: <span className="text-foreground font-medium">X{config.probeX} Y{config.probeY}</span></p>
                 <p>Altura segura: <span className="text-foreground font-medium">{config.safeZ}mm</span></p>
                 {config.autoProbe && <p className="text-primary">✓ Probing automático ativo</p>}
+                {config.safety?.enabled && <p className="text-primary">✓ Confirmação do operador ativa ({config.safety.pauseCommand})</p>}
               </div>
             </CardContent>
           </Card>
