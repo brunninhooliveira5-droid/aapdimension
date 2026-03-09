@@ -784,6 +784,10 @@ export default function ToolpathGeneratorPage() {
                 onSelectVector={handleSelectVector} onImportSvg={handleImportSvg}
                 onSelectAll={() => setSelectedVectorIds(vectors.map((v) => v.id))}
                 onDeselectAll={() => setSelectedVectorIds([])}
+                onDeleteVectors={handleDeleteVectors}
+                onGroupVectors={handleGroupVectors}
+                onUngroupVectors={handleUngroupVectors}
+                onCreateToolpathFromSelection={handleCreateToolpathFromSelection}
               />
             ) : (
               <Model3DPanel model={model3D} materialBlock={materialBlock} onModelChange={setModel3D} onMaterialBlockChange={setMaterialBlock} />
