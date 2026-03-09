@@ -67,6 +67,8 @@ import {
   type MaterialPreset,
   type CustomGcodeConfig,
   type PostProcessor,
+  type SnapToolConfig,
+  DEFAULT_SNAPTOOL_CONFIG,
 } from "@/lib/toolpath-engine";
 
 // 3D Engine
