@@ -204,6 +204,11 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ["technical-report-files", reportId] });
   };
 
+  const updateFileDescription = async (fileId: string, description: string) => {
+    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, description } : f)));
+    await supabase.from("technical_report_files").update({ description }).eq("id", fileId);
+  };
+
   const updateField = (key: string, value: any) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const toggleChecklist = (index: number) => {
@@ -420,18 +425,24 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
                     />
                   </div>
                   {files.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {files.map((f: any) => (
-                        <div key={f.id} className="relative border rounded-lg overflow-hidden group">
+                        <div key={f.id} className="relative border rounded-lg overflow-hidden group flex gap-3 p-2">
                           {f.mime_type?.startsWith("image/") ? (
-                            <img src={f.file_path} alt={f.file_name} className="h-24 w-full object-cover" />
+                            <img src={f.file_path} alt={f.file_name} className="h-20 w-20 rounded object-cover shrink-0" />
                           ) : (
-                            <div className="h-24 flex items-center justify-center bg-muted">
+                            <div className="h-20 w-20 rounded flex items-center justify-center bg-muted shrink-0">
                               <FileDown className="h-6 w-6 text-muted-foreground" />
                             </div>
                           )}
-                          <div className="p-1.5">
-                            <p className="text-[10px] truncate">{f.file_name}</p>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-[10px] truncate font-medium">{f.file_name}</p>
+                            <Input
+                              placeholder="Descrição da foto/arquivo..."
+                              value={f.description || ""}
+                              onChange={(e) => updateFileDescription(f.id, e.target.value)}
+                              className="h-7 text-xs"
+                            />
                           </div>
                           <button
                             onClick={() => deleteFile(f.id)}

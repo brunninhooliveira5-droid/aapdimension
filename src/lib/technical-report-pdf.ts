@@ -151,10 +151,23 @@ export async function generateTechnicalReportPdf(report: any, files?: any[]) {
         const w = img.width * ratio;
         const h = img.height * ratio;
         doc.addImage(img, "JPEG", margin + 2, y, w, h);
-        y += h + 4;
+        y += h + 3;
         doc.setFontSize(7);
+        doc.setFont("helvetica", "italic");
         addText(photo.file_name, margin + 2, y);
-        y += 5;
+        y += 4;
+        if (photo.description) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          const descLines = doc.splitTextToSize(photo.description, contentWidth - 4);
+          descLines.forEach((line: string) => {
+            checkPage(5);
+            addText(line, margin + 2, y);
+            y += 4;
+          });
+        }
+        doc.setFont("helvetica", "normal");
+        y += 3;
       } catch {
         // skip broken images
       }
