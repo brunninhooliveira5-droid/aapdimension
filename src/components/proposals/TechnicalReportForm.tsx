@@ -249,7 +249,9 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="rascunho">Rascunho</SelectItem>
+            <SelectItem value="orcamento">Orçamento</SelectItem>
             <SelectItem value="em_andamento">Em Andamento</SelectItem>
+            <SelectItem value="executado">Executado</SelectItem>
             <SelectItem value="finalizado">Finalizado</SelectItem>
             <SelectItem value="enviado">Enviado</SelectItem>
           </SelectContent>

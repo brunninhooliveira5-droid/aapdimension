@@ -15,14 +15,18 @@ import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
 
 const statusColors: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
+  orcamento: "bg-amber-500/20 text-amber-400",
   em_andamento: "bg-blue-500/20 text-blue-400",
+  executado: "bg-cyan-500/20 text-cyan-400",
   finalizado: "bg-emerald-500/20 text-emerald-400",
   enviado: "bg-purple-500/20 text-purple-400",
 };
 
 const statusLabels: Record<string, string> = {
   rascunho: "Rascunho",
+  orcamento: "Orçamento",
   em_andamento: "Em Andamento",
+  executado: "Executado",
   finalizado: "Finalizado",
   enviado: "Enviado",
 };
@@ -104,7 +108,9 @@ export function TechnicalReportsList() {
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="rascunho">Rascunho</SelectItem>
+            <SelectItem value="orcamento">Orçamento</SelectItem>
             <SelectItem value="em_andamento">Em Andamento</SelectItem>
+            <SelectItem value="executado">Executado</SelectItem>
             <SelectItem value="finalizado">Finalizado</SelectItem>
             <SelectItem value="enviado">Enviado</SelectItem>
           </SelectContent>
