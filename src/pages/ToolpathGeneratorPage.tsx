@@ -219,19 +219,20 @@ export default function ToolpathGeneratorPage() {
       <div className="flex items-center justify-between px-1 flex-wrap gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">Gerador de Percurso</h1>
-          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 text-amber-600">V4</Badge>
+          <Badge variant="outline" className="text-[9px] h-5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 text-primary">V4.2</Badge>
           {activePreset && (
             <Badge variant="outline" className="text-[9px] h-5">
               {activePreset.name}
               {isMetal(activePreset.category) && " ⚡"}
+              {(activePreset as any).coolantRequired && " 💧"}
             </Badge>
           )}
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-44 text-xs" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0"
+          <Button variant="default" size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white border-0"
             onClick={handleAutoCam} disabled={vectors.length === 0}>
-            <Wand2 className="h-3.5 w-3.5" /> Auto CAM
+            <Wand2 className="h-3.5 w-3.5" /> Auto CAM V4
           </Button>
           <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleValidate} disabled={operations.length === 0}>
             <AlertTriangle className="h-3.5 w-3.5" /> Validar
@@ -275,13 +276,14 @@ export default function ToolpathGeneratorPage() {
 
       {/* Auto-CAM summary */}
       {autoCamResult && (
-        <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 rounded-md border border-amber-500/30 text-xs">
-          <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          <span className="text-amber-700 dark:text-amber-400">
-            Auto-CAM{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
+        <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/30 text-xs">
+          <Sparkles className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+          <span className="text-primary">
+            Auto-CAM V4{activePreset ? ` [${activePreset.name}]` : ""}: {autoCamResult.summary.holes} furos, {autoCamResult.summary.pockets} bolsos,
             {autoCamResult.summary.islands} ilhas, {autoCamResult.summary.innerContours} int.,
             {autoCamResult.summary.outerContours} ext., {autoCamResult.summary.openPaths} abertos
-            {activePreset && isMetal(activePreset.category) && " | ⚡ Helicoidal ativo"}
+            {activePreset && isMetal(activePreset.category) && " | ⚡ Estratégias avançadas"}
+            {(activePreset as any)?.coolantRequired && " | 💧 Refrigeração"}
           </span>
           <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={() => setAutoCamResult(null)}>✕</Button>
         </div>
