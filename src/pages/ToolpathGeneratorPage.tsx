@@ -661,6 +661,17 @@ export default function ToolpathGeneratorPage() {
 
       {/* ===== MAIN CONTENT ===== */}
       <div className="flex-1 flex min-h-0">
+        {/* LEFT PANEL TOGGLE */}
+        {!isPreviewExpanded && layoutMode !== "preview" && (
+          <button
+            onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+            className="shrink-0 w-5 flex items-center justify-center border-r border-border bg-muted/30 hover:bg-accent transition-colors"
+            title={leftPanelOpen ? "Recolher vetores" : "Expandir vetores"}
+          >
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${leftPanelOpen ? "-rotate-90" : "rotate-90"}`} />
+          </button>
+        )}
+
         {/* LEFT PANEL */}
         {showLeftPanel && (
           <div className="w-56 border-r border-border overflow-auto shrink-0 p-2 space-y-2">
