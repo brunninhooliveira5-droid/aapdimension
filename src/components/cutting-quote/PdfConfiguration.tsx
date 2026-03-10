@@ -120,6 +120,7 @@ export function PdfConfiguration() {
         footer_text: d.footer_text || "",
         show_watermark: d.show_watermark ?? false,
         watermark_url: d.watermark_url || "",
+        pix_qr_image_url: d.pix_qr_image_url || "",
       });
     }
     setLoading(false);
