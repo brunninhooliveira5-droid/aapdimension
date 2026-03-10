@@ -478,6 +478,42 @@ const UserAccessPage = () => {
             </p>
           </div>
         )}
+
+        {/* Operações sub-features */}
+        {sections["controle_producao"] !== "hidden" && (
+          <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <Wrench className="inline w-3 h-3 mr-1" />
+              Sub-controles de Operações
+            </p>
+            {OPERACOES_SUB_FEATURES.map((section) => (
+              <SectionRow
+                key={section.key}
+                section={section}
+                visibility={sections[section.key] ?? "visible"}
+                onChange={(v) => handleVisibilityChange(section.key, v)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Ferramentas sub-features */}
+        {sections["orcamento"] !== "hidden" && (
+          <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <Hammer className="inline w-3 h-3 mr-1" />
+              Sub-controles de Ferramentas
+            </p>
+            {FERRAMENTAS_SUB_FEATURES.map((section) => (
+              <SectionRow
+                key={section.key}
+                section={section}
+                visibility={sections[section.key] ?? "visible"}
+                onChange={(v) => handleVisibilityChange(section.key, v)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bonus Section - only for servico users */}
