@@ -439,6 +439,45 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
     const loadPdfSettings = async () => {
       const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      const isServico = user?.role === "servico";
+
+      // Servico users: use secure RPC to get admin_master's settings (bypasses RLS)
+      if (isServico) {
+        const { data: adminSettings } = await supabase.rpc("get_admin_master_pdf_settings");
+        const { data: adminPixQr } = await supabase.rpc("get_admin_master_pix_qr");
+        if (adminSettings) {
+          const d = adminSettings as any;
+          setPdfSettings({
+            company_name: d.company_name || "",
+            company_phone: d.company_phone || "",
+            company_email: d.company_email || "",
+            company_address: d.company_address || "",
+            company_cep: d.company_cep || "",
+            company_cnpj: d.company_cnpj || "",
+            logo_url: d.logo_url || "",
+            primary_color: d.primary_color || "#1a1a2e",
+            accent_color: d.accent_color || "#e94560",
+            show_material: d.show_material ?? true,
+            show_thickness: d.show_thickness ?? true,
+            show_cutting_value: d.show_cutting_value ?? true,
+            show_material_value: d.show_material_value ?? true,
+            show_delivery: d.show_delivery ?? true,
+            show_date: d.show_date ?? true,
+            show_customer: d.show_customer ?? true,
+            footer_text: d.footer_text || "",
+            show_service_value: d.show_service_value ?? true,
+            label_service_value: d.label_service_value || "Valor de Serviço",
+            show_watermark: d.show_watermark ?? false,
+            watermark_url: d.watermark_url || "",
+            pix_qr_image_url: d.pix_qr_image_url || adminPixQr || "",
+            pix_key: d.pix_key || "",
+            pix_beneficiary: d.pix_beneficiary || "",
+            pix_city: d.pix_city || "",
+          });
+        }
+        return;
+      }
+
       let pdfOwnerId = session.user.id;
 
       if (isSubUser && user?.accountMembership?.accountId) {
@@ -450,11 +489,6 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         if (accountData?.owner_user_id) {
           pdfOwnerId = accountData.owner_user_id;
         }
-      } else if (user?.role === "servico") {
-        const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
-        if (adminId) {
-          pdfOwnerId = adminId;
-        }
       }
 
       const { data } = await supabase
@@ -463,19 +497,12 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         .eq("user_id", pdfOwnerId)
         .maybeSingle();
 
-      // Fetch pix_qr_image_url: try own profile first, fallback to admin_master RPC
-      let profilePixQr = "";
-      if (user?.role === "servico") {
-        const { data: adminPixQr } = await supabase.rpc("get_admin_master_pix_qr");
-        profilePixQr = adminPixQr || "";
-      } else {
-        const { data: ownerProfile } = await supabase
-          .from("profiles")
-          .select("pix_qr_image_url")
-          .eq("id", pdfOwnerId)
-          .maybeSingle();
-        profilePixQr = ownerProfile?.pix_qr_image_url || "";
-      }
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("pix_qr_image_url")
+        .eq("id", pdfOwnerId)
+        .maybeSingle();
+      const profilePixQr = ownerProfile?.pix_qr_image_url || "";
 
       if (data) {
           const d = data as any;
@@ -507,7 +534,6 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             pix_city: d.pix_city || "",
           });
       } else if (profilePixQr) {
-        // No PDF settings saved yet, but profile has PIX QR
         setPdfSettings(prev => ({ ...prev, pix_qr_image_url: profilePixQr }));
       }
     };
