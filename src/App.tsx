@@ -39,6 +39,7 @@ import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
 import AcmPlannerPage from "./pages/AcmPlannerPage";
 import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
+import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 
 const queryClient = new QueryClient();
 
