@@ -122,8 +122,42 @@ export function WorkDiaryPdfConfig() {
             <Label>Logo (opcional)</Label>
             <div className="flex items-center gap-3 mt-1">
               {config.logo_url && (
-                <div className="rounded border border-border p-1" style={{ backgroundColor: config.logo_bg_color || "transparent" }}>
-                  <img src={config.logo_url} alt="Logo" className="h-10" />
+                <div className="rounded border border-border p-1 bg-muted">
+                  <img
+                    src={config.logo_url}
+                    alt="Logo"
+                    className="h-10"
+                    style={config.logo_bg_color ? {
+                      filter: `brightness(0) saturate(100%)`,
+                      WebkitFilter: `brightness(0) saturate(100%)`,
+                    } : undefined}
+                  />
+                  {config.logo_bg_color && (
+                    <div className="relative -mt-10 h-10 overflow-hidden">
+                      <img
+                        src={config.logo_url}
+                        alt="Logo tinted"
+                        className="h-10"
+                        style={{
+                          filter: `brightness(0) saturate(100%)`,
+                          opacity: 0,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {config.logo_url && config.logo_bg_color && (
+                <div className="rounded border border-border p-1" style={{ backgroundColor: config.logo_bg_color }}>
+                  <img
+                    src={config.logo_url}
+                    alt="Logo preview"
+                    className="h-10"
+                    style={{
+                      mixBlendMode: "screen",
+                      filter: "invert(1) brightness(2)",
+                    }}
+                  />
                 </div>
               )}
               <Input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploading} />
@@ -132,34 +166,39 @@ export function WorkDiaryPdfConfig() {
           </div>
           {config.logo_url && (
             <div className="sm:col-span-2">
-              <Label>Cor de fundo da logomarca</Label>
+              <Label>Cor da logomarca</Label>
               <div className="flex items-center gap-3 mt-1">
                 <div className="flex gap-1.5 flex-wrap">
                   {[
-                    { label: "Transparente", value: "" },
+                    { label: "Original", value: "" },
                     { label: "Branco", value: "#ffffff" },
                     { label: "Preto", value: "#000000" },
                     { label: "Azul Escuro", value: "#1e4078" },
-                    { label: "Cinza", value: "#f3f4f6" },
                     { label: "Vermelho", value: "#991b1b" },
                     { label: "Verde", value: "#166534" },
+                    { label: "Dourado", value: "#b8860b" },
                   ].map((c) => (
                     <button
                       key={c.value}
                       onClick={() => update("logo_bg_color", c.value)}
                       className={`h-7 w-7 rounded-full border-2 transition-all ${config.logo_bg_color === c.value ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border"}`}
-                      style={{ backgroundColor: c.value || "transparent", backgroundImage: !c.value ? "linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)" : undefined, backgroundSize: !c.value ? "6px 6px" : undefined, backgroundPosition: !c.value ? "0 0, 3px 3px" : undefined }}
+                      style={{
+                        backgroundColor: c.value || undefined,
+                        backgroundImage: !c.value ? "linear-gradient(135deg, #ff0000 0%, #00ff00 33%, #0000ff 66%, #ff0000 100%)" : undefined,
+                      }}
                       title={c.label}
                     />
                   ))}
                 </div>
                 <Input
                   type="color"
-                  value={config.logo_bg_color || "#ffffff"}
+                  value={config.logo_bg_color || "#1e4078"}
                   onChange={(e) => update("logo_bg_color", e.target.value)}
                   className="w-10 h-8 p-0.5 cursor-pointer"
                 />
               </div>
+            </div>
+          )}
             </div>
           )}
         </CardContent>
