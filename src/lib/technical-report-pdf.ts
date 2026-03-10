@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
 interface SignatureOptions {
   technicianSignatureUrl?: string | null;
   technicianCompany?: string;
+  signatureSize?: number;
 }
 
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
