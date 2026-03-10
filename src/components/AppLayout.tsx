@@ -20,7 +20,7 @@ export function AppLayout() {
 
   return (
     <CalculatorProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <ImpersonationBanner />
         <div className={`min-h-screen flex w-full ${isImpersonating ? "pt-10" : ""}`}>
           <AppSidebar />

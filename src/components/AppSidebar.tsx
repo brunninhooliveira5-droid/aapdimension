@@ -62,7 +62,7 @@ const proMenuItems = [
 export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, session, logout, hasAccess, getSectionVisibility, hasProAccess } = useAuth();
   const { toggleCalculator } = useCalculator();
@@ -119,7 +119,7 @@ export function AppSidebar() {
   const isPro = hasProAccess();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <div
         className="flex items-center justify-center px-4 py-4 border-b border-sidebar-border cursor-pointer"
         onClick={() => navigate("/")}
