@@ -29,12 +29,14 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   let y = 15;
   const cfg = config || {};
   const dateStr = entry.entry_date ? format(new Date(entry.entry_date), "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy");
+  const hc = (cfg.header_color || "30,64,120").split(",").map(Number);
+  const [hR, hG, hB] = [hc[0] || 30, hc[1] || 64, hc[2] || 120];
 
   const checkPage = (n: number) => { if (y + n > ph - 20) { doc.addPage(); y = 15; } };
 
   const sectionTitle = (title: string) => {
     checkPage(12);
-    doc.setFillColor(30, 64, 120);
+    doc.setFillColor(hR, hG, hB);
     doc.rect(m, y, cw, 7, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
@@ -69,7 +71,7 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   };
 
   // === HEADER ===
-  doc.setFillColor(30, 64, 120);
+  doc.setFillColor(hR, hG, hB);
   doc.rect(0, 0, pw, 28, "F");
 
   let headerX = m;
@@ -250,10 +252,32 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
     y += 8;
   }
 
-  // === FOOTER ===
+  // === FOOTER & WATERMARK ===
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+
+    // Watermark
+    if (cfg.show_watermark && cfg.watermark_text) {
+      const opacity = (cfg.watermark_opacity || 15) / 100;
+      doc.saveGraphicsState();
+      // @ts-ignore - setGState exists in jsPDF
+      const gState = new (doc as any).GState({ opacity });
+      // @ts-ignore
+      doc.setGState(gState);
+      doc.setTextColor(hR, hG, hB);
+      doc.setFontSize(48);
+      doc.setFont("helvetica", "bold");
+      // Rotate and center
+      const cx = pw / 2;
+      const cy = ph / 2;
+      const text = cfg.watermark_text;
+      const tw = doc.getTextWidth(text);
+      doc.text(text, cx - tw / 2, cy, { angle: 30 });
+      doc.restoreGraphicsState();
+    }
+
+    // Footer
     doc.setFontSize(7);
     doc.setTextColor(130);
     const footerText = cfg.footer_text
