@@ -5539,6 +5539,51 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_report_clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       technical_report_files: {
         Row: {
           created_at: string
@@ -5589,12 +5634,82 @@ export type Database = {
           },
         ]
       }
+      technical_report_pdf_config: {
+        Row: {
+          city: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          footer_text: string | null
+          header_color: string | null
+          id: string
+          logo_bg_color: string | null
+          logo_url: string | null
+          phone: string | null
+          role_title: string | null
+          show_checklist: boolean | null
+          show_logo: boolean | null
+          show_photos: boolean | null
+          show_signature: boolean | null
+          show_watermark: boolean | null
+          updated_at: string
+          user_id: string
+          watermark_image_url: string | null
+          watermark_opacity: number | null
+        }
+        Insert: {
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          footer_text?: string | null
+          header_color?: string | null
+          id?: string
+          logo_bg_color?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          role_title?: string | null
+          show_checklist?: boolean | null
+          show_logo?: boolean | null
+          show_photos?: boolean | null
+          show_signature?: boolean | null
+          show_watermark?: boolean | null
+          updated_at?: string
+          user_id: string
+          watermark_image_url?: string | null
+          watermark_opacity?: number | null
+        }
+        Update: {
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          footer_text?: string | null
+          header_color?: string | null
+          id?: string
+          logo_bg_color?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          role_title?: string | null
+          show_checklist?: boolean | null
+          show_logo?: boolean | null
+          show_photos?: boolean | null
+          show_signature?: boolean | null
+          show_watermark?: boolean | null
+          updated_at?: string
+          user_id?: string
+          watermark_image_url?: string | null
+          watermark_opacity?: number | null
+        }
+        Relationships: []
+      }
       technical_reports: {
         Row: {
           attendance_date: string
           checklist: Json
           client_city: string
           client_company: string
+          client_id: string | null
           client_name: string
           client_signature: string | null
           client_signature_image_url: string | null
@@ -5625,6 +5740,7 @@ export type Database = {
           checklist?: Json
           client_city?: string
           client_company?: string
+          client_id?: string | null
           client_name?: string
           client_signature?: string | null
           client_signature_image_url?: string | null
@@ -5655,6 +5771,7 @@ export type Database = {
           checklist?: Json
           client_city?: string
           client_company?: string
+          client_id?: string | null
           client_name?: string
           client_signature?: string | null
           client_signature_image_url?: string | null
@@ -5680,7 +5797,15 @@ export type Database = {
           time_start?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "technical_reports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "technical_report_clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_files: {
         Row: {
