@@ -2,8 +2,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical } from "lucide-react";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ToolsPanelProps {
   open: boolean;
@@ -11,16 +13,61 @@ interface ToolsPanelProps {
 }
 
 const productionTools = [
-  { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento" },
-  { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte" },
+  { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", sectionKey: "orcamento" },
+  { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", sectionKey: "ferr_plano_corte" },
 ];
 
 const labTools = [
-  { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d" },
-  { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas" },
-  { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm" },
-  { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso" },
+  { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d", sectionKey: "ferr_slicer_3d" },
+  { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", sectionKey: "ferr_gerador_caixas" },
+  { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", sectionKey: "ferr_planificador_acm" },
+  { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso", sectionKey: "ferr_gerador_percurso" },
 ];
+
+function ToolButton({ tab, onClick }: { tab: typeof productionTools[0]; onClick: (route: string) => void }) {
+  const { getSectionVisibility } = useAuth();
+  const visibility = getSectionVisibility(tab.sectionKey);
+
+  if (visibility === "hidden") return null;
+
+  if (visibility === "locked") {
+    return (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              disabled
+              className="justify-between h-10 text-sm font-normal opacity-50 cursor-not-allowed w-full"
+            >
+              <span className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+                {tab.label}
+              </span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">
+            Acesso bloqueado pelo administrador
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => onClick(tab.route)}
+      className="justify-between h-10 text-sm font-normal hover:bg-accent w-full"
+    >
+      <span className="flex items-center gap-2">
+        <tab.icon className="h-4 w-4 text-muted-foreground" />
+        {tab.label}
+      </span>
+      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+    </Button>
+  );
+}
 
 export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
   const navigate = useNavigate();
@@ -44,18 +91,7 @@ export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
           {/* Production tools */}
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1">Produção</p>
           {productionTools.map((tab) => (
-            <Button
-              key={tab.id}
-              variant="ghost"
-              onClick={() => handleClick(tab.route)}
-              className="justify-between h-10 text-sm font-normal hover:bg-accent"
-            >
-              <span className="flex items-center gap-2">
-                <tab.icon className="h-4 w-4 text-muted-foreground" />
-                {tab.label}
-              </span>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
+            <ToolButton key={tab.id} tab={tab} onClick={handleClick} />
           ))}
 
           <Separator className="my-2" />
@@ -70,18 +106,7 @@ export function ToolsPanel({ open, onOpenChange }: ToolsPanelProps) {
 
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-1">
             {labTools.map((tab) => (
-              <Button
-                key={tab.id}
-                variant="ghost"
-                onClick={() => handleClick(tab.route)}
-                className="justify-between h-10 text-sm font-normal hover:bg-accent w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <tab.icon className="h-4 w-4 text-muted-foreground" />
-                  {tab.label}
-                </span>
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
+              <ToolButton key={tab.id} tab={tab} onClick={handleClick} />
             ))}
           </div>
 
