@@ -66,6 +66,13 @@ export function SavedQuotes() {
   const [sendingPayback, setSendingPayback] = useState(false);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [materialFilter, setMaterialFilter] = useState("todos");
+  // Receipt dialog
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [receiptQuote, setReceiptQuote] = useState<SavedQuote | null>(null);
+  const [receiptPaymentMethod, setReceiptPaymentMethod] = useState("");
+  const [receiptClientName, setReceiptClientName] = useState("");
+  const [receiptNotes, setReceiptNotes] = useState("");
+  const [generatingReceipt, setGeneratingReceipt] = useState(false);
 
   const uniqueMaterials = useMemo(() => {
     const mats = new Set(quotes.map((q) => q.material));
