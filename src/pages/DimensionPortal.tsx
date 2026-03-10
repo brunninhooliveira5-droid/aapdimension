@@ -64,6 +64,7 @@ export default function DimensionPortal() {
               <ProposalsPage />
             </Suspense>
           </TabsContent>
+          <TabsContent value="contratos"><DimensionContracts /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
         </Tabs>
       </div>
