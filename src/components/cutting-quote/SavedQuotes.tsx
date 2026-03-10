@@ -18,6 +18,7 @@ import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { generatePaymentReceiptPdf } from "@/lib/payment-receipt-pdf";
 
 interface SavedQuote {
   id: string;
