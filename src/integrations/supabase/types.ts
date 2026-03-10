@@ -6054,10 +6054,12 @@ export type Database = {
         Row: {
           activity_type: string
           contracted_service: string | null
+          contracted_services: Json | null
           created_at: string
           description: string | null
           entry_date: string
           entry_number: number
+          execution_deadline: string | null
           execution_process: string | null
           id: string
           impediment_reason: string | null
@@ -6066,6 +6068,7 @@ export type Database = {
           materials_used: string | null
           observations: string | null
           pending_reason: string | null
+          required_materials: Json | null
           responsible: string | null
           status: string
           team: string | null
@@ -6079,10 +6082,12 @@ export type Database = {
         Insert: {
           activity_type?: string
           contracted_service?: string | null
+          contracted_services?: Json | null
           created_at?: string
           description?: string | null
           entry_date?: string
           entry_number?: number
+          execution_deadline?: string | null
           execution_process?: string | null
           id?: string
           impediment_reason?: string | null
@@ -6091,6 +6096,7 @@ export type Database = {
           materials_used?: string | null
           observations?: string | null
           pending_reason?: string | null
+          required_materials?: Json | null
           responsible?: string | null
           status?: string
           team?: string | null
@@ -6104,10 +6110,12 @@ export type Database = {
         Update: {
           activity_type?: string
           contracted_service?: string | null
+          contracted_services?: Json | null
           created_at?: string
           description?: string | null
           entry_date?: string
           entry_number?: number
+          execution_deadline?: string | null
           execution_process?: string | null
           id?: string
           impediment_reason?: string | null
@@ -6116,6 +6124,7 @@ export type Database = {
           materials_used?: string | null
           observations?: string | null
           pending_reason?: string | null
+          required_materials?: Json | null
           responsible?: string | null
           status?: string
           team?: string | null
