@@ -435,7 +435,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
 
   // Load PDF settings (sub-users inherit from account owner)
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user || !user?.role) return;
 
     const loadPdfSettings = async () => {
       const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
