@@ -170,7 +170,7 @@ export function TechnicalReportsList() {
                               .order("sort_order"),
                             supabase
                               .from("profiles")
-                              .select("signature_url, company, signature_size")
+                              .select("signature_url, company, signature_size, signature_offset_x, signature_offset_y, signature_zoom")
                               .eq("id", r.created_by)
                               .single(),
                           ]);
@@ -178,6 +178,9 @@ export function TechnicalReportsList() {
                             technicianSignatureUrl: profile?.signature_url || null,
                             technicianCompany: profile?.company || "",
                             signatureSize: (profile as any)?.signature_size || 35,
+                            signatureOffsetX: (profile as any)?.signature_offset_x || 0,
+                            signatureOffsetY: (profile as any)?.signature_offset_y || 0,
+                            signatureZoom: (profile as any)?.signature_zoom || 100,
                           });
                         }}
                         title="Gerar PDF"

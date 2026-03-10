@@ -206,12 +206,15 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   if (signatureOpts?.technicianSignatureUrl) {
     try {
       const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      const zoom = (signatureOpts?.signatureZoom || 100) / 100;
       const sigMaxW = sigColWidth - 10;
       const sigMaxH = signatureOpts?.signatureSize || 35;
-      const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height);
+      const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height) * zoom;
       const sigW = sigImg.width * sigRatio;
       const sigH = sigImg.height * sigRatio;
-      doc.addImage(sigImg, "PNG", sigLeftX + 5, y, sigW, sigH);
+      const offX = (signatureOpts?.signatureOffsetX || 0) * 0.3;
+      const offY = (signatureOpts?.signatureOffsetY || 0) * 0.3;
+      doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, y + offY, sigW, sigH);
       y += sigH + 2;
       techSigDrawn = true;
     } catch {
