@@ -68,6 +68,35 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState("");
   const [clientSignatureImage, setClientSignatureImage] = useState<string | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
+
+  // Load clients
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase
+      .from("technical_report_clients")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("name")
+      .then(({ data }) => setClients((data as any[]) || []));
+  }, [session?.user?.id]);
+
+  const handleClientSelect = (clientId: string) => {
+    if (clientId === "none") {
+      setForm((p) => ({ ...p, client_id: undefined, client_name: "", client_company: "", client_city: "" }));
+      return;
+    }
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setForm((p) => ({
+        ...p,
+        client_id: client.id,
+        client_name: client.name,
+        client_company: client.company || "",
+        client_city: `${client.city || ""}${client.state ? ` - ${client.state}` : ""}`.trim(),
+      }));
+    }
+  };
 
   const handleClientSignatureSave = async (dataUrl: string) => {
     setClientSignatureImage(dataUrl);
