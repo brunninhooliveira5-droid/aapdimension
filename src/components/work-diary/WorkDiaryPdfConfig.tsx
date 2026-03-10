@@ -70,6 +70,7 @@ export function WorkDiaryPdfConfig() {
           watermark_opacity: (data as any).watermark_opacity ?? 15,
           show_watermark: (data as any).show_watermark ?? false,
           header_color: (data as any).header_color || "30,64,120",
+          watermark_image_url: (data as any).watermark_image_url || "",
         });
       }
     });
