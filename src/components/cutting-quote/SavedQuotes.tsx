@@ -479,8 +479,31 @@ export function SavedQuotes() {
 
     let finalY = (doc as any).lastAutoTable?.finalY || yPos + 80;
 
-    // PIX QR Code
-    if (pixQrUrl) {
+    // PIX QR Code — dynamic first, fallback to static image
+    const hasDynamicPix = s.pix_key?.trim() && s.pix_beneficiary?.trim() && s.pix_city?.trim();
+
+    if (hasDynamicPix) {
+      try {
+        const pixPayload = generatePixPayload({
+          key: s.pix_key!.trim(),
+          beneficiary: s.pix_beneficiary!.trim(),
+          city: s.pix_city!.trim(),
+          amount: q.total_price || 0,
+        });
+        const qrDataUrl = await QRCode.toDataURL(pixPayload, { width: 200, margin: 1 });
+        finalY += 8;
+        doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+        doc.text("Pagamento via PIX:", 14, finalY);
+        finalY += 4;
+        doc.addImage(qrDataUrl, "PNG", 14, finalY, 40, 40);
+        doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+        const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        doc.text(`Valor: ${fmtBRL(q.total_price || 0)}`, 58, finalY + 12);
+        doc.text(`Beneficiário: ${s.pix_beneficiary!.trim()}`, 58, finalY + 18);
+        doc.text(`Chave: ${s.pix_key!.trim()}`, 58, finalY + 24);
+        finalY += 44;
+      } catch { /* skip dynamic pix */ }
+    } else if (pixQrUrl) {
       const qrData = await loadImage(pixQrUrl);
       if (qrData) {
         finalY += 8;
