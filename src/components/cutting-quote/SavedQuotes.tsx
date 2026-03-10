@@ -18,6 +18,8 @@ import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
+import { generatePixPayload } from "@/lib/pix-payload";
 import { generatePaymentReceiptPdf } from "@/lib/payment-receipt-pdf";
 
 interface SavedQuote {
