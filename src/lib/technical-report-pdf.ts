@@ -196,6 +196,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   const sigRightX = margin + sigColWidth + 10;
   const sigStartY = y;
 
+  let techSigH = 15; // default fallback, used to constrain client sig
   // --- Technician Signature ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -221,6 +222,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const offX = (signatureOpts?.signatureOffsetX || 0) * 0.3;
       const offY = (signatureOpts?.signatureOffsetY || 0) * 0.3;
       doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, y + offY, sigW, sigH);
+      techSigH = sigH; // store for client signature constraint
       y += sigH + 2;
       techSigDrawn = true;
     } catch {
@@ -263,7 +265,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     try {
       const clientImg = await loadImage(report.client_signature_image_url);
       const cSigMaxW = sigColWidth - 10;
-      const cSigMaxH = signatureOpts?.signatureSize || 35;
+      const cSigMaxH = techSigH; // match technician signature height
       const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
       const cW = clientImg.width * cRatio;
       const cH = clientImg.height * cRatio;
