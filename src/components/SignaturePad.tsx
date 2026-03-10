@@ -9,7 +9,7 @@ interface Props {
   initialImage?: string | null;
 }
 
-export function SignaturePad({ onSave, width = 400, height = 150, initialImage }: Props) {
+export function SignaturePad({ onSave, width = 500, height = 180, initialImage }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
