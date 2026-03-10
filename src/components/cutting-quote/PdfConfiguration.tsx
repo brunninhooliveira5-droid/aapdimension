@@ -33,6 +33,7 @@ export interface PdfSettings {
   footer_text: string;
   show_watermark: boolean;
   watermark_url: string;
+  pix_qr_image_url: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
