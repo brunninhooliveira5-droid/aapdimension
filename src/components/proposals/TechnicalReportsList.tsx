@@ -188,8 +188,7 @@ export function TechnicalReportsList() {
                             signatureZoom: (profile as any)?.signature_zoom || 100,
                             signatureDarkness: (profile as any)?.signature_darkness || 100,
                           }, (pdfCfg as any) || undefined);
-                        }}
-                        }}
+                        }
                         title="Gerar PDF"
                       >
                         <FileDown className="h-4 w-4" />
