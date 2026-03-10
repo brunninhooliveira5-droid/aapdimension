@@ -971,7 +971,6 @@ const SettingsPage = () => {
             </div>
           </div>
         </div>
-        </div>
 
         {/* QR Code PIX */}
         <div className="border-t border-border pt-4 space-y-3">
