@@ -102,7 +102,7 @@ export function ReceiptPdfConfig() {
       document_title: documentTitle, subtitle_text: subtitleText, default_template_type: defaultTemplateType,
       show_logo: showLogo, show_footer: showFooter, show_observations: showObservations,
       show_emitter_signature: showEmitterSig, show_party_signature: showPartySig, show_watermark: showWatermark,
-      enable_pix_qr: enablePixQr, show_installment_info: showInstallmentInfo,
+      enable_pix_qr: enablePixQr, pix_qr_image_url: pixQrImageUrl, show_installment_info: showInstallmentInfo,
       show_remaining_balance: showRemainingBalance, show_history_summary: showHistorySummary,
     };
     if (settingsId) {
