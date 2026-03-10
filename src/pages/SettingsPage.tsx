@@ -41,6 +41,9 @@ const SettingsPage = () => {
   const [signatureDarkness, setSignatureDarkness] = useState(100);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+  const pixQrInputRef = useRef<HTMLInputElement>(null);
+  const [pixQrImageUrl, setPixQrImageUrl] = useState<string | null>(null);
+  const [uploadingPixQr, setUploadingPixQr] = useState(false);
 
   // Load signature on mount
   useEffect(() => {
