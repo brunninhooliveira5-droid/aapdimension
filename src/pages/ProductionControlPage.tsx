@@ -12,7 +12,7 @@ import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContex
 import { useAuth } from "@/contexts/AuthContext";
 
 const allTabs = [
-  { value: "overview", label: "Visão Geral", icon: LayoutDashboard, permKey: null },
+  { value: "overview", label: "Visão Geral", icon: LayoutDashboard, permKey: "pc_visao_geral" },
   { value: "tasks", label: "Tarefas", icon: ListTodo, permKey: "pc_tarefas" },
   { value: "pendencies", label: "Pendências", icon: AlertTriangle, permKey: "pc_pendencias" },
   { value: "schedule", label: "Cronograma", icon: CalendarDays, permKey: "pc_cronograma" },
@@ -23,18 +23,20 @@ const allTabs = [
 
 export default function ProductionControlPage() {
   const [activeTab, setActiveTab] = useState("overview");
-  const { user } = useAuth();
+  const { user, getSectionVisibility } = useAuth();
 
-  // Admin and admin_master see all tabs; sub-users respect pc_* permissions
-  const isAdmin = user?.role === "admin_master" || user?.accountMembership?.memberRole === "client_admin";
+  // Admin_master sees all; others respect section access + account member permissions
+  const isAdmin = user?.role === "admin_master";
   const memberPermissions = user?.accountMembership?.permissions as Record<string, boolean> | undefined;
 
   const visibleTabs = allTabs.filter((tab) => {
-    if (!tab.permKey) return true; // overview always visible
     if (isAdmin) return true;
-    if (!memberPermissions) return true; // no restrictions
-    // If the key is not explicitly set, default to true (visible)
-    return memberPermissions[tab.permKey] !== false;
+    // Check section access (granular control from admin)
+    const sectionVis = getSectionVisibility(tab.permKey);
+    if (sectionVis === "hidden") return false;
+    // Also check account member permissions
+    if (memberPermissions && memberPermissions[tab.permKey] === false) return false;
+    return true;
   });
 
   return (

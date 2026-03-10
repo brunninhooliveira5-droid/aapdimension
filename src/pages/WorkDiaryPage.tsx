@@ -5,10 +5,25 @@ import { WorkDiaryList } from "@/components/work-diary/WorkDiaryList";
 import { WorkDiaryForm } from "@/components/work-diary/WorkDiaryForm";
 import { WorkDiaryPdfConfig } from "@/components/work-diary/WorkDiaryPdfConfig";
 import { WorkDiaryClients } from "@/components/work-diary/WorkDiaryClients";
+import { useAuth } from "@/contexts/AuthContext";
+
+const allTabs = [
+  { value: "list", label: "Registros", icon: ClipboardList, permKey: "diario_registros" },
+  { value: "form", label: "Novo Registro", icon: Plus, permKey: "diario_novo" },
+  { value: "clients", label: "Clientes", icon: Users, permKey: "diario_clientes" },
+  { value: "pdf-config", label: "Configuração de PDF", icon: Settings, permKey: "diario_config_pdf" },
+];
 
 export default function WorkDiaryPage() {
   const [activeTab, setActiveTab] = useState("list");
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const { user, getSectionVisibility } = useAuth();
+  const isAdmin = user?.role === "admin_master";
+
+  const visibleTabs = allTabs.filter((t) => {
+    if (isAdmin) return true;
+    return getSectionVisibility(t.permKey) !== "hidden";
+  });
 
   const handleEdit = (id: string) => {
     setEditingEntryId(id);
@@ -34,18 +49,11 @@ export default function WorkDiaryPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
-          <TabsTrigger value="list" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <ClipboardList className="h-3.5 w-3.5" /> Registros
-          </TabsTrigger>
-          <TabsTrigger value="form" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Plus className="h-3.5 w-3.5" /> {editingEntryId ? "Editar Registro" : "Novo Registro"}
-          </TabsTrigger>
-          <TabsTrigger value="clients" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Users className="h-3.5 w-3.5" /> Clientes
-          </TabsTrigger>
-          <TabsTrigger value="pdf-config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Settings className="h-3.5 w-3.5" /> Configuração de PDF
-          </TabsTrigger>
+          {visibleTabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <t.icon className="h-3.5 w-3.5" /> {t.value === "form" && editingEntryId ? "Editar Registro" : t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="list">

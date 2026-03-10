@@ -5,9 +5,23 @@ import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContex
 import { ProductionSheetsList } from "@/components/dimension/documentation/ProductionSheetsList";
 import { ProductionTemplatesManager } from "@/components/dimension/documentation/ProductionTemplatesManager";
 import { ProductionPdfConfig } from "@/components/dimension/documentation/ProductionPdfConfig";
+import { useAuth } from "@/contexts/AuthContext";
+
+const allTabs = [
+  { value: "fichas", label: "Fichas de Produção", icon: FileText, permKey: "fichas_producao" },
+  { value: "templates", label: "Templates", icon: Layers, permKey: "fichas_templates" },
+  { value: "config", label: "Configurar PDF", icon: Settings, permKey: "fichas_config_pdf" },
+];
 
 export default function OperacoesFichasPage() {
   const [tab, setTab] = useState("fichas");
+  const { user, getSectionVisibility } = useAuth();
+  const isAdmin = user?.role === "admin_master";
+
+  const visibleTabs = allTabs.filter((t) => {
+    if (isAdmin) return true;
+    return getSectionVisibility(t.permKey) !== "hidden";
+  });
 
   return (
     <ModuleProvider config={productionControlConfig}>
@@ -18,15 +32,11 @@ export default function OperacoesFichasPage() {
         </div>
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-transparent p-0 gap-1">
-            <TabsTrigger value="fichas" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <FileText className="h-3.5 w-3.5" />Fichas de Produção
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Layers className="h-3.5 w-3.5" />Templates
-            </TabsTrigger>
-            <TabsTrigger value="config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Settings className="h-3.5 w-3.5" />Configurar PDF
-            </TabsTrigger>
+            {visibleTabs.map((t) => (
+              <TabsTrigger key={t.value} value={t.value} className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <t.icon className="h-3.5 w-3.5" />{t.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
           <TabsContent value="fichas"><ProductionSheetsList /></TabsContent>
           <TabsContent value="templates"><ProductionTemplatesManager /></TabsContent>

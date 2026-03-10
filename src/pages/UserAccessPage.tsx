@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory, Wrench, Hammer, LayoutGrid, Box, PackageOpen, PanelTop, Route, BookOpen } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory, Wrench, Hammer, LayoutGrid, Box, PackageOpen, PanelTop, Route, BookOpen, LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, RotateCcw, Target, BarChart3, ArrowDownUp, BookmarkCheck, Bell, Truck, ClipboardCheck, FileText, FilePlus, Settings2, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,54 @@ const OPERACOES_SUB_FEATURES: SectionConfig[] = [
   { key: "op_fichas", label: "Fichas de Operação", icon: Eye },
   { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
   { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
+];
+
+// Sub-tabs within Controle de Produção
+const PC_SUB_TABS: SectionConfig[] = [
+  { key: "pc_visao_geral", label: "Visão Geral", icon: LayoutDashboard },
+  { key: "pc_tarefas", label: "Tarefas", icon: ListTodo },
+  { key: "pc_pendencias", label: "Pendências", icon: AlertTriangle },
+  { key: "pc_cronograma", label: "Cronograma", icon: CalendarDays },
+  { key: "pc_producao", label: "Produção", icon: Factory },
+  { key: "pc_rotinas", label: "Rotinas", icon: RotateCcw },
+  { key: "pc_metas", label: "Metas", icon: Target },
+];
+
+// Sub-tabs within Controle de Estoque
+const ESTOQUE_SUB_TABS: SectionConfig[] = [
+  { key: "est_dashboard", label: "Visão Geral", icon: BarChart3 },
+  { key: "est_itens", label: "Itens", icon: Package },
+  { key: "est_movimentacoes", label: "Movimentações", icon: ArrowDownUp },
+  { key: "est_entradas_saidas", label: "Entradas/Saídas", icon: ArrowDownUp },
+  { key: "est_reservas", label: "Reservas", icon: BookmarkCheck },
+  { key: "est_alertas", label: "Alertas", icon: Bell },
+  { key: "est_fornecedores", label: "Fornecedores", icon: Truck },
+  { key: "est_inventario", label: "Inventário", icon: ClipboardCheck },
+  { key: "est_logs", label: "Logs", icon: FileText },
+  { key: "est_configuracoes", label: "Configurações", icon: Settings },
+];
+
+// Sub-tabs within Fichas de Operação
+const FICHAS_SUB_TABS: SectionConfig[] = [
+  { key: "fichas_producao", label: "Fichas de Produção", icon: FileText },
+  { key: "fichas_templates", label: "Templates", icon: Layers },
+  { key: "fichas_config_pdf", label: "Configurar PDF", icon: Settings2 },
+];
+
+// Sub-tabs within Diário de Obra
+const DIARIO_SUB_TABS: SectionConfig[] = [
+  { key: "diario_registros", label: "Registros", icon: ClipboardCheck },
+  { key: "diario_novo", label: "Novo Registro", icon: Plus },
+  { key: "diario_clientes", label: "Clientes", icon: Users },
+  { key: "diario_config_pdf", label: "Configuração de PDF", icon: Settings2 },
+];
+
+// Sub-tabs within Comprovante de Pagamento
+const COMPROVANTES_SUB_TABS: SectionConfig[] = [
+  { key: "comp_lista", label: "Comprovantes", icon: ClipboardCheck },
+  { key: "comp_novo", label: "Novo Comprovante", icon: FilePlus },
+  { key: "comp_historico", label: "Histórico", icon: History },
+  { key: "comp_config_pdf", label: "Configuração de PDF", icon: Settings2 },
 ];
 
 const FERRAMENTAS_SUB_FEATURES: SectionConfig[] = [
@@ -142,7 +190,12 @@ const UserAccessPage = () => {
       initial[s.key] = saved[s.key] ?? "hidden";
     });
     OPERACOES_SUB_FEATURES.forEach((s) => {
-      initial[s.key] = saved[s.key] ?? (allowedByRole.includes("controle_producao") ? "visible" : "hidden");
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes(s.key) ? "visible" : "hidden");
+    });
+    // Sub-tabs of each operation module
+    const allOpSubTabs = [...PC_SUB_TABS, ...ESTOQUE_SUB_TABS, ...FICHAS_SUB_TABS, ...DIARIO_SUB_TABS, ...COMPROVANTES_SUB_TABS];
+    allOpSubTabs.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? "visible";
     });
     FERRAMENTAS_SUB_FEATURES.forEach((s) => {
       initial[s.key] = saved[s.key] ?? (allowedByRole.includes("orcamento") ? "visible" : "hidden");
@@ -480,7 +533,7 @@ const UserAccessPage = () => {
         )}
 
         {/* Operações sub-features */}
-        {sections["controle_producao"] !== "hidden" && (
+        {(sections["controle_producao"] !== "hidden" || sections["op_estoque"] !== "hidden" || sections["op_fichas"] !== "hidden" || sections["op_diario"] !== "hidden" || sections["op_comprovantes"] !== "hidden") && (
           <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               <Wrench className="inline w-3 h-3 mr-1" />
@@ -494,6 +547,71 @@ const UserAccessPage = () => {
                 onChange={(v) => handleVisibilityChange(section.key, v)}
               />
             ))}
+
+            {/* Sub-tabs: Controle de Produção */}
+            {sections["controle_producao"] !== "hidden" && (
+              <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <Factory className="inline w-3 h-3 mr-1" />
+                  Abas de Controle de Produção
+                </p>
+                {PC_SUB_TABS.map((s) => (
+                  <SectionRow key={s.key} section={s} visibility={sections[s.key] ?? "visible"} onChange={(v) => handleVisibilityChange(s.key, v)} />
+                ))}
+              </div>
+            )}
+
+            {/* Sub-tabs: Controle de Estoque */}
+            {sections["op_estoque"] !== "hidden" && (
+              <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <Package className="inline w-3 h-3 mr-1" />
+                  Abas de Controle de Estoque
+                </p>
+                {ESTOQUE_SUB_TABS.map((s) => (
+                  <SectionRow key={s.key} section={s} visibility={sections[s.key] ?? "visible"} onChange={(v) => handleVisibilityChange(s.key, v)} />
+                ))}
+              </div>
+            )}
+
+            {/* Sub-tabs: Fichas de Operação */}
+            {sections["op_fichas"] !== "hidden" && (
+              <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <FileText className="inline w-3 h-3 mr-1" />
+                  Abas de Fichas de Operação
+                </p>
+                {FICHAS_SUB_TABS.map((s) => (
+                  <SectionRow key={s.key} section={s} visibility={sections[s.key] ?? "visible"} onChange={(v) => handleVisibilityChange(s.key, v)} />
+                ))}
+              </div>
+            )}
+
+            {/* Sub-tabs: Diário de Obra */}
+            {sections["op_diario"] !== "hidden" && (
+              <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <BookOpen className="inline w-3 h-3 mr-1" />
+                  Abas de Diário de Obra
+                </p>
+                {DIARIO_SUB_TABS.map((s) => (
+                  <SectionRow key={s.key} section={s} visibility={sections[s.key] ?? "visible"} onChange={(v) => handleVisibilityChange(s.key, v)} />
+                ))}
+              </div>
+            )}
+
+            {/* Sub-tabs: Comprovante de Pagamento */}
+            {sections["op_comprovantes"] !== "hidden" && (
+              <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <Receipt className="inline w-3 h-3 mr-1" />
+                  Abas de Comprovante de Pagamento
+                </p>
+                {COMPROVANTES_SUB_TABS.map((s) => (
+                  <SectionRow key={s.key} section={s} visibility={sections[s.key] ?? "visible"} onChange={(v) => handleVisibilityChange(s.key, v)} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
