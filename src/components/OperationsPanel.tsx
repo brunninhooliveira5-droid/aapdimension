@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Wrench, ChevronRight, Package, FileText, Factory } from "lucide-react";
+import { Wrench, ChevronRight, Package, FileText, Factory, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface OperationsPanelProps {
