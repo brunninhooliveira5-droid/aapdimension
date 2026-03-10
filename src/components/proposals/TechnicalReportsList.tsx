@@ -41,6 +41,7 @@ export function TechnicalReportsList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [subTab, setSubTab] = useState("list");
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["technical-reports"],
