@@ -513,7 +513,7 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
     };
 
     loadPdfSettings();
-  }, [session, user?.accountMembership]);
+  }, [session, user?.accountMembership, user?.role]);
 
   // Load thicknesses for selected material in the quote form
   const [availableThicknesses, setAvailableThicknesses] = useState<{ value: string; label: string; sheet_width: number; sheet_height: number; unit_price: number; speed_factor: number; is_dimension_preset: boolean; dimension_default_factor: number | null }[]>([]);
