@@ -71,7 +71,7 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   };
 
   // === HEADER ===
-  doc.setFillColor(30, 64, 120);
+  doc.setFillColor(hR, hG, hB);
   doc.rect(0, 0, pw, 28, "F");
 
   let headerX = m;
