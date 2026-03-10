@@ -198,9 +198,8 @@ export function WorkDiaryPdfConfig() {
                 />
               </div>
             </div>
-          )}
-            </div>
-          )}
+        </CardContent>
+      </Card>
         </CardContent>
       </Card>
 
