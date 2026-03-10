@@ -462,6 +462,15 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         .select("*")
         .eq("user_id", pdfOwnerId)
         .maybeSingle();
+
+      // Also fetch pix_qr_image_url from profile (centralized config)
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("pix_qr_image_url")
+        .eq("id", pdfOwnerId)
+        .maybeSingle();
+      const profilePixQr = ownerProfile?.pix_qr_image_url || "";
+
       if (data) {
           const d = data as any;
            setPdfSettings({
@@ -486,8 +495,11 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             label_service_value: d.label_service_value || "Valor de Serviço",
             show_watermark: d.show_watermark ?? false,
             watermark_url: d.watermark_url || "",
-            pix_qr_image_url: d.pix_qr_image_url || "",
+            pix_qr_image_url: d.pix_qr_image_url || profilePixQr,
           });
+      } else if (profilePixQr) {
+        // No PDF settings saved yet, but profile has PIX QR
+        setPdfSettings(prev => ({ ...prev, pix_qr_image_url: profilePixQr }));
       }
     };
 
