@@ -33,6 +33,7 @@ import CompanyUsersPage from "./pages/CompanyUsersPage";
 import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
+import WorkDiaryPage from "./pages/WorkDiaryPage";
 import CuttingPlanPage from "./pages/CuttingPlanPage";
 import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
