@@ -547,6 +547,9 @@ export function SavedQuotes() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openReceiptDialog(q)} title="Comprovante de Pagamento">
+                          <Receipt className="w-3.5 h-3.5" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
