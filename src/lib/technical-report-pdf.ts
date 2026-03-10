@@ -315,3 +315,17 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.src = url;
   });
 }
+
+function applyDarknessFilter(img: HTMLImageElement, darkness: number): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.filter = `contrast(${darkness / 100}) brightness(${Math.min(1, 200 / darkness)})`;
+    ctx.drawImage(img, 0, 0);
+    const processed = new Image();
+    processed.onload = () => resolve(processed);
+    processed.src = canvas.toDataURL("image/png");
+  });
+}
