@@ -37,6 +37,11 @@ const ALL_SECTIONS: SectionConfig[] = [
   { key: "boletins", label: "Boletins Técnicos", icon: Newspaper },
   { key: "arquivos", label: "Arquivos", icon: FolderOpen },
   { key: "orcamento", label: "Orçamento de Corte", icon: Calculator },
+  { key: "controle_producao", label: "Controle de Produção", icon: Factory },
+  { key: "op_estoque", label: "Controle de Estoque", icon: Package },
+  { key: "op_fichas", label: "Fichas de Operação", icon: FileText },
+  { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
+  { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
   { key: "gestao_financeira", label: "Gerenciador Financeiro (PRO)", icon: Landmark, isPro: true },
 ];
 
