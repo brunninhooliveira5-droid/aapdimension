@@ -62,6 +62,9 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_watermark: false,
   watermark_url: "",
   pix_qr_image_url: "",
+  pix_key: "",
+  pix_beneficiary: "",
+  pix_city: "",
 };
 
 export function PdfConfiguration() {
