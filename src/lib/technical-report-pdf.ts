@@ -203,7 +203,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     try {
       const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
       const sigMaxW = sigColWidth - 10;
-      const sigMaxH = 20;
+      const sigMaxH = 35;
       const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height);
       const sigW = sigImg.width * sigRatio;
       const sigH = sigImg.height * sigRatio;
