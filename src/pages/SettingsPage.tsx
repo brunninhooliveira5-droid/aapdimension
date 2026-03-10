@@ -890,7 +890,7 @@ const SettingsPage = () => {
                 <Label className="text-xs text-muted-foreground">Preview (simulação no PDF)</Label>
                 <div className="border-2 border-dashed border-border rounded-lg bg-white relative" style={{ width: '100%', maxWidth: 300, height: 120 }}>
                   {/* Linha de referência da assinatura (simula a linha do PDF) */}
-                  <div className="absolute left-3 right-3 border-t-2 border-muted-foreground/50" style={{ bottom: 28 }} />
+                  <div className="absolute left-3 right-3 border-t-2 border-gray-800" style={{ bottom: 28 }} />
                   <span className="absolute left-3 text-[7px] text-muted-foreground/60 select-none font-medium" style={{ bottom: 16 }}>Técnico Responsável</span>
                   <span className="absolute right-3 text-[7px] text-muted-foreground/40 select-none" style={{ bottom: 16 }}>Data: __/__/____</span>
                   
