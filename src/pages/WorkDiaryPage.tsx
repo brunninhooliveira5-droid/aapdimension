@@ -40,6 +40,9 @@ export default function WorkDiaryPage() {
           <TabsTrigger value="form" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Plus className="h-3.5 w-3.5" /> {editingEntryId ? "Editar Registro" : "Novo Registro"}
           </TabsTrigger>
+          <TabsTrigger value="clients" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Users className="h-3.5 w-3.5" /> Clientes
+          </TabsTrigger>
           <TabsTrigger value="pdf-config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Settings className="h-3.5 w-3.5" /> Configuração de PDF
           </TabsTrigger>
@@ -50,6 +53,9 @@ export default function WorkDiaryPage() {
         </TabsContent>
         <TabsContent value="form">
           <WorkDiaryForm entryId={editingEntryId} onSaved={handleSaved} onCancel={() => setActiveTab("list")} />
+        </TabsContent>
+        <TabsContent value="clients">
+          <WorkDiaryClients />
         </TabsContent>
         <TabsContent value="pdf-config">
           <WorkDiaryPdfConfig />
