@@ -295,6 +295,53 @@ export function SavedQuotes() {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const openReceiptDialog = (q: SavedQuote) => {
+    setReceiptQuote(q);
+    setReceiptClientName(q.client_name || "");
+    setReceiptPaymentMethod("");
+    setReceiptNotes("");
+    setReceiptDialogOpen(true);
+  };
+
+  const generateReceipt = async () => {
+    if (!receiptQuote) return;
+    if (!receiptClientName.trim()) { toast.error("Informe o nome do cliente"); return; }
+    if (!receiptPaymentMethod.trim()) { toast.error("Informe a forma de pagamento"); return; }
+    setGeneratingReceipt(true);
+    try {
+      // Load PDF settings (logo, watermark)
+      const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", effectiveUserId || session?.user?.id).maybeSingle();
+      // Load user signature from profile
+      const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session?.user?.id).single();
+
+      const totalPrice = Number(receiptQuote.total_price) || Number(receiptQuote.suggested_sale);
+      const { blob, fileName } = await generatePaymentReceiptPdf(
+        {
+          clientName: receiptClientName,
+          paymentMethod: receiptPaymentMethod,
+          totalPrice,
+          fileName: receiptQuote.file_name,
+          material: receiptQuote.material,
+          thickness: receiptQuote.thickness,
+          date: new Date().toLocaleDateString("pt-BR"),
+          notes: receiptNotes,
+        },
+        pdfSettings as any,
+        profile?.signature_url || null
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Comprovante gerado!");
+      setReceiptDialogOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao gerar comprovante: " + (err.message || ""));
+      console.error(err);
+    }
+    setGeneratingReceipt(false);
+  };
+
   const exportQuotePDF = (q: SavedQuote) => {
     try {
     const doc = new jsPDF();
