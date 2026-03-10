@@ -752,7 +752,7 @@ export function PdfConfiguration() {
       </Card>
       </fieldset>
 
-      {!isSubUser && (
+      {!isReadOnly && (
         <Button onClick={saveSettings} disabled={saving} className="w-full gap-2">
           <Save className="w-4 h-4" />
           {saving ? "Salvando..." : "Salvar Configurações"}
