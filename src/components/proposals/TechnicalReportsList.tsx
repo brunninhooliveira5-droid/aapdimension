@@ -5,12 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Edit, Trash2, FileDown } from "lucide-react";
+import { Plus, Search, FileText, Edit, Trash2, FileDown, Users, Settings2, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { TechnicalReportForm } from "./TechnicalReportForm";
+import { TechnicalReportPdfConfig } from "./TechnicalReportPdfConfig";
+import { TechnicalReportClients } from "./TechnicalReportClients";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
 
 const statusColors: Record<string, string> = {
@@ -38,6 +41,7 @@ export function TechnicalReportsList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [subTab, setSubTab] = useState("list");
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["technical-reports"],
@@ -88,130 +92,144 @@ export function TechnicalReportsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setCreating(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo Relatório
-        </Button>
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nº, cliente, técnico..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="rascunho">Rascunho</SelectItem>
-            <SelectItem value="orcamento">Orçamento</SelectItem>
-            <SelectItem value="em_andamento">Em Andamento</SelectItem>
-            <SelectItem value="executado">Executado</SelectItem>
-            <SelectItem value="finalizado">Finalizado</SelectItem>
-            <SelectItem value="enviado">Enviado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <TabsList className="bg-transparent p-0 gap-1">
+          <TabsTrigger value="list" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <ClipboardList className="h-3.5 w-3.5" /> Relatórios
+          </TabsTrigger>
+          <TabsTrigger value="clients" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Users className="h-3.5 w-3.5" /> Clientes
+          </TabsTrigger>
+          <TabsTrigger value="pdf-config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Settings2 className="h-3.5 w-3.5" /> Config. PDF
+          </TabsTrigger>
+        </TabsList>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p>Nenhum relatório técnico encontrado</p>
-        </div>
-      ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">Nº</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Técnico</TableHead>
-                <TableHead>Equipamento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">#{r.report_number}</TableCell>
-                  <TableCell className="text-sm">
-                    {r.attendance_date ? format(new Date(r.attendance_date), "dd/MM/yyyy") : "-"}
-                  </TableCell>
-                  <TableCell className="text-sm">{r.client_name || "-"}</TableCell>
-                  <TableCell className="text-sm">{r.technician_name || "-"}</TableCell>
-                  <TableCell className="text-sm">{r.equipment_name || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColors[r.status] || ""}>
-                      {statusLabels[r.status] || r.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingId(r.id)} title="Editar">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={async () => {
-                          const [{ data: reportFiles }, { data: profile }, { data: pdfCfg }] = await Promise.all([
-                            supabase
-                              .from("technical_report_files")
-                              .select("*")
-                              .eq("report_id", r.id)
-                              .order("sort_order"),
-                            supabase
-                              .from("profiles")
-                              .select("signature_url, company, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness")
-                              .eq("id", r.created_by)
-                              .single(),
-                            supabase
-                              .from("technical_report_pdf_config")
-                              .select("*")
-                              .eq("user_id", r.created_by)
-                              .single(),
-                          ]);
-                          generateTechnicalReportPdf(r, reportFiles || [], {
-                            technicianSignatureUrl: profile?.signature_url || null,
-                            technicianCompany: profile?.company || "",
-                            signatureSize: (profile as any)?.signature_size || 35,
-                            signatureOffsetX: (profile as any)?.signature_offset_x || 0,
-                            signatureOffsetY: (profile as any)?.signature_offset_y || 0,
-                            signatureZoom: (profile as any)?.signature_zoom || 100,
-                            signatureDarkness: (profile as any)?.signature_darkness || 100,
-                          }, (pdfCfg as any) || undefined);
-                        }}
-                        title="Gerar PDF"
-                      >
-                        <FileDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive"
-                        onClick={() => {
-                          if (confirm("Excluir este relatório?")) deleteMutation.mutate(r.id);
-                        }}
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        <TabsContent value="list">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => setCreating(true)} className="gap-2">
+                <Plus className="h-4 w-4" /> Novo Relatório
+              </Button>
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nº, cliente, técnico..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="rascunho">Rascunho</SelectItem>
+                  <SelectItem value="orcamento">Orçamento</SelectItem>
+                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                  <SelectItem value="executado">Executado</SelectItem>
+                  <SelectItem value="finalizado">Finalizado</SelectItem>
+                  <SelectItem value="enviado">Enviado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p>Nenhum relatório técnico encontrado</p>
+              </div>
+            ) : (
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">Nº</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Técnico</TableHead>
+                      <TableHead>Equipamento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono text-xs">#{r.report_number}</TableCell>
+                        <TableCell className="text-sm">
+                          {r.attendance_date ? format(new Date(r.attendance_date), "dd/MM/yyyy") : "-"}
+                        </TableCell>
+                        <TableCell className="text-sm">{r.client_name || "-"}</TableCell>
+                        <TableCell className="text-sm">{r.technician_name || "-"}</TableCell>
+                        <TableCell className="text-sm">{r.equipment_name || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={statusColors[r.status] || ""}>
+                            {statusLabels[r.status] || r.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => setEditingId(r.id)} title="Editar">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={async () => {
+                                const [{ data: reportFiles }, { data: profile }, { data: pdfCfg }] = await Promise.all([
+                                  supabase.from("technical_report_files").select("*").eq("report_id", r.id).order("sort_order"),
+                                  supabase.from("profiles").select("signature_url, company, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", r.created_by).single(),
+                                  supabase.from("technical_report_pdf_config").select("*").eq("user_id", r.created_by).single(),
+                                ]);
+                                generateTechnicalReportPdf(r, reportFiles || [], {
+                                  technicianSignatureUrl: profile?.signature_url || null,
+                                  technicianCompany: profile?.company || "",
+                                  signatureSize: (profile as any)?.signature_size || 35,
+                                  signatureOffsetX: (profile as any)?.signature_offset_x || 0,
+                                  signatureOffsetY: (profile as any)?.signature_offset_y || 0,
+                                  signatureZoom: (profile as any)?.signature_zoom || 100,
+                                  signatureDarkness: (profile as any)?.signature_darkness || 100,
+                                }, (pdfCfg as any) || undefined);
+                              }}
+                              title="Gerar PDF"
+                            >
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() => {
+                                if (confirm("Excluir este relatório?")) deleteMutation.mutate(r.id);
+                              }}
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="clients">
+          <TechnicalReportClients />
+        </TabsContent>
+
+        <TabsContent value="pdf-config">
+          <TechnicalReportPdfConfig />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
