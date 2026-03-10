@@ -309,10 +309,20 @@ export function SavedQuotes() {
     if (!receiptPaymentMethod.trim()) { toast.error("Informe a forma de pagamento"); return; }
     setGeneratingReceipt(true);
     try {
+      // Resolve PDF owner for servico/sub-users
+      let receiptOwnerId = effectiveUserId || session?.user?.id;
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase.from("accounts").select("owner_user_id").eq("id", user.accountMembership.accountId).single();
+        if (accountData?.owner_user_id) receiptOwnerId = accountData.owner_user_id;
+      } else if (user?.role === "servico") {
+        const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
+        if (adminId) receiptOwnerId = adminId;
+      }
       // Load PDF settings (logo, watermark)
-      const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", effectiveUserId || session?.user?.id).maybeSingle();
+      const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", receiptOwnerId).maybeSingle();
       // Load user signature from profile
-      const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session?.user?.id).single();
+      const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", receiptOwnerId).single();
 
       const totalPrice = Number(receiptQuote.total_price) || Number(receiptQuote.suggested_sale);
       const { blob, fileName } = await generatePaymentReceiptPdf(
@@ -347,13 +357,23 @@ export function SavedQuotes() {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
 
+    // Resolve PDF owner: sub-users inherit from account owner, servico users inherit from admin_master
+    let pdfOwnerId = effectiveUserId || session?.user?.id;
+    const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+    if (isSubUser && user?.accountMembership?.accountId) {
+      const { data: accountData } = await supabase.from("accounts").select("owner_user_id").eq("id", user.accountMembership.accountId).single();
+      if (accountData?.owner_user_id) pdfOwnerId = accountData.owner_user_id;
+    } else if (user?.role === "servico") {
+      const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
+      if (adminId) pdfOwnerId = adminId;
+    }
+
     // Load PDF settings for logo, watermark, PIX QR
-    const uid = effectiveUserId || session?.user?.id;
-    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", uid).maybeSingle();
+    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", pdfOwnerId).maybeSingle();
     const s = (pdfSettings || {}) as any;
 
     // Also fetch pix_qr_image_url from profile (centralized)
-    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", uid).single();
+    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", pdfOwnerId).single();
     const pixQrUrl = s.pix_qr_image_url || profile?.pix_qr_image_url || "";
 
     // Helper to load image as data URL
