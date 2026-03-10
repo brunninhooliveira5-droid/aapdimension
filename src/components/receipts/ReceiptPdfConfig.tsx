@@ -70,6 +70,7 @@ export function ReceiptPdfConfig() {
       setShowObservations(data.show_observations); setShowEmitterSig(data.show_emitter_signature);
       setShowPartySig(data.show_party_signature); setShowWatermark(data.show_watermark);
       setEnablePixQr(data.enable_pix_qr || false);
+      setPixQrImageUrl((data as any).pix_qr_image_url || "");
       setShowInstallmentInfo(data.show_installment_info ?? true);
       setShowRemainingBalance(data.show_remaining_balance ?? true);
       setShowHistorySummary(data.show_history_summary ?? false);
