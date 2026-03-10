@@ -11,13 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save, TrendingUp } from "lucide-react";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save, TrendingUp, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { generatePaymentReceiptPdf } from "@/lib/payment-receipt-pdf";
 
 interface SavedQuote {
   id: string;
@@ -65,6 +66,13 @@ export function SavedQuotes() {
   const [sendingPayback, setSendingPayback] = useState(false);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [materialFilter, setMaterialFilter] = useState("todos");
+  // Receipt dialog
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [receiptQuote, setReceiptQuote] = useState<SavedQuote | null>(null);
+  const [receiptPaymentMethod, setReceiptPaymentMethod] = useState("");
+  const [receiptClientName, setReceiptClientName] = useState("");
+  const [receiptNotes, setReceiptNotes] = useState("");
+  const [generatingReceipt, setGeneratingReceipt] = useState(false);
 
   const uniqueMaterials = useMemo(() => {
     const mats = new Set(quotes.map((q) => q.material));
@@ -287,6 +295,53 @@ export function SavedQuotes() {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const openReceiptDialog = (q: SavedQuote) => {
+    setReceiptQuote(q);
+    setReceiptClientName(q.client_name || "");
+    setReceiptPaymentMethod("");
+    setReceiptNotes("");
+    setReceiptDialogOpen(true);
+  };
+
+  const generateReceipt = async () => {
+    if (!receiptQuote) return;
+    if (!receiptClientName.trim()) { toast.error("Informe o nome do cliente"); return; }
+    if (!receiptPaymentMethod.trim()) { toast.error("Informe a forma de pagamento"); return; }
+    setGeneratingReceipt(true);
+    try {
+      // Load PDF settings (logo, watermark)
+      const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", effectiveUserId || session?.user?.id).maybeSingle();
+      // Load user signature from profile
+      const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session?.user?.id).single();
+
+      const totalPrice = Number(receiptQuote.total_price) || Number(receiptQuote.suggested_sale);
+      const { blob, fileName } = await generatePaymentReceiptPdf(
+        {
+          clientName: receiptClientName,
+          paymentMethod: receiptPaymentMethod,
+          totalPrice,
+          fileName: receiptQuote.file_name,
+          material: receiptQuote.material,
+          thickness: receiptQuote.thickness,
+          date: new Date().toLocaleDateString("pt-BR"),
+          notes: receiptNotes,
+        },
+        pdfSettings as any,
+        profile?.signature_url || null
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Comprovante gerado!");
+      setReceiptDialogOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao gerar comprovante: " + (err.message || ""));
+      console.error(err);
+    }
+    setGeneratingReceipt(false);
+  };
+
   const exportQuotePDF = (q: SavedQuote) => {
     try {
     const doc = new jsPDF();
@@ -492,6 +547,9 @@ export function SavedQuotes() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportQuotePDF(q)} title="Exportar PDF">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openReceiptDialog(q)} title="Comprovante de Pagamento">
+                          <Receipt className="w-3.5 h-3.5" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir">
@@ -670,6 +728,14 @@ export function SavedQuotes() {
                     <Download className="w-4 h-4" />
                     Exportar PDF do Orçamento
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => openReceiptDialog(selectedQuote)}
+                  >
+                    <Receipt className="w-4 h-4" />
+                    Comprovante de Pagamento
+                  </Button>
                 </div>
                 {!selectedQuote.file_path && (
                   <p className="text-[10px] text-muted-foreground">
@@ -759,6 +825,63 @@ export function SavedQuotes() {
               >
                 <TrendingUp className="w-4 h-4" />
                 {sendingPayback ? "Enviando..." : "Enviar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Receipt Dialog */}
+      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Receipt className="w-4 h-4 text-primary" />
+              Comprovante de Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {receiptQuote && (
+              <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+                <p className="font-medium">{receiptQuote.file_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {receiptQuote.material} • {receiptQuote.thickness}
+                </p>
+                <p className="text-sm font-semibold text-primary">
+                  {fmt(Number(receiptQuote.total_price) || Number(receiptQuote.suggested_sale))}
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Nome do Cliente *</Label>
+              <Input value={receiptClientName} onChange={e => setReceiptClientName(e.target.value)} placeholder="Nome do cliente" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Forma de Pagamento *</Label>
+              <Select value={receiptPaymentMethod} onValueChange={setReceiptPaymentMethod}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Observações</Label>
+              <Textarea value={receiptNotes} onChange={e => setReceiptNotes(e.target.value)} placeholder="Observações opcionais..." rows={2} />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              A assinatura cadastrada em Configurações será inserida automaticamente no PDF. O layout usa a logomarca e marca d'água da configuração de PDF do Orçamento.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
+              <Button className="flex-1 gap-2" onClick={generateReceipt} disabled={generatingReceipt}>
+                <Receipt className="w-4 h-4" />
+                {generatingReceipt ? "Gerando..." : "Gerar Comprovante"}
               </Button>
             </div>
           </div>
