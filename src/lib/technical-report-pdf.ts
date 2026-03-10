@@ -21,6 +21,25 @@ interface SignatureOptions {
   signatureDarkness?: number;
 }
 
+interface PdfConfig {
+  company_name?: string;
+  role_title?: string;
+  phone?: string;
+  email?: string;
+  city?: string;
+  logo_url?: string;
+  footer_text?: string;
+  show_logo?: boolean;
+  show_photos?: boolean;
+  show_checklist?: boolean;
+  show_signature?: boolean;
+  show_watermark?: boolean;
+  watermark_opacity?: number;
+  header_color?: string;
+  watermark_image_url?: string;
+  logo_bg_color?: string;
+}
+
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
