@@ -198,17 +198,19 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   drawTextBlock("Observações Finais", report.final_observations);
 
   // ====== CHECKLIST ======
-  const checklist = Array.isArray(report.checklist) ? report.checklist : [];
-  if (checklist.length > 0) {
-    drawSectionTitle("CHECKLIST TÉCNICO");
-    checklist.forEach((item: any) => {
-      checkPage(6);
-      doc.setFontSize(8);
-      const mark = item.checked ? "☑" : "☐";
-      addText(`${mark}  ${item.label}`, margin + 4, y);
-      y += 5;
-    });
-    y += 2;
+  if (cfg.show_checklist !== false) {
+    const checklist = Array.isArray(report.checklist) ? report.checklist : [];
+    if (checklist.length > 0) {
+      drawSectionTitle("CHECKLIST TÉCNICO");
+      checklist.forEach((item: any) => {
+        checkPage(6);
+        doc.setFontSize(8);
+        const mark = item.checked ? "☑" : "☐";
+        addText(`${mark}  ${item.label}`, margin + 4, y);
+        y += 5;
+      });
+      y += 2;
+    }
   }
 
   // ====== FOTOS ======
