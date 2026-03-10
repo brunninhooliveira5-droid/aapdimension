@@ -187,9 +187,6 @@ const UserAccessPage = () => {
     ORCAMENTO_SUB_FEATURES.forEach((s) => {
       initial[s.key] = saved[s.key] ?? "hidden";
     });
-    OPERACOES_SUB_FEATURES.forEach((s) => {
-      initial[s.key] = saved[s.key] ?? (allowedByRole.includes(s.key) ? "visible" : "hidden");
-    });
     // Sub-tabs of each operation module
     const allOpSubTabs = [...PC_SUB_TABS, ...ESTOQUE_SUB_TABS, ...FICHAS_SUB_TABS, ...DIARIO_SUB_TABS, ...COMPROVANTES_SUB_TABS];
     allOpSubTabs.forEach((s) => {
