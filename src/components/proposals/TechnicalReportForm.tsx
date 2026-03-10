@@ -331,24 +331,32 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
         </Button>
         {reportId && (
           <Button variant="outline" onClick={async () => {
-            // Fetch technician signature from profile
             let techSignatureUrl: string | null = null;
             let sigSize = 35;
             let sigOffX = 0, sigOffY = 0, sigZoom = 100, sigDarkness = 100;
             if (session?.user?.id) {
-              const { data: profile } = await supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single();
+              const [{ data: profile }, { data: pdfCfg }] = await Promise.all([
+                supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single(),
+                supabase.from("technical_report_pdf_config").select("*").eq("user_id", session.user.id).single(),
+              ]);
               techSignatureUrl = profile?.signature_url || null;
               sigSize = (profile as any)?.signature_size || 35;
               sigOffX = (profile as any)?.signature_offset_x || 0;
               sigOffY = (profile as any)?.signature_offset_y || 0;
               sigZoom = (profile as any)?.signature_zoom || 100;
               sigDarkness = (profile as any)?.signature_darkness || 100;
+              generateTechnicalReportPdf(
+                { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+                files,
+                { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize, signatureOffsetX: sigOffX, signatureOffsetY: sigOffY, signatureZoom: sigZoom, signatureDarkness: sigDarkness },
+                (pdfCfg as any) || undefined,
+              );
+            } else {
+              generateTechnicalReportPdf(
+                { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+                files,
+              );
             }
-            generateTechnicalReportPdf(
-              { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
-              files,
-              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize, signatureOffsetX: sigOffX, signatureOffsetY: sigOffY, signatureZoom: sigZoom, signatureDarkness: sigDarkness }
-            );
           }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
