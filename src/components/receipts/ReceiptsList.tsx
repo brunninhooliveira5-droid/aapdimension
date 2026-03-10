@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Pencil, FileText, ClipboardList } from "lucide-react";
+import { Plus, Search, Eye, Pencil, FileText, ClipboardList, Share2, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateReceiptPdf } from "@/lib/receipt-pdf";
 
@@ -16,18 +16,14 @@ const statusColors: Record<string, string> = {
   enviado: "bg-blue-500/10 text-blue-600",
 };
 const statusLabels: Record<string, string> = {
-  rascunho: "Rascunho",
-  finalizado: "Finalizado",
-  assinado: "Assinado",
-  enviado: "Enviado",
+  rascunho: "Rascunho", finalizado: "Finalizado", assinado: "Assinado", enviado: "Enviado",
 };
-const typeLabels: Record<string, string> = { pagamento: "Pagamento", recebimento: "Recebimento" };
+const typeLabels: Record<string, string> = {
+  pagamento: "Pagamento", recebimento: "Recebimento", recibo: "Recibo", entrada: "Entrada", parcela: "Parcela",
+};
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-interface Props {
-  onEdit: (id: string) => void;
-  onNew: () => void;
-}
+interface Props { onEdit: (id: string) => void; onNew: () => void; }
 
 export function ReceiptsList({ onEdit, onNew }: Props) {
   const [receipts, setReceipts] = useState<any[]>([]);
@@ -38,18 +34,15 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
   const [viewReceipt, setViewReceipt] = useState<any | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
-  const fetch_ = async () => {
+  const fetchReceipts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("payment_receipts")
-      .select("*")
-      .order("receipt_number", { ascending: false });
+    const { data, error } = await supabase.from("payment_receipts").select("*").order("receipt_number", { ascending: false });
     if (error) { toast.error("Erro ao carregar comprovantes"); console.error(error); }
     setReceipts(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { fetch_(); }, []);
+  useEffect(() => { fetchReceipts(); }, []);
 
   const filtered = receipts.filter(r => {
     const q = search.toLowerCase();
@@ -67,34 +60,43 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
     }
   };
 
+  const getPdfDataForReceipt = async (receipt: any) => {
+    const { data: sigs } = await supabase.from("receipt_signatures").select("*").eq("receipt_id", receipt.id);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    let pdfSettings: any = null;
+    let profileSig: string | null = null;
+    if (userId) {
+      const { data: ps } = await supabase.from("receipt_pdf_settings").select("*").eq("user_id", userId).maybeSingle();
+      pdfSettings = ps;
+      const { data: prof } = await supabase.from("profiles").select("signature_url").eq("id", userId).single();
+      profileSig = prof?.signature_url || null;
+    }
+    const partySig = (sigs ?? []).find((s: any) => s.signer_type === "outra_parte");
+    return { pdfSettings, profileSig, partySigUrl: partySig?.image_url || null };
+  };
+
   const handleGeneratePdf = async (id: string) => {
     setGeneratingPdf(id);
     try {
       const { data: receipt } = await supabase.from("payment_receipts").select("*").eq("id", id).single();
       if (!receipt) { toast.error("Comprovante não encontrado"); return; }
-      const { data: sigs } = await supabase.from("receipt_signatures").select("*").eq("receipt_id", id);
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      let pdfSettings: any = null;
-      let profileSig: string | null = null;
-      if (userId) {
-        const { data: ps } = await supabase.from("receipt_pdf_settings").select("*").eq("user_id", userId).maybeSingle();
-        pdfSettings = ps;
-        const { data: prof } = await supabase.from("profiles").select("signature_url").eq("id", userId).single();
-        profileSig = prof?.signature_url || null;
-      }
-      const partySig = (sigs ?? []).find((s: any) => s.signer_type === "outra_parte");
-      const { blob, fileName } = await generateReceiptPdf(receipt, pdfSettings, profileSig, partySig?.image_url || null);
+      const { pdfSettings, profileSig, partySigUrl } = await getPdfDataForReceipt(receipt);
+      const { blob, fileName } = await generateReceiptPdf(receipt, pdfSettings, profileSig, partySigUrl);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fileName; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
       URL.revokeObjectURL(url);
       toast.success("PDF gerado com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao gerar PDF: " + (err.message || ""));
-      console.error(err);
     }
     setGeneratingPdf(null);
+  };
+
+  const handleWhatsApp = (r: any) => {
+    const msg = encodeURIComponent(`Segue comprovante referente ao ${typeLabels[r.receipt_type]?.toLowerCase() || "pagamento"} registrado. Nº ${String(r.receipt_number).padStart(4, "0")} - Valor: ${fmt(Number(r.amount))}`);
+    const phone = r.party_phone?.replace(/\D/g, "") || "";
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
 
   return (
@@ -111,6 +113,9 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pagamento">Pagamento</SelectItem>
               <SelectItem value="recebimento">Recebimento</SelectItem>
+              <SelectItem value="recibo">Recibo</SelectItem>
+              <SelectItem value="entrada">Entrada</SelectItem>
+              <SelectItem value="parcela">Parcela</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -141,33 +146,36 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
-                  <th className="text-left px-4 py-2.5 font-medium">Nº</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Data</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Tipo</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Parte</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Valor</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Pagamento</th>
-                  <th className="text-center px-4 py-2.5 font-medium">Status</th>
-                  <th className="text-center px-4 py-2.5 font-medium">Ações</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Nº</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Data</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Tipo</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Parte</th>
+                  <th className="text-right px-3 py-2.5 font-medium">Valor</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Parcela</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Status</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(r => (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2.5 font-mono text-xs">{String(r.receipt_number).padStart(4, "0")}</td>
-                    <td className="px-4 py-2.5 text-xs">{new Date(r.receipt_date).toLocaleDateString("pt-BR")}</td>
-                    <td className="px-4 py-2.5 text-xs capitalize">{typeLabels[r.receipt_type] || r.receipt_type}</td>
-                    <td className="px-4 py-2.5 font-medium max-w-[200px] truncate">{r.party_name || "—"}</td>
-                    <td className="px-4 py-2.5 text-right font-medium">{fmt(Number(r.amount))}</td>
-                    <td className="px-4 py-2.5 text-xs capitalize">{r.payment_method}</td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-3 py-2.5 font-mono text-xs">{String(r.receipt_number).padStart(4, "0")}</td>
+                    <td className="px-3 py-2.5 text-xs">{new Date(r.receipt_date).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-3 py-2.5 text-xs">{typeLabels[r.receipt_type] || r.receipt_type}</td>
+                    <td className="px-3 py-2.5 font-medium max-w-[160px] truncate">{r.party_name || "—"}</td>
+                    <td className="px-3 py-2.5 text-right font-medium">{fmt(Number(r.amount))}</td>
+                    <td className="px-3 py-2.5 text-xs">
+                      {r.total_installments > 0 ? `${r.current_installment}/${r.total_installments}` : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
                       <Badge className={statusColors[r.status] || ""}>{statusLabels[r.status] || r.status}</Badge>
                     </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex gap-1 justify-center">
+                    <td className="px-3 py-2.5">
+                      <div className="flex gap-0.5 justify-center">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleView(r.id)} title="Visualizar"><Eye className="w-3.5 h-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(r.id)} title="Editar"><Pencil className="w-3.5 h-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleGeneratePdf(r.id)} disabled={generatingPdf === r.id} title="Gerar PDF"><FileText className="w-3.5 h-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleWhatsApp(r)} title="WhatsApp"><MessageCircle className="w-3.5 h-3.5" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -186,7 +194,7 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
           {viewReceipt && (
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Tipo:</span> <strong className="capitalize">{typeLabels[viewReceipt.receipt_type]}</strong></div>
+                <div><span className="text-muted-foreground">Tipo:</span> <strong>{typeLabels[viewReceipt.receipt_type]}</strong></div>
                 <div><span className="text-muted-foreground">Data:</span> {new Date(viewReceipt.receipt_date).toLocaleDateString("pt-BR")}</div>
                 <div><span className="text-muted-foreground">Parte:</span> <strong>{viewReceipt.party_name}</strong></div>
                 <div><span className="text-muted-foreground">CPF/CNPJ:</span> {viewReceipt.party_document}</div>
@@ -199,11 +207,20 @@ export function ReceiptsList({ onEdit, onNew }: Props) {
                   <span className="text-primary">{fmt(Number(viewReceipt.amount))}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Pagamento: {viewReceipt.payment_method} | Referente: {viewReceipt.reference_type}</p>
+                {viewReceipt.total_installments > 0 && (
+                  <p className="text-xs text-muted-foreground">Parcela {viewReceipt.current_installment} de {viewReceipt.total_installments} | Saldo: {fmt(Number(viewReceipt.remaining_balance))}</p>
+                )}
               </div>
               {viewReceipt.description && (
                 <div className="border-t border-border pt-3">
                   <h4 className="font-semibold mb-1">Descrição</h4>
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap">{viewReceipt.description}</p>
+                </div>
+              )}
+              {viewReceipt.enable_pix_qr && viewReceipt.pix_key && (
+                <div className="border-t border-border pt-3">
+                  <h4 className="font-semibold mb-1">Chave PIX</h4>
+                  <p className="text-xs font-mono bg-muted p-2 rounded">{viewReceipt.pix_key}</p>
                 </div>
               )}
             </div>

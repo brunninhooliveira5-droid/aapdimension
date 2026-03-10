@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 
 interface ReceiptData {
   receipt_number: number;
@@ -14,6 +15,14 @@ interface ReceiptData {
   description?: string;
   observations?: string;
   base_text?: string;
+  current_installment?: number;
+  total_installments?: number;
+  remaining_balance?: number;
+  enable_pix_qr?: boolean;
+  pix_key?: string;
+  pix_beneficiary?: string;
+  template_type?: string;
+  commercial_notes?: string;
 }
 
 interface PdfSettings {
@@ -31,12 +40,17 @@ interface PdfSettings {
   signer_name?: string;
   signer_role?: string;
   primary_color?: string;
+  document_title?: string;
+  subtitle_text?: string;
   show_logo?: boolean;
   show_footer?: boolean;
   show_observations?: boolean;
   show_emitter_signature?: boolean;
   show_party_signature?: boolean;
   show_watermark?: boolean;
+  enable_pix_qr?: boolean;
+  show_installment_info?: boolean;
+  show_remaining_balance?: boolean;
 }
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
@@ -74,11 +88,9 @@ function numberToWords(value: number): string {
   const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
   const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
   const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
-
   if (value === 0) return "zero";
   const intPart = Math.floor(value);
   const centPart = Math.round((value - intPart) * 100);
-
   const convertGroup = (n: number): string => {
     if (n === 0) return "";
     if (n === 100) return "cem";
@@ -89,20 +101,18 @@ function numberToWords(value: number): string {
     if (n > 0) parts.push(units[n]);
     return parts.join(" e ");
   };
-
   let result = "";
   if (intPart >= 1000000) {
     const millions = Math.floor(intPart / 1000000);
     result += (millions === 1 ? "um milhão" : convertGroup(millions) + " milhões");
     const remainder = intPart % 1000000;
-    if (remainder > 0) result += " e " + (remainder >= 1000 ? "" : "") ;
     if (remainder >= 1000) {
       const thousands = Math.floor(remainder / 1000);
-      result += (thousands === 1 ? "mil" : convertGroup(thousands) + " mil");
+      result += (remainder > 0 ? " e " : "") + (thousands === 1 ? "mil" : convertGroup(thousands) + " mil");
       const r2 = remainder % 1000;
       if (r2 > 0) result += " e " + convertGroup(r2);
     } else if (remainder > 0) {
-      result += convertGroup(remainder);
+      result += " e " + convertGroup(remainder);
     }
   } else if (intPart >= 1000) {
     const thousands = Math.floor(intPart / 1000);
@@ -112,15 +122,20 @@ function numberToWords(value: number): string {
   } else {
     result = convertGroup(intPart);
   }
-
   result += intPart === 1 ? " real" : " reais";
   if (centPart > 0) result += " e " + convertGroup(centPart) + (centPart === 1 ? " centavo" : " centavos");
   return result;
 }
 
-const typeLabel: Record<string, string> = { pagamento: "PAGAMENTO", recebimento: "RECEBIMENTO" };
+const typeTitles: Record<string, string> = {
+  pagamento: "COMPROVANTE DE PAGAMENTO",
+  recebimento: "COMPROVANTE DE RECEBIMENTO",
+  recibo: "RECIBO",
+  entrada: "RECIBO DE ENTRADA",
+  parcela: "RECIBO DE PARCELA",
+};
 const methodLabel: Record<string, string> = { dinheiro: "Dinheiro", pix: "PIX", transferencia: "Transferência", boleto: "Boleto", cartao: "Cartão", cheque: "Cheque", outro: "Outro" };
-const refLabel: Record<string, string> = { servico: "Serviço", parcela: "Parcela", entrada: "Entrada", equipamento: "Equipamento", outro: "Outro" };
+const refLabel: Record<string, string> = { servico: "Serviço", parcela: "Parcela", entrada: "Entrada", equipamento: "Equipamento", maquina: "Máquina", contrato: "Contrato", proposta: "Proposta", outro: "Outro" };
 
 export async function generateReceiptPdf(
   data: ReceiptData,
@@ -142,12 +157,10 @@ export async function generateReceiptPdf(
 
   const promises: Promise<void>[] = [];
   if (ps?.show_logo !== false && ps?.logo_url) promises.push(loadImage(ps.logo_url).then(d => { logoData = d; }));
-  if (ps?.show_watermark && (ps?.watermark_image_url || ps?.watermark_text)) {
-    if (ps.watermark_image_url) promises.push(loadImage(ps.watermark_image_url).then(d => { watermarkData = d; }));
-  }
+  if (ps?.show_watermark && ps?.watermark_image_url) promises.push(loadImage(ps.watermark_image_url).then(d => { watermarkData = d; }));
   if (ps?.show_emitter_signature !== false && emitterSignatureUrl) promises.push(loadImage(emitterSignatureUrl).then(d => { emitterSigData = d; }));
   if (ps?.show_party_signature !== false && partySignatureUrl) {
-    if (partySignatureUrl.startsWith("data:")) { partySigData = partySignatureUrl; }
+    if (partySignatureUrl.startsWith("data:")) partySigData = partySignatureUrl;
     else promises.push(loadImage(partySignatureUrl).then(d => { partySigData = d; }));
   }
   await Promise.all(promises);
@@ -159,8 +172,7 @@ export async function generateReceiptPdf(
   if (logoData && ps?.show_logo !== false) {
     try {
       const dims = await getImageDims(logoData);
-      const lh = 18;
-      const lw = (dims.w / dims.h) * lh;
+      const lh = 18; const lw = (dims.w / dims.h) * lh;
       doc.addImage(logoData, "PNG", pw - lw - 12, (34 - lh) / 2, lw, lh);
     } catch {}
   }
@@ -168,78 +180,63 @@ export async function generateReceiptPdf(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  const title = `COMPROVANTE DE ${typeLabel[data.receipt_type] || "RECEBIMENTO"}`;
+  const title = ps?.document_title || typeTitles[data.receipt_type] || "COMPROVANTE";
   doc.text(title, 14, 16);
 
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  if (ps?.subtitle_text) {
+    doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    doc.text(ps.subtitle_text, 14, 22);
+  }
+
+  doc.setFontSize(8); doc.setFont("helvetica", "normal");
   const headerParts: string[] = [];
   if (ps?.company_name) headerParts.push(ps.company_name);
   if (ps?.document_number) headerParts.push(`CNPJ/CPF: ${ps.document_number}`);
-  if (headerParts.length) doc.text(headerParts.join("  |  "), 14, 24);
+  if (headerParts.length) doc.text(headerParts.join("  |  "), 14, ps?.subtitle_text ? 27 : 24);
   const contactParts: string[] = [];
   if (ps?.phone) contactParts.push(ps.phone);
   if (ps?.email) contactParts.push(ps.email);
-  if (contactParts.length) doc.text(contactParts.join("  |  "), 14, 29);
+  if (contactParts.length) doc.text(contactParts.join("  |  "), 14, ps?.subtitle_text ? 31 : 29);
 
   y = 40;
+  if (ps?.address) { doc.setTextColor(120, 120, 120); doc.setFontSize(7); doc.text(ps.address, 14, y); y += 5; }
 
-  if (ps?.address) {
-    doc.setTextColor(120, 120, 120);
-    doc.setFontSize(7);
-    doc.text(ps.address, 14, y);
-    y += 5;
-  }
-
-  // Nº and Date
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100); doc.setFontSize(9);
   doc.text(`Nº ${String(data.receipt_number).padStart(4, "0")}`, 14, y + 2);
   const dateStr = data.receipt_date ? new Date(data.receipt_date + "T12:00:00").toLocaleDateString("pt-BR") : "";
   doc.text(`Data: ${dateStr}`, pw - 14, y + 2, { align: "right" });
   y += 10;
 
-  doc.setDrawColor(...primary);
-  doc.setLineWidth(0.5);
-  doc.line(14, y, pw - 14, y);
-  y += 8;
+  doc.setDrawColor(...primary); doc.setLineWidth(0.5); doc.line(14, y, pw - 14, y); y += 8;
 
   // ── Base text ──
   if (data.base_text) {
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "italic");
+    doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont("helvetica", "italic");
     const lines = doc.splitTextToSize(data.base_text, pw - 28) as string[];
     for (const line of lines) { doc.text(line, 14, y); y += 4.5; }
     y += 6;
   }
 
   // ── Party Data ──
-  doc.setTextColor(...primary);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("DADOS DA OPERAÇÃO", 14, y);
-  y += 8;
+  doc.setTextColor(...primary); doc.setFontSize(11); doc.setFont("helvetica", "bold");
+  doc.text("DADOS DA OPERAÇÃO", 14, y); y += 8;
 
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-
-  const rows: [string, string][] = [
-    ["Nome:", data.party_name || "—"],
-  ];
+  doc.setTextColor(60, 60, 60); doc.setFontSize(10); doc.setFont("helvetica", "normal");
+  const rows: [string, string][] = [["Nome:", data.party_name || "—"]];
   if (data.party_document) rows.push(["CPF/CNPJ:", data.party_document]);
   if (data.party_phone) rows.push(["Telefone:", data.party_phone]);
   if (data.party_email) rows.push(["E-mail:", data.party_email]);
   rows.push(["Forma de Pagamento:", methodLabel[data.payment_method] || data.payment_method]);
   rows.push(["Referente a:", refLabel[data.reference_type] || data.reference_type]);
 
+  // Installment info
+  if (data.total_installments && data.total_installments > 0 && ps?.show_installment_info !== false) {
+    rows.push(["Parcela:", `${data.current_installment} de ${data.total_installments}`]);
+  }
+
   for (const [label, value] of rows) {
-    doc.setFont("helvetica", "bold");
-    doc.text(label, 14, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(value, 65, y);
-    y += 7;
+    doc.setFont("helvetica", "bold"); doc.text(label, 14, y);
+    doc.setFont("helvetica", "normal"); doc.text(value, 65, y); y += 7;
   }
   y += 3;
 
@@ -247,125 +244,118 @@ export async function generateReceiptPdf(
   doc.setFillColor(245, 245, 250);
   doc.roundedRect(14, y, pw - 28, 28, 3, 3, "F");
   y += 12;
-  doc.setTextColor(...primary);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  const vLabel = data.receipt_type === "pagamento" ? "VALOR PAGO:" : "VALOR RECEBIDO:";
-  doc.text(vLabel, 22, y);
+  doc.setTextColor(...primary); doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  const vLabels: Record<string, string> = {
+    pagamento: "VALOR PAGO:", recebimento: "VALOR RECEBIDO:", recibo: "VALOR:", entrada: "VALOR DA ENTRADA:", parcela: "VALOR DA PARCELA:",
+  };
+  doc.text(vLabels[data.receipt_type] || "VALOR:", 22, y);
   doc.setFontSize(16);
   doc.text(fmt(data.amount), pw - 22, y, { align: "right" });
   y += 8;
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100); doc.setFontSize(8); doc.setFont("helvetica", "normal");
   doc.text(`(${numberToWords(data.amount)})`, 22, y);
   y += 14;
 
+  // ── Remaining Balance ──
+  if (data.remaining_balance && data.remaining_balance > 0 && ps?.show_remaining_balance !== false) {
+    doc.setTextColor(...primary); doc.setFontSize(9); doc.setFont("helvetica", "bold");
+    doc.text(`Saldo restante: ${fmt(data.remaining_balance)}`, 14, y);
+    y += 8;
+  }
+
   // ── Description ──
   if (data.description) {
-    doc.setDrawColor(...primary);
-    doc.setLineWidth(0.3);
-    doc.line(14, y, pw - 14, y);
-    y += 7;
-    doc.setTextColor(...primary);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("DESCRIÇÃO / HISTÓRICO", 14, y);
-    y += 6;
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
+    doc.setDrawColor(...primary); doc.setLineWidth(0.3); doc.line(14, y, pw - 14, y); y += 7;
+    doc.setTextColor(...primary); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text("DESCRIÇÃO / HISTÓRICO", 14, y); y += 6;
+    doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont("helvetica", "normal");
     const dl = doc.splitTextToSize(data.description, pw - 28) as string[];
     for (const line of dl) { doc.text(line, 14, y); y += 4.5; }
     y += 4;
   }
 
+  // ── Commercial Notes (entrada/maquina) ──
+  if (data.commercial_notes) {
+    doc.setDrawColor(...primary); doc.setLineWidth(0.3); doc.line(14, y, pw - 14, y); y += 7;
+    doc.setTextColor(...primary); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text("OBSERVAÇÕES COMERCIAIS", 14, y); y += 6;
+    doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    const cl = doc.splitTextToSize(data.commercial_notes, pw - 28) as string[];
+    for (const line of cl) { doc.text(line, 14, y); y += 4.5; }
+    y += 4;
+  }
+
   // ── Observations ──
   if (data.observations && ps?.show_observations !== false) {
-    doc.setDrawColor(...primary);
-    doc.setLineWidth(0.3);
-    doc.line(14, y, pw - 14, y);
-    y += 7;
-    doc.setTextColor(...primary);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("OBSERVAÇÕES", 14, y);
-    y += 6;
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
+    doc.setDrawColor(...primary); doc.setLineWidth(0.3); doc.line(14, y, pw - 14, y); y += 7;
+    doc.setTextColor(...primary); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text("OBSERVAÇÕES", 14, y); y += 6;
+    doc.setTextColor(60, 60, 60); doc.setFontSize(9); doc.setFont("helvetica", "normal");
     const ol = doc.splitTextToSize(data.observations, pw - 28) as string[];
     for (const line of ol) { doc.text(line, 14, y); y += 4.5; }
     y += 4;
+  }
+
+  // ── QR Code PIX ──
+  const showPix = (data.enable_pix_qr || ps?.enable_pix_qr) && data.pix_key;
+  if (showPix) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(data.pix_key!, { width: 200, margin: 1 });
+      doc.setDrawColor(...primary); doc.setLineWidth(0.3); doc.line(14, y, pw - 14, y); y += 7;
+      doc.setTextColor(...primary); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+      doc.text("PAGAMENTO VIA PIX", 14, y); y += 6;
+
+      doc.addImage(qrDataUrl, "PNG", 14, y, 35, 35);
+      doc.setTextColor(60, 60, 60); doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.text(`Chave: ${data.pix_key}`, 54, y + 10);
+      if (data.pix_beneficiary) doc.text(`Favorecido: ${data.pix_beneficiary}`, 54, y + 16);
+      doc.text("Escaneie o QR Code para pagar via PIX", 54, y + 24);
+      y += 40;
+    } catch {}
   }
 
   // ── Signatures ──
   y = Math.max(y + 10, pageH - 70);
   const sigWidth = (pw - 42) / 2;
 
-  // Emitter signature (left)
   if (ps?.show_emitter_signature !== false) {
-    const sigX = 14;
-    let sigY = y;
+    const sigX = 14; let sigY = y;
     if (emitterSigData) {
       try {
         const dims = await getImageDims(emitterSigData);
-        const sh = 18;
-        const sw = Math.min((dims.w / dims.h) * sh, sigWidth);
+        const sh = 18; const sw = Math.min((dims.w / dims.h) * sh, sigWidth);
         doc.addImage(emitterSigData, "PNG", sigX + (sigWidth - sw) / 2, sigY, sw, sh);
         sigY += sh + 2;
       } catch { sigY += 20; }
-    } else {
-      sigY += 20;
-    }
-    doc.setDrawColor(100, 100, 100);
-    doc.setLineWidth(0.3);
-    doc.line(sigX, sigY, sigX + sigWidth, sigY);
-    sigY += 4;
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
+    } else { sigY += 20; }
+    doc.setDrawColor(100, 100, 100); doc.setLineWidth(0.3);
+    doc.line(sigX, sigY, sigX + sigWidth, sigY); sigY += 4;
+    doc.setTextColor(60, 60, 60); doc.setFontSize(8); doc.setFont("helvetica", "bold");
     doc.text(ps?.signer_name || "Emitente", sigX + sigWidth / 2, sigY, { align: "center" });
-    if (ps?.signer_role) {
-      sigY += 4;
-      doc.setFont("helvetica", "normal");
-      doc.text(ps.signer_role, sigX + sigWidth / 2, sigY, { align: "center" });
-    }
+    if (ps?.signer_role) { sigY += 4; doc.setFont("helvetica", "normal"); doc.text(ps.signer_role, sigX + sigWidth / 2, sigY, { align: "center" }); }
   }
 
-  // Party signature (right)
   if (ps?.show_party_signature !== false) {
-    const sigX = pw - 14 - sigWidth;
-    let sigY = y;
+    const sigX = pw - 14 - sigWidth; let sigY = y;
     if (partySigData) {
       try {
         const dims = await getImageDims(partySigData);
-        const sh = 18;
-        const sw = Math.min((dims.w / dims.h) * sh, sigWidth);
+        const sh = 18; const sw = Math.min((dims.w / dims.h) * sh, sigWidth);
         doc.addImage(partySigData, "PNG", sigX + (sigWidth - sw) / 2, sigY, sw, sh);
         sigY += sh + 2;
       } catch { sigY += 20; }
-    } else {
-      sigY += 20;
-    }
-    doc.setDrawColor(100, 100, 100);
-    doc.setLineWidth(0.3);
-    doc.line(sigX, sigY, sigX + sigWidth, sigY);
-    sigY += 4;
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
+    } else { sigY += 20; }
+    doc.setDrawColor(100, 100, 100); doc.setLineWidth(0.3);
+    doc.line(sigX, sigY, sigX + sigWidth, sigY); sigY += 4;
+    doc.setTextColor(60, 60, 60); doc.setFontSize(8); doc.setFont("helvetica", "bold");
     doc.text(data.party_name || "Outra Parte", sigX + sigWidth / 2, sigY, { align: "center" });
   }
 
   // ── Footer ──
   if (ps?.show_footer !== false) {
     const fY = pageH - 10;
-    doc.setDrawColor(...primary);
-    doc.setLineWidth(0.3);
-    doc.line(14, fY - 3, pw - 14, fY - 3);
-    doc.setTextColor(140, 140, 140);
-    doc.setFontSize(7);
+    doc.setDrawColor(...primary); doc.setLineWidth(0.3); doc.line(14, fY - 3, pw - 14, fY - 3);
+    doc.setTextColor(140, 140, 140); doc.setFontSize(7);
     doc.text(ps?.footer_text || "Comprovante gerado automaticamente", pw / 2, fY, { align: "center" });
   }
 
@@ -375,26 +365,19 @@ export async function generateReceiptPdf(
     if (watermarkData) {
       try {
         const dims = await getImageDims(watermarkData);
-        const wmMaxW = pw * 0.5;
-        const wmMaxH = pageH * 0.3;
+        const wmMaxW = pw * 0.5; const wmMaxH = pageH * 0.3;
         const ratio = Math.min(wmMaxW / dims.w, wmMaxH / dims.h);
-        const wmW = dims.w * ratio;
-        const wmH = dims.h * ratio;
+        const wmW = dims.w * ratio; const wmH = dims.h * ratio;
         const canvas = document.createElement("canvas");
-        canvas.width = dims.w;
-        canvas.height = dims.h;
+        canvas.width = dims.w; canvas.height = dims.h;
         const ctx = canvas.getContext("2d")!;
         const img = new Image();
         await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = watermarkData!; });
-        ctx.globalAlpha = opacity;
-        ctx.drawImage(img, 0, 0);
-        const transparentUrl = canvas.toDataURL("image/png");
-        doc.addImage(transparentUrl, "PNG", (pw - wmW) / 2, (pageH - wmH) / 2, wmW, wmH);
+        ctx.globalAlpha = opacity; ctx.drawImage(img, 0, 0);
+        doc.addImage(canvas.toDataURL("image/png"), "PNG", (pw - wmW) / 2, (pageH - wmH) / 2, wmW, wmH);
       } catch {}
     } else if (ps.watermark_text) {
-      doc.setTextColor(200, 200, 200);
-      doc.setFontSize(50);
-      doc.setFont("helvetica", "bold");
+      doc.setTextColor(200, 200, 200); doc.setFontSize(50); doc.setFont("helvetica", "bold");
       const gState = (doc as any).GState({ opacity });
       (doc as any).setGState(gState);
       doc.text(ps.watermark_text, pw / 2, pageH / 2, { align: "center", angle: 45 });
@@ -402,7 +385,7 @@ export async function generateReceiptPdf(
     }
   }
 
-  const typeStr = data.receipt_type === "pagamento" ? "Pagamento" : "Recebimento";
-  const fileName = `Comprovante_${typeStr}_${data.party_name.replace(/\s+/g, "_")}_${String(data.receipt_number).padStart(4, "0")}.pdf`;
+  const typeStr = typeTitles[data.receipt_type]?.replace(/\s+/g, "_") || "Comprovante";
+  const fileName = `${typeStr}_${data.party_name.replace(/\s+/g, "_")}_${String(data.receipt_number).padStart(4, "0")}.pdf`;
   return { blob: doc.output("blob"), fileName };
 }
