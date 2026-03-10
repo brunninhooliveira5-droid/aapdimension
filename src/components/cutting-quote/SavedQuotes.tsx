@@ -728,6 +728,14 @@ export function SavedQuotes() {
                     <Download className="w-4 h-4" />
                     Exportar PDF do Orçamento
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => openReceiptDialog(selectedQuote)}
+                  >
+                    <Receipt className="w-4 h-4" />
+                    Comprovante de Pagamento
+                  </Button>
                 </div>
                 {!selectedQuote.file_path && (
                   <p className="text-[10px] text-muted-foreground">
