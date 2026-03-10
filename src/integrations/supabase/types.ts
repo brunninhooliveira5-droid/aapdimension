@@ -7027,6 +7027,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_admin_master_pix_qr: { Args: never; Returns: string }
       get_admin_master_user_id: { Args: never; Returns: string }
       get_user_account_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
