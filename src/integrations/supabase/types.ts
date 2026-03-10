@@ -6053,12 +6053,16 @@ export type Database = {
       work_diary_entries: {
         Row: {
           activity_type: string
+          contracted_service: string | null
           created_at: string
           description: string | null
           entry_date: string
           entry_number: number
+          execution_process: string | null
           id: string
+          impediment_reason: string | null
           location: string | null
+          materials_to_use: string | null
           materials_used: string | null
           observations: string | null
           pending_reason: string | null
@@ -6068,17 +6072,22 @@ export type Database = {
           time_end: string | null
           time_start: string | null
           title: string
+          unit_value: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           activity_type?: string
+          contracted_service?: string | null
           created_at?: string
           description?: string | null
           entry_date?: string
           entry_number?: number
+          execution_process?: string | null
           id?: string
+          impediment_reason?: string | null
           location?: string | null
+          materials_to_use?: string | null
           materials_used?: string | null
           observations?: string | null
           pending_reason?: string | null
@@ -6088,17 +6097,22 @@ export type Database = {
           time_end?: string | null
           time_start?: string | null
           title?: string
+          unit_value?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           activity_type?: string
+          contracted_service?: string | null
           created_at?: string
           description?: string | null
           entry_date?: string
           entry_number?: number
+          execution_process?: string | null
           id?: string
+          impediment_reason?: string | null
           location?: string | null
+          materials_to_use?: string | null
           materials_used?: string | null
           observations?: string | null
           pending_reason?: string | null
@@ -6108,6 +6122,7 @@ export type Database = {
           time_end?: string | null
           time_start?: string | null
           title?: string
+          unit_value?: string | null
           updated_at?: string
           user_id?: string
         }

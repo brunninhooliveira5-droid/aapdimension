@@ -6,7 +6,8 @@ const typeLabels: Record<string, string> = {
   inspecao: "Inspeção", visita_tecnica: "Visita Técnica", outro: "Outro",
 };
 const statusLabels: Record<string, string> = {
-  concluido: "Concluído", parcialmente_concluido: "Parcialmente Concluído", nao_concluido: "Não Concluído",
+  concluido: "Concluído", parcialmente_concluido: "Parcialmente Concluído",
+  nao_concluido: "Não Concluído", impedimento: "Impedimento",
 };
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -109,11 +110,15 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   field("Tipo", typeLabels[entry.activity_type] || entry.activity_type);
   field("Local", entry.location);
   field("Responsável", entry.responsible);
+  if (entry.contracted_service) field("Serviço Contratado", entry.contracted_service);
+  if (entry.unit_value) field("Unitário", entry.unit_value);
 
   // === DESCRIÇÃO ===
   sectionTitle("DESCRIÇÃO DA ATIVIDADE");
   textBlock("Atividade Executada", entry.description);
+  textBlock("Processo de Execução", entry.execution_process);
   if (cfg.show_materials !== false) textBlock("Materiais Utilizados", entry.materials_used);
+  textBlock("Materiais a Ser Utilizado", entry.materials_to_use);
   textBlock("Equipe Envolvida", entry.team);
   textBlock("Observações", entry.observations);
 
@@ -121,8 +126,11 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   if (cfg.show_status !== false) {
     sectionTitle("STATUS");
     field("Status", statusLabels[entry.status] || entry.status);
-    if (entry.pending_reason && entry.status !== "concluido") {
+    if (entry.pending_reason && (entry.status === "nao_concluido" || entry.status === "parcialmente_concluido")) {
       textBlock("Motivo / Pendência", entry.pending_reason);
+    }
+    if (entry.impediment_reason && entry.status === "impedimento") {
+      textBlock("Motivo do Impedimento", entry.impediment_reason);
     }
   }
 
