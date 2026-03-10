@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText, Target, ClipboardList } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, FileText, Target, ClipboardList, FileSignature } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
@@ -9,6 +9,7 @@ import { DimensionProduction } from "@/components/dimension/DimensionProduction"
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
 import { DimensionDocumentation } from "@/components/dimension/documentation/DimensionDocumentation";
+import { DimensionContracts } from "@/components/dimension/contracts/DimensionContracts";
 import { ModuleProvider, dimensionConfig } from "@/contexts/ModuleContext";
 
 const ProposalsPage = lazy(() => import("@/pages/ProposalsPage"));
