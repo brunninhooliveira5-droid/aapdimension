@@ -39,6 +39,7 @@ import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
 import AcmPlannerPage from "./pages/AcmPlannerPage";
 import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
+import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,7 @@ const AppRoutes = () => {
         <Route path="/operacoes/estoque" element={<RoleGate section="controle_producao"><OperacoesEstoquePage /></RoleGate>} />
         <Route path="/operacoes/fichas" element={<RoleGate section="controle_producao"><OperacoesFichasPage /></RoleGate>} />
         <Route path="/operacoes/diario" element={<WorkDiaryPage />} />
+        <Route path="/operacoes/comprovantes" element={<PaymentReceiptsPage />} />
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
         <Route path="/plano-corte" element={<CuttingPlanPage />} />
         <Route path="/slicer-3d" element={<Slicer3DPage />} />

@@ -3357,6 +3357,75 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_receipts: {
+        Row: {
+          amount: number
+          base_text: string
+          created_at: string
+          description: string
+          id: string
+          observations: string
+          party_address: string
+          party_document: string
+          party_email: string
+          party_name: string
+          party_phone: string
+          payment_method: string
+          receipt_date: string
+          receipt_number: number
+          receipt_type: string
+          reference_type: string
+          related_contract: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          base_text?: string
+          created_at?: string
+          description?: string
+          id?: string
+          observations?: string
+          party_address?: string
+          party_document?: string
+          party_email?: string
+          party_name?: string
+          party_phone?: string
+          payment_method?: string
+          receipt_date?: string
+          receipt_number?: number
+          receipt_type?: string
+          reference_type?: string
+          related_contract?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          base_text?: string
+          created_at?: string
+          description?: string
+          id?: string
+          observations?: string
+          party_address?: string
+          party_document?: string
+          party_email?: string
+          party_name?: string
+          party_phone?: string
+          payment_method?: string
+          receipt_date?: string
+          receipt_number?: number
+          receipt_type?: string
+          reference_type?: string
+          related_contract?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pc_goal_history: {
         Row: {
           created_at: string | null
@@ -5447,6 +5516,122 @@ export type Database = {
             columns: ["model_id"]
             isOneToOne: false
             referencedRelation: "proposal_machine_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipt_pdf_settings: {
+        Row: {
+          address: string
+          company_name: string
+          created_at: string
+          document_number: string
+          email: string
+          footer_text: string
+          id: string
+          institutional_text: string
+          logo_url: string
+          phone: string
+          primary_color: string
+          show_emitter_signature: boolean
+          show_footer: boolean
+          show_logo: boolean
+          show_observations: boolean
+          show_party_signature: boolean
+          show_watermark: boolean
+          signer_name: string
+          signer_role: string
+          updated_at: string
+          user_id: string
+          watermark_image_url: string
+          watermark_opacity: number
+          watermark_text: string
+        }
+        Insert: {
+          address?: string
+          company_name?: string
+          created_at?: string
+          document_number?: string
+          email?: string
+          footer_text?: string
+          id?: string
+          institutional_text?: string
+          logo_url?: string
+          phone?: string
+          primary_color?: string
+          show_emitter_signature?: boolean
+          show_footer?: boolean
+          show_logo?: boolean
+          show_observations?: boolean
+          show_party_signature?: boolean
+          show_watermark?: boolean
+          signer_name?: string
+          signer_role?: string
+          updated_at?: string
+          user_id: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_text?: string
+        }
+        Update: {
+          address?: string
+          company_name?: string
+          created_at?: string
+          document_number?: string
+          email?: string
+          footer_text?: string
+          id?: string
+          institutional_text?: string
+          logo_url?: string
+          phone?: string
+          primary_color?: string
+          show_emitter_signature?: boolean
+          show_footer?: boolean
+          show_logo?: boolean
+          show_observations?: boolean
+          show_party_signature?: boolean
+          show_watermark?: boolean
+          signer_name?: string
+          signer_role?: string
+          updated_at?: string
+          user_id?: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_text?: string
+        }
+        Relationships: []
+      }
+      receipt_signatures: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          receipt_id: string
+          signer_name: string
+          signer_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          receipt_id: string
+          signer_name?: string
+          signer_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          receipt_id?: string
+          signer_name?: string
+          signer_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_signatures_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "payment_receipts"
             referencedColumns: ["id"]
           },
         ]

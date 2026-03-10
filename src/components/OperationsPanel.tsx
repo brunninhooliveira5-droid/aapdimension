@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Wrench, ChevronRight, Package, FileText, Factory, BookOpen } from "lucide-react";
+import { Wrench, ChevronRight, Package, FileText, Factory, BookOpen, Receipt } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface OperationsPanelProps {
@@ -13,6 +13,7 @@ const operationTabs = [
   { id: "estoque", label: "Controle de Estoque", icon: Package, route: "/operacoes/estoque", disabled: false },
   { id: "fichas", label: "Fichas de Operação", icon: FileText, route: "/operacoes/fichas", disabled: false },
   { id: "diario", label: "Diário de Obra / Serviço", icon: BookOpen, route: "/operacoes/diario", disabled: false },
+  { id: "comprovantes", label: "Comprovante de Pagamento", icon: Receipt, route: "/operacoes/comprovantes", disabled: false },
 ];
 
 export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
