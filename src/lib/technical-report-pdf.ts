@@ -196,6 +196,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   const sigRightX = margin + sigColWidth + 10;
   const sigStartY = y;
 
+  let techSigH = 15; // default fallback, used to constrain client sig
   // --- Technician Signature ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
