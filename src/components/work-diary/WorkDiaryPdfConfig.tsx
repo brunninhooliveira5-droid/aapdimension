@@ -168,12 +168,32 @@ export function WorkDiaryPdfConfig() {
           {config.show_watermark && (
             <>
               <div>
-                <Label>Texto da marca d'água</Label>
-                <Input
-                  value={config.watermark_text}
-                  onChange={(e) => update("watermark_text", e.target.value)}
-                  placeholder="Ex: CONFIDENCIAL, nome da empresa..."
-                />
+                <Label>Imagem da marca d'água (PNG)</Label>
+                <div className="flex items-center gap-3 mt-1">
+                  {config.watermark_image_url && (
+                    <img src={config.watermark_image_url} alt="Marca d'água" className="h-14 rounded border border-border bg-muted p-1" />
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/png"
+                    onChange={async (e) => {
+                      if (!e.target.files?.[0] || !userId) return;
+                      setUploading(true);
+                      const file = e.target.files[0];
+                      const path = `${userId}/watermark-${Date.now()}.png`;
+                      const { error } = await supabase.storage.from("work-diary-files").upload(path, file, { upsert: true });
+                      if (error) { toast.error("Erro no upload"); setUploading(false); return; }
+                      const { data: { publicUrl } } = supabase.storage.from("work-diary-files").getPublicUrl(path);
+                      update("watermark_image_url", publicUrl);
+                      setUploading(false);
+                      toast.success("Marca d'água carregada!");
+                    }}
+                    disabled={uploading}
+                  />
+                  {config.watermark_image_url && (
+                    <Button variant="ghost" size="sm" onClick={() => update("watermark_image_url", "")}>Remover</Button>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="mb-2 block">Opacidade: {config.watermark_opacity}%</Label>
@@ -186,17 +206,16 @@ export function WorkDiaryPdfConfig() {
                 />
               </div>
               {/* Preview */}
-              <div className="relative border border-border rounded-lg h-24 bg-card overflow-hidden flex items-center justify-center">
+              <div className="relative border border-border rounded-lg h-28 bg-card overflow-hidden flex items-center justify-center">
                 <p className="text-xs text-muted-foreground z-10">Pré-visualização</p>
-                <span
-                  className="absolute inset-0 flex items-center justify-center text-2xl font-bold pointer-events-none select-none"
-                  style={{
-                    color: `rgba(${config.header_color}, ${config.watermark_opacity / 100})`,
-                    transform: "rotate(-30deg)",
-                  }}
-                >
-                  {config.watermark_text || "MARCA D'ÁGUA"}
-                </span>
+                {config.watermark_image_url && (
+                  <img
+                    src={config.watermark_image_url}
+                    alt="Preview"
+                    className="absolute inset-0 m-auto max-h-20 max-w-[60%] object-contain pointer-events-none select-none"
+                    style={{ opacity: config.watermark_opacity / 100 }}
+                  />
+                )}
               </div>
             </>
           )}
