@@ -205,6 +205,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
 
   // Try to load technician signature image
   let techSigDrawn = false;
+  const techSigAreaTop = y; // save where the signature area starts
   if (signatureOpts?.technicianSignatureUrl) {
     try {
       let sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
@@ -219,11 +220,13 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height) * zoom;
       const sigW = sigImg.width * sigRatio;
       const sigH = sigImg.height * sigRatio;
+      techSigH = sigH;
+      // Position signature so its bottom edge sits ON the line
+      const lineY = techSigAreaTop + sigH;
       const offX = (signatureOpts?.signatureOffsetX || 0) * 0.3;
       const offY = (signatureOpts?.signatureOffsetY || 0) * 0.3;
-      doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, y + offY, sigW, sigH);
-      techSigH = sigH; // store for client signature constraint
-      y += sigH + 2;
+      doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, lineY - sigH + offY, sigW, sigH);
+      y = lineY;
       techSigDrawn = true;
     } catch {
       // fallback to line
@@ -234,7 +237,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     y += 15;
   }
 
-  // Line
+  // Line — signature sits right above this
   doc.setDrawColor(100);
   doc.line(sigLeftX + 2, y, sigLeftX + sigColWidth - 2, y);
   y += 4;
