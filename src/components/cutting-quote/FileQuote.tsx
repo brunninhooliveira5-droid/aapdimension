@@ -463,13 +463,19 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         .eq("user_id", pdfOwnerId)
         .maybeSingle();
 
-      // Also fetch pix_qr_image_url from profile (centralized config)
-      const { data: ownerProfile } = await supabase
-        .from("profiles")
-        .select("pix_qr_image_url")
-        .eq("id", pdfOwnerId)
-        .maybeSingle();
-      const profilePixQr = ownerProfile?.pix_qr_image_url || "";
+      // Fetch pix_qr_image_url: try own profile first, fallback to admin_master RPC
+      let profilePixQr = "";
+      if (user?.role === "servico") {
+        const { data: adminPixQr } = await supabase.rpc("get_admin_master_pix_qr");
+        profilePixQr = adminPixQr || "";
+      } else {
+        const { data: ownerProfile } = await supabase
+          .from("profiles")
+          .select("pix_qr_image_url")
+          .eq("id", pdfOwnerId)
+          .maybeSingle();
+        profilePixQr = ownerProfile?.pix_qr_image_url || "";
+      }
 
       if (data) {
           const d = data as any;

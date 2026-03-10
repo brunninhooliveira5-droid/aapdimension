@@ -372,9 +372,16 @@ export function SavedQuotes() {
     const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", pdfOwnerId).maybeSingle();
     const s = (pdfSettings || {}) as any;
 
-    // Also fetch pix_qr_image_url from profile (centralized)
-    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", pdfOwnerId).single();
-    const pixQrUrl = s.pix_qr_image_url || profile?.pix_qr_image_url || "";
+    // Fetch pix_qr_image_url: use RPC for servico users (RLS blocks direct profile read)
+    let profilePixQr = "";
+    if (user?.role === "servico") {
+      const { data: adminPixQr } = await supabase.rpc("get_admin_master_pix_qr");
+      profilePixQr = adminPixQr || "";
+    } else {
+      const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", pdfOwnerId).maybeSingle();
+      profilePixQr = profile?.pix_qr_image_url || "";
+    }
+    const pixQrUrl = s.pix_qr_image_url || profilePixQr;
 
     // Helper to load image as data URL
     const loadImage = async (url: string): Promise<string | null> => {
