@@ -41,6 +41,7 @@ export function ReceiptPdfConfig() {
   const [showPartySig, setShowPartySig] = useState(true);
   const [showWatermark, setShowWatermark] = useState(false);
   const [enablePixQr, setEnablePixQr] = useState(false);
+  const [pixQrImageUrl, setPixQrImageUrl] = useState("");
   const [showInstallmentInfo, setShowInstallmentInfo] = useState(true);
   const [showRemainingBalance, setShowRemainingBalance] = useState(true);
   const [showHistorySummary, setShowHistorySummary] = useState(false);
