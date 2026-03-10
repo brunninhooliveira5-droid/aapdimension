@@ -6,8 +6,10 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 import type { PdfSettings } from "@/components/cutting-quote/PdfConfiguration";
 import type { SpeedFactorOrigin } from "@/lib/cutting-calculations";
+import { generatePixPayload } from "@/lib/pix-payload";
 
 export interface PdfQuoteData {
   // Dados gerais
