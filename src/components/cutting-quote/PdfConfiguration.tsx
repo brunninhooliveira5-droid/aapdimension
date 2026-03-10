@@ -34,6 +34,9 @@ export interface PdfSettings {
   show_watermark: boolean;
   watermark_url: string;
   pix_qr_image_url: string;
+  pix_key: string;
+  pix_beneficiary: string;
+  pix_city: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
@@ -59,6 +62,9 @@ const DEFAULT_SETTINGS: PdfSettings = {
   show_watermark: false,
   watermark_url: "",
   pix_qr_image_url: "",
+  pix_key: "",
+  pix_beneficiary: "",
+  pix_city: "",
 };
 
 export function PdfConfiguration() {
@@ -121,6 +127,9 @@ export function PdfConfiguration() {
         show_watermark: d.show_watermark ?? false,
         watermark_url: d.watermark_url || "",
         pix_qr_image_url: d.pix_qr_image_url || "",
+        pix_key: d.pix_key || "",
+        pix_beneficiary: d.pix_beneficiary || "",
+        pix_city: d.pix_city || "",
       });
     }
     setLoading(false);
@@ -635,7 +644,51 @@ export function PdfConfiguration() {
               <Button variant="outline" size="sm" onClick={() => document.getElementById("pix-qr-upload")?.click()}>Trocar</Button>
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground">Essa imagem será inserida nos PDFs quando o QR Code PIX estiver habilitado.</p>
+          <p className="text-[10px] text-muted-foreground">Essa imagem será usada como fallback caso os dados PIX abaixo não estejam preenchidos.</p>
+
+          <Separator className="my-3" />
+
+          <div className="space-y-1 mb-3">
+            <p className="text-sm font-medium text-foreground">PIX Dinâmico com Valor</p>
+            <p className="text-[10px] text-muted-foreground">
+              Preencha os dados abaixo para gerar automaticamente um QR Code PIX com o valor do orçamento embutido. Ao escanear, o app do banco já mostrará o valor preenchido.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Chave PIX</Label>
+              <Input
+                value={settings.pix_key}
+                onChange={(e) => update("pix_key", e.target.value)}
+                placeholder="CPF, CNPJ, email, telefone ou chave aleatória"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Nome do Beneficiário</Label>
+              <Input
+                value={settings.pix_beneficiary}
+                onChange={(e) => update("pix_beneficiary", e.target.value)}
+                placeholder="Nome de quem recebe"
+                className="mt-1"
+                maxLength={25}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cidade</Label>
+              <Input
+                value={settings.pix_city}
+                onChange={(e) => update("pix_city", e.target.value)}
+                placeholder="Cidade do beneficiário"
+                className="mt-1"
+                maxLength={15}
+              />
+            </div>
+          </div>
+          {settings.pix_key && settings.pix_beneficiary && settings.pix_city && (
+            <p className="text-[10px] text-green-600 mt-2">✓ PIX dinâmico ativo — o QR Code será gerado automaticamente com o valor do orçamento.</p>
+          )}
         </CardContent>
       </Card>
 

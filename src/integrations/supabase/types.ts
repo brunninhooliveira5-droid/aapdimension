@@ -4982,6 +4982,9 @@ export type Database = {
           id: string
           label_service_value: string | null
           logo_url: string | null
+          pix_beneficiary: string
+          pix_city: string
+          pix_key: string
           pix_qr_image_url: string
           primary_color: string | null
           show_customer: boolean | null
@@ -5011,6 +5014,9 @@ export type Database = {
           id?: string
           label_service_value?: string | null
           logo_url?: string | null
+          pix_beneficiary?: string
+          pix_city?: string
+          pix_key?: string
           pix_qr_image_url?: string
           primary_color?: string | null
           show_customer?: boolean | null
@@ -5040,6 +5046,9 @@ export type Database = {
           id?: string
           label_service_value?: string | null
           logo_url?: string | null
+          pix_beneficiary?: string
+          pix_city?: string
+          pix_key?: string
           pix_qr_image_url?: string
           primary_color?: string | null
           show_customer?: boolean | null
