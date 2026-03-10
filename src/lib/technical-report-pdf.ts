@@ -18,6 +18,7 @@ interface SignatureOptions {
   signatureOffsetX?: number;
   signatureOffsetY?: number;
   signatureZoom?: number;
+  signatureDarkness?: number;
 }
 
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {

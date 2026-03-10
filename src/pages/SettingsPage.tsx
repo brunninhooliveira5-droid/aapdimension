@@ -38,6 +38,7 @@ const SettingsPage = () => {
   const [signatureOffsetX, setSignatureOffsetX] = useState(0);
   const [signatureOffsetY, setSignatureOffsetY] = useState(0);
   const [signatureZoom, setSignatureZoom] = useState(100);
+  const [signatureDarkness, setSignatureDarkness] = useState(100);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
