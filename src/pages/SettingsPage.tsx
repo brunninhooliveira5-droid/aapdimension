@@ -701,7 +701,7 @@ const SettingsPage = () => {
           <p className="text-xs text-muted-foreground">Envie uma imagem PNG da sua assinatura (preferencialmente com fundo transparente). Ela será inserida automaticamente nos PDFs que você gerar.</p>
           {signatureUrl && (
             <div className="relative inline-block border border-border rounded-lg p-2 bg-white">
-              <img src={signatureUrl} alt="Assinatura" className="h-16 object-contain" />
+              <img src={signatureUrl} alt="Assinatura" className="h-32 object-contain" />
               <button
                 onClick={handleRemoveSignature}
                 className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
