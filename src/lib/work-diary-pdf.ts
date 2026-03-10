@@ -29,6 +29,8 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   let y = 15;
   const cfg = config || {};
   const dateStr = entry.entry_date ? format(new Date(entry.entry_date), "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy");
+  const hc = (cfg.header_color || "30,64,120").split(",").map(Number);
+  const [hR, hG, hB] = [hc[0] || 30, hc[1] || 64, hc[2] || 120];
 
   const checkPage = (n: number) => { if (y + n > ph - 20) { doc.addPage(); y = 15; } };
 
