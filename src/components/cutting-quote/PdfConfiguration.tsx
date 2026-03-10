@@ -76,14 +76,54 @@ export function PdfConfiguration() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+  const isServico = user?.role === "servico";
+  const isReadOnly = isSubUser || isServico;
 
   useEffect(() => {
     if (!session?.user) return;
+    if (!user?.role) return;
     loadSettings();
-  }, [session]);
+  }, [session, user?.role]);
 
   const loadSettings = async () => {
     setLoading(true);
+
+    // Servico users: use secure RPC to bypass RLS
+    if (isServico) {
+      const { data: adminSettings } = await supabase.rpc("get_admin_master_pdf_settings");
+      if (adminSettings) {
+        const d = adminSettings as any;
+        setSettings({
+          company_name: d.company_name || "",
+          company_phone: d.company_phone || "",
+          company_email: d.company_email || "",
+          company_address: d.company_address || "",
+          company_cep: d.company_cep || "",
+          company_cnpj: d.company_cnpj || "",
+          logo_url: d.logo_url || "",
+          primary_color: d.primary_color || "#1a1a2e",
+          accent_color: d.accent_color || "#e94560",
+          show_material: d.show_material ?? true,
+          show_thickness: d.show_thickness ?? true,
+          show_cutting_value: d.show_cutting_value ?? true,
+          show_material_value: d.show_material_value ?? true,
+          show_delivery: d.show_delivery ?? true,
+          show_date: d.show_date ?? true,
+          show_customer: d.show_customer ?? true,
+          show_service_value: d.show_service_value ?? true,
+          label_service_value: d.label_service_value || "Valor de Serviço",
+          footer_text: d.footer_text || "",
+          show_watermark: d.show_watermark ?? false,
+          watermark_url: d.watermark_url || "",
+          pix_qr_image_url: d.pix_qr_image_url || "",
+          pix_key: d.pix_key || "",
+          pix_beneficiary: d.pix_beneficiary || "",
+          pix_city: d.pix_city || "",
+        });
+      }
+      setLoading(false);
+      return;
+    }
 
     let pdfOwnerId = session!.user.id;
     if (isSubUser && user?.accountMembership?.accountId) {
@@ -251,11 +291,11 @@ export function PdfConfiguration() {
 
   return (
     <div className="space-y-6">
-      {isSubUser && (
+      {isReadOnly && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
           <p className="text-sm font-semibold text-foreground">Configuração do Administrador</p>
           <p className="text-xs text-muted-foreground">
-            As configurações de PDF são herdadas do administrador da conta. Apenas visualização disponível.
+            As configurações de PDF são herdadas do administrador. Apenas visualização disponível.
           </p>
         </div>
       )}
@@ -340,7 +380,7 @@ export function PdfConfiguration() {
         </CardContent>
       </Card>
 
-      <fieldset disabled={isSubUser} className={isSubUser ? "opacity-60 pointer-events-none" : ""}>
+      <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-60 pointer-events-none" : ""}>
       {/* Company Info */}
       <Card>
         <CardHeader className="pb-3">
@@ -712,7 +752,7 @@ export function PdfConfiguration() {
       </Card>
       </fieldset>
 
-      {!isSubUser && (
+      {!isReadOnly && (
         <Button onClick={saveSettings} disabled={saving} className="w-full gap-2">
           <Save className="w-4 h-4" />
           {saving ? "Salvando..." : "Salvar Configurações"}

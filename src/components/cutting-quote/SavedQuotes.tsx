@@ -359,31 +359,29 @@ export function SavedQuotes() {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
 
-    // Resolve PDF owner: sub-users inherit from account owner, servico users inherit from admin_master
-    let pdfOwnerId = effectiveUserId || session?.user?.id;
-    const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
-    if (isSubUser && user?.accountMembership?.accountId) {
-      const { data: accountData } = await supabase.from("accounts").select("owner_user_id").eq("id", user.accountMembership.accountId).single();
-      if (accountData?.owner_user_id) pdfOwnerId = accountData.owner_user_id;
-    } else if (user?.role === "servico") {
-      const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
-      if (adminId) pdfOwnerId = adminId;
-    }
+    // Resolve PDF settings: servico users use RPC to bypass RLS
+    let s: any = {};
+    let pixQrUrl = "";
 
-    // Load PDF settings for logo, watermark, PIX QR
-    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", pdfOwnerId).maybeSingle();
-    const s = (pdfSettings || {}) as any;
-
-    // Fetch pix_qr_image_url: use RPC for servico users (RLS blocks direct profile read)
-    let profilePixQr = "";
     if (user?.role === "servico") {
+      const { data: adminSettings } = await supabase.rpc("get_admin_master_pdf_settings");
       const { data: adminPixQr } = await supabase.rpc("get_admin_master_pix_qr");
-      profilePixQr = adminPixQr || "";
+      s = (adminSettings || {}) as any;
+      pixQrUrl = s.pix_qr_image_url || adminPixQr || "";
     } else {
+      let pdfOwnerId = effectiveUserId || session?.user?.id;
+      const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+      if (isSubUser && user?.accountMembership?.accountId) {
+        const { data: accountData } = await supabase.from("accounts").select("owner_user_id").eq("id", user.accountMembership.accountId).single();
+        if (accountData?.owner_user_id) pdfOwnerId = accountData.owner_user_id;
+      }
+
+      const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", pdfOwnerId).maybeSingle();
+      s = (pdfSettings || {}) as any;
+
       const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", pdfOwnerId).maybeSingle();
-      profilePixQr = profile?.pix_qr_image_url || "";
+      pixQrUrl = s.pix_qr_image_url || profile?.pix_qr_image_url || "";
     }
-    const pixQrUrl = s.pix_qr_image_url || profilePixQr;
 
     // Helper to load image as data URL
     const loadImage = async (url: string): Promise<string | null> => {
