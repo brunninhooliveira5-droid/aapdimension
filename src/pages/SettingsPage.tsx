@@ -41,8 +41,11 @@ const SettingsPage = () => {
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url").eq("id", session.user.id).single()
-      .then(({ data }) => { if (data?.signature_url) setSignatureUrl(data.signature_url); });
+    supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single()
+      .then(({ data }) => {
+        if (data?.signature_url) setSignatureUrl(data.signature_url);
+        if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
+      });
   }, [session?.user?.id]);
 
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
