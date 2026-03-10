@@ -174,8 +174,8 @@ const UserAccessPage = () => {
     const role = (roleData?.role as UserRole) ?? "operador";
     const rolePerms: Record<UserRole, string[]> = {
       admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "gestao_financeira", "configuracoes", "usuarios", "boletins", "orcamento", "arquivos", "propostas", "dimension", "controle_producao", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
-      admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
-      operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
+      admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos", "controle_producao", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
+      operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos", "controle_producao", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
       financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
       servico: ["home", "equipamentos", "configuracoes", "orcamento"],
       usuario_interno: ["home", "configuracoes"],
