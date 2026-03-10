@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, Plus, Settings } from "lucide-react";
+import { ClipboardList, Plus, Settings, Users } from "lucide-react";
 import { WorkDiaryList } from "@/components/work-diary/WorkDiaryList";
 import { WorkDiaryForm } from "@/components/work-diary/WorkDiaryForm";
 import { WorkDiaryPdfConfig } from "@/components/work-diary/WorkDiaryPdfConfig";
+import { WorkDiaryClients } from "@/components/work-diary/WorkDiaryClients";
 
 export default function WorkDiaryPage() {
   const [activeTab, setActiveTab] = useState("list");
@@ -39,6 +40,9 @@ export default function WorkDiaryPage() {
           <TabsTrigger value="form" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Plus className="h-3.5 w-3.5" /> {editingEntryId ? "Editar Registro" : "Novo Registro"}
           </TabsTrigger>
+          <TabsTrigger value="clients" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Users className="h-3.5 w-3.5" /> Clientes
+          </TabsTrigger>
           <TabsTrigger value="pdf-config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Settings className="h-3.5 w-3.5" /> Configuração de PDF
           </TabsTrigger>
@@ -49,6 +53,9 @@ export default function WorkDiaryPage() {
         </TabsContent>
         <TabsContent value="form">
           <WorkDiaryForm entryId={editingEntryId} onSaved={handleSaved} onCancel={() => setActiveTab("list")} />
+        </TabsContent>
+        <TabsContent value="clients">
+          <WorkDiaryClients />
         </TabsContent>
         <TabsContent value="pdf-config">
           <WorkDiaryPdfConfig />

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { applyPhoneMask } from "@/lib/phone-mask";
 
 const activityTypes = [
   { value: "obra", label: "Obra" },
@@ -49,6 +50,17 @@ interface FileWithCaption {
   caption: string;
 }
 
+interface DiaryClient {
+  id: string;
+  name: string;
+  company: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+}
+
 const emptyForm = {
   entry_date: format(new Date(), "yyyy-MM-dd"),
   time_start: "",
@@ -69,6 +81,10 @@ const emptyForm = {
   materials_to_use: "",
   impediment_reason: "",
   execution_deadline: "",
+  client_id: "",
+  client_name: "",
+  client_phone: "",
+  client_company: "",
 };
 
 export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
@@ -80,6 +96,11 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const [uploading, setUploading] = useState(false);
   const [contractedServices, setContractedServices] = useState<ContractedService[]>([]);
   const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterial[]>([]);
+  const [clients, setClients] = useState<DiaryClient[]>([]);
+
+  useEffect(() => {
+    if (effectiveUserId) loadClients();
+  }, [effectiveUserId]);
 
   useEffect(() => {
     if (entryId) loadEntry();
@@ -90,6 +111,16 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
       setRequiredMaterials([]);
     }
   }, [entryId]);
+
+  const loadClients = async () => {
+    if (!effectiveUserId) return;
+    const { data } = await supabase
+      .from("work_diary_clients")
+      .select("*")
+      .eq("user_id", effectiveUserId)
+      .order("name");
+    setClients((data as any[]) || []);
+  };
 
   const loadEntry = async () => {
     if (!entryId) return;
@@ -115,6 +146,10 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         materials_to_use: (data as any).materials_to_use || "",
         impediment_reason: (data as any).impediment_reason || "",
         execution_deadline: (data as any).execution_deadline || "",
+        client_id: (data as any).client_id || "",
+        client_name: (data as any).client_name || "",
+        client_phone: (data as any).client_phone || "",
+        client_company: (data as any).client_company || "",
       });
       try {
         const cs = (data as any).contracted_services;
@@ -130,6 +165,24 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   };
 
   const update = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
+
+  const handleClientSelect = (clientId: string) => {
+    if (clientId === "none") {
+      setForm((p) => ({ ...p, client_id: "", client_name: "", client_phone: "", client_company: "" }));
+      return;
+    }
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setForm((p) => ({
+        ...p,
+        client_id: client.id,
+        client_name: client.name,
+        client_phone: client.phone,
+        client_company: client.company,
+        location: p.location || `${client.address}${client.city ? `, ${client.city}` : ""}${client.state ? ` - ${client.state}` : ""}`.trim().replace(/^,\s*/, ""),
+      }));
+    }
+  };
 
   // Contracted services helpers
   const addService = () => setContractedServices((prev) => [...prev, { name: "" }]);
@@ -226,6 +279,37 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
 
   return (
     <div className="space-y-4 max-w-4xl">
+      {/* Dados do Cliente */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Dados do Cliente</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Label>Selecionar Cliente</Label>
+            <Select value={form.client_id || "none"} onValueChange={handleClientSelect}>
+              <SelectTrigger><SelectValue placeholder="Selecione um cliente cadastrado..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Nenhum —</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Nome do Cliente</Label>
+            <Input value={form.client_name} onChange={(e) => update("client_name", e.target.value)} placeholder="Nome do cliente" />
+          </div>
+          <div>
+            <Label>Empresa</Label>
+            <Input value={form.client_company} onChange={(e) => update("client_company", e.target.value)} placeholder="Empresa do cliente" />
+          </div>
+          <div>
+            <Label>Telefone</Label>
+            <Input value={form.client_phone} onChange={(e) => update("client_phone", applyPhoneMask(e.target.value))} placeholder="(00) 00000-0000" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Dados Gerais</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
