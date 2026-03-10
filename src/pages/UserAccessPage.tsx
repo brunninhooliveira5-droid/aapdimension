@@ -47,6 +47,21 @@ const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
   { key: "assistente_preco", label: "Assistente de Preço", icon: Star },
 ];
 
+const OPERACOES_SUB_FEATURES: SectionConfig[] = [
+  { key: "op_estoque", label: "Controle de Estoque", icon: Package },
+  { key: "op_fichas", label: "Fichas de Operação", icon: Eye },
+  { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
+  { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
+];
+
+const FERRAMENTAS_SUB_FEATURES: SectionConfig[] = [
+  { key: "ferr_plano_corte", label: "Plano de Corte", icon: LayoutGrid },
+  { key: "ferr_slicer_3d", label: "Slicer 3D CNC", icon: Box },
+  { key: "ferr_gerador_caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen },
+  { key: "ferr_planificador_acm", label: "Planificador ACM", icon: PanelTop },
+  { key: "ferr_gerador_percurso", label: "Gerador de Percurso", icon: Route },
+];
+
 const visibilityOptions: { value: Visibility; label: string; icon: React.ElementType; description: string; color: string }[] = [
   { value: "visible", label: "Visível", icon: Eye, description: "Usuário pode acessar normalmente", color: "bg-success/15 text-success border-success/30" },
   { value: "locked", label: "Com cadeado", icon: Lock, description: "Aparece no menu mas não pode clicar", color: "bg-warning/15 text-warning border-warning/30" },
