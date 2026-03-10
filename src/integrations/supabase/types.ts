@@ -1041,6 +1041,221 @@ export type Database = {
         }
         Relationships: []
       }
+      dimension_contract_items: {
+        Row: {
+          contract_id: string
+          created_at: string
+          description: string
+          id: string
+          quantity: number
+          sort_order: number
+          subtotal: number
+          unit_price: number
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          quantity?: number
+          sort_order?: number
+          subtotal?: number
+          unit_price?: number
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          quantity?: number
+          sort_order?: number
+          subtotal?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dimension_contract_items_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dimension_contract_pdf_settings: {
+        Row: {
+          accent_color: string
+          company_address: string
+          company_cnpj: string
+          company_email: string
+          company_name: string
+          company_phone: string
+          created_at: string
+          footer_text: string
+          id: string
+          institutional_text: string
+          logo_url: string
+          primary_color: string
+          show_watermark: boolean
+          signature_url: string
+          signer_name: string
+          signer_role: string
+          updated_at: string
+          user_id: string
+          watermark_image_url: string
+          watermark_opacity: number
+          watermark_position: string
+          watermark_text: string
+        }
+        Insert: {
+          accent_color?: string
+          company_address?: string
+          company_cnpj?: string
+          company_email?: string
+          company_name?: string
+          company_phone?: string
+          created_at?: string
+          footer_text?: string
+          id?: string
+          institutional_text?: string
+          logo_url?: string
+          primary_color?: string
+          show_watermark?: boolean
+          signature_url?: string
+          signer_name?: string
+          signer_role?: string
+          updated_at?: string
+          user_id: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_position?: string
+          watermark_text?: string
+        }
+        Update: {
+          accent_color?: string
+          company_address?: string
+          company_cnpj?: string
+          company_email?: string
+          company_name?: string
+          company_phone?: string
+          created_at?: string
+          footer_text?: string
+          id?: string
+          institutional_text?: string
+          logo_url?: string
+          primary_color?: string
+          show_watermark?: boolean
+          signature_url?: string
+          signer_name?: string
+          signer_role?: string
+          updated_at?: string
+          user_id?: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_position?: string
+          watermark_text?: string
+        }
+        Relationships: []
+      }
+      dimension_contracts: {
+        Row: {
+          clauses: string
+          client_address: string
+          client_document: string
+          client_email: string
+          client_name: string
+          client_phone: string
+          client_responsible: string
+          closing_date: string
+          commercial_conditions: string
+          contract_number: number
+          created_at: string
+          created_by: string
+          general_notes: string
+          id: string
+          issue_date: string
+          machine_description: string
+          machine_included_items: Json
+          machine_model: string
+          machine_optional_items: Json
+          machine_specs: string
+          payment_balance: number
+          payment_entry: number
+          payment_installments: string
+          payment_method: string
+          payment_notes: string
+          specs_snapshot: Json
+          status: string
+          total_value: number
+          updated_at: string
+          validity_date: string | null
+        }
+        Insert: {
+          clauses?: string
+          client_address?: string
+          client_document?: string
+          client_email?: string
+          client_name?: string
+          client_phone?: string
+          client_responsible?: string
+          closing_date?: string
+          commercial_conditions?: string
+          contract_number?: number
+          created_at?: string
+          created_by: string
+          general_notes?: string
+          id?: string
+          issue_date?: string
+          machine_description?: string
+          machine_included_items?: Json
+          machine_model?: string
+          machine_optional_items?: Json
+          machine_specs?: string
+          payment_balance?: number
+          payment_entry?: number
+          payment_installments?: string
+          payment_method?: string
+          payment_notes?: string
+          specs_snapshot?: Json
+          status?: string
+          total_value?: number
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Update: {
+          clauses?: string
+          client_address?: string
+          client_document?: string
+          client_email?: string
+          client_name?: string
+          client_phone?: string
+          client_responsible?: string
+          closing_date?: string
+          commercial_conditions?: string
+          contract_number?: number
+          created_at?: string
+          created_by?: string
+          general_notes?: string
+          id?: string
+          issue_date?: string
+          machine_description?: string
+          machine_included_items?: Json
+          machine_model?: string
+          machine_optional_items?: Json
+          machine_specs?: string
+          payment_balance?: number
+          payment_entry?: number
+          payment_installments?: string
+          payment_method?: string
+          payment_notes?: string
+          specs_snapshot?: Json
+          status?: string
+          total_value?: number
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Relationships: []
+      }
       dimension_cutting_material_thicknesses: {
         Row: {
           created_at: string
