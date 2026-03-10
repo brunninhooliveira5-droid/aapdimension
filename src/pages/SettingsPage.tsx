@@ -914,19 +914,6 @@ const SettingsPage = () => {
               </div>
             )}
 
-            {/* Tamanho */}
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Tamanho no PDF: <span className="text-foreground font-medium">{signatureSize}mm</span></Label>
-              <input type="range" min={15} max={60} step={1} value={signatureSize}
-                onChange={async (e) => {
-                  const val = Number(e.target.value);
-                  setSignatureSize(val);
-                  if (session?.user?.id) await supabase.from("profiles").update({ signature_size: val } as any).eq("id", session.user.id);
-                }}
-                className="w-full accent-primary" />
-              <div className="flex justify-between text-[10px] text-muted-foreground"><span>15mm</span><span>60mm</span></div>
-            </div>
-
             {/* Zoom */}
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Zoom: <span className="text-foreground font-medium">{signatureZoom}%</span></Label>
