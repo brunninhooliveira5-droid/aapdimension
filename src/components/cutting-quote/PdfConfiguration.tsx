@@ -291,11 +291,11 @@ export function PdfConfiguration() {
 
   return (
     <div className="space-y-6">
-      {isSubUser && (
+      {isReadOnly && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
           <p className="text-sm font-semibold text-foreground">Configuração do Administrador</p>
           <p className="text-xs text-muted-foreground">
-            As configurações de PDF são herdadas do administrador da conta. Apenas visualização disponível.
+            As configurações de PDF são herdadas do administrador. Apenas visualização disponível.
           </p>
         </div>
       )}
