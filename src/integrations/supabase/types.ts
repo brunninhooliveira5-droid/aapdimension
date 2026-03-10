@@ -188,6 +188,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_members_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "safe_member_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accounts: {
@@ -6991,7 +6998,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      safe_member_profiles: {
+        Row: {
+          approved: boolean | null
+          company: string | null
+          email: string | null
+          id: string | null
+          initials: string | null
+          name: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          company?: string | null
+          email?: string | null
+          id?: string | null
+          initials?: string | null
+          name?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          company?: string | null
+          email?: string | null
+          id?: string | null
+          initials?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_admin_master_user_id: { Args: never; Returns: string }
