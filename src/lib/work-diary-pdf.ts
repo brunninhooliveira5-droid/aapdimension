@@ -36,7 +36,7 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
 
   const sectionTitle = (title: string) => {
     checkPage(12);
-    doc.setFillColor(30, 64, 120);
+    doc.setFillColor(hR, hG, hB);
     doc.rect(m, y, cw, 7, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
