@@ -62,7 +62,7 @@ const proMenuItems = [
 export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, session, logout, hasAccess, getSectionVisibility, hasProAccess } = useAuth();
   const { toggleCalculator } = useCalculator();
