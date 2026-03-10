@@ -72,6 +72,7 @@ export function WorkDiaryPdfConfig() {
           show_watermark: (data as any).show_watermark ?? false,
           header_color: (data as any).header_color || "30,64,120",
           watermark_image_url: (data as any).watermark_image_url || "",
+          logo_bg_color: (data as any).logo_bg_color || "",
         });
       }
     });
