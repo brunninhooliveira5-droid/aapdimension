@@ -6202,6 +6202,7 @@ export type Database = {
           show_watermark: boolean | null
           updated_at: string
           user_id: string
+          watermark_image_url: string | null
           watermark_opacity: number | null
           watermark_text: string | null
         }
@@ -6225,6 +6226,7 @@ export type Database = {
           show_watermark?: boolean | null
           updated_at?: string
           user_id: string
+          watermark_image_url?: string | null
           watermark_opacity?: number | null
           watermark_text?: string | null
         }
@@ -6248,6 +6250,7 @@ export type Database = {
           show_watermark?: boolean | null
           updated_at?: string
           user_id?: string
+          watermark_image_url?: string | null
           watermark_opacity?: number | null
           watermark_text?: string | null
         }
