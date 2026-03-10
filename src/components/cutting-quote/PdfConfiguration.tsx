@@ -34,6 +34,9 @@ export interface PdfSettings {
   show_watermark: boolean;
   watermark_url: string;
   pix_qr_image_url: string;
+  pix_key: string;
+  pix_beneficiary: string;
+  pix_city: string;
 }
 
 const DEFAULT_SETTINGS: PdfSettings = {
