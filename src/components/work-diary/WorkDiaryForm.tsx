@@ -166,6 +166,24 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
 
   const update = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
 
+  const handleClientSelect = (clientId: string) => {
+    if (clientId === "none") {
+      setForm((p) => ({ ...p, client_id: "", client_name: "", client_phone: "", client_company: "" }));
+      return;
+    }
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setForm((p) => ({
+        ...p,
+        client_id: client.id,
+        client_name: client.name,
+        client_phone: client.phone,
+        client_company: client.company,
+        location: p.location || `${client.address}${client.city ? `, ${client.city}` : ""}${client.state ? ` - ${client.state}` : ""}`.trim().replace(/^,\s*/, ""),
+      }));
+    }
+  };
+
   // Contracted services helpers
   const addService = () => setContractedServices((prev) => [...prev, { name: "" }]);
   const updateService = (idx: number, name: string) =>
