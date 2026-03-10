@@ -86,16 +86,28 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
       const logo = await loadImage(cfg.logo_url);
       const lh = 18;
       const lw = (logo.width / logo.height) * lh;
-      // Logo background color
+
+      // Tint logo color via canvas if configured
+      let logoDataUrl: string | null = null;
       if (cfg.logo_bg_color) {
-        const hex = cfg.logo_bg_color.replace("#", "");
-        const lr = parseInt(hex.substring(0, 2), 16);
-        const lg = parseInt(hex.substring(2, 4), 16);
-        const lb = parseInt(hex.substring(4, 6), 16);
-        doc.setFillColor(lr, lg, lb);
-        doc.roundedRect(m - 1, 4, lw + 2, lh + 2, 2, 2, "F");
+        const canvas = document.createElement("canvas");
+        canvas.width = logo.width;
+        canvas.height = logo.height;
+        const ctx = canvas.getContext("2d")!;
+        // Draw original logo
+        ctx.drawImage(logo, 0, 0);
+        // Apply color tint using source-in composite
+        ctx.globalCompositeOperation = "source-in";
+        ctx.fillStyle = cfg.logo_bg_color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        logoDataUrl = canvas.toDataURL("image/png");
       }
-      doc.addImage(logo, "PNG", m, 5, lw, lh);
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, "PNG", m, 5, lw, lh);
+      } else {
+        doc.addImage(logo, "PNG", m, 5, lw, lh);
+      }
       headerX = m + lw + 5;
     } catch { /* skip */ }
   }
