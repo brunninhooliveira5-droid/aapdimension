@@ -5,10 +5,25 @@ import { ReceiptsList } from "@/components/receipts/ReceiptsList";
 import { ReceiptForm } from "@/components/receipts/ReceiptForm";
 import { ReceiptPdfConfig } from "@/components/receipts/ReceiptPdfConfig";
 import { PaymentHistoryTab } from "@/components/receipts/PaymentHistoryTab";
+import { useAuth } from "@/contexts/AuthContext";
+
+const allTabs = [
+  { value: "list", label: "Comprovantes", icon: ClipboardList, permKey: "comp_lista" },
+  { value: "form", label: "Novo Comprovante", icon: FilePlus, permKey: "comp_novo" },
+  { value: "history", label: "Histórico", icon: History, permKey: "comp_historico" },
+  { value: "pdf-config", label: "Configuração de PDF", icon: Settings2, permKey: "comp_config_pdf" },
+];
 
 export default function PaymentReceiptsPage() {
   const [tab, setTab] = useState("list");
   const [editReceiptId, setEditReceiptId] = useState<string | null>(null);
+  const { user, getSectionVisibility } = useAuth();
+  const isAdmin = user?.role === "admin_master";
+
+  const visibleTabs = allTabs.filter((t) => {
+    if (isAdmin) return true;
+    return getSectionVisibility(t.permKey) !== "hidden";
+  });
 
   const handleEdit = (id: string) => {
     setEditReceiptId(id);
@@ -34,18 +49,11 @@ export default function PaymentReceiptsPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-transparent p-0 gap-1">
-          <TabsTrigger value="list" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <ClipboardList className="h-3.5 w-3.5" /> Comprovantes
-          </TabsTrigger>
-          <TabsTrigger value="form" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <FilePlus className="h-3.5 w-3.5" /> {editReceiptId ? "Editar" : "Novo Comprovante"}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <History className="h-3.5 w-3.5" /> Histórico
-          </TabsTrigger>
-          <TabsTrigger value="pdf-config" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Settings2 className="h-3.5 w-3.5" /> Configuração de PDF
-          </TabsTrigger>
+          {visibleTabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <t.icon className="h-3.5 w-3.5" /> {t.value === "form" && editReceiptId ? "Editar" : t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="list">
           <ReceiptsList onEdit={handleEdit} onNew={handleNew} />

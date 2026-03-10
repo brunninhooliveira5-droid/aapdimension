@@ -13,25 +13,33 @@ import { InventoryCalibrationLogs } from "./InventoryCalibrationLogs";
 import { InventorySettings } from "./InventorySettings";
 import { useModule } from "@/contexts/ModuleContext";
 import { useInventoryAlertCount } from "@/hooks/useInventoryAlertCount";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function InventoryControl() {
   const [tab, setTab] = useState("dashboard");
   const { tables } = useModule();
   const { data: alertCount = 0 } = useInventoryAlertCount(tables.inventoryItems, tables.inventoryMovements);
   const hasAlerts = alertCount > 0;
+  const { user, getSectionVisibility } = useAuth();
+  const isAdmin = user?.role === "admin_master";
 
-  const tabs = [
-    { value: "dashboard", label: "Visão Geral", icon: BarChart3 },
-    { value: "items", label: "Itens", icon: Package },
-    { value: "movements", label: "Movimentações", icon: ArrowDownUp },
-    { value: "entries-exits", label: "Entradas/Saídas", icon: ArrowDownUp },
-    { value: "reservations", label: "Reservas", icon: BookmarkCheck },
-    { value: "alerts", label: "Alertas", icon: Bell },
-    { value: "suppliers", label: "Fornecedores", icon: Truck },
-    { value: "audit", label: "Inventário", icon: ClipboardCheck },
-    { value: "calibration-logs", label: "Logs", icon: FileText },
-    { value: "settings", label: "Configurações", icon: Settings },
+  const allTabs = [
+    { value: "dashboard", label: "Visão Geral", icon: BarChart3, permKey: "est_dashboard" },
+    { value: "items", label: "Itens", icon: Package, permKey: "est_itens" },
+    { value: "movements", label: "Movimentações", icon: ArrowDownUp, permKey: "est_movimentacoes" },
+    { value: "entries-exits", label: "Entradas/Saídas", icon: ArrowDownUp, permKey: "est_entradas_saidas" },
+    { value: "reservations", label: "Reservas", icon: BookmarkCheck, permKey: "est_reservas" },
+    { value: "alerts", label: "Alertas", icon: Bell, permKey: "est_alertas" },
+    { value: "suppliers", label: "Fornecedores", icon: Truck, permKey: "est_fornecedores" },
+    { value: "audit", label: "Inventário", icon: ClipboardCheck, permKey: "est_inventario" },
+    { value: "calibration-logs", label: "Logs", icon: FileText, permKey: "est_logs" },
+    { value: "settings", label: "Configurações", icon: Settings, permKey: "est_configuracoes" },
   ];
+
+  const tabs = allTabs.filter((t) => {
+    if (isAdmin) return true;
+    return getSectionVisibility(t.permKey) !== "hidden";
+  });
 
   return (
     <div className="space-y-4">
