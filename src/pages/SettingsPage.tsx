@@ -882,20 +882,28 @@ const SettingsPage = () => {
           <div className="space-y-4 pt-2 border-t border-border mt-3">
             <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Configuração da Assinatura no PDF</Label>
             
-            {/* Preview da assinatura com ajustes aplicados */}
+            {/* Preview simulando área de assinatura do PDF */}
             {signatureUrl && (
-              <div className="border border-border rounded-lg p-1 bg-white overflow-hidden" style={{ width: 200, height: 80 }}>
-                <img
-                  src={signatureUrl}
-                  alt="Preview"
-                  className="object-contain"
-                  style={{
-                    width: `${signatureZoom}%`,
-                    height: `${signatureZoom}%`,
-                    objectPosition: 'center',
-                    transform: `translate(${signatureOffsetX}px, ${signatureOffsetY}px)`,
-                  }}
-                />
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Preview (simulação no PDF)</Label>
+                <div className="border-2 border-dashed border-border rounded-lg bg-white relative" style={{ width: '100%', maxWidth: 300, height: 100 }}>
+                  <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+                    <img
+                      src={signatureUrl}
+                      alt="Preview"
+                      style={{
+                        maxHeight: `${(signatureSize / 35) * 100}%`,
+                        maxWidth: '90%',
+                        objectFit: 'contain',
+                        transform: `scale(${signatureZoom / 100}) translate(${signatureOffsetX * 0.5}px, ${signatureOffsetY * 0.5}px)`,
+                        transformOrigin: 'center center',
+                        transition: 'transform 0.15s ease, max-height 0.15s ease',
+                      }}
+                    />
+                  </div>
+                  <div className="absolute bottom-1 left-2 right-2 border-t border-muted-foreground/30" />
+                  <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/40 select-none">Área de assinatura</span>
+                </div>
               </div>
             )}
 
