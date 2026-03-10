@@ -9,7 +9,7 @@ interface Props {
   initialImage?: string | null;
 }
 
-export function SignaturePad({ onSave, width = 400, height = 150, initialImage }: Props) {
+export function SignaturePad({ onSave, width = 500, height = 180, initialImage }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
@@ -86,13 +86,12 @@ export function SignaturePad({ onSave, width = 400, height = 150, initialImage }
 
   return (
     <div className="space-y-2">
-      <div className="border border-border rounded-lg overflow-hidden bg-white" style={{ touchAction: "none" }}>
+      <div className="border border-border rounded-lg overflow-hidden bg-white w-full" style={{ touchAction: "none" }}>
         <canvas
           ref={canvasRef}
           width={width}
           height={height}
-          className="w-full cursor-crosshair"
-          style={{ maxWidth: width }}
+          className="w-full cursor-crosshair block"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}

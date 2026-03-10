@@ -304,15 +304,19 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
             // Fetch technician signature from profile
             let techSignatureUrl: string | null = null;
             let sigSize = 35;
+            let sigOffX = 0, sigOffY = 0, sigZoom = 100;
             if (session?.user?.id) {
-              const { data: profile } = await supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single();
+              const { data: profile } = await supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom").eq("id", session.user.id).single();
               techSignatureUrl = profile?.signature_url || null;
               sigSize = (profile as any)?.signature_size || 35;
+              sigOffX = (profile as any)?.signature_offset_x || 0;
+              sigOffY = (profile as any)?.signature_offset_y || 0;
+              sigZoom = (profile as any)?.signature_zoom || 100;
             }
             generateTechnicalReportPdf(
               { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
               files,
-              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize }
+              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize, signatureOffsetX: sigOffX, signatureOffsetY: sigOffY, signatureZoom: sigZoom }
             );
           }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF

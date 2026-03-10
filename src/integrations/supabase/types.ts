@@ -5050,8 +5050,11 @@ export type Database = {
           name: string
           phone: string | null
           rejected: boolean
+          signature_offset_x: number | null
+          signature_offset_y: number | null
           signature_size: number
           signature_url: string | null
+          signature_zoom: number | null
           state: string | null
           suspended_by: string | null
           suspended_reason: string | null
@@ -5071,8 +5074,11 @@ export type Database = {
           name: string
           phone?: string | null
           rejected?: boolean
+          signature_offset_x?: number | null
+          signature_offset_y?: number | null
           signature_size?: number
           signature_url?: string | null
+          signature_zoom?: number | null
           state?: string | null
           suspended_by?: string | null
           suspended_reason?: string | null
@@ -5092,8 +5098,11 @@ export type Database = {
           name?: string
           phone?: string | null
           rejected?: boolean
+          signature_offset_x?: number | null
+          signature_offset_y?: number | null
           signature_size?: number
           signature_url?: string | null
+          signature_zoom?: number | null
           state?: string | null
           suspended_by?: string | null
           suspended_reason?: string | null

@@ -35,16 +35,22 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [signatureSize, setSignatureSize] = useState(35);
+  const [signatureOffsetX, setSignatureOffsetX] = useState(0);
+  const [signatureOffsetY, setSignatureOffsetY] = useState(0);
+  const [signatureZoom, setSignatureZoom] = useState(100);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single()
+    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom").eq("id", session.user.id).single()
       .then(({ data }) => {
         if (data?.signature_url) setSignatureUrl(data.signature_url);
         if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
+        if ((data as any)?.signature_offset_x != null) setSignatureOffsetX((data as any).signature_offset_x);
+        if ((data as any)?.signature_offset_y != null) setSignatureOffsetY((data as any).signature_offset_y);
+        if ((data as any)?.signature_zoom != null) setSignatureZoom((data as any).signature_zoom);
       });
   }, [session?.user?.id]);
 
@@ -727,27 +733,77 @@ const SettingsPage = () => {
             />
           </div>
 
-          {/* Tamanho da assinatura no PDF */}
-          <div className="space-y-2 pt-2">
-            <Label className="text-xs text-muted-foreground">Tamanho da assinatura no PDF: <span className="text-foreground font-medium">{signatureSize}mm</span></Label>
-            <input
-              type="range"
-              min={15}
-              max={60}
-              step={5}
-              value={signatureSize}
-              onChange={async (e) => {
-                const val = Number(e.target.value);
-                setSignatureSize(val);
-                if (session?.user?.id) {
-                  await supabase.from("profiles").update({ signature_size: val } as any).eq("id", session.user.id);
-                }
-              }}
-              className="w-full accent-primary"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>15mm</span>
-              <span>60mm</span>
+          {/* Configurações da assinatura no PDF */}
+          <div className="space-y-4 pt-2 border-t border-border mt-3">
+            <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Configuração da Assinatura no PDF</Label>
+            
+            {/* Preview da assinatura com ajustes aplicados */}
+            {signatureUrl && (
+              <div className="border border-border rounded-lg p-1 bg-white overflow-hidden" style={{ width: 200, height: 80 }}>
+                <img
+                  src={signatureUrl}
+                  alt="Preview"
+                  className="object-contain"
+                  style={{
+                    width: `${signatureZoom}%`,
+                    height: `${signatureZoom}%`,
+                    objectPosition: 'center',
+                    transform: `translate(${signatureOffsetX}px, ${signatureOffsetY}px)`,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Tamanho */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Tamanho no PDF: <span className="text-foreground font-medium">{signatureSize}mm</span></Label>
+              <input type="range" min={15} max={60} step={1} value={signatureSize}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureSize(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_size: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>15mm</span><span>60mm</span></div>
+            </div>
+
+            {/* Zoom */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Zoom: <span className="text-foreground font-medium">{signatureZoom}%</span></Label>
+              <input type="range" min={50} max={200} step={5} value={signatureZoom}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureZoom(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_zoom: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>50%</span><span>200%</span></div>
+            </div>
+
+            {/* Posição X */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Posição Horizontal: <span className="text-foreground font-medium">{signatureOffsetX}px</span></Label>
+              <input type="range" min={-50} max={50} step={1} value={signatureOffsetX}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureOffsetX(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_offset_x: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>← Esquerda</span><span>Direita →</span></div>
+            </div>
+
+            {/* Posição Y */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Posição Vertical: <span className="text-foreground font-medium">{signatureOffsetY}px</span></Label>
+              <input type="range" min={-30} max={30} step={1} value={signatureOffsetY}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureOffsetY(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_offset_y: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>↑ Cima</span><span>Baixo ↓</span></div>
             </div>
           </div>
         </div>
