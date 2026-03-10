@@ -886,8 +886,14 @@ const SettingsPage = () => {
             {signatureUrl && (
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Preview (simulação no PDF)</Label>
-                <div className="border-2 border-dashed border-border rounded-lg bg-white relative" style={{ width: '100%', maxWidth: 300, height: 100 }}>
-                  <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+                <div className="border-2 border-dashed border-border rounded-lg bg-white relative" style={{ width: '100%', maxWidth: 300, height: 120 }}>
+                  {/* Linha de referência da assinatura (simula a linha do PDF) */}
+                  <div className="absolute left-3 right-3 border-t-2 border-muted-foreground/50" style={{ bottom: 28 }} />
+                  <span className="absolute left-3 text-[7px] text-muted-foreground/60 select-none font-medium" style={{ bottom: 16 }}>Técnico Responsável</span>
+                  <span className="absolute right-3 text-[7px] text-muted-foreground/40 select-none" style={{ bottom: 16 }}>Data: __/__/____</span>
+                  
+                  {/* Área da assinatura acima da linha */}
+                  <div className="absolute left-0 right-0 top-0 overflow-hidden flex items-end justify-center" style={{ bottom: 30 }}>
                     <img
                       src={signatureUrl}
                       alt="Preview"
@@ -896,13 +902,11 @@ const SettingsPage = () => {
                         maxWidth: '90%',
                         objectFit: 'contain',
                         transform: `scale(${signatureZoom / 100}) translate(${signatureOffsetX * 0.5}px, ${signatureOffsetY * 0.5}px)`,
-                        transformOrigin: 'center center',
+                        transformOrigin: 'center bottom',
                         transition: 'transform 0.15s ease, max-height 0.15s ease',
                       }}
                     />
                   </div>
-                  <div className="absolute bottom-1 left-2 right-2 border-t border-muted-foreground/30" />
-                  <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/40 select-none">Área de assinatura</span>
                 </div>
               </div>
             )}
