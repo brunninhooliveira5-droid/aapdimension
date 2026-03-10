@@ -116,15 +116,40 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   };
 
   // ====== HEADER ======
-  doc.setFillColor(30, 64, 120);
+  doc.setFillColor(hr, hg, hb);
   doc.rect(0, 0, pageWidth, 28, "F");
+
+  // Logo
+  let logoOffset = 0;
+  if (logoImg && cfg.show_logo !== false) {
+    const lMaxH = 18;
+    const lRatio = Math.min(30 / logoImg.width, lMaxH / logoImg.height);
+    const lw = logoImg.width * lRatio;
+    const lh = logoImg.height * lRatio;
+    // Apply tint if needed
+    if (cfg.logo_bg_color) {
+      const canvas = document.createElement("canvas");
+      canvas.width = logoImg.width;
+      canvas.height = logoImg.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(logoImg, 0, 0);
+      ctx.globalCompositeOperation = "source-in";
+      ctx.fillStyle = cfg.logo_bg_color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      doc.addImage(canvas.toDataURL("image/png"), "PNG", margin, 5, lw, lh);
+    } else {
+      doc.addImage(logoImg, "PNG", margin, 5, lw, lh);
+    }
+    logoOffset = lw + 4;
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  addText("DIMENSION CNC", margin, 12);
+  addText(cfg.company_name || "DIMENSION CNC", margin + logoOffset, 12);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  addText("Relatório Técnico de Atendimento", margin, 18);
+  addText("Relatório Técnico de Atendimento", margin + logoOffset, 18);
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
