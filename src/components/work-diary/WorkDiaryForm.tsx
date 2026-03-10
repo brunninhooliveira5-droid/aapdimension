@@ -146,6 +146,10 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         materials_to_use: (data as any).materials_to_use || "",
         impediment_reason: (data as any).impediment_reason || "",
         execution_deadline: (data as any).execution_deadline || "",
+        client_id: (data as any).client_id || "",
+        client_name: (data as any).client_name || "",
+        client_phone: (data as any).client_phone || "",
+        client_company: (data as any).client_company || "",
       });
       try {
         const cs = (data as any).contracted_services;
