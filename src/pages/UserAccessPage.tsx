@@ -48,6 +48,7 @@ const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
 ];
 
 const OPERACOES_SUB_FEATURES: SectionConfig[] = [
+  { key: "controle_producao", label: "Controle de Produção", icon: Factory },
   { key: "op_estoque", label: "Controle de Estoque", icon: Package },
   { key: "op_fichas", label: "Fichas de Operação", icon: Eye },
   { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
