@@ -253,6 +253,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   }
 
   // ====== ASSINATURAS ======
+  if (cfg.show_signature !== false) {
   checkPage(60);
   drawSectionTitle("ASSINATURAS");
   y += 3;
