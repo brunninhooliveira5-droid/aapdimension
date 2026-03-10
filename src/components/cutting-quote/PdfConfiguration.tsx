@@ -127,6 +127,9 @@ export function PdfConfiguration() {
         show_watermark: d.show_watermark ?? false,
         watermark_url: d.watermark_url || "",
         pix_qr_image_url: d.pix_qr_image_url || "",
+        pix_key: d.pix_key || "",
+        pix_beneficiary: d.pix_beneficiary || "",
+        pix_city: d.pix_city || "",
       });
     }
     setLoading(false);
