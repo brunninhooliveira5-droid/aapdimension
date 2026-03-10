@@ -15,6 +15,9 @@ interface SignatureOptions {
   technicianSignatureUrl?: string | null;
   technicianCompany?: string;
   signatureSize?: number;
+  signatureOffsetX?: number;
+  signatureOffsetY?: number;
+  signatureZoom?: number;
 }
 
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
