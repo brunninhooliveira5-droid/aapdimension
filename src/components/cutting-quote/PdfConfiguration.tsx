@@ -58,6 +58,7 @@ const DEFAULT_SETTINGS: PdfSettings = {
   footer_text: "",
   show_watermark: false,
   watermark_url: "",
+  pix_qr_image_url: "",
 };
 
 export function PdfConfiguration() {
