@@ -362,15 +362,35 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   addText(`Data: ${dateStr}`, sigRightX + 5, cy);
 
   y = Math.max(techEndY, cy) + 8;
+  } // end show_signature
+
+  // ====== WATERMARK on all pages ======
+  if (watermarkImg) {
+    const totalPagesWm = doc.getNumberOfPages();
+    const wmOpacity = (cfg.watermark_opacity || 15) / 100;
+    for (let i = 1; i <= totalPagesWm; i++) {
+      doc.setPage(i);
+      doc.saveGraphicsState();
+      const gState = new (doc as any).GState({ opacity: wmOpacity });
+      doc.setGState(gState);
+      const wmMaxW = pageWidth * 0.6;
+      const wmMaxH = pageHeight * 0.6;
+      const wmRatio = Math.min(wmMaxW / watermarkImg.width, wmMaxH / watermarkImg.height);
+      const wmW = watermarkImg.width * wmRatio;
+      const wmH = watermarkImg.height * wmRatio;
+      doc.addImage(watermarkImg, "PNG", (pageWidth - wmW) / 2, (pageHeight - wmH) / 2, wmW, wmH);
+      doc.restoreGraphicsState();
+    }
+  }
 
   // ====== FOOTER ======
   const totalPages = doc.getNumberOfPages();
+  const footerLabel = cfg.footer_text || `${cfg.company_name || "Dimension CNC"} — Relatório Técnico #${report.report_number || ""}`;
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(130);
-    const footerText = `Dimension CNC — Relatório Técnico #${report.report_number || ""} — Página ${i}/${totalPages}`;
-    addText(footerText, margin, 290);
+    addText(`${footerLabel} — Página ${i}/${totalPages}`, margin, 290);
     doc.setTextColor(0);
   }
 
