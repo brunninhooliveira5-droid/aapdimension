@@ -39,6 +39,16 @@ export default function ProposalsPage() {
               <ClipboardCheck className="w-4 h-4" /> Relatório Técnico
             </TabsTrigger>
           )}
+          {isInternal && (
+            <TabsTrigger value="rt-clientes" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Users className="w-4 h-4" /> Clientes RT
+            </TabsTrigger>
+          )}
+          {isInternal && (
+            <TabsTrigger value="rt-pdf-config" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Settings2 className="w-4 h-4" /> Config. PDF RT
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="specs" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Cpu className="w-4 h-4" /> Máquinas (Specs)
