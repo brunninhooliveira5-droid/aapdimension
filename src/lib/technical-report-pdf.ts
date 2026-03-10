@@ -264,6 +264,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   cy += 5;
 
   let clientSigDrawn = false;
+  const clientSigAreaTop = cy; // save where the client signature area starts
   if (report.client_signature_image_url) {
     try {
       const clientImg = await loadImage(report.client_signature_image_url);
@@ -272,8 +273,10 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
       const cW = clientImg.width * cRatio;
       const cH = clientImg.height * cRatio;
-      doc.addImage(clientImg, "PNG", sigRightX + 5, cy, cW, cH);
-      cy += cH + 2;
+      // Position client signature so its bottom edge sits ON the line
+      const clientLineY = clientSigAreaTop + cSigMaxH; // use same total area as tech sig
+      doc.addImage(clientImg, "PNG", sigRightX + 5, clientLineY - cH, cW, cH);
+      cy = clientLineY;
       clientSigDrawn = true;
     } catch {
       // fallback
