@@ -44,10 +44,13 @@ const SettingsPage = () => {
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single()
+    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom").eq("id", session.user.id).single()
       .then(({ data }) => {
         if (data?.signature_url) setSignatureUrl(data.signature_url);
         if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
+        if ((data as any)?.signature_offset_x != null) setSignatureOffsetX((data as any).signature_offset_x);
+        if ((data as any)?.signature_offset_y != null) setSignatureOffsetY((data as any).signature_offset_y);
+        if ((data as any)?.signature_zoom != null) setSignatureZoom((data as any).signature_zoom);
       });
   }, [session?.user?.id]);
 
