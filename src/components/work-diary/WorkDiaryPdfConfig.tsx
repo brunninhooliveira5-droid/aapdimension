@@ -5,9 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+
+const COLOR_PRESETS = [
+  { label: "Azul Escuro", value: "30,64,120" },
+  { label: "Azul Royal", value: "41,98,255" },
+  { label: "Verde Escuro", value: "22,101,52" },
+  { label: "Vermelho", value: "153,27,27" },
+  { label: "Cinza Escuro", value: "55,65,81" },
+  { label: "Preto", value: "15,15,15" },
+  { label: "Marrom", value: "120,53,15" },
+  { label: "Roxo", value: "88,28,135" },
+];
 
 export function WorkDiaryPdfConfig() {
   const { session } = useAuth();
@@ -26,6 +38,10 @@ export function WorkDiaryPdfConfig() {
     show_time: true,
     show_status: true,
     show_signature: true,
+    watermark_text: "",
+    watermark_opacity: 15,
+    show_watermark: false,
+    header_color: "30,64,120",
   });
   const [hasSignature, setHasSignature] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -33,7 +49,6 @@ export function WorkDiaryPdfConfig() {
 
   useEffect(() => {
     if (!userId) return;
-    // Load config
     supabase.from("work_diary_pdf_config").select("*").eq("user_id", userId).single().then(({ data }) => {
       if (data) {
         setConfig({
@@ -50,10 +65,13 @@ export function WorkDiaryPdfConfig() {
           show_time: data.show_time ?? true,
           show_status: data.show_status ?? true,
           show_signature: data.show_signature ?? true,
+          watermark_text: (data as any).watermark_text || "",
+          watermark_opacity: (data as any).watermark_opacity ?? 15,
+          show_watermark: (data as any).show_watermark ?? false,
+          header_color: (data as any).header_color || "30,64,120",
         });
       }
     });
-    // Check signature
     supabase.from("profiles").select("signature_url").eq("id", userId).single().then(({ data }) => {
       setHasSignature(!!data?.signature_url);
     });
@@ -77,11 +95,13 @@ export function WorkDiaryPdfConfig() {
   const handleSave = async () => {
     if (!userId) return;
     setSaving(true);
-    const { error } = await supabase.from("work_diary_pdf_config").upsert({ ...config, user_id: userId }, { onConflict: "user_id" });
+    const { error } = await supabase.from("work_diary_pdf_config").upsert({ ...config, user_id: userId } as any, { onConflict: "user_id" });
     if (error) toast.error("Erro ao salvar");
     else toast.success("Configuração salva!");
     setSaving(false);
   };
+
+  const colorRgb = config.header_color.split(",").map(Number);
 
   return (
     <div className="space-y-4 max-w-2xl">
@@ -102,6 +122,82 @@ export function WorkDiaryPdfConfig() {
               {config.logo_url && <Button variant="ghost" size="sm" onClick={() => update("logo_url", "")}>Remover</Button>}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tonalidade / Cor do PDF */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Tonalidade do PDF</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="mb-2 block">Cor do cabeçalho e títulos de seção</Label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => update("header_color", c.value)}
+                  className={`h-8 w-8 rounded-full border-2 transition-all ${config.header_color === c.value ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border"}`}
+                  style={{ backgroundColor: `rgb(${c.value})` }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div
+              className="h-6 w-full rounded"
+              style={{ backgroundColor: `rgb(${config.header_color})` }}
+            />
+            <Input
+              value={config.header_color}
+              onChange={(e) => update("header_color", e.target.value)}
+              placeholder="R,G,B"
+              className="w-32 text-xs"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Marca d'água */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Marca d'Água</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <Toggle label="Ativar marca d'água" value={config.show_watermark} onChange={(v) => update("show_watermark", v)} />
+          {config.show_watermark && (
+            <>
+              <div>
+                <Label>Texto da marca d'água</Label>
+                <Input
+                  value={config.watermark_text}
+                  onChange={(e) => update("watermark_text", e.target.value)}
+                  placeholder="Ex: CONFIDENCIAL, nome da empresa..."
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Opacidade: {config.watermark_opacity}%</Label>
+                <Slider
+                  value={[config.watermark_opacity]}
+                  onValueChange={([v]) => update("watermark_opacity", v)}
+                  min={5}
+                  max={50}
+                  step={1}
+                />
+              </div>
+              {/* Preview */}
+              <div className="relative border border-border rounded-lg h-24 bg-card overflow-hidden flex items-center justify-center">
+                <p className="text-xs text-muted-foreground z-10">Pré-visualização</p>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-2xl font-bold pointer-events-none select-none"
+                  style={{
+                    color: `rgba(${config.header_color}, ${config.watermark_opacity / 100})`,
+                    transform: "rotate(-30deg)",
+                  }}
+                >
+                  {config.watermark_text || "MARCA D'ÁGUA"}
+                </span>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
