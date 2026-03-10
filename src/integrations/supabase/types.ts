@@ -6190,6 +6190,7 @@ export type Database = {
           footer_text: string | null
           header_color: string | null
           id: string
+          logo_bg_color: string | null
           logo_url: string | null
           phone: string | null
           role_title: string | null
@@ -6214,6 +6215,7 @@ export type Database = {
           footer_text?: string | null
           header_color?: string | null
           id?: string
+          logo_bg_color?: string | null
           logo_url?: string | null
           phone?: string | null
           role_title?: string | null
@@ -6238,6 +6240,7 @@ export type Database = {
           footer_text?: string | null
           header_color?: string | null
           id?: string
+          logo_bg_color?: string | null
           logo_url?: string | null
           phone?: string | null
           role_title?: string | null

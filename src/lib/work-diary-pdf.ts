@@ -86,6 +86,15 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
       const logo = await loadImage(cfg.logo_url);
       const lh = 18;
       const lw = (logo.width / logo.height) * lh;
+      // Logo background color
+      if (cfg.logo_bg_color) {
+        const hex = cfg.logo_bg_color.replace("#", "");
+        const lr = parseInt(hex.substring(0, 2), 16);
+        const lg = parseInt(hex.substring(2, 4), 16);
+        const lb = parseInt(hex.substring(4, 6), 16);
+        doc.setFillColor(lr, lg, lb);
+        doc.roundedRect(m - 1, 4, lw + 2, lh + 2, 2, 2, "F");
+      }
       doc.addImage(logo, "PNG", m, 5, lw, lh);
       headerX = m + lw + 5;
     } catch { /* skip */ }

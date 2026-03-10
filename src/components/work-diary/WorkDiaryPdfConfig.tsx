@@ -43,6 +43,7 @@ export function WorkDiaryPdfConfig() {
     show_watermark: false,
     header_color: "30,64,120",
     watermark_image_url: "",
+    logo_bg_color: "",
   });
   const [hasSignature, setHasSignature] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,6 +72,7 @@ export function WorkDiaryPdfConfig() {
           show_watermark: (data as any).show_watermark ?? false,
           header_color: (data as any).header_color || "30,64,120",
           watermark_image_url: (data as any).watermark_image_url || "",
+          logo_bg_color: (data as any).logo_bg_color || "",
         });
       }
     });
@@ -119,11 +121,47 @@ export function WorkDiaryPdfConfig() {
           <div className="sm:col-span-2">
             <Label>Logo (opcional)</Label>
             <div className="flex items-center gap-3 mt-1">
-              {config.logo_url && <img src={config.logo_url} alt="Logo" className="h-10 rounded border border-border" />}
+              {config.logo_url && (
+                <div className="rounded border border-border p-1" style={{ backgroundColor: config.logo_bg_color || "transparent" }}>
+                  <img src={config.logo_url} alt="Logo" className="h-10" />
+                </div>
+              )}
               <Input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploading} />
               {config.logo_url && <Button variant="ghost" size="sm" onClick={() => update("logo_url", "")}>Remover</Button>}
             </div>
           </div>
+          {config.logo_url && (
+            <div className="sm:col-span-2">
+              <Label>Cor de fundo da logomarca</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { label: "Transparente", value: "" },
+                    { label: "Branco", value: "#ffffff" },
+                    { label: "Preto", value: "#000000" },
+                    { label: "Azul Escuro", value: "#1e4078" },
+                    { label: "Cinza", value: "#f3f4f6" },
+                    { label: "Vermelho", value: "#991b1b" },
+                    { label: "Verde", value: "#166534" },
+                  ].map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => update("logo_bg_color", c.value)}
+                      className={`h-7 w-7 rounded-full border-2 transition-all ${config.logo_bg_color === c.value ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border"}`}
+                      style={{ backgroundColor: c.value || "transparent", backgroundImage: !c.value ? "linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)" : undefined, backgroundSize: !c.value ? "6px 6px" : undefined, backgroundPosition: !c.value ? "0 0, 3px 3px" : undefined }}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+                <Input
+                  type="color"
+                  value={config.logo_bg_color || "#ffffff"}
+                  onChange={(e) => update("logo_bg_color", e.target.value)}
+                  className="w-10 h-8 p-0.5 cursor-pointer"
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
