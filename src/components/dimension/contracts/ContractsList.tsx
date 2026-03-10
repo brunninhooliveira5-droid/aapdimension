@@ -84,7 +84,10 @@ export function ContractsList({ onEdit, onNew }: Props) {
       if (!contract) { toast.error("Contrato não encontrado"); return; }
       const { data: items } = await supabase.from("dimension_contract_items" as any).select("*").eq("contract_id", id).order("sort_order");
       const { data: pdfSettings } = await supabase.from("dimension_contract_pdf_settings" as any).select("*").limit(1).maybeSingle();
-      const { blob, fileName } = await generateContractPdf({ ...(contract as any), items: (items as any[]) ?? [] }, pdfSettings as any);
+      // Pull signature from user profile (Configurações)
+      const { data: profile } = await supabase.from("profiles").select("signature_url").limit(1).maybeSingle();
+      const finalPdfSettings = { ...(pdfSettings as any || {}), signature_url: profile?.signature_url || (pdfSettings as any)?.signature_url || "" };
+      const { blob, fileName } = await generateContractPdf({ ...(contract as any), items: (items as any[]) ?? [] }, finalPdfSettings);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = fileName; a.click();
