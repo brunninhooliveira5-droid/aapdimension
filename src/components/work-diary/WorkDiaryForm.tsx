@@ -279,6 +279,37 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
 
   return (
     <div className="space-y-4 max-w-4xl">
+      {/* Dados do Cliente */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Dados do Cliente</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Label>Selecionar Cliente</Label>
+            <Select value={form.client_id || "none"} onValueChange={handleClientSelect}>
+              <SelectTrigger><SelectValue placeholder="Selecione um cliente cadastrado..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Nenhum —</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Nome do Cliente</Label>
+            <Input value={form.client_name} onChange={(e) => update("client_name", e.target.value)} placeholder="Nome do cliente" />
+          </div>
+          <div>
+            <Label>Empresa</Label>
+            <Input value={form.client_company} onChange={(e) => update("client_company", e.target.value)} placeholder="Empresa do cliente" />
+          </div>
+          <div>
+            <Label>Telefone</Label>
+            <Input value={form.client_phone} onChange={(e) => update("client_phone", applyPhoneMask(e.target.value))} placeholder="(00) 00000-0000" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Dados Gerais</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
