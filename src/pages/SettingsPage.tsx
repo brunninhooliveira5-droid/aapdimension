@@ -1028,60 +1028,7 @@ const SettingsPage = () => {
         </div>
       </div>
 
-        {/* QR Code PIX */}
-        <div className="border-t border-border pt-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <QrCode className="w-4 h-4 text-primary" />
-            <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">QR Code PIX</Label>
-          </div>
-          <p className="text-xs text-muted-foreground">Envie a imagem do seu QR Code PIX. Ela será usada nos PDFs de comprovante de pagamento e orçamento de corte.</p>
-          {pixQrImageUrl && (
-            <div className="relative inline-block border border-border rounded-lg p-2 bg-white">
-              <img src={pixQrImageUrl} alt="QR Code PIX" className="h-28 w-28 object-contain" />
-              <button
-                onClick={async () => {
-                  if (!session?.user?.id) return;
-                  await supabase.from("profiles").update({ pix_qr_image_url: "" } as any).eq("id", session.user.id);
-                  setPixQrImageUrl(null);
-                  toast.success("QR Code removido");
-                }}
-                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => pixQrInputRef.current?.click()} disabled={uploadingPixQr} className="gap-1">
-              <Upload className="h-3 w-3" /> {uploadingPixQr ? "Enviando..." : pixQrImageUrl ? "Trocar QR Code" : "Enviar QR Code"}
-            </Button>
-            <input
-              ref={pixQrInputRef}
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !session?.user?.id) return;
-                if (file.size > 2 * 1024 * 1024) { toast.error("Imagem deve ter no máximo 2MB."); return; }
-                setUploadingPixQr(true);
-                const ext = file.name.split(".").pop();
-                const path = `${session.user.id}/pix-qr.${ext}`;
-                const { error } = await supabase.storage.from("user-signatures").upload(path, file, { upsert: true });
-                if (error) { toast.error("Erro ao enviar QR Code."); console.error(error); }
-                else {
-                  const { data } = supabase.storage.from("user-signatures").getPublicUrl(path);
-                  await supabase.from("profiles").update({ pix_qr_image_url: data.publicUrl } as any).eq("id", session.user.id);
-                  setPixQrImageUrl(data.publicUrl);
-                  toast.success("QR Code PIX salvo!");
-                }
-                setUploadingPixQr(false);
-                if (pixQrInputRef.current) pixQrInputRef.current.value = "";
-              }}
-              className="hidden"
-            />
-          </div>
-        </div>
-      </div>
+
 
       {/* Notifications */}
       <div className="gradient-card rounded-lg border border-border p-5 space-y-4">
