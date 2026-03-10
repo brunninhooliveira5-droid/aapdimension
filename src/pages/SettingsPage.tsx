@@ -965,6 +965,19 @@ const SettingsPage = () => {
                 className="w-full accent-primary" />
               <div className="flex justify-between text-[10px] text-muted-foreground"><span>↑ Cima</span><span>Baixo ↓</span></div>
             </div>
+
+            {/* Intensidade da Cor */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Intensidade da Cor: <span className="text-foreground font-medium">{signatureDarkness}%</span></Label>
+              <input type="range" min={50} max={200} step={5} value={signatureDarkness}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureDarkness(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_darkness: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>50% Clara</span><span>200% Forte</span></div>
+            </div>
           </div>
         </div>
       </div>
