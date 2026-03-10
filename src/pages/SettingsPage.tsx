@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw, Save, X } from "lucide-react";
+import { User, Bell, Shield, Eye, EyeOff, Palette, RotateCcw, Save, X, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -54,24 +54,164 @@ const SettingsPage = () => {
       });
   }, [session?.user?.id]);
 
+  const trimSignatureCanvas = (img: HTMLImageElement, padding = 10): Blob | null => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { data, width, height } = imageData;
+
+    let top = height, left = width, bottom = 0, right = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        // Consider pixel non-empty if not transparent AND not white-ish
+        if (a > 20 && (r < 240 || g < 240 || b < 240)) {
+          if (y < top) top = y;
+          if (y > bottom) bottom = y;
+          if (x < left) left = x;
+          if (x > right) right = x;
+        }
+      }
+    }
+
+    if (bottom <= top || right <= left) return null;
+
+    // Add padding
+    top = Math.max(0, top - padding);
+    left = Math.max(0, left - padding);
+    bottom = Math.min(height - 1, bottom + padding);
+    right = Math.min(width - 1, right + padding);
+
+    const cropW = right - left + 1;
+    const cropH = bottom - top + 1;
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const cropCtx = cropCanvas.getContext("2d");
+    if (!cropCtx) return null;
+    cropCtx.drawImage(canvas, left, top, cropW, cropH, 0, 0, cropW, cropH);
+
+    let blob: Blob | null = null;
+    cropCanvas.toBlob((b) => { blob = b; }, "image/png");
+    return blob;
+  };
+
+  const trimAndUpload = async (file: Blob, userId: string): Promise<string> => {
+    const path = `${userId}/signature-${Date.now()}.png`;
+    const { error: upErr } = await supabase.storage.from("user-signatures").upload(path, file, { upsert: true, contentType: "image/png" });
+    if (upErr) throw upErr;
+    const { data: { publicUrl } } = supabase.storage.from("user-signatures").getPublicUrl(path);
+    await supabase.from("profiles").update({ signature_url: publicUrl } as any).eq("id", userId);
+    return publicUrl;
+  };
+
+  const loadImageEl = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  const cropSignatureFromBlob = async (file: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const { data, width, height } = imageData;
+        const padding = 10;
+
+        let top = height, left = width, bottom = 0, right = 0;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a > 20 && (r < 240 || g < 240 || b < 240)) {
+              if (y < top) top = y;
+              if (y > bottom) bottom = y;
+              if (x < left) left = x;
+              if (x > right) right = x;
+            }
+          }
+        }
+
+        URL.revokeObjectURL(url);
+
+        if (bottom <= top || right <= left) { resolve(file); return; }
+
+        top = Math.max(0, top - padding);
+        left = Math.max(0, left - padding);
+        bottom = Math.min(height - 1, bottom + padding);
+        right = Math.min(width - 1, right + padding);
+
+        const cropW = right - left + 1;
+        const cropH = bottom - top + 1;
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width = cropW;
+        cropCanvas.height = cropH;
+        const cropCtx = cropCanvas.getContext("2d")!;
+        cropCtx.drawImage(canvas, left, top, cropW, cropH, 0, 0, cropW, cropH);
+
+        cropCanvas.toBlob((b) => {
+          resolve(b || file);
+        }, "image/png");
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !session?.user?.id) return;
     if (!file.type.includes("png")) { toast.error("Apenas arquivos PNG são aceitos"); return; }
     setUploadingSignature(true);
     try {
-      const path = `${session.user.id}/signature-${Date.now()}.png`;
-      const { error: upErr } = await supabase.storage.from("user-signatures").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from("user-signatures").getPublicUrl(path);
-      await supabase.from("profiles").update({ signature_url: publicUrl } as any).eq("id", session.user.id);
+      const cropped = await cropSignatureFromBlob(file);
+      const publicUrl = await trimAndUpload(cropped, session.user.id);
       setSignatureUrl(publicUrl);
-      toast.success("Assinatura salva!");
+      toast.success("Assinatura salva e recortada automaticamente!");
     } catch (err: any) {
       toast.error("Erro: " + err.message);
     }
     setUploadingSignature(false);
     if (signatureInputRef.current) signatureInputRef.current.value = "";
+  };
+
+  const handleRecropSignature = async () => {
+    if (!signatureUrl || !session?.user?.id) return;
+    setUploadingSignature(true);
+    try {
+      const img = await loadImageEl(signatureUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("Failed")), "image/png");
+      });
+      const cropped = await cropSignatureFromBlob(blob);
+      const publicUrl = await trimAndUpload(cropped, session.user.id);
+      setSignatureUrl(publicUrl + "?t=" + Date.now()); // bust cache
+      toast.success("Assinatura recortada com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao recortar: " + err.message);
+    }
+    setUploadingSignature(false);
   };
 
   const handleRemoveSignature = async () => {
@@ -724,6 +864,11 @@ const SettingsPage = () => {
             <Button variant="outline" size="sm" onClick={() => signatureInputRef.current?.click()} disabled={uploadingSignature}>
               {uploadingSignature ? "Enviando..." : signatureUrl ? "Trocar Assinatura" : "Enviar Assinatura"}
             </Button>
+            {signatureUrl && (
+              <Button variant="outline" size="sm" onClick={handleRecropSignature} disabled={uploadingSignature} className="gap-1">
+                <Crop className="h-3 w-3" /> Recortar
+              </Button>
+            )}
             <input
               ref={signatureInputRef}
               type="file"
