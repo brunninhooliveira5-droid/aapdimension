@@ -1,13 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cpu, FileText, History, Settings2, ClipboardCheck, Users } from "lucide-react";
+import { Cpu, FileText, History, Settings2, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MachineSpecsCatalog } from "@/components/proposals/MachineSpecsCatalog";
 import { ProposalCreator } from "@/components/proposals/ProposalCreator";
 import { ProposalHistory } from "@/components/proposals/ProposalHistory";
 import { ProposalPdfConfiguration } from "@/components/proposals/ProposalPdfConfiguration";
 import { TechnicalReportsList } from "@/components/proposals/TechnicalReportsList";
-import { TechnicalReportPdfConfig } from "@/components/proposals/TechnicalReportPdfConfig";
-import { TechnicalReportClients } from "@/components/proposals/TechnicalReportClients";
 
 export default function ProposalsPage() {
   const { user } = useAuth();
@@ -39,16 +37,6 @@ export default function ProposalsPage() {
               <ClipboardCheck className="w-4 h-4" /> Relatório Técnico
             </TabsTrigger>
           )}
-          {isInternal && (
-            <TabsTrigger value="rt-clientes" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Users className="w-4 h-4" /> Clientes RT
-            </TabsTrigger>
-          )}
-          {isInternal && (
-            <TabsTrigger value="rt-pdf-config" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Settings2 className="w-4 h-4" /> Config. PDF RT
-            </TabsTrigger>
-          )}
           {isAdmin && (
             <TabsTrigger value="specs" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Cpu className="w-4 h-4" /> Máquinas (Specs)
@@ -71,16 +59,6 @@ export default function ProposalsPage() {
         {isInternal && (
           <TabsContent value="relatorio-tecnico">
             <TechnicalReportsList />
-          </TabsContent>
-        )}
-        {isInternal && (
-          <TabsContent value="rt-clientes">
-            <TechnicalReportClients />
-          </TabsContent>
-        )}
-        {isInternal && (
-          <TabsContent value="rt-pdf-config">
-            <TechnicalReportPdfConfig />
           </TabsContent>
         )}
 
