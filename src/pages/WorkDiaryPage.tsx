@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, Plus, Settings } from "lucide-react";
+import { ClipboardList, Plus, Settings, Users } from "lucide-react";
 import { WorkDiaryList } from "@/components/work-diary/WorkDiaryList";
 import { WorkDiaryForm } from "@/components/work-diary/WorkDiaryForm";
 import { WorkDiaryPdfConfig } from "@/components/work-diary/WorkDiaryPdfConfig";
+import { WorkDiaryClients } from "@/components/work-diary/WorkDiaryClients";
 
 export default function WorkDiaryPage() {
   const [activeTab, setActiveTab] = useState("list");
