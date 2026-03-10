@@ -48,9 +48,10 @@ const SettingsPage = () => {
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single()
+    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness, pix_qr_image_url").eq("id", session.user.id).single()
       .then(({ data }) => {
         if (data?.signature_url) setSignatureUrl(data.signature_url);
+        if ((data as any)?.pix_qr_image_url) setPixQrImageUrl((data as any).pix_qr_image_url);
         if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
         if ((data as any)?.signature_offset_x != null) setSignatureOffsetX((data as any).signature_offset_x);
         if ((data as any)?.signature_offset_y != null) setSignatureOffsetY((data as any).signature_offset_y);
