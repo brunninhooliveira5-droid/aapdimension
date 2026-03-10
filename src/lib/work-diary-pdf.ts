@@ -110,15 +110,62 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   field("Tipo", typeLabels[entry.activity_type] || entry.activity_type);
   field("Local", entry.location);
   field("Responsável", entry.responsible);
-  if (entry.contracted_service) field("Serviço Contratado", entry.contracted_service);
+  
+  const deadlineStr = entry.execution_deadline
+    ? format(new Date(entry.execution_deadline), "dd/MM/yyyy")
+    : "Prazo não definido";
+  field("Prazo de Execução", deadlineStr);
+
   if (entry.unit_value) field("Unitário", entry.unit_value);
+
+  // === SERVIÇOS CONTRATADOS ===
+  const services: { name: string }[] = Array.isArray(entry.contracted_services) ? entry.contracted_services : [];
+  if (services.length > 0) {
+    sectionTitle("SERVIÇOS CONTRATADOS");
+    services.forEach((s, i) => {
+      checkPage(6);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${i + 1}. ${s.name}`, m + 4, y);
+      y += 5;
+    });
+    y += 2;
+  }
+
+  // === MATERIAIS NECESSÁRIOS ===
+  const materials: { name: string; quantity: string; has: string; missing: string }[] = Array.isArray(entry.required_materials) ? entry.required_materials : [];
+  if (materials.length > 0) {
+    sectionTitle("MATERIAIS NECESSÁRIOS");
+    // Table header
+    checkPage(8);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    const colX = [m + 2, m + 82, m + 107, m + 132];
+    doc.text("Material", colX[0], y);
+    doc.text("Qtd", colX[1], y);
+    doc.text("Tem", colX[2], y);
+    doc.text("Falta", colX[3], y);
+    y += 2;
+    doc.setDrawColor(180);
+    doc.line(m + 2, y, m + cw - 2, y);
+    y += 3;
+    doc.setFont("helvetica", "normal");
+    materials.forEach((mat) => {
+      checkPage(6);
+      doc.text(mat.name || "-", colX[0], y);
+      doc.text(mat.quantity || "-", colX[1], y);
+      doc.text(mat.has || "-", colX[2], y);
+      doc.text(mat.missing || "-", colX[3], y);
+      y += 5;
+    });
+    y += 2;
+  }
 
   // === DESCRIÇÃO ===
   sectionTitle("DESCRIÇÃO DA ATIVIDADE");
   textBlock("Atividade Executada", entry.description);
   textBlock("Processo de Execução", entry.execution_process);
   if (cfg.show_materials !== false) textBlock("Materiais Utilizados", entry.materials_used);
-  textBlock("Materiais a Ser Utilizado", entry.materials_to_use);
   textBlock("Equipe Envolvida", entry.team);
   textBlock("Observações", entry.observations);
 

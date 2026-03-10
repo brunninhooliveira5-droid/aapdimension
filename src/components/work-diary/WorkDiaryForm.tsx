@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Trash2, Save, X } from "lucide-react";
+import { Upload, Trash2, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -33,6 +33,22 @@ interface Props {
   onCancel: () => void;
 }
 
+interface ContractedService {
+  name: string;
+}
+
+interface RequiredMaterial {
+  name: string;
+  quantity: string;
+  has: string;
+  missing: string;
+}
+
+interface FileWithCaption {
+  file: File;
+  caption: string;
+}
+
 const emptyForm = {
   entry_date: format(new Date(), "yyyy-MM-dd"),
   time_start: "",
@@ -52,12 +68,8 @@ const emptyForm = {
   execution_process: "",
   materials_to_use: "",
   impediment_reason: "",
+  execution_deadline: "",
 };
-
-interface FileWithCaption {
-  file: File;
-  caption: string;
-}
 
 export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const { effectiveUserId, user } = useEffectiveUser();
@@ -66,12 +78,16 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const [newFiles, setNewFiles] = useState<FileWithCaption[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [contractedServices, setContractedServices] = useState<ContractedService[]>([]);
+  const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterial[]>([]);
 
   useEffect(() => {
     if (entryId) loadEntry();
     else {
       setForm({ ...emptyForm, responsible: user?.name || "" });
       setFiles([]);
+      setContractedServices([]);
+      setRequiredMaterials([]);
     }
   }, [entryId]);
 
@@ -98,13 +114,36 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         execution_process: (data as any).execution_process || "",
         materials_to_use: (data as any).materials_to_use || "",
         impediment_reason: (data as any).impediment_reason || "",
+        execution_deadline: (data as any).execution_deadline || "",
       });
+      try {
+        const cs = (data as any).contracted_services;
+        setContractedServices(Array.isArray(cs) ? cs : []);
+      } catch { setContractedServices([]); }
+      try {
+        const rm = (data as any).required_materials;
+        setRequiredMaterials(Array.isArray(rm) ? rm : []);
+      } catch { setRequiredMaterials([]); }
     }
     const { data: existingFiles } = await supabase.from("work_diary_files").select("*").eq("entry_id", entryId);
     setFiles(existingFiles || []);
   };
 
   const update = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
+
+  // Contracted services helpers
+  const addService = () => setContractedServices((prev) => [...prev, { name: "" }]);
+  const updateService = (idx: number, name: string) =>
+    setContractedServices((prev) => prev.map((s, i) => (i === idx ? { name } : s)));
+  const removeService = (idx: number) =>
+    setContractedServices((prev) => prev.filter((_, i) => i !== idx));
+
+  // Required materials helpers
+  const addMaterial = () => setRequiredMaterials((prev) => [...prev, { name: "", quantity: "", has: "", missing: "" }]);
+  const updateMaterial = (idx: number, field: keyof RequiredMaterial, val: string) =>
+    setRequiredMaterials((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: val } : m)));
+  const removeMaterial = (idx: number) =>
+    setRequiredMaterials((prev) => prev.filter((_, i) => i !== idx));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -157,13 +196,19 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     setSaving(true);
     try {
+      const payload = {
+        ...form,
+        contracted_services: contractedServices.filter((s) => s.name.trim()),
+        required_materials: requiredMaterials.filter((m) => m.name.trim()),
+      };
+
       if (entryId) {
-        const { error } = await supabase.from("work_diary_entries").update(form as any).eq("id", entryId);
+        const { error } = await supabase.from("work_diary_entries").update(payload as any).eq("id", entryId);
         if (error) throw error;
         await uploadFiles(entryId);
         toast.success("Registro atualizado!");
       } else {
-        const { data, error } = await supabase.from("work_diary_entries").insert({ ...form, user_id: effectiveUserId } as any).select("id").single();
+        const { data, error } = await supabase.from("work_diary_entries").insert({ ...payload, user_id: effectiveUserId } as any).select("id").single();
         if (error) throw error;
         await uploadFiles(data.id);
         toast.success("Registro criado!");
@@ -216,13 +261,72 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
             <Input value={form.responsible} onChange={(e) => update("responsible", e.target.value)} placeholder="Nome do responsável" />
           </div>
           <div>
-            <Label>Serviço Contratado</Label>
-            <Input value={form.contracted_service} onChange={(e) => update("contracted_service", e.target.value)} placeholder="Descrição do serviço contratado" />
+            <Label>Prazo de Execução</Label>
+            <Input type="date" value={form.execution_deadline} onChange={(e) => update("execution_deadline", e.target.value)} />
           </div>
           <div>
             <Label>Unitário</Label>
             <Input value={form.unit_value} onChange={(e) => update("unit_value", e.target.value)} placeholder="Valor unitário ou unidade" />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Serviços Contratados */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base">Serviços Contratados</CardTitle>
+          <Button variant="outline" size="sm" onClick={addService}><Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Serviço</Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {contractedServices.length === 0 && (
+            <p className="text-xs text-muted-foreground">Nenhum serviço adicionado. Clique em "Adicionar Serviço" para começar.</p>
+          )}
+          {contractedServices.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={s.name}
+                onChange={(e) => updateService(i, e.target.value)}
+                placeholder={`Nome do serviço ${i + 1}`}
+                className="flex-1"
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeService(i)}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Materiais Necessários */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base">Materiais Necessários</CardTitle>
+          <Button variant="outline" size="sm" onClick={addMaterial}><Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Material</Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {requiredMaterials.length === 0 && (
+            <p className="text-xs text-muted-foreground">Nenhum material adicionado. Clique em "Adicionar Material" para começar.</p>
+          )}
+          {requiredMaterials.length > 0 && (
+            <div className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-2 text-xs font-medium text-muted-foreground mb-1">
+              <span>Material</span>
+              <span>Qtd</span>
+              <span>Tem</span>
+              <span>Falta</span>
+              <span />
+            </div>
+          )}
+          {requiredMaterials.map((m, i) => (
+            <div key={i} className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-2 items-center">
+              <Input value={m.name} onChange={(e) => updateMaterial(i, "name", e.target.value)} placeholder="Nome do material" className="h-8 text-sm" />
+              <Input value={m.quantity} onChange={(e) => updateMaterial(i, "quantity", e.target.value)} placeholder="Qtd" className="h-8 text-sm" />
+              <Input value={m.has} onChange={(e) => updateMaterial(i, "has", e.target.value)} placeholder="Tem" className="h-8 text-sm" />
+              <Input value={m.missing} onChange={(e) => updateMaterial(i, "missing", e.target.value)} placeholder="Falta" className="h-8 text-sm" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeMaterial(i)}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
@@ -232,7 +336,6 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
           <div><Label>Descrição da atividade executada</Label><Textarea value={form.description} onChange={(e) => update("description", e.target.value)} rows={4} /></div>
           <div><Label>Processo de Execução</Label><Textarea value={form.execution_process} onChange={(e) => update("execution_process", e.target.value)} rows={3} placeholder="Descreva o processo de execução..." /></div>
           <div><Label>Materiais utilizados</Label><Textarea value={form.materials_used} onChange={(e) => update("materials_used", e.target.value)} rows={2} /></div>
-          <div><Label>Materiais a ser utilizado</Label><Textarea value={form.materials_to_use} onChange={(e) => update("materials_to_use", e.target.value)} rows={2} placeholder="Materiais previstos para uso futuro..." /></div>
           <div><Label>Equipe envolvida</Label><Input value={form.team} onChange={(e) => update("team", e.target.value)} placeholder="Nomes da equipe" /></div>
           <div><Label>Observações gerais</Label><Textarea value={form.observations} onChange={(e) => update("observations", e.target.value)} rows={2} /></div>
         </CardContent>
@@ -276,12 +379,7 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
                     <div className="h-28 flex items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center">{f.file_name}</div>
                   )}
                   <div className="p-1.5">
-                    <Input
-                      value={f.caption || ""}
-                      onChange={(e) => updateExistingCaption(f, e.target.value)}
-                      placeholder="Descrição da imagem..."
-                      className="h-7 text-xs"
-                    />
+                    <Input value={f.caption || ""} onChange={(e) => updateExistingCaption(f, e.target.value)} placeholder="Descrição da imagem..." className="h-7 text-xs" />
                   </div>
                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeExistingFile(f)}>
                     <Trash2 className="h-3 w-3" />
@@ -300,12 +398,7 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
                     <div className="h-28 flex items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center">{f.file.name}</div>
                   )}
                   <div className="p-1.5">
-                    <Input
-                      value={f.caption}
-                      onChange={(e) => updateNewFileCaption(i, e.target.value)}
-                      placeholder="Descrição da imagem..."
-                      className="h-7 text-xs"
-                    />
+                    <Input value={f.caption} onChange={(e) => updateNewFileCaption(i, e.target.value)} placeholder="Descrição da imagem..." className="h-7 text-xs" />
                   </div>
                   <button onClick={() => removeNewFile(i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full h-5 w-5 flex items-center justify-center">
                     <X className="h-3 w-3" />
