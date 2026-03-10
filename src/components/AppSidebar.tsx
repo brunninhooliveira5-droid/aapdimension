@@ -119,7 +119,16 @@ export function AppSidebar() {
   const isPro = hasProAccess();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border relative">
+      {/* Toggle arrow button */}
+      <button
+        onClick={() => setOpen(!collapsed ? false : true)}
+        className="absolute -right-3 top-7 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-foreground hover:bg-accent transition-colors"
+        title={collapsed ? "Expandir menu" : "Recolher menu"}
+      >
+        {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+      </button>
+
       <div
         className="flex items-center justify-center px-4 py-4 border-b border-sidebar-border cursor-pointer"
         onClick={() => navigate("/")}

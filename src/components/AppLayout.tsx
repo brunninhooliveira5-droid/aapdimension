@@ -26,7 +26,6 @@ export function AppLayout() {
           <AppSidebar />
           <main className="flex-1 flex flex-col min-w-0">
             <header className="h-14 flex items-center gap-3 border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-              <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
               <AppBreadcrumbs />
               <div className="ml-auto">
                 <ThemeToggle />
