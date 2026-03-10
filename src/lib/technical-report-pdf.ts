@@ -214,38 +214,40 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   }
 
   // ====== FOTOS ======
-  const photos = (files || []).filter((f: any) => f.mime_type?.startsWith("image/"));
-  if (photos.length > 0) {
-    drawSectionTitle("REGISTROS FOTOGRÁFICOS");
-    for (const photo of photos) {
-      try {
-        checkPage(75);
-        const img = await loadImage(photo.file_path);
-        const maxW = contentWidth * 0.7;
-        const maxH = 65;
-        const ratio = Math.min(maxW / img.width, maxH / img.height);
-        const w = img.width * ratio;
-        const h = img.height * ratio;
-        doc.addImage(img, "JPEG", margin + 2, y, w, h);
-        y += h + 3;
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "italic");
-        addText(photo.file_name, margin + 2, y);
-        y += 4;
-        if (photo.description) {
+  if (cfg.show_photos !== false) {
+    const photos = (files || []).filter((f: any) => f.mime_type?.startsWith("image/"));
+    if (photos.length > 0) {
+      drawSectionTitle("REGISTROS FOTOGRÁFICOS");
+      for (const photo of photos) {
+        try {
+          checkPage(75);
+          const img = await loadImage(photo.file_path);
+          const maxW = contentWidth * 0.7;
+          const maxH = 65;
+          const ratio = Math.min(maxW / img.width, maxH / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          doc.addImage(img, "JPEG", margin + 2, y, w, h);
+          y += h + 3;
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "italic");
+          addText(photo.file_name, margin + 2, y);
+          y += 4;
+          if (photo.description) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            const descLines = doc.splitTextToSize(photo.description, contentWidth - 4);
+            descLines.forEach((line: string) => {
+              checkPage(5);
+              addText(line, margin + 2, y);
+              y += 4;
+            });
+          }
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          const descLines = doc.splitTextToSize(photo.description, contentWidth - 4);
-          descLines.forEach((line: string) => {
-            checkPage(5);
-            addText(line, margin + 2, y);
-            y += 4;
-          });
+          y += 3;
+        } catch {
+          // skip broken images
         }
-        doc.setFont("helvetica", "normal");
-        y += 3;
-      } catch {
-        // skip broken images
       }
     }
   }
