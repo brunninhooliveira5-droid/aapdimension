@@ -191,6 +191,27 @@ export function ReceiptPdfConfig() {
         </Card>
 
         <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">QR Code PIX</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">Envie a imagem do seu QR Code PIX para exibir nos PDFs de comprovante e orçamento de corte.</p>
+            <div className="flex gap-3 items-center">
+              {pixQrImageUrl && <img src={pixQrImageUrl} alt="QR Code PIX" className="h-24 w-24 rounded border border-border object-contain bg-white p-1" />}
+              <div className="space-y-2">
+                <Button variant="outline" size="sm" onClick={() => document.getElementById("rcfg-pix-qr")?.click()} className="gap-1">
+                  <Upload className="h-3 w-3" /> {pixQrImageUrl ? "Trocar imagem" : "Enviar QR Code"}
+                </Button>
+                {pixQrImageUrl && (
+                  <Button variant="ghost" size="sm" onClick={() => setPixQrImageUrl("")} className="gap-1 text-destructive hover:text-destructive">
+                    Remover
+                  </Button>
+                )}
+                <input id="rcfg-pix-qr" type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], "pix-qr", setPixQrImageUrl)} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Toggles de Exibição</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {[
