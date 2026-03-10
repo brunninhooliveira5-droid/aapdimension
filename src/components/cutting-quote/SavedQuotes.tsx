@@ -830,6 +830,63 @@ export function SavedQuotes() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Receipt Dialog */}
+      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Receipt className="w-4 h-4 text-primary" />
+              Comprovante de Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {receiptQuote && (
+              <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+                <p className="font-medium">{receiptQuote.file_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {receiptQuote.material} • {receiptQuote.thickness}
+                </p>
+                <p className="text-sm font-semibold text-primary">
+                  {fmt(Number(receiptQuote.total_price) || Number(receiptQuote.suggested_sale))}
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Nome do Cliente *</Label>
+              <Input value={receiptClientName} onChange={e => setReceiptClientName(e.target.value)} placeholder="Nome do cliente" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Forma de Pagamento *</Label>
+              <Select value={receiptPaymentMethod} onValueChange={setReceiptPaymentMethod}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Observações</Label>
+              <Textarea value={receiptNotes} onChange={e => setReceiptNotes(e.target.value)} placeholder="Observações opcionais..." rows={2} />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              A assinatura cadastrada em Configurações será inserida automaticamente no PDF. O layout usa a logomarca e marca d'água da configuração de PDF do Orçamento.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setReceiptDialogOpen(false)}>Cancelar</Button>
+              <Button className="flex-1 gap-2" onClick={generateReceipt} disabled={generatingReceipt}>
+                <Receipt className="w-4 h-4" />
+                {generatingReceipt ? "Gerando..." : "Gerar Comprovante"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
