@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save, TrendingUp } from "lucide-react";
+import { Trash2, History, Download, CheckCircle, FileText, FileDown, File, Search, X, Save, TrendingUp, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffectiveUser } from "@/hooks/useEffectiveUser";
