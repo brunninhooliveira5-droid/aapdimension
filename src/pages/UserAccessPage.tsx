@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory, Wrench, Hammer, LayoutGrid, Box, PackageOpen, PanelTop, Route, BookOpen } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory, Wrench, Hammer, LayoutGrid, Box, PackageOpen, PanelTop, Route, BookOpen, LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, RotateCcw, Target, BarChart3, ArrowDownUp, BookmarkCheck, Bell, Truck, ClipboardCheck, FileText, FilePlus, Settings2, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
