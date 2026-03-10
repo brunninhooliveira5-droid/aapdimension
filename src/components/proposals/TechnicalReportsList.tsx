@@ -5,12 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Edit, Trash2, FileDown } from "lucide-react";
+import { Plus, Search, FileText, Edit, Trash2, FileDown, Users, Settings2, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { TechnicalReportForm } from "./TechnicalReportForm";
+import { TechnicalReportPdfConfig } from "./TechnicalReportPdfConfig";
+import { TechnicalReportClients } from "./TechnicalReportClients";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
 
 const statusColors: Record<string, string> = {
