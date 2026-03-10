@@ -450,6 +450,11 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
         if (accountData?.owner_user_id) {
           pdfOwnerId = accountData.owner_user_id;
         }
+      } else if (user?.role === "servico") {
+        const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
+        if (adminId) {
+          pdfOwnerId = adminId;
+        }
       }
 
       const { data } = await supabase

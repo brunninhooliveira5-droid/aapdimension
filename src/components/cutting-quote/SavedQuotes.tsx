@@ -347,13 +347,23 @@ export function SavedQuotes() {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
 
+    // Resolve PDF owner: sub-users inherit from account owner, servico users inherit from admin_master
+    let pdfOwnerId = effectiveUserId || session?.user?.id;
+    const isSubUser = !!user?.accountMembership && user?.accountMembership?.memberRole !== "client_admin";
+    if (isSubUser && user?.accountMembership?.accountId) {
+      const { data: accountData } = await supabase.from("accounts").select("owner_user_id").eq("id", user.accountMembership.accountId).single();
+      if (accountData?.owner_user_id) pdfOwnerId = accountData.owner_user_id;
+    } else if (user?.role === "servico") {
+      const { data: adminId } = await supabase.rpc("get_admin_master_user_id");
+      if (adminId) pdfOwnerId = adminId;
+    }
+
     // Load PDF settings for logo, watermark, PIX QR
-    const uid = effectiveUserId || session?.user?.id;
-    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", uid).maybeSingle();
+    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", pdfOwnerId).maybeSingle();
     const s = (pdfSettings || {}) as any;
 
     // Also fetch pix_qr_image_url from profile (centralized)
-    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", uid).single();
+    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", pdfOwnerId).single();
     const pixQrUrl = s.pix_qr_image_url || profile?.pix_qr_image_url || "";
 
     // Helper to load image as data URL
