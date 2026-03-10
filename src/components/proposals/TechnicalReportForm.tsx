@@ -387,18 +387,32 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Dados do Cliente</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <CardContent className="space-y-3">
               <div>
-                <Label className="text-xs">Cliente</Label>
-                <Input value={form.client_name} onChange={(e) => updateField("client_name", e.target.value)} />
+                <Label className="text-xs">Selecionar Cliente Cadastrado</Label>
+                <Select value={(form as any).client_id || "none"} onValueChange={handleClientSelect}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nenhum —</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label className="text-xs">Empresa</Label>
-                <Input value={form.client_company} onChange={(e) => updateField("client_company", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Cidade / Local</Label>
-                <Input value={form.client_city} onChange={(e) => updateField("client_city", e.target.value)} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Cliente</Label>
+                  <Input value={form.client_name} onChange={(e) => updateField("client_name", e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Empresa</Label>
+                  <Input value={form.client_company} onChange={(e) => updateField("client_company", e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Cidade / Local</Label>
+                  <Input value={form.client_city} onChange={(e) => updateField("client_city", e.target.value)} />
+                </div>
               </div>
             </CardContent>
           </Card>
