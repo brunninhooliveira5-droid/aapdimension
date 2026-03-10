@@ -206,7 +206,12 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   let techSigDrawn = false;
   if (signatureOpts?.technicianSignatureUrl) {
     try {
-      const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      let sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      // Apply darkness/contrast filter via canvas
+      const darkness = signatureOpts?.signatureDarkness || 100;
+      if (darkness !== 100) {
+        sigImg = await applyDarknessFilter(sigImg, darkness);
+      }
       const zoom = (signatureOpts?.signatureZoom || 100) / 100;
       const sigMaxW = sigColWidth - 10;
       const sigMaxH = signatureOpts?.signatureSize || 35;
