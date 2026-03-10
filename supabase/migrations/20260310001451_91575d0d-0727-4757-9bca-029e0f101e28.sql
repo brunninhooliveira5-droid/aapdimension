@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS signature_size integer NOT NULL DEFAULT 35;

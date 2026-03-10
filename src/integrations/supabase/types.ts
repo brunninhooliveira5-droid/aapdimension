@@ -5050,6 +5050,7 @@ export type Database = {
           name: string
           phone: string | null
           rejected: boolean
+          signature_size: number
           signature_url: string | null
           state: string | null
           suspended_by: string | null
@@ -5070,6 +5071,7 @@ export type Database = {
           name: string
           phone?: string | null
           rejected?: boolean
+          signature_size?: number
           signature_url?: string | null
           state?: string | null
           suspended_by?: string | null
@@ -5090,6 +5092,7 @@ export type Database = {
           name?: string
           phone?: string | null
           rejected?: boolean
+          signature_size?: number
           signature_url?: string | null
           state?: string | null
           suspended_by?: string | null
