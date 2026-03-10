@@ -380,7 +380,7 @@ export function PdfConfiguration() {
         </CardContent>
       </Card>
 
-      <fieldset disabled={isSubUser} className={isSubUser ? "opacity-60 pointer-events-none" : ""}>
+      <fieldset disabled={isReadOnly} className={isReadOnly ? "opacity-60 pointer-events-none" : ""}>
       {/* Company Info */}
       <Card>
         <CardHeader className="pb-3">
