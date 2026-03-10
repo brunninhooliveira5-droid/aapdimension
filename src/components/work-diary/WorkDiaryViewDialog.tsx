@@ -25,6 +25,11 @@ export function WorkDiaryViewDialog({ entry, open, onClose }: Props) {
   }, [entry?.id]);
 
   const photos = files.filter(f => f.mime_type?.startsWith("image/"));
+  const services: { name: string }[] = Array.isArray(entry.contracted_services) ? entry.contracted_services : [];
+  const materials: { name: string; quantity: string; has: string; missing: string }[] = Array.isArray(entry.required_materials) ? entry.required_materials : [];
+  const deadlineStr = entry.execution_deadline
+    ? format(new Date(entry.execution_deadline), "dd/MM/yyyy")
+    : "Prazo não definido";
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
@@ -39,14 +44,43 @@ export function WorkDiaryViewDialog({ entry, open, onClose }: Props) {
             <Field label="Tipo" value={typeLabels[entry.activity_type] || entry.activity_type} />
             <Field label="Local" value={entry.location} />
             <Field label="Responsável" value={entry.responsible} />
+            <Field label="Prazo de Execução" value={deadlineStr} />
             <Field label="Status" value={<Badge variant="outline">{statusLabels[entry.status] || entry.status}</Badge>} />
-            {entry.contracted_service && <Field label="Serviço Contratado" value={entry.contracted_service} />}
             {entry.unit_value && <Field label="Unitário" value={entry.unit_value} />}
           </div>
+
+          {services.length > 0 && (
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Serviços Contratados</p>
+              <ul className="list-disc list-inside text-sm space-y-0.5">
+                {services.map((s, i) => <li key={i}>{s.name}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {materials.length > 0 && (
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Materiais Necessários</p>
+              <div className="grid grid-cols-[1fr_60px_60px_60px] gap-1 text-xs">
+                <span className="font-medium text-muted-foreground">Material</span>
+                <span className="font-medium text-muted-foreground">Qtd</span>
+                <span className="font-medium text-muted-foreground">Tem</span>
+                <span className="font-medium text-muted-foreground">Falta</span>
+                {materials.map((m, i) => (
+                  <> 
+                    <span key={`n${i}`}>{m.name}</span>
+                    <span key={`q${i}`}>{m.quantity || "-"}</span>
+                    <span key={`h${i}`}>{m.has || "-"}</span>
+                    <span key={`m${i}`}>{m.missing || "-"}</span>
+                  </>
+                ))}
+              </div>
+            </div>
+          )}
+
           {entry.description && <Field label="Descrição" value={entry.description} full />}
           {entry.execution_process && <Field label="Processo de Execução" value={entry.execution_process} full />}
           {entry.materials_used && <Field label="Materiais Utilizados" value={entry.materials_used} full />}
-          {entry.materials_to_use && <Field label="Materiais a Ser Utilizado" value={entry.materials_to_use} full />}
           {entry.team && <Field label="Equipe" value={entry.team} full />}
           {entry.pending_reason && <Field label="Motivo/Pendência" value={entry.pending_reason} full />}
           {entry.impediment_reason && <Field label="Motivo do Impedimento" value={entry.impediment_reason} full />}
