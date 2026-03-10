@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { applyPhoneMask } from "@/lib/phone-mask";
 
 const activityTypes = [
   { value: "obra", label: "Obra" },
