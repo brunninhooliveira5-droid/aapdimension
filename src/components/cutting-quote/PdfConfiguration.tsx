@@ -591,6 +591,54 @@ export function PdfConfiguration() {
         </CardContent>
       </Card>
 
+      {/* QR Code PIX */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-primary" />
+            QR Code PIX
+          </CardTitle>
+          <CardDescription>Imagem do QR Code PIX exibida nos PDFs de orçamento e comprovante</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-4">
+            {settings.pix_qr_image_url ? (
+              <div className="relative">
+                <img src={settings.pix_qr_image_url} alt="QR Code PIX" className="h-24 w-24 rounded border border-border object-contain bg-white p-1" />
+                <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => update("pix_qr_image_url", "")}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="h-24 w-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => document.getElementById("pix-qr-upload")?.click()}>
+                <div className="text-center">
+                  <Upload className="w-5 h-5 mx-auto text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Enviar QR</p>
+                </div>
+              </div>
+            )}
+            <input id="pix-qr-upload" type="file" accept="image/*" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file || !session?.user) return;
+              if (file.size > 2 * 1024 * 1024) { toast.error("Imagem deve ter no máximo 2MB."); return; }
+              const ext = file.name.split(".").pop();
+              const path = `${session.user.id}/pix-qr.${ext}`;
+              const { error } = await supabase.storage.from("quote-logos").upload(path, file, { upsert: true });
+              if (error) { toast.error("Erro ao enviar QR Code."); console.error(error); } else {
+                const { data: urlData } = supabase.storage.from("quote-logos").getPublicUrl(path);
+                update("pix_qr_image_url", urlData.publicUrl);
+                toast.success("QR Code PIX enviado!");
+              }
+              e.target.value = "";
+            }} />
+            {settings.pix_qr_image_url && (
+              <Button variant="outline" size="sm" onClick={() => document.getElementById("pix-qr-upload")?.click()}>Trocar</Button>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground">Essa imagem será inserida nos PDFs quando o QR Code PIX estiver habilitado.</p>
+        </CardContent>
+      </Card>
+
       {/* Footer */}
       <Card>
         <CardHeader className="pb-3">
