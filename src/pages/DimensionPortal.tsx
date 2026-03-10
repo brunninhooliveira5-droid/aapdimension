@@ -23,6 +23,7 @@ const tabs = [
   { value: "routines", label: "Rotinas", icon: RotateCcw },
   { value: "documentacao", label: "Documentação", icon: ClipboardList },
   { value: "propostas", label: "Propostas", icon: FileText },
+  { value: "contratos", label: "Contrato", icon: FileSignature },
   { value: "metas", label: "Metas", icon: Target },
 ];
 
