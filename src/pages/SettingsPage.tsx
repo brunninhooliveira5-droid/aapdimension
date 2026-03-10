@@ -34,14 +34,18 @@ const SettingsPage = () => {
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [signatureSize, setSignatureSize] = useState(35);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url").eq("id", session.user.id).single()
-      .then(({ data }) => { if (data?.signature_url) setSignatureUrl(data.signature_url); });
+    supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single()
+      .then(({ data }) => {
+        if (data?.signature_url) setSignatureUrl(data.signature_url);
+        if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
+      });
   }, [session?.user?.id]);
 
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -701,7 +705,7 @@ const SettingsPage = () => {
           <p className="text-xs text-muted-foreground">Envie uma imagem PNG da sua assinatura (preferencialmente com fundo transparente). Ela será inserida automaticamente nos PDFs que você gerar.</p>
           {signatureUrl && (
             <div className="relative inline-block border border-border rounded-lg p-2 bg-white">
-              <img src={signatureUrl} alt="Assinatura" className="h-32 object-contain" />
+              <img src={signatureUrl} alt="Assinatura" style={{ height: `${signatureSize * 3}px` }} className="object-contain" />
               <button
                 onClick={handleRemoveSignature}
                 className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
@@ -721,6 +725,30 @@ const SettingsPage = () => {
               onChange={handleSignatureUpload}
               className="hidden"
             />
+          </div>
+
+          {/* Tamanho da assinatura no PDF */}
+          <div className="space-y-2 pt-2">
+            <Label className="text-xs text-muted-foreground">Tamanho da assinatura no PDF: <span className="text-foreground font-medium">{signatureSize}mm</span></Label>
+            <input
+              type="range"
+              min={15}
+              max={60}
+              step={5}
+              value={signatureSize}
+              onChange={async (e) => {
+                const val = Number(e.target.value);
+                setSignatureSize(val);
+                if (session?.user?.id) {
+                  await supabase.from("profiles").update({ signature_size: val } as any).eq("id", session.user.id);
+                }
+              }}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>15mm</span>
+              <span>60mm</span>
+            </div>
           </div>
         </div>
       </div>

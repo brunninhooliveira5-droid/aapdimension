@@ -303,14 +303,16 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
           <Button variant="outline" onClick={async () => {
             // Fetch technician signature from profile
             let techSignatureUrl: string | null = null;
+            let sigSize = 35;
             if (session?.user?.id) {
-              const { data: profile } = await supabase.from("profiles").select("signature_url").eq("id", session.user.id).single();
+              const { data: profile } = await supabase.from("profiles").select("signature_url, signature_size").eq("id", session.user.id).single();
               techSignatureUrl = profile?.signature_url || null;
+              sigSize = (profile as any)?.signature_size || 35;
             }
             generateTechnicalReportPdf(
               { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
               files,
-              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "" }
+              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize }
             );
           }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF

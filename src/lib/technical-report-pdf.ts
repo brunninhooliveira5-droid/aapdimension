@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
 interface SignatureOptions {
   technicianSignatureUrl?: string | null;
   technicianCompany?: string;
+  signatureSize?: number;
 }
 
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
@@ -203,7 +204,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     try {
       const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
       const sigMaxW = sigColWidth - 10;
-      const sigMaxH = 35;
+      const sigMaxH = signatureOpts?.signatureSize || 35;
       const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height);
       const sigW = sigImg.width * sigRatio;
       const sigH = sigImg.height * sigRatio;
@@ -250,7 +251,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     try {
       const clientImg = await loadImage(report.client_signature_image_url);
       const cSigMaxW = sigColWidth - 10;
-      const cSigMaxH = 35;
+      const cSigMaxH = signatureOpts?.signatureSize || 35;
       const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
       const cW = clientImg.width * cRatio;
       const cH = clientImg.height * cRatio;

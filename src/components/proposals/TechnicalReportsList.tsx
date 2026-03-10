@@ -170,13 +170,14 @@ export function TechnicalReportsList() {
                               .order("sort_order"),
                             supabase
                               .from("profiles")
-                              .select("signature_url, company")
+                              .select("signature_url, company, signature_size")
                               .eq("id", r.created_by)
                               .single(),
                           ]);
                           generateTechnicalReportPdf(r, reportFiles || [], {
                             technicianSignatureUrl: profile?.signature_url || null,
                             technicianCompany: profile?.company || "",
+                            signatureSize: (profile as any)?.signature_size || 35,
                           });
                         }}
                         title="Gerar PDF"
