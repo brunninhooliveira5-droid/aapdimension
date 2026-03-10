@@ -1,11 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cpu, FileText, History, Settings2, ClipboardCheck } from "lucide-react";
+import { Cpu, FileText, History, Settings2, ClipboardCheck, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MachineSpecsCatalog } from "@/components/proposals/MachineSpecsCatalog";
 import { ProposalCreator } from "@/components/proposals/ProposalCreator";
 import { ProposalHistory } from "@/components/proposals/ProposalHistory";
 import { ProposalPdfConfiguration } from "@/components/proposals/ProposalPdfConfiguration";
 import { TechnicalReportsList } from "@/components/proposals/TechnicalReportsList";
+import { TechnicalReportPdfConfig } from "@/components/proposals/TechnicalReportPdfConfig";
+import { TechnicalReportClients } from "@/components/proposals/TechnicalReportClients";
 
 export default function ProposalsPage() {
   const { user } = useAuth();
