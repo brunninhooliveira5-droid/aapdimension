@@ -4975,6 +4975,7 @@ export type Database = {
           id: string
           label_service_value: string | null
           logo_url: string | null
+          pix_qr_image_url: string
           primary_color: string | null
           show_customer: boolean | null
           show_cutting_value: boolean | null
@@ -5003,6 +5004,7 @@ export type Database = {
           id?: string
           label_service_value?: string | null
           logo_url?: string | null
+          pix_qr_image_url?: string
           primary_color?: string | null
           show_customer?: boolean | null
           show_cutting_value?: boolean | null
@@ -5031,6 +5033,7 @@ export type Database = {
           id?: string
           label_service_value?: string | null
           logo_url?: string | null
+          pix_qr_image_url?: string
           primary_color?: string | null
           show_customer?: boolean | null
           show_cutting_value?: boolean | null
@@ -5645,6 +5648,7 @@ export type Database = {
           institutional_text: string
           logo_url: string
           phone: string
+          pix_qr_image_url: string
           primary_color: string
           show_emitter_signature: boolean
           show_footer: boolean
@@ -5678,6 +5682,7 @@ export type Database = {
           institutional_text?: string
           logo_url?: string
           phone?: string
+          pix_qr_image_url?: string
           primary_color?: string
           show_emitter_signature?: boolean
           show_footer?: boolean
@@ -5711,6 +5716,7 @@ export type Database = {
           institutional_text?: string
           logo_url?: string
           phone?: string
+          pix_qr_image_url?: string
           primary_color?: string
           show_emitter_signature?: boolean
           show_footer?: boolean
