@@ -38,7 +38,17 @@ function crc16(payload: string): string {
 }
 
 export function generatePixPayload(params: PixPayloadParams): string {
-  const { key, amount, txid = "PGTO" } = params;
+  const { amount, txid = "PGTO" } = params;
+  let key = params.key.trim();
+  
+  // Auto-format phone keys: add +55 if it looks like a Brazilian phone (10-11 digits)
+  const digitsOnly = key.replace(/\D/g, "");
+  if (/^\d{10,11}$/.test(digitsOnly)) {
+    key = "+55" + digitsOnly;
+  } else if (/^55\d{10,11}$/.test(digitsOnly)) {
+    key = "+" + digitsOnly;
+  }
+  
   const beneficiary = removeDiacritics(params.beneficiary).toUpperCase().slice(0, 25);
   const city = removeDiacritics(params.city).toUpperCase().slice(0, 15);
 
