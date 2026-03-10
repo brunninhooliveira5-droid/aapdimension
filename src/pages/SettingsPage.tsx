@@ -864,6 +864,11 @@ const SettingsPage = () => {
             <Button variant="outline" size="sm" onClick={() => signatureInputRef.current?.click()} disabled={uploadingSignature}>
               {uploadingSignature ? "Enviando..." : signatureUrl ? "Trocar Assinatura" : "Enviar Assinatura"}
             </Button>
+            {signatureUrl && (
+              <Button variant="outline" size="sm" onClick={handleRecropSignature} disabled={uploadingSignature} className="gap-1">
+                <Crop className="h-3 w-3" /> Recortar
+              </Button>
+            )}
             <input
               ref={signatureInputRef}
               type="file"
