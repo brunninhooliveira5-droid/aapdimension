@@ -6050,9 +6050,58 @@ export type Database = {
         }
         Relationships: []
       }
+      work_diary_clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       work_diary_entries: {
         Row: {
           activity_type: string
+          client_company: string | null
+          client_id: string | null
+          client_name: string | null
+          client_phone: string | null
           contracted_service: string | null
           contracted_services: Json | null
           created_at: string
@@ -6081,6 +6130,10 @@ export type Database = {
         }
         Insert: {
           activity_type?: string
+          client_company?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
           contracted_service?: string | null
           contracted_services?: Json | null
           created_at?: string
@@ -6109,6 +6162,10 @@ export type Database = {
         }
         Update: {
           activity_type?: string
+          client_company?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
           contracted_service?: string | null
           contracted_services?: Json | null
           created_at?: string
@@ -6135,7 +6192,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "work_diary_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "work_diary_clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_diary_files: {
         Row: {
