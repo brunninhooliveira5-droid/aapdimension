@@ -51,13 +51,6 @@ const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
   { key: "assistente_preco", label: "Assistente de Preço", icon: Star },
 ];
 
-const OPERACOES_SUB_FEATURES: SectionConfig[] = [
-  { key: "controle_producao", label: "Controle de Produção", icon: Factory },
-  { key: "op_estoque", label: "Controle de Estoque", icon: Package },
-  { key: "op_fichas", label: "Fichas de Operação", icon: Eye },
-  { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
-  { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
-];
 
 // Sub-tabs within Controle de Produção
 const PC_SUB_TABS: SectionConfig[] = [
