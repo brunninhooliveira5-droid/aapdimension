@@ -533,9 +533,25 @@ const UserAccessPage = () => {
           </div>
         )}
 
-        {/* Sub-tabs de Operações (aninhadas sob cada módulo visível) */}
+        {/* Operações sub-features - same format as Ferramentas */}
+        <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <Wrench className="inline w-3 h-3 mr-1" />
+            Sub-controles de Operações
+          </p>
+          {OPERACOES_SUB_FEATURES.map((section) => (
+            <SectionRow
+              key={section.key}
+              section={section}
+              visibility={sections[section.key] ?? "visible"}
+              onChange={(v) => handleVisibilityChange(section.key, v)}
+            />
+          ))}
+        </div>
+
+        {/* Sub-tabs aninhadas de cada módulo de operação */}
         {sections["controle_producao"] !== "hidden" && (
-          <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+          <div className="mt-2 ml-8 border-l-2 border-primary/10 pl-3 space-y-1.5">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               <Factory className="inline w-3 h-3 mr-1" />
               Abas de Controle de Produção
@@ -547,7 +563,7 @@ const UserAccessPage = () => {
         )}
 
         {sections["op_estoque"] !== "hidden" && (
-          <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+          <div className="mt-2 ml-8 border-l-2 border-primary/10 pl-3 space-y-1.5">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               <Package className="inline w-3 h-3 mr-1" />
               Abas de Controle de Estoque
@@ -559,7 +575,7 @@ const UserAccessPage = () => {
         )}
 
         {sections["op_fichas"] !== "hidden" && (
-          <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+          <div className="mt-2 ml-8 border-l-2 border-primary/10 pl-3 space-y-1.5">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               <FileText className="inline w-3 h-3 mr-1" />
               Abas de Fichas de Operação
@@ -571,7 +587,7 @@ const UserAccessPage = () => {
         )}
 
         {sections["op_diario"] !== "hidden" && (
-          <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+          <div className="mt-2 ml-8 border-l-2 border-primary/10 pl-3 space-y-1.5">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               <BookOpen className="inline w-3 h-3 mr-1" />
               Abas de Diário de Obra
@@ -583,7 +599,7 @@ const UserAccessPage = () => {
         )}
 
         {sections["op_comprovantes"] !== "hidden" && (
-          <div className="mt-2 ml-4 border-l-2 border-primary/10 pl-3 space-y-1.5">
+          <div className="mt-2 ml-8 border-l-2 border-primary/10 pl-3 space-y-1.5">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               <Receipt className="inline w-3 h-3 mr-1" />
               Abas de Comprovante de Pagamento
