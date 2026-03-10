@@ -18,6 +18,7 @@ interface SignatureOptions {
   signatureOffsetX?: number;
   signatureOffsetY?: number;
   signatureZoom?: number;
+  signatureDarkness?: number;
 }
 
 export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
@@ -205,7 +206,12 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   let techSigDrawn = false;
   if (signatureOpts?.technicianSignatureUrl) {
     try {
-      const sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      let sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
+      // Apply darkness/contrast filter via canvas
+      const darkness = signatureOpts?.signatureDarkness || 100;
+      if (darkness !== 100) {
+        sigImg = await applyDarknessFilter(sigImg, darkness);
+      }
       const zoom = (signatureOpts?.signatureZoom || 100) / 100;
       const sigMaxW = sigColWidth - 10;
       const sigMaxH = signatureOpts?.signatureSize || 35;
@@ -307,5 +313,19 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = url;
+  });
+}
+
+function applyDarknessFilter(img: HTMLImageElement, darkness: number): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.filter = `contrast(${darkness / 100}) brightness(${Math.min(1, 200 / darkness)})`;
+    ctx.drawImage(img, 0, 0);
+    const processed = new Image();
+    processed.onload = () => resolve(processed);
+    processed.src = canvas.toDataURL("image/png");
   });
 }

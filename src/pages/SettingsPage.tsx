@@ -38,19 +38,21 @@ const SettingsPage = () => {
   const [signatureOffsetX, setSignatureOffsetX] = useState(0);
   const [signatureOffsetY, setSignatureOffsetY] = useState(0);
   const [signatureZoom, setSignatureZoom] = useState(100);
+  const [signatureDarkness, setSignatureDarkness] = useState(100);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
   // Load signature on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom").eq("id", session.user.id).single()
+    supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single()
       .then(({ data }) => {
         if (data?.signature_url) setSignatureUrl(data.signature_url);
         if ((data as any)?.signature_size) setSignatureSize((data as any).signature_size);
         if ((data as any)?.signature_offset_x != null) setSignatureOffsetX((data as any).signature_offset_x);
         if ((data as any)?.signature_offset_y != null) setSignatureOffsetY((data as any).signature_offset_y);
         if ((data as any)?.signature_zoom != null) setSignatureZoom((data as any).signature_zoom);
+        if ((data as any)?.signature_darkness != null) setSignatureDarkness((data as any).signature_darkness);
       });
   }, [session?.user?.id]);
 
@@ -903,7 +905,8 @@ const SettingsPage = () => {
                         objectFit: 'contain',
                         transform: `scale(${signatureZoom / 100}) translate(${signatureOffsetX * 0.5}px, ${signatureOffsetY * 0.5}px)`,
                         transformOrigin: 'center bottom',
-                        transition: 'transform 0.15s ease, max-height 0.15s ease',
+                        transition: 'transform 0.15s ease, max-height 0.15s ease, filter 0.15s ease',
+                        filter: `contrast(${signatureDarkness / 100}) brightness(${Math.min(1, 200 / signatureDarkness)})`,
                       }}
                     />
                   </div>
@@ -961,6 +964,19 @@ const SettingsPage = () => {
                 }}
                 className="w-full accent-primary" />
               <div className="flex justify-between text-[10px] text-muted-foreground"><span>↑ Cima</span><span>Baixo ↓</span></div>
+            </div>
+
+            {/* Intensidade da Cor */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Intensidade da Cor: <span className="text-foreground font-medium">{signatureDarkness}%</span></Label>
+              <input type="range" min={50} max={200} step={5} value={signatureDarkness}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setSignatureDarkness(val);
+                  if (session?.user?.id) await supabase.from("profiles").update({ signature_darkness: val } as any).eq("id", session.user.id);
+                }}
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>50% Clara</span><span>200% Forte</span></div>
             </div>
           </div>
         </div>

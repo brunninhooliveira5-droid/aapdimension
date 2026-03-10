@@ -1,32 +1,44 @@
 
 
-## Plan: Signature Darkness/Opacity Control + Zoom Preview Fix
+## Plano: Controle de Sub-Usuários pelo Admin Master
 
-### What to do
+### Resumo
 
-1. **Database**: Add `signature_darkness` column (integer, default 100, range 50-200) to `profiles` table via migration.
+O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
 
-2. **SettingsPage.tsx**:
-   - Add `signatureDarkness` state (default 100), load/save from profile.
-   - Add a "Intensidade da Cor" slider (50% to 200%) in the signature config section.
-   - Apply CSS `filter: contrast(${darkness/100})` on the preview image so the user sees the effect live alongside zoom/position.
-   - Ensure the zoom slider change is visually reflected in the preview (it already applies `scale()` — verify it works correctly).
+### Alteracoes
 
-3. **PDF Generation (`technical-report-pdf.ts`)**:
-   - Add `signatureDarkness` to `SignatureOptions`.
-   - Before adding the signature image to the PDF, draw it onto an offscreen canvas with adjusted contrast/brightness to darken or lighten it, then use that processed image.
+#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
 
-4. **Data passing** (`TechnicalReportForm.tsx`, `TechnicalReportsList.tsx`):
-   - Fetch `signature_darkness` from profile and pass it in `signatureOpts`.
+Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
+- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
+- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
 
-### Technical Detail
+#### 2. Editar limite de sub-usuarios (max_members)
 
-For PDF darkening, use a canvas approach:
-```typescript
-// Draw image, then overlay with multiply blend or adjust pixel data
-ctx.filter = `contrast(${darkness/100}) brightness(${Math.min(1, 200/darkness)})`;
-ctx.drawImage(img, 0, 0);
-```
+Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
+- Abrir um dialog simples com um input numerico para alterar `max_members`
+- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
+- Somente visivel/acessivel pelo admin_master
 
-The preview will use CSS filter: `filter: contrast(${signatureDarkness / 100})` for instant feedback.
+#### 3. Personificar sub-usuarios
+
+O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
+- Buscar os sub-usuarios (account_members) de cada conta
+- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
+- Adicionar botao de personificacao nos sub-usuarios listados
+
+### Arquivos Modificados
+
+| Arquivo | Mudanca |
+|---|---|
+| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
+
+### Fluxo
+
+1. Admin Master abre "Gestao de Usuarios"
+2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
+3. Clicando no icone de edicao, abre dialog para alterar o limite
+4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
+5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
 

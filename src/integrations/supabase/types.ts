@@ -5050,6 +5050,7 @@ export type Database = {
           name: string
           phone: string | null
           rejected: boolean
+          signature_darkness: number
           signature_offset_x: number | null
           signature_offset_y: number | null
           signature_size: number
@@ -5074,6 +5075,7 @@ export type Database = {
           name: string
           phone?: string | null
           rejected?: boolean
+          signature_darkness?: number
           signature_offset_x?: number | null
           signature_offset_y?: number | null
           signature_size?: number
@@ -5098,6 +5100,7 @@ export type Database = {
           name?: string
           phone?: string | null
           rejected?: boolean
+          signature_darkness?: number
           signature_offset_x?: number | null
           signature_offset_y?: number | null
           signature_size?: number
