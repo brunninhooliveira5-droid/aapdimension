@@ -502,6 +502,9 @@ export function FileQuote({ pricing, machines, useMasterPricing = false, useDime
             show_watermark: d.show_watermark ?? false,
             watermark_url: d.watermark_url || "",
             pix_qr_image_url: d.pix_qr_image_url || profilePixQr,
+            pix_key: d.pix_key || "",
+            pix_beneficiary: d.pix_beneficiary || "",
+            pix_city: d.pix_city || "",
           });
       } else if (profilePixQr) {
         // No PDF settings saved yet, but profile has PIX QR
