@@ -257,23 +257,20 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
 
-    // Watermark
-    if (cfg.show_watermark && cfg.watermark_text) {
+    // Watermark image
+    if (cfg.show_watermark && watermarkImg) {
       const opacity = (cfg.watermark_opacity || 15) / 100;
       doc.saveGraphicsState();
-      // @ts-ignore - setGState exists in jsPDF
+      // @ts-ignore
       const gState = new (doc as any).GState({ opacity });
       // @ts-ignore
       doc.setGState(gState);
-      doc.setTextColor(hR, hG, hB);
-      doc.setFontSize(48);
-      doc.setFont("helvetica", "bold");
-      // Rotate and center
-      const cx = pw / 2;
-      const cy = ph / 2;
-      const text = cfg.watermark_text;
-      const tw = doc.getTextWidth(text);
-      doc.text(text, cx - tw / 2, cy, { angle: 30 });
+      const wmMaxW = pw * 0.6;
+      const wmMaxH = ph * 0.6;
+      const wmRatio = Math.min(wmMaxW / watermarkImg.width, wmMaxH / watermarkImg.height);
+      const wmW = watermarkImg.width * wmRatio;
+      const wmH = watermarkImg.height * wmRatio;
+      doc.addImage(watermarkImg, "PNG", (pw - wmW) / 2, (ph - wmH) / 2, wmW, wmH);
       doc.restoreGraphicsState();
     }
 

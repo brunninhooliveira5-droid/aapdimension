@@ -42,6 +42,7 @@ export function WorkDiaryPdfConfig() {
     watermark_opacity: 15,
     show_watermark: false,
     header_color: "30,64,120",
+    watermark_image_url: "",
   });
   const [hasSignature, setHasSignature] = useState(false);
   const [saving, setSaving] = useState(false);
