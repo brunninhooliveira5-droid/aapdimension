@@ -41,6 +41,7 @@ export function ReceiptPdfConfig() {
   const [showPartySig, setShowPartySig] = useState(true);
   const [showWatermark, setShowWatermark] = useState(false);
   const [enablePixQr, setEnablePixQr] = useState(false);
+  const [pixQrImageUrl, setPixQrImageUrl] = useState("");
   const [showInstallmentInfo, setShowInstallmentInfo] = useState(true);
   const [showRemainingBalance, setShowRemainingBalance] = useState(true);
   const [showHistorySummary, setShowHistorySummary] = useState(false);
@@ -69,6 +70,7 @@ export function ReceiptPdfConfig() {
       setShowObservations(data.show_observations); setShowEmitterSig(data.show_emitter_signature);
       setShowPartySig(data.show_party_signature); setShowWatermark(data.show_watermark);
       setEnablePixQr(data.enable_pix_qr || false);
+      setPixQrImageUrl((data as any).pix_qr_image_url || "");
       setShowInstallmentInfo(data.show_installment_info ?? true);
       setShowRemainingBalance(data.show_remaining_balance ?? true);
       setShowHistorySummary(data.show_history_summary ?? false);
@@ -100,7 +102,7 @@ export function ReceiptPdfConfig() {
       document_title: documentTitle, subtitle_text: subtitleText, default_template_type: defaultTemplateType,
       show_logo: showLogo, show_footer: showFooter, show_observations: showObservations,
       show_emitter_signature: showEmitterSig, show_party_signature: showPartySig, show_watermark: showWatermark,
-      enable_pix_qr: enablePixQr, show_installment_info: showInstallmentInfo,
+      enable_pix_qr: enablePixQr, pix_qr_image_url: pixQrImageUrl, show_installment_info: showInstallmentInfo,
       show_remaining_balance: showRemainingBalance, show_history_summary: showHistorySummary,
     };
     if (settingsId) {
@@ -184,6 +186,27 @@ export function ReceiptPdfConfig() {
             <div>
               <Label className="text-xs">Opacidade ({Math.round(watermarkOpacity * 100)}%)</Label>
               <Input type="range" min="0.02" max="0.3" step="0.01" value={watermarkOpacity} onChange={e => setWatermarkOpacity(Number(e.target.value))} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">QR Code PIX</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">Envie a imagem do seu QR Code PIX para exibir nos PDFs de comprovante e orçamento de corte.</p>
+            <div className="flex gap-3 items-center">
+              {pixQrImageUrl && <img src={pixQrImageUrl} alt="QR Code PIX" className="h-24 w-24 rounded border border-border object-contain bg-white p-1" />}
+              <div className="space-y-2">
+                <Button variant="outline" size="sm" onClick={() => document.getElementById("rcfg-pix-qr")?.click()} className="gap-1">
+                  <Upload className="h-3 w-3" /> {pixQrImageUrl ? "Trocar imagem" : "Enviar QR Code"}
+                </Button>
+                {pixQrImageUrl && (
+                  <Button variant="ghost" size="sm" onClick={() => setPixQrImageUrl("")} className="gap-1 text-destructive hover:text-destructive">
+                    Remover
+                  </Button>
+                )}
+                <input id="rcfg-pix-qr" type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], "pix-qr", setPixQrImageUrl)} />
+              </div>
             </div>
           </CardContent>
         </Card>
