@@ -64,13 +64,21 @@ export function ContractPdfConfig() {
   const [settings, setSettings] = useState<PdfSettings>(DEFAULT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileSignature, setProfileSignature] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const watermarkRef = useRef<HTMLInputElement>(null);
-  const signatureRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (session?.user) loadSettings();
+    if (session?.user) {
+      loadSettings();
+      loadProfileSignature();
+    }
   }, [session]);
+
+  const loadProfileSignature = async () => {
+    const { data } = await supabase.from("profiles").select("signature_url").eq("id", session!.user.id).single();
+    if (data?.signature_url) setProfileSignature(data.signature_url);
+  };
 
   const loadSettings = async () => {
     setLoading(true);
