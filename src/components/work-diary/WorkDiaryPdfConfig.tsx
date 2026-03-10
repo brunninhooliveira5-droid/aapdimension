@@ -123,41 +123,7 @@ export function WorkDiaryPdfConfig() {
             <div className="flex items-center gap-3 mt-1">
               {config.logo_url && (
                 <div className="rounded border border-border p-1 bg-muted">
-                  <img
-                    src={config.logo_url}
-                    alt="Logo"
-                    className="h-10"
-                    style={config.logo_bg_color ? {
-                      filter: `brightness(0) saturate(100%)`,
-                      WebkitFilter: `brightness(0) saturate(100%)`,
-                    } : undefined}
-                  />
-                  {config.logo_bg_color && (
-                    <div className="relative -mt-10 h-10 overflow-hidden">
-                      <img
-                        src={config.logo_url}
-                        alt="Logo tinted"
-                        className="h-10"
-                        style={{
-                          filter: `brightness(0) saturate(100%)`,
-                          opacity: 0,
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-              {config.logo_url && config.logo_bg_color && (
-                <div className="rounded border border-border p-1" style={{ backgroundColor: config.logo_bg_color }}>
-                  <img
-                    src={config.logo_url}
-                    alt="Logo preview"
-                    className="h-10"
-                    style={{
-                      mixBlendMode: "screen",
-                      filter: "invert(1) brightness(2)",
-                    }}
-                  />
+                  <img src={config.logo_url} alt="Logo" className="h-10" />
                 </div>
               )}
               <Input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploading} />
@@ -167,7 +133,8 @@ export function WorkDiaryPdfConfig() {
           {config.logo_url && (
             <div className="sm:col-span-2">
               <Label>Cor da logomarca</Label>
-              <div className="flex items-center gap-3 mt-1">
+              <p className="text-xs text-muted-foreground mb-2">Selecione "Original" para manter as cores originais, ou escolha uma cor para tingir a logo.</p>
+              <div className="flex items-center gap-3">
                 <div className="flex gap-1.5 flex-wrap">
                   {[
                     { label: "Original", value: "" },
@@ -197,9 +164,35 @@ export function WorkDiaryPdfConfig() {
                   className="w-10 h-8 p-0.5 cursor-pointer"
                 />
               </div>
+              {/* Preview da logo com a cor aplicada */}
+              {config.logo_bg_color && config.logo_url && (
+                <div className="mt-3 flex items-center gap-4">
+                  <div className="text-xs text-muted-foreground">Preview:</div>
+                  <canvas
+                    ref={(canvas) => {
+                      if (!canvas || !config.logo_url) return;
+                      const ctx = canvas.getContext("2d");
+                      if (!ctx) return;
+                      const img = new Image();
+                      img.crossOrigin = "anonymous";
+                      img.onload = () => {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        canvas.style.height = "40px";
+                        canvas.style.width = `${(img.width / img.height) * 40}px`;
+                        ctx.drawImage(img, 0, 0);
+                        ctx.globalCompositeOperation = "source-in";
+                        ctx.fillStyle = config.logo_bg_color;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                      };
+                      img.src = config.logo_url;
+                    }}
+                    className="rounded border border-border p-1 bg-muted"
+                  />
+                </div>
+              )}
             </div>
-        </CardContent>
-      </Card>
+          )}
         </CardContent>
       </Card>
 
