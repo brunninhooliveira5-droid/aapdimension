@@ -1,44 +1,38 @@
 
 
-## Plano: Controle de Sub-Usuários pelo Admin Master
+## Plano: QR Code PIX com Valor Embutido no PDF de Orçamento
 
-### Resumo
+### Situação Atual
+- O PDF de orçamento de corte usa uma **imagem estática** de QR Code (upload manual nas configurações). Ao escanear, não há valor nem chave PIX codificados — é apenas uma imagem.
+- O PDF de comprovantes já gera QR dinâmico via biblioteca `qrcode`, mas codifica apenas a chave PIX (sem valor).
 
-O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
+### O Que Será Feito
+Gerar o QR Code PIX **dinamicamente** no padrão BRCode/EMV (padrão oficial do Banco Central), incluindo o valor total do orçamento. Quando o cliente escanear, o app do banco já mostrará o valor preenchido.
 
-### Alteracoes
+### Requisitos
+Para gerar um QR Code PIX válido com valor, precisamos de dados que hoje não existem na configuração do orçamento de corte:
+- **Chave PIX** (CPF, CNPJ, email, telefone ou chave aleatória)
+- **Nome do beneficiário** (quem recebe)
+- **Cidade do beneficiário**
 
-#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
+### Mudanças Planejadas
 
-Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
-- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
-- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
+1. **Adicionar campos PIX na configuração do PDF de orçamento** (`PdfConfiguration.tsx` / tabela `cutting_quote_pdf_settings`):
+   - `pix_key` (string) — chave PIX
+   - `pix_beneficiary` (string) — nome do favorecido
+   - `pix_city` (string) — cidade
 
-#### 2. Editar limite de sub-usuarios (max_members)
+2. **Criar função geradora de payload BRCode** (`src/lib/pix-payload.ts`):
+   - Monta o payload EMV com merchant info, chave, valor e CRC16
+   - Segue o padrão oficial do PIX estático
 
-Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
-- Abrir um dialog simples com um input numerico para alterar `max_members`
-- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
-- Somente visivel/acessivel pelo admin_master
+3. **Atualizar `cutting-pdf.ts`**:
+   - Em vez de usar a imagem estática, gerar QR Code dinâmico via `qrcode` library (já instalada) com o payload PIX contendo o `totalPrice`
+   - Manter fallback para imagem estática caso não haja chave PIX configurada
+   - Exibir chave e valor ao lado do QR no PDF
 
-#### 3. Personificar sub-usuarios
+4. **Migração de banco**: Adicionar colunas `pix_key`, `pix_beneficiary`, `pix_city` na tabela `cutting_quote_pdf_settings`
 
-O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
-- Buscar os sub-usuarios (account_members) de cada conta
-- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
-- Adicionar botao de personificacao nos sub-usuarios listados
-
-### Arquivos Modificados
-
-| Arquivo | Mudanca |
-|---|---|
-| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
-
-### Fluxo
-
-1. Admin Master abre "Gestao de Usuarios"
-2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
-3. Clicando no icone de edicao, abre dialog para alterar o limite
-4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
-5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
+### Resultado
+Ao escanear o QR Code no PDF, o app bancário abrirá com valor, chave e nome do favorecido já preenchidos.
 
