@@ -12,6 +12,7 @@ const operationTabs = [
   { id: "producao", label: "Controle de Produção", icon: Factory, route: "/controle-producao", disabled: false },
   { id: "estoque", label: "Controle de Estoque", icon: Package, route: "/operacoes/estoque", disabled: false },
   { id: "fichas", label: "Fichas de Operação", icon: FileText, route: "/operacoes/fichas", disabled: false },
+  { id: "diario", label: "Diário de Obra / Serviço", icon: BookOpen, route: "/operacoes/diario", disabled: false },
 ];
 
 export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
