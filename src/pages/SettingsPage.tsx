@@ -905,7 +905,8 @@ const SettingsPage = () => {
                         objectFit: 'contain',
                         transform: `scale(${signatureZoom / 100}) translate(${signatureOffsetX * 0.5}px, ${signatureOffsetY * 0.5}px)`,
                         transformOrigin: 'center bottom',
-                        transition: 'transform 0.15s ease, max-height 0.15s ease',
+                        transition: 'transform 0.15s ease, max-height 0.15s ease, filter 0.15s ease',
+                        filter: `contrast(${signatureDarkness / 100}) brightness(${Math.min(1, 200 / signatureDarkness)})`,
                       }}
                     />
                   </div>
