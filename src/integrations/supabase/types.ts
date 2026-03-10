@@ -3357,13 +3357,81 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_history: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          current_installment: number
+          id: string
+          party_name: string
+          payment_date: string
+          payment_method: string
+          payment_type: string
+          proposal_id: string
+          receipt_id: string | null
+          status: string
+          total_installments: number
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          current_installment?: number
+          id?: string
+          party_name?: string
+          payment_date?: string
+          payment_method?: string
+          payment_type?: string
+          proposal_id?: string
+          receipt_id?: string | null
+          status?: string
+          total_installments?: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          current_installment?: number
+          id?: string
+          party_name?: string
+          payment_date?: string
+          payment_method?: string
+          payment_type?: string
+          proposal_id?: string
+          receipt_id?: string | null
+          status?: string
+          total_installments?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "payment_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_receipts: {
         Row: {
           amount: number
           base_text: string
+          commercial_notes: string
+          complement_deadline: string
+          contract_id: string
           created_at: string
+          current_installment: number
           description: string
+          doc_subtype: string
+          enable_pix_qr: boolean
           id: string
+          installment_due_date: string | null
+          installment_status: string
+          machine_id: string
           observations: string
           party_address: string
           party_document: string
@@ -3371,21 +3439,38 @@ export type Database = {
           party_name: string
           party_phone: string
           payment_method: string
+          pix_beneficiary: string
+          pix_key: string
+          proposal_id: string
           receipt_date: string
           receipt_number: number
           receipt_type: string
           reference_type: string
           related_contract: string
+          remaining_balance: number
+          require_party_signature: boolean
+          service_id: string
           status: string
+          template_type: string
+          total_installments: number
           updated_at: string
           user_id: string
         }
         Insert: {
           amount?: number
           base_text?: string
+          commercial_notes?: string
+          complement_deadline?: string
+          contract_id?: string
           created_at?: string
+          current_installment?: number
           description?: string
+          doc_subtype?: string
+          enable_pix_qr?: boolean
           id?: string
+          installment_due_date?: string | null
+          installment_status?: string
+          machine_id?: string
           observations?: string
           party_address?: string
           party_document?: string
@@ -3393,21 +3478,38 @@ export type Database = {
           party_name?: string
           party_phone?: string
           payment_method?: string
+          pix_beneficiary?: string
+          pix_key?: string
+          proposal_id?: string
           receipt_date?: string
           receipt_number?: number
           receipt_type?: string
           reference_type?: string
           related_contract?: string
+          remaining_balance?: number
+          require_party_signature?: boolean
+          service_id?: string
           status?: string
+          template_type?: string
+          total_installments?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number
           base_text?: string
+          commercial_notes?: string
+          complement_deadline?: string
+          contract_id?: string
           created_at?: string
+          current_installment?: number
           description?: string
+          doc_subtype?: string
+          enable_pix_qr?: boolean
           id?: string
+          installment_due_date?: string | null
+          installment_status?: string
+          machine_id?: string
           observations?: string
           party_address?: string
           party_document?: string
@@ -3415,12 +3517,20 @@ export type Database = {
           party_name?: string
           party_phone?: string
           payment_method?: string
+          pix_beneficiary?: string
+          pix_key?: string
+          proposal_id?: string
           receipt_date?: string
           receipt_number?: number
           receipt_type?: string
           reference_type?: string
           related_contract?: string
+          remaining_balance?: number
+          require_party_signature?: boolean
+          service_id?: string
           status?: string
+          template_type?: string
+          total_installments?: number
           updated_at?: string
           user_id?: string
         }
@@ -5525,8 +5635,11 @@ export type Database = {
           address: string
           company_name: string
           created_at: string
+          default_template_type: string
           document_number: string
+          document_title: string
           email: string
+          enable_pix_qr: boolean
           footer_text: string
           id: string
           institutional_text: string
@@ -5535,12 +5648,16 @@ export type Database = {
           primary_color: string
           show_emitter_signature: boolean
           show_footer: boolean
+          show_history_summary: boolean
+          show_installment_info: boolean
           show_logo: boolean
           show_observations: boolean
           show_party_signature: boolean
+          show_remaining_balance: boolean
           show_watermark: boolean
           signer_name: string
           signer_role: string
+          subtitle_text: string
           updated_at: string
           user_id: string
           watermark_image_url: string
@@ -5551,8 +5668,11 @@ export type Database = {
           address?: string
           company_name?: string
           created_at?: string
+          default_template_type?: string
           document_number?: string
+          document_title?: string
           email?: string
+          enable_pix_qr?: boolean
           footer_text?: string
           id?: string
           institutional_text?: string
@@ -5561,12 +5681,16 @@ export type Database = {
           primary_color?: string
           show_emitter_signature?: boolean
           show_footer?: boolean
+          show_history_summary?: boolean
+          show_installment_info?: boolean
           show_logo?: boolean
           show_observations?: boolean
           show_party_signature?: boolean
+          show_remaining_balance?: boolean
           show_watermark?: boolean
           signer_name?: string
           signer_role?: string
+          subtitle_text?: string
           updated_at?: string
           user_id: string
           watermark_image_url?: string
@@ -5577,8 +5701,11 @@ export type Database = {
           address?: string
           company_name?: string
           created_at?: string
+          default_template_type?: string
           document_number?: string
+          document_title?: string
           email?: string
+          enable_pix_qr?: boolean
           footer_text?: string
           id?: string
           institutional_text?: string
@@ -5587,12 +5714,16 @@ export type Database = {
           primary_color?: string
           show_emitter_signature?: boolean
           show_footer?: boolean
+          show_history_summary?: boolean
+          show_installment_info?: boolean
           show_logo?: boolean
           show_observations?: boolean
           show_party_signature?: boolean
+          show_remaining_balance?: boolean
           show_watermark?: boolean
           signer_name?: string
           signer_role?: string
+          subtitle_text?: string
           updated_at?: string
           user_id?: string
           watermark_image_url?: string
