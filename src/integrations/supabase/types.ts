@@ -6050,6 +6050,173 @@ export type Database = {
         }
         Relationships: []
       }
+      work_diary_entries: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string | null
+          entry_date: string
+          entry_number: number
+          id: string
+          location: string | null
+          materials_used: string | null
+          observations: string | null
+          pending_reason: string | null
+          responsible: string | null
+          status: string
+          team: string | null
+          time_end: string | null
+          time_start: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_type?: string
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          entry_number?: number
+          id?: string
+          location?: string | null
+          materials_used?: string | null
+          observations?: string | null
+          pending_reason?: string | null
+          responsible?: string | null
+          status?: string
+          team?: string | null
+          time_end?: string | null
+          time_start?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          entry_number?: number
+          id?: string
+          location?: string | null
+          materials_used?: string | null
+          observations?: string | null
+          pending_reason?: string | null
+          responsible?: string | null
+          status?: string
+          team?: string | null
+          time_end?: string | null
+          time_start?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      work_diary_files: {
+        Row: {
+          caption: string | null
+          created_at: string
+          entry_id: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          entry_id: string
+          file_name?: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          entry_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_diary_files_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "work_diary_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_diary_pdf_config: {
+        Row: {
+          city: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          footer_text: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          role_title: string | null
+          show_logo: boolean | null
+          show_materials: boolean | null
+          show_photos: boolean | null
+          show_signature: boolean | null
+          show_status: boolean | null
+          show_time: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          role_title?: string | null
+          show_logo?: boolean | null
+          show_materials?: boolean | null
+          show_photos?: boolean | null
+          show_signature?: boolean | null
+          show_status?: boolean | null
+          show_time?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          role_title?: string | null
+          show_logo?: boolean | null
+          show_materials?: boolean | null
+          show_photos?: boolean | null
+          show_signature?: boolean | null
+          show_status?: boolean | null
+          show_time?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

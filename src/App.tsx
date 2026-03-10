@@ -33,6 +33,7 @@ import CompanyUsersPage from "./pages/CompanyUsersPage";
 import AdminUserDetailPage from "./pages/AdminUserDetailPage";
 import OperacoesEstoquePage from "./pages/OperacoesEstoquePage";
 import OperacoesFichasPage from "./pages/OperacoesFichasPage";
+import WorkDiaryPage from "./pages/WorkDiaryPage";
 import CuttingPlanPage from "./pages/CuttingPlanPage";
 import Slicer3DPage from "./pages/Slicer3DPage";
 import BoxGeneratorPage from "./pages/BoxGeneratorPage";
@@ -92,6 +93,7 @@ const AppRoutes = () => {
         <Route path="/controle-producao" element={<RoleGate section="controle_producao"><ProductionControlPage /></RoleGate>} />
         <Route path="/operacoes/estoque" element={<RoleGate section="controle_producao"><OperacoesEstoquePage /></RoleGate>} />
         <Route path="/operacoes/fichas" element={<RoleGate section="controle_producao"><OperacoesFichasPage /></RoleGate>} />
+        <Route path="/operacoes/diario" element={<WorkDiaryPage />} />
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
         <Route path="/plano-corte" element={<CuttingPlanPage />} />
         <Route path="/slicer-3d" element={<Slicer3DPage />} />
