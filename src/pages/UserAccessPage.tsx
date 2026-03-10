@@ -54,6 +54,54 @@ const OPERACOES_SUB_FEATURES: SectionConfig[] = [
   { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
 ];
 
+// Sub-tabs within Controle de Produção
+const PC_SUB_TABS: SectionConfig[] = [
+  { key: "pc_visao_geral", label: "Visão Geral", icon: LayoutDashboard },
+  { key: "pc_tarefas", label: "Tarefas", icon: ListTodo },
+  { key: "pc_pendencias", label: "Pendências", icon: AlertTriangle },
+  { key: "pc_cronograma", label: "Cronograma", icon: CalendarDays },
+  { key: "pc_producao", label: "Produção", icon: Factory },
+  { key: "pc_rotinas", label: "Rotinas", icon: RotateCcw },
+  { key: "pc_metas", label: "Metas", icon: Target },
+];
+
+// Sub-tabs within Controle de Estoque
+const ESTOQUE_SUB_TABS: SectionConfig[] = [
+  { key: "est_dashboard", label: "Visão Geral", icon: BarChart3 },
+  { key: "est_itens", label: "Itens", icon: Package },
+  { key: "est_movimentacoes", label: "Movimentações", icon: ArrowDownUp },
+  { key: "est_entradas_saidas", label: "Entradas/Saídas", icon: ArrowDownUp },
+  { key: "est_reservas", label: "Reservas", icon: BookmarkCheck },
+  { key: "est_alertas", label: "Alertas", icon: Bell },
+  { key: "est_fornecedores", label: "Fornecedores", icon: Truck },
+  { key: "est_inventario", label: "Inventário", icon: ClipboardCheck },
+  { key: "est_logs", label: "Logs", icon: FileText },
+  { key: "est_configuracoes", label: "Configurações", icon: Settings },
+];
+
+// Sub-tabs within Fichas de Operação
+const FICHAS_SUB_TABS: SectionConfig[] = [
+  { key: "fichas_producao", label: "Fichas de Produção", icon: FileText },
+  { key: "fichas_templates", label: "Templates", icon: Layers },
+  { key: "fichas_config_pdf", label: "Configurar PDF", icon: Settings2 },
+];
+
+// Sub-tabs within Diário de Obra
+const DIARIO_SUB_TABS: SectionConfig[] = [
+  { key: "diario_registros", label: "Registros", icon: ClipboardCheck },
+  { key: "diario_novo", label: "Novo Registro", icon: Plus },
+  { key: "diario_clientes", label: "Clientes", icon: Users },
+  { key: "diario_config_pdf", label: "Configuração de PDF", icon: Settings2 },
+];
+
+// Sub-tabs within Comprovante de Pagamento
+const COMPROVANTES_SUB_TABS: SectionConfig[] = [
+  { key: "comp_lista", label: "Comprovantes", icon: ClipboardCheck },
+  { key: "comp_novo", label: "Novo Comprovante", icon: FilePlus },
+  { key: "comp_historico", label: "Histórico", icon: History },
+  { key: "comp_config_pdf", label: "Configuração de PDF", icon: Settings2 },
+];
+
 const FERRAMENTAS_SUB_FEATURES: SectionConfig[] = [
   { key: "ferr_plano_corte", label: "Plano de Corte", icon: LayoutGrid },
   { key: "ferr_slicer_3d", label: "Slicer 3D CNC", icon: Box },
