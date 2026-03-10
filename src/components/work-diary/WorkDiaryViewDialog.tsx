@@ -10,6 +10,7 @@ const typeLabels: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = {
   concluido: "Concluído", parcialmente_concluido: "Parcial", nao_concluido: "Não Concluído",
+  impedimento: "Impedimento",
 };
 
 interface Props { entry: any; open: boolean; onClose: () => void; }
@@ -39,11 +40,16 @@ export function WorkDiaryViewDialog({ entry, open, onClose }: Props) {
             <Field label="Local" value={entry.location} />
             <Field label="Responsável" value={entry.responsible} />
             <Field label="Status" value={<Badge variant="outline">{statusLabels[entry.status] || entry.status}</Badge>} />
+            {entry.contracted_service && <Field label="Serviço Contratado" value={entry.contracted_service} />}
+            {entry.unit_value && <Field label="Unitário" value={entry.unit_value} />}
           </div>
           {entry.description && <Field label="Descrição" value={entry.description} full />}
+          {entry.execution_process && <Field label="Processo de Execução" value={entry.execution_process} full />}
           {entry.materials_used && <Field label="Materiais Utilizados" value={entry.materials_used} full />}
+          {entry.materials_to_use && <Field label="Materiais a Ser Utilizado" value={entry.materials_to_use} full />}
           {entry.team && <Field label="Equipe" value={entry.team} full />}
           {entry.pending_reason && <Field label="Motivo/Pendência" value={entry.pending_reason} full />}
+          {entry.impediment_reason && <Field label="Motivo do Impedimento" value={entry.impediment_reason} full />}
           {entry.observations && <Field label="Observações" value={entry.observations} full />}
           {photos.length > 0 && (
             <div>

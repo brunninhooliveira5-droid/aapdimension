@@ -25,12 +25,14 @@ const statusLabels: Record<string, string> = {
   concluido: "Concluído",
   parcialmente_concluido: "Parcial",
   nao_concluido: "Não Concluído",
+  impedimento: "Impedimento",
 };
 
 const statusColors: Record<string, string> = {
   concluido: "bg-green-500/10 text-green-700 dark:text-green-400",
   parcialmente_concluido: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
   nao_concluido: "bg-red-500/10 text-red-700 dark:text-red-400",
+  impedimento: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
 interface Props {

@@ -24,6 +24,7 @@ const statusOptions = [
   { value: "concluido", label: "Concluído" },
   { value: "parcialmente_concluido", label: "Parcialmente Concluído" },
   { value: "nao_concluido", label: "Não Concluído" },
+  { value: "impedimento", label: "Impedimento" },
 ];
 
 interface Props {
@@ -46,13 +47,23 @@ const emptyForm = {
   status: "concluido",
   pending_reason: "",
   observations: "",
+  contracted_service: "",
+  unit_value: "",
+  execution_process: "",
+  materials_to_use: "",
+  impediment_reason: "",
 };
+
+interface FileWithCaption {
+  file: File;
+  caption: string;
+}
 
 export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const { effectiveUserId, user } = useEffectiveUser();
   const [form, setForm] = useState({ ...emptyForm });
   const [files, setFiles] = useState<any[]>([]);
-  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newFiles, setNewFiles] = useState<FileWithCaption[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -82,6 +93,11 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         status: data.status || "concluido",
         pending_reason: data.pending_reason || "",
         observations: data.observations || "",
+        contracted_service: (data as any).contracted_service || "",
+        unit_value: (data as any).unit_value || "",
+        execution_process: (data as any).execution_process || "",
+        materials_to_use: (data as any).materials_to_use || "",
+        impediment_reason: (data as any).impediment_reason || "",
       });
     }
     const { data: existingFiles } = await supabase.from("work_diary_files").select("*").eq("entry_id", entryId);
@@ -91,10 +107,22 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const update = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setNewFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+    if (e.target.files) {
+      const added = Array.from(e.target.files).map((file) => ({ file, caption: "" }));
+      setNewFiles((prev) => [...prev, ...added]);
+    }
   };
 
   const removeNewFile = (idx: number) => setNewFiles((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateNewFileCaption = (idx: number, caption: string) => {
+    setNewFiles((prev) => prev.map((f, i) => (i === idx ? { ...f, caption } : f)));
+  };
+
+  const updateExistingCaption = async (file: any, caption: string) => {
+    await supabase.from("work_diary_files").update({ caption }).eq("id", file.id);
+    setFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, caption } : f)));
+  };
 
   const removeExistingFile = async (file: any) => {
     await supabase.from("work_diary_files").delete().eq("id", file.id);
@@ -105,7 +133,7 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const uploadFiles = async (entryId: string) => {
     if (!effectiveUserId || newFiles.length === 0) return;
     setUploading(true);
-    for (const file of newFiles) {
+    for (const { file, caption } of newFiles) {
       const path = `${effectiveUserId}/${entryId}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from("work-diary-files").upload(path, file, { upsert: true });
       if (upErr) { toast.error(`Erro upload: ${file.name}`); continue; }
@@ -117,6 +145,7 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         file_name: file.name,
         file_size: file.size,
         mime_type: file.type,
+        caption: caption || null,
       });
     }
     setNewFiles([]);
@@ -129,12 +158,12 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
     setSaving(true);
     try {
       if (entryId) {
-        const { error } = await supabase.from("work_diary_entries").update(form).eq("id", entryId);
+        const { error } = await supabase.from("work_diary_entries").update(form as any).eq("id", entryId);
         if (error) throw error;
         await uploadFiles(entryId);
         toast.success("Registro atualizado!");
       } else {
-        const { data, error } = await supabase.from("work_diary_entries").insert({ ...form, user_id: effectiveUserId }).select("id").single();
+        const { data, error } = await supabase.from("work_diary_entries").insert({ ...form, user_id: effectiveUserId } as any).select("id").single();
         if (error) throw error;
         await uploadFiles(data.id);
         toast.success("Registro criado!");
@@ -148,6 +177,7 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   };
 
   const showPending = form.status === "nao_concluido" || form.status === "parcialmente_concluido";
+  const showImpediment = form.status === "impedimento";
 
   return (
     <div className="space-y-4 max-w-4xl">
@@ -185,6 +215,14 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
             <Label>Responsável</Label>
             <Input value={form.responsible} onChange={(e) => update("responsible", e.target.value)} placeholder="Nome do responsável" />
           </div>
+          <div>
+            <Label>Serviço Contratado</Label>
+            <Input value={form.contracted_service} onChange={(e) => update("contracted_service", e.target.value)} placeholder="Descrição do serviço contratado" />
+          </div>
+          <div>
+            <Label>Unitário</Label>
+            <Input value={form.unit_value} onChange={(e) => update("unit_value", e.target.value)} placeholder="Valor unitário ou unidade" />
+          </div>
         </CardContent>
       </Card>
 
@@ -192,7 +230,9 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         <CardHeader><CardTitle className="text-base">Descrição</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div><Label>Descrição da atividade executada</Label><Textarea value={form.description} onChange={(e) => update("description", e.target.value)} rows={4} /></div>
+          <div><Label>Processo de Execução</Label><Textarea value={form.execution_process} onChange={(e) => update("execution_process", e.target.value)} rows={3} placeholder="Descreva o processo de execução..." /></div>
           <div><Label>Materiais utilizados</Label><Textarea value={form.materials_used} onChange={(e) => update("materials_used", e.target.value)} rows={2} /></div>
+          <div><Label>Materiais a ser utilizado</Label><Textarea value={form.materials_to_use} onChange={(e) => update("materials_to_use", e.target.value)} rows={2} placeholder="Materiais previstos para uso futuro..." /></div>
           <div><Label>Equipe envolvida</Label><Input value={form.team} onChange={(e) => update("team", e.target.value)} placeholder="Nomes da equipe" /></div>
           <div><Label>Observações gerais</Label><Textarea value={form.observations} onChange={(e) => update("observations", e.target.value)} rows={2} /></div>
         </CardContent>
@@ -214,6 +254,12 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
               <Textarea value={form.pending_reason} onChange={(e) => update("pending_reason", e.target.value)} rows={2} placeholder="Descreva o motivo ou pendência..." />
             </div>
           )}
+          {showImpediment && (
+            <div>
+              <Label>Motivo do Impedimento</Label>
+              <Textarea value={form.impediment_reason} onChange={(e) => update("impediment_reason", e.target.value)} rows={2} placeholder="Descreva o motivo do impedimento..." />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -221,14 +267,22 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
         <CardHeader><CardTitle className="text-base">Fotos e Arquivos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {files.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {files.map((f) => (
                 <div key={f.id} className="relative border border-border rounded-lg overflow-hidden group">
                   {f.mime_type?.startsWith("image/") ? (
-                    <img src={f.file_url} alt={f.file_name} className="w-full h-24 object-cover" />
+                    <img src={f.file_url} alt={f.file_name} className="w-full h-28 object-cover" />
                   ) : (
-                    <div className="h-24 flex items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center">{f.file_name}</div>
+                    <div className="h-28 flex items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center">{f.file_name}</div>
                   )}
+                  <div className="p-1.5">
+                    <Input
+                      value={f.caption || ""}
+                      onChange={(e) => updateExistingCaption(f, e.target.value)}
+                      placeholder="Descrição da imagem..."
+                      className="h-7 text-xs"
+                    />
+                  </div>
                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeExistingFile(f)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -237,11 +291,25 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
             </div>
           )}
           {newFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {newFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-1 bg-muted rounded px-2 py-1 text-xs">
-                  {f.name}
-                  <button onClick={() => removeNewFile(i)} className="text-destructive ml-1"><X className="h-3 w-3" /></button>
+                <div key={i} className="relative border border-border rounded-lg overflow-hidden">
+                  {f.file.type.startsWith("image/") ? (
+                    <img src={URL.createObjectURL(f.file)} alt={f.file.name} className="w-full h-28 object-cover" />
+                  ) : (
+                    <div className="h-28 flex items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center">{f.file.name}</div>
+                  )}
+                  <div className="p-1.5">
+                    <Input
+                      value={f.caption}
+                      onChange={(e) => updateNewFileCaption(i, e.target.value)}
+                      placeholder="Descrição da imagem..."
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <button onClick={() => removeNewFile(i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full h-5 w-5 flex items-center justify-center">
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </div>
