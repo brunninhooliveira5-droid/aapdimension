@@ -1,7 +1,9 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Wrench, ChevronRight, Package, FileText, Factory, BookOpen, Receipt } from "lucide-react";
+import { Wrench, ChevronRight, Package, FileText, Factory, BookOpen, Receipt, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface OperationsPanelProps {
   open: boolean;
@@ -9,15 +11,16 @@ interface OperationsPanelProps {
 }
 
 const operationTabs = [
-  { id: "producao", label: "Controle de Produção", icon: Factory, route: "/controle-producao", disabled: false },
-  { id: "estoque", label: "Controle de Estoque", icon: Package, route: "/operacoes/estoque", disabled: false },
-  { id: "fichas", label: "Fichas de Operação", icon: FileText, route: "/operacoes/fichas", disabled: false },
-  { id: "diario", label: "Diário de Obra / Serviço", icon: BookOpen, route: "/operacoes/diario", disabled: false },
-  { id: "comprovantes", label: "Comprovante de Pagamento", icon: Receipt, route: "/operacoes/comprovantes", disabled: false },
+  { id: "producao", label: "Controle de Produção", icon: Factory, route: "/controle-producao", sectionKey: "controle_producao" },
+  { id: "estoque", label: "Controle de Estoque", icon: Package, route: "/operacoes/estoque", sectionKey: "op_estoque" },
+  { id: "fichas", label: "Fichas de Operação", icon: FileText, route: "/operacoes/fichas", sectionKey: "op_fichas" },
+  { id: "diario", label: "Diário de Obra / Serviço", icon: BookOpen, route: "/operacoes/diario", sectionKey: "op_diario" },
+  { id: "comprovantes", label: "Comprovante de Pagamento", icon: Receipt, route: "/operacoes/comprovantes", sectionKey: "op_comprovantes" },
 ];
 
 export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
   const navigate = useNavigate();
+  const { getSectionVisibility } = useAuth();
 
   const handleClick = (route: string) => {
     navigate(route);
@@ -35,21 +38,49 @@ export function OperationsPanel({ open, onOpenChange }: OperationsPanelProps) {
         </SheetHeader>
 
         <div className="flex flex-col gap-1 p-3">
-          {operationTabs.map((tab) => (
-            <Button
-              key={tab.id}
-              variant="ghost"
-              disabled={tab.disabled}
-              onClick={() => handleClick(tab.route)}
-              className="justify-between h-10 text-sm font-normal hover:bg-accent"
-            >
-              <span className="flex items-center gap-2">
-                <tab.icon className="h-4 w-4 text-muted-foreground" />
-                {tab.label}
-              </span>
-              {!tab.disabled && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-            </Button>
-          ))}
+          {operationTabs.map((tab) => {
+            const visibility = getSectionVisibility(tab.sectionKey);
+            if (visibility === "hidden") return null;
+
+            if (visibility === "locked") {
+              return (
+                <TooltipProvider key={tab.id} delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        disabled
+                        className="justify-between h-10 text-sm font-normal opacity-50 cursor-not-allowed"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                          {tab.label}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">
+                      Acesso bloqueado pelo administrador
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            }
+
+            return (
+              <Button
+                key={tab.id}
+                variant="ghost"
+                onClick={() => handleClick(tab.route)}
+                className="justify-between h-10 text-sm font-normal hover:bg-accent"
+              >
+                <span className="flex items-center gap-2">
+                  <tab.icon className="h-4 w-4 text-muted-foreground" />
+                  {tab.label}
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            );
+          })}
         </div>
       </SheetContent>
     </Sheet>

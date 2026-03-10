@@ -92,16 +92,16 @@ const AppRoutes = () => {
         <Route path="/cadastro-equipamentos/:equipmentId" element={<RoleGate section="maquinas"><EquipmentDashboard /></RoleGate>} />
         <Route path="/dimension" element={<RoleGate section="dimension"><DimensionPortal /></RoleGate>} />
         <Route path="/controle-producao" element={<RoleGate section="controle_producao"><ProductionControlPage /></RoleGate>} />
-        <Route path="/operacoes/estoque" element={<RoleGate section="controle_producao"><OperacoesEstoquePage /></RoleGate>} />
-        <Route path="/operacoes/fichas" element={<RoleGate section="controle_producao"><OperacoesFichasPage /></RoleGate>} />
-        <Route path="/operacoes/diario" element={<WorkDiaryPage />} />
-        <Route path="/operacoes/comprovantes" element={<PaymentReceiptsPage />} />
+        <Route path="/operacoes/estoque" element={<RoleGate section="op_estoque"><OperacoesEstoquePage /></RoleGate>} />
+        <Route path="/operacoes/fichas" element={<RoleGate section="op_fichas"><OperacoesFichasPage /></RoleGate>} />
+        <Route path="/operacoes/diario" element={<RoleGate section="op_diario"><WorkDiaryPage /></RoleGate>} />
+        <Route path="/operacoes/comprovantes" element={<RoleGate section="op_comprovantes"><PaymentReceiptsPage /></RoleGate>} />
         <Route path="/empresa/usuarios" element={<RoleGate section="empresa"><CompanyUsersPage /></RoleGate>} />
-        <Route path="/plano-corte" element={<CuttingPlanPage />} />
-        <Route path="/slicer-3d" element={<Slicer3DPage />} />
-        <Route path="/gerador-caixas" element={<BoxGeneratorPage />} />
-        <Route path="/planificador-acm" element={<AcmPlannerPage />} />
-        <Route path="/gerador-percurso" element={<ToolpathGeneratorPage />} />
+        <Route path="/plano-corte" element={<RoleGate section="ferr_plano_corte"><CuttingPlanPage /></RoleGate>} />
+        <Route path="/slicer-3d" element={<RoleGate section="ferr_slicer_3d"><Slicer3DPage /></RoleGate>} />
+        <Route path="/gerador-caixas" element={<RoleGate section="ferr_gerador_caixas"><BoxGeneratorPage /></RoleGate>} />
+        <Route path="/planificador-acm" element={<RoleGate section="ferr_planificador_acm"><AcmPlannerPage /></RoleGate>} />
+        <Route path="/gerador-percurso" element={<RoleGate section="ferr_gerador_percurso"><ToolpathGeneratorPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

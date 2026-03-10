@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory } from "lucide-react";
+import { ArrowLeft, Home, Cpu, Headphones, Calendar, Package, ShoppingBag, Receipt, Settings, Newspaper, FolderOpen, Landmark, Calculator, Eye, EyeOff, Lock, Star, Crown, Save, User, BookmarkPlus, Layers, Gift, Plus, TrendingUp, TrendingDown, Trash2, Clock, Factory, Wrench, Hammer, LayoutGrid, Box, PackageOpen, PanelTop, Route, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,21 @@ const ORCAMENTO_SUB_FEATURES: SectionConfig[] = [
   { key: "orcamento_pdf", label: "Exportar PDF do Orçamento", icon: Eye },
   { key: "orcamento_salvos", label: "Aba Salvos (Histórico)", icon: Eye },
   { key: "assistente_preco", label: "Assistente de Preço", icon: Star },
+];
+
+const OPERACOES_SUB_FEATURES: SectionConfig[] = [
+  { key: "op_estoque", label: "Controle de Estoque", icon: Package },
+  { key: "op_fichas", label: "Fichas de Operação", icon: Eye },
+  { key: "op_diario", label: "Diário de Obra / Serviço", icon: BookOpen },
+  { key: "op_comprovantes", label: "Comprovante de Pagamento", icon: Receipt },
+];
+
+const FERRAMENTAS_SUB_FEATURES: SectionConfig[] = [
+  { key: "ferr_plano_corte", label: "Plano de Corte", icon: LayoutGrid },
+  { key: "ferr_slicer_3d", label: "Slicer 3D CNC", icon: Box },
+  { key: "ferr_gerador_caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen },
+  { key: "ferr_planificador_acm", label: "Planificador ACM", icon: PanelTop },
+  { key: "ferr_gerador_percurso", label: "Gerador de Percurso", icon: Route },
 ];
 
 const visibilityOptions: { value: Visibility; label: string; icon: React.ElementType; description: string; color: string }[] = [
@@ -110,9 +125,9 @@ const UserAccessPage = () => {
     const saved = (accessData as any)?.sections ?? {};
     const role = (roleData?.role as UserRole) ?? "operador";
     const rolePerms: Record<UserRole, string[]> = {
-      admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "gestao_financeira", "configuracoes", "usuarios", "boletins", "orcamento", "arquivos", "propostas", "dimension", "controle_producao"],
-      admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos"],
-      operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos"],
+      admin_master: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "gestao_financeira", "configuracoes", "usuarios", "boletins", "orcamento", "arquivos", "propostas", "dimension", "controle_producao", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
+      admin: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "financeiro", "configuracoes", "orcamento", "arquivos", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
+      operador: ["home", "maquinas", "suporte", "manutencao", "equipamentos", "pecas", "configuracoes", "orcamento", "arquivos", "op_estoque", "op_fichas", "op_diario", "op_comprovantes", "ferr_plano_corte", "ferr_slicer_3d", "ferr_gerador_caixas", "ferr_planificador_acm", "ferr_gerador_percurso"],
       financeiro: ["home", "equipamentos", "financeiro", "gestao_financeira", "configuracoes", "arquivos"],
       servico: ["home", "equipamentos", "configuracoes", "orcamento"],
       usuario_interno: ["home", "configuracoes"],
@@ -125,6 +140,12 @@ const UserAccessPage = () => {
     // Also initialize sub-feature keys (orcamento_pdf, orcamento_salvos, etc.)
     ORCAMENTO_SUB_FEATURES.forEach((s) => {
       initial[s.key] = saved[s.key] ?? "hidden";
+    });
+    OPERACOES_SUB_FEATURES.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes("controle_producao") ? "visible" : "hidden");
+    });
+    FERRAMENTAS_SUB_FEATURES.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes("orcamento") ? "visible" : "hidden");
     });
     setSections(initial);
     setLoading(false);
@@ -455,6 +476,42 @@ const UserAccessPage = () => {
             <p className="text-[10px] text-muted-foreground italic">
               Quando oculto, o usuário verá uma mensagem para entrar em contato com o administrador.
             </p>
+          </div>
+        )}
+
+        {/* Operações sub-features */}
+        {sections["controle_producao"] !== "hidden" && (
+          <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <Wrench className="inline w-3 h-3 mr-1" />
+              Sub-controles de Operações
+            </p>
+            {OPERACOES_SUB_FEATURES.map((section) => (
+              <SectionRow
+                key={section.key}
+                section={section}
+                visibility={sections[section.key] ?? "visible"}
+                onChange={(v) => handleVisibilityChange(section.key, v)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Ferramentas sub-features */}
+        {sections["orcamento"] !== "hidden" && (
+          <div className="mt-4 ml-4 border-l-2 border-primary/20 pl-4 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <Hammer className="inline w-3 h-3 mr-1" />
+              Sub-controles de Ferramentas
+            </p>
+            {FERRAMENTAS_SUB_FEATURES.map((section) => (
+              <SectionRow
+                key={section.key}
+                section={section}
+                visibility={sections[section.key] ?? "visible"}
+                onChange={(v) => handleVisibilityChange(section.key, v)}
+              />
+            ))}
           </div>
         )}
       </div>
