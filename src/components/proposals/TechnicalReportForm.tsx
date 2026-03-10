@@ -16,6 +16,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
+import { applyPhoneMask } from "@/lib/phone-mask";
 
 const DEFAULT_CHECKLIST = [
   { label: "Máquina testada", checked: false },
