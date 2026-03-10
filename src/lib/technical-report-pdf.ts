@@ -40,12 +40,30 @@ interface PdfConfig {
   logo_bg_color?: string;
 }
 
-export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
+export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions, pdfConfig?: PdfConfig) {
+  const cfg = pdfConfig || {};
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
   let y = 15;
+
+  // Parse header color
+  const hc = (cfg.header_color || "30,64,120").split(",").map(Number);
+  const hr = hc[0] || 30, hg = hc[1] || 64, hb = hc[2] || 120;
+
+  // Load watermark image
+  let watermarkImg: HTMLImageElement | null = null;
+  if (cfg.show_watermark && cfg.watermark_image_url) {
+    try { watermarkImg = await loadImage(cfg.watermark_image_url); } catch { /* ignore */ }
+  }
+
+  // Load logo
+  let logoImg: HTMLImageElement | null = null;
+  if (cfg.show_logo !== false && cfg.logo_url) {
+    try { logoImg = await loadImage(cfg.logo_url); } catch { /* ignore */ }
+  }
 
   const addText = (text: string, x: number, yPos: number, opts?: any) => {
     doc.text(text, x, yPos, opts);
@@ -60,7 +78,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
 
   const drawSectionTitle = (title: string) => {
     checkPage(12);
-    doc.setFillColor(30, 64, 120);
+    doc.setFillColor(hr, hg, hb);
     doc.rect(margin, y, contentWidth, 7, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
