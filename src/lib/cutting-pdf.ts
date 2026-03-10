@@ -225,13 +225,30 @@ export async function generateQuotePDF(
     },
   });
 
-  // ── 4. RODAPÉ ──
+  // ── 4. QR CODE PIX ──
+  let finalY = (doc as any).lastAutoTable?.finalY || yPos + 60;
+
+  if (s.pix_qr_image_url?.trim()) {
+    try {
+      const qrDataUrl = await imageToDataUrl(s.pix_qr_image_url);
+      if (qrDataUrl) {
+        finalY += 8;
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text("Pagamento via PIX:", 14, finalY);
+        finalY += 4;
+        doc.addImage(qrDataUrl, "PNG", 14, finalY, 40, 40);
+        finalY += 44;
+      }
+    } catch { /* skip pix qr */ }
+  }
+
+  // ── 5. RODAPÉ ──
   if (s.footer_text) {
-    const finalY = (doc as any).lastAutoTable?.finalY || yPos + 60;
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
     const lines = doc.splitTextToSize(s.footer_text, pageW - 28);
-    doc.text(lines, 14, finalY + 12);
+    doc.text(lines, 14, finalY + 4);
   }
 
   // ── MARCA D'ÁGUA (imagem) ──

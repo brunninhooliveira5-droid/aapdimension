@@ -342,16 +342,93 @@ export function SavedQuotes() {
     setGeneratingReceipt(false);
   };
 
-  const exportQuotePDF = (q: SavedQuote) => {
+  const exportQuotePDF = async (q: SavedQuote) => {
     try {
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Orçamento de Corte CNC", 14, 22);
-    doc.setFontSize(10);
-    doc.text(`Data: ${new Date(q.created_at).toLocaleDateString("pt-BR")}`, 14, 30);
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Load PDF settings for logo, watermark, PIX QR
+    const uid = effectiveUserId || session?.user?.id;
+    const { data: pdfSettings } = await supabase.from("pdf_quote_settings" as any).select("*").eq("user_id", uid).maybeSingle();
+    const s = (pdfSettings || {}) as any;
+
+    // Also fetch pix_qr_image_url from profile (centralized)
+    const { data: profile } = await supabase.from("profiles").select("pix_qr_image_url").eq("id", uid).single();
+    const pixQrUrl = s.pix_qr_image_url || profile?.pix_qr_image_url || "";
+
+    // Helper to load image as data URL
+    const loadImage = async (url: string): Promise<string | null> => {
+      if (!url) return null;
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); img.src = url; });
+        if (!img.complete || img.naturalWidth === 0) return null;
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0);
+        const isJpeg = url.toLowerCase().includes(".jpg") || url.toLowerCase().includes(".jpeg");
+        return canvas.toDataURL(isJpeg ? "image/jpeg" : "image/png");
+      } catch { return null; }
+    };
+
+    let yPos = 14;
+
+    // Header with logo
+    if (s.primary_color) {
+      const h = s.primary_color.replace("#", "");
+      doc.setFillColor(parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16));
+    } else {
+      doc.setFillColor(26, 26, 46);
+    }
+    doc.rect(0, 0, pageW, 32, "F");
+
+    if (s.logo_url) {
+      const logoData = await loadImage(s.logo_url);
+      if (logoData) {
+        const img = new Image(); img.src = logoData;
+        await new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
+        if (img.naturalWidth > 0) {
+          const ratio = img.naturalWidth / img.naturalHeight;
+          const logoH = 18; const logoW = logoH * ratio;
+          const isJpeg = s.logo_url.toLowerCase().includes(".jpg") || s.logo_url.toLowerCase().includes(".jpeg");
+          doc.addImage(logoData, isJpeg ? "JPEG" : "PNG", 14, 7, logoW, logoH);
+        }
+      }
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text(s.company_name || "Orçamento de Corte CNC", pageW - 14, 16, { align: "right" });
+    doc.setFontSize(8);
+    const contactParts: string[] = [];
+    if (s.company_phone) contactParts.push(s.company_phone);
+    if (s.company_email) contactParts.push(s.company_email);
+    if (contactParts.length > 0) doc.text(contactParts.join(" | "), pageW - 14, 23, { align: "right" });
+    if (s.company_cnpj) doc.text(`CNPJ: ${s.company_cnpj}`, pageW - 14, 28, { align: "right" });
+
+    doc.setTextColor(0, 0, 0);
+    yPos = 40;
+
+    if (s.company_address) {
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+      doc.text(s.company_address, 14, yPos); yPos += 6;
+    }
+
+    doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+    doc.text(`Data: ${new Date(q.created_at).toLocaleDateString("pt-BR")}`, 14, yPos); yPos += 6;
+
+    if (q.client_name?.trim()) {
+      doc.text(`Cliente: ${q.client_name.trim()}`, 14, yPos);
+      if (q.client_phone?.trim()) doc.text(`Contato: ${q.client_phone.trim()}`, 105, yPos);
+      yPos += 6;
+    }
 
     autoTable(doc, {
-      startY: 38,
+      startY: yPos + 4,
       head: [["Item", "Valor"]],
       body: [
         ["Arquivo", q.file_name],
@@ -363,11 +440,53 @@ export function SavedQuotes() {
         ["Tempo Estimado", `${Number(q.estimated_time_min).toFixed(2)} min`],
         ["Custo Estimado", fmt(Number(q.estimated_cost))],
         ["Preço Mínimo", fmt(Number(q.min_recommended))],
+        ...(q.service_value_included && q.service_value > 0 ? [["Valor de Serviço", fmt(Number(q.service_value))]] : []),
         ["Preço Sugerido", fmt(Number(q.suggested_sale))],
       ],
       theme: "striped",
       styles: { fontSize: 10 },
+      headStyles: s.primary_color ? { fillColor: [parseInt(s.primary_color.replace("#", "").substring(0, 2), 16), parseInt(s.primary_color.replace("#", "").substring(2, 4), 16), parseInt(s.primary_color.replace("#", "").substring(4, 6), 16)] } : undefined,
     });
+
+    let finalY = (doc as any).lastAutoTable?.finalY || yPos + 80;
+
+    // PIX QR Code
+    if (pixQrUrl) {
+      const qrData = await loadImage(pixQrUrl);
+      if (qrData) {
+        finalY += 8;
+        doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+        doc.text("Pagamento via PIX:", 14, finalY);
+        finalY += 4;
+        doc.addImage(qrData, "PNG", 14, finalY, 40, 40);
+        finalY += 44;
+      }
+    }
+
+    // Footer
+    if (s.footer_text) {
+      doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+      const lines = doc.splitTextToSize(s.footer_text, pageW - 28);
+      doc.text(lines, 14, finalY + 4);
+    }
+
+    // Watermark
+    if (s.show_watermark && s.watermark_url?.trim()) {
+      try {
+        const wmData = await loadImage(s.watermark_url);
+        if (wmData) {
+          const pageH = doc.internal.pageSize.getHeight();
+          const totalPages = doc.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.saveGraphicsState();
+            doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+            doc.addImage(wmData, "PNG", (pageW - 120) / 2, (pageH - 120) / 2, 120, 120);
+            doc.restoreGraphicsState();
+          }
+        }
+      } catch { /* skip watermark */ }
+    }
 
     doc.save(`orcamento_${q.file_name.replace(/\.\w+$/, "")}.pdf`);
     } catch (err: any) {
