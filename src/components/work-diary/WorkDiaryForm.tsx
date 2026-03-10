@@ -50,6 +50,17 @@ interface FileWithCaption {
   caption: string;
 }
 
+interface DiaryClient {
+  id: string;
+  name: string;
+  company: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+}
+
 const emptyForm = {
   entry_date: format(new Date(), "yyyy-MM-dd"),
   time_start: "",
@@ -70,6 +81,10 @@ const emptyForm = {
   materials_to_use: "",
   impediment_reason: "",
   execution_deadline: "",
+  client_id: "",
+  client_name: "",
+  client_phone: "",
+  client_company: "",
 };
 
 export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
@@ -81,6 +96,11 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
   const [uploading, setUploading] = useState(false);
   const [contractedServices, setContractedServices] = useState<ContractedService[]>([]);
   const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterial[]>([]);
+  const [clients, setClients] = useState<DiaryClient[]>([]);
+
+  useEffect(() => {
+    if (effectiveUserId) loadClients();
+  }, [effectiveUserId]);
 
   useEffect(() => {
     if (entryId) loadEntry();
@@ -91,6 +111,16 @@ export function WorkDiaryForm({ entryId, onSaved, onCancel }: Props) {
       setRequiredMaterials([]);
     }
   }, [entryId]);
+
+  const loadClients = async () => {
+    if (!effectiveUserId) return;
+    const { data } = await supabase
+      .from("work_diary_clients")
+      .select("*")
+      .eq("user_id", effectiveUserId)
+      .order("name");
+    setClients((data as any[]) || []);
+  };
 
   const loadEntry = async () => {
     if (!entryId) return;
