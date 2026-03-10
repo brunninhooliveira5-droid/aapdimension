@@ -1,44 +1,28 @@
 
 
-## Plano: Controle de Sub-Usuários pelo Admin Master
+## Plan: Align Client Signature Height with Technician Signature
 
-### Resumo
+### Problem
+The client signature in the PDF uses its own aspect ratio scaling independently, causing it to render larger than the technician signature and misaligning the two columns.
 
-O Admin Master podera: (1) ver quantos sub-usuarios cada perfil/conta tem, (2) editar o limite `max_members` de cada conta, e (3) personificar sub-usuarios diretamente da tabela de usuarios.
+### Solution
+In `src/lib/technical-report-pdf.ts`, calculate the technician signature's actual rendered height first, then constrain the client signature to the **same height**. If no technician signature exists, use a fixed default (e.g. 25mm).
 
-### Alteracoes
+### Changes
 
-#### 1. Exibir contagem de sub-usuarios na tabela de usuarios (UsersPage)
+**`src/lib/technical-report-pdf.ts`** (lines 260-270):
+- Track the technician signature's rendered height (`techSigH`)
+- Use that same height as `cSigMaxH` for the client signature instead of `signatureOpts?.signatureSize || 35`
 
-Na tabela de usuarios aprovados (perfil `admin`), adicionar uma coluna **"Sub-Usuários"** que mostra `X / Y` (atual / limite). Para isso:
-- Ao carregar usuarios, buscar todas as `accounts` com `account_members` agrupados
-- Para usuarios com role `admin`, exibir a contagem de membros (excluindo client_admin) e o `max_members`
+```typescript
+// After technician signature is drawn, store its height
+let techSigH = 15; // default fallback
+// ... in tech sig block: techSigH = sigH;
 
-#### 2. Editar limite de sub-usuarios (max_members)
+// Client signature uses same max height
+const cSigMaxH = techSigH; // match technician height
+const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
+```
 
-Ao clicar na contagem ou em um botao de edicao na linha do usuario admin:
-- Abrir um dialog simples com um input numerico para alterar `max_members`
-- Salvar via `supabase.from("accounts").update({ max_members }).eq("owner_user_id", userId)`
-- Somente visivel/acessivel pelo admin_master
-
-#### 3. Personificar sub-usuarios
-
-O admin master ja consegue personificar qualquer usuario via `start_impersonation` (que usa a RPC que verifica `admin_master`). O que falta e:
-- Buscar os sub-usuarios (account_members) de cada conta
-- Permitir expandir a linha de um usuario `admin` para ver seus sub-usuarios
-- Adicionar botao de personificacao nos sub-usuarios listados
-
-### Arquivos Modificados
-
-| Arquivo | Mudanca |
-|---|---|
-| **UsersPage.tsx** | Adicionar coluna "Sub-Usuários" com contagem; botao para editar max_members; linhas expandiveis mostrando sub-usuarios com botao de personificacao |
-
-### Fluxo
-
-1. Admin Master abre "Gestao de Usuarios"
-2. Na tabela de aprovados, usuarios com role `admin` mostram coluna "Sub-Usuários: 2/3"
-3. Clicando no icone de edicao, abre dialog para alterar o limite
-4. Clicando em expandir (chevron), mostra lista dos sub-usuarios daquele admin
-5. Cada sub-usuario tem botao de personificacao (mesmo fluxo existente)
+This ensures both signatures occupy the same vertical space and the lines align horizontally.
 
