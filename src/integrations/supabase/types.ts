@@ -5446,6 +5446,7 @@ export type Database = {
           initials: string
           name: string
           phone: string | null
+          pix_qr_image_url: string | null
           rejected: boolean
           signature_darkness: number
           signature_offset_x: number | null
@@ -5471,6 +5472,7 @@ export type Database = {
           initials?: string
           name: string
           phone?: string | null
+          pix_qr_image_url?: string | null
           rejected?: boolean
           signature_darkness?: number
           signature_offset_x?: number | null
@@ -5496,6 +5498,7 @@ export type Database = {
           initials?: string
           name?: string
           phone?: string | null
+          pix_qr_image_url?: string | null
           rejected?: boolean
           signature_darkness?: number
           signature_offset_x?: number | null
