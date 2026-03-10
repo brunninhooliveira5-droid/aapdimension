@@ -63,6 +63,16 @@ export default function ProposalsPage() {
             <TechnicalReportsList />
           </TabsContent>
         )}
+        {isInternal && (
+          <TabsContent value="rt-clientes">
+            <TechnicalReportClients />
+          </TabsContent>
+        )}
+        {isInternal && (
+          <TabsContent value="rt-pdf-config">
+            <TechnicalReportPdfConfig />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="specs">
