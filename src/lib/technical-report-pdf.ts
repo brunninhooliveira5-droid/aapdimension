@@ -21,12 +21,49 @@ interface SignatureOptions {
   signatureDarkness?: number;
 }
 
-export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions) {
+interface PdfConfig {
+  company_name?: string;
+  role_title?: string;
+  phone?: string;
+  email?: string;
+  city?: string;
+  logo_url?: string;
+  footer_text?: string;
+  show_logo?: boolean;
+  show_photos?: boolean;
+  show_checklist?: boolean;
+  show_signature?: boolean;
+  show_watermark?: boolean;
+  watermark_opacity?: number;
+  header_color?: string;
+  watermark_image_url?: string;
+  logo_bg_color?: string;
+}
+
+export async function generateTechnicalReportPdf(report: any, files?: any[], signatureOpts?: SignatureOptions, pdfConfig?: PdfConfig) {
+  const cfg = pdfConfig || {};
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
   let y = 15;
+
+  // Parse header color
+  const hc = (cfg.header_color || "30,64,120").split(",").map(Number);
+  const hr = hc[0] || 30, hg = hc[1] || 64, hb = hc[2] || 120;
+
+  // Load watermark image
+  let watermarkImg: HTMLImageElement | null = null;
+  if (cfg.show_watermark && cfg.watermark_image_url) {
+    try { watermarkImg = await loadImage(cfg.watermark_image_url); } catch { /* ignore */ }
+  }
+
+  // Load logo
+  let logoImg: HTMLImageElement | null = null;
+  if (cfg.show_logo !== false && cfg.logo_url) {
+    try { logoImg = await loadImage(cfg.logo_url); } catch { /* ignore */ }
+  }
 
   const addText = (text: string, x: number, yPos: number, opts?: any) => {
     doc.text(text, x, yPos, opts);
@@ -41,7 +78,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
 
   const drawSectionTitle = (title: string) => {
     checkPage(12);
-    doc.setFillColor(30, 64, 120);
+    doc.setFillColor(hr, hg, hb);
     doc.rect(margin, y, contentWidth, 7, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
@@ -79,15 +116,40 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   };
 
   // ====== HEADER ======
-  doc.setFillColor(30, 64, 120);
+  doc.setFillColor(hr, hg, hb);
   doc.rect(0, 0, pageWidth, 28, "F");
+
+  // Logo
+  let logoOffset = 0;
+  if (logoImg && cfg.show_logo !== false) {
+    const lMaxH = 18;
+    const lRatio = Math.min(30 / logoImg.width, lMaxH / logoImg.height);
+    const lw = logoImg.width * lRatio;
+    const lh = logoImg.height * lRatio;
+    // Apply tint if needed
+    if (cfg.logo_bg_color) {
+      const canvas = document.createElement("canvas");
+      canvas.width = logoImg.width;
+      canvas.height = logoImg.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(logoImg, 0, 0);
+      ctx.globalCompositeOperation = "source-in";
+      ctx.fillStyle = cfg.logo_bg_color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      doc.addImage(canvas.toDataURL("image/png"), "PNG", margin, 5, lw, lh);
+    } else {
+      doc.addImage(logoImg, "PNG", margin, 5, lw, lh);
+    }
+    logoOffset = lw + 4;
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  addText("DIMENSION CNC", margin, 12);
+  addText(cfg.company_name || "DIMENSION CNC", margin + logoOffset, 12);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  addText("Relatório Técnico de Atendimento", margin, 18);
+  addText("Relatório Técnico de Atendimento", margin + logoOffset, 18);
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
@@ -136,57 +198,62 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   drawTextBlock("Observações Finais", report.final_observations);
 
   // ====== CHECKLIST ======
-  const checklist = Array.isArray(report.checklist) ? report.checklist : [];
-  if (checklist.length > 0) {
-    drawSectionTitle("CHECKLIST TÉCNICO");
-    checklist.forEach((item: any) => {
-      checkPage(6);
-      doc.setFontSize(8);
-      const mark = item.checked ? "☑" : "☐";
-      addText(`${mark}  ${item.label}`, margin + 4, y);
-      y += 5;
-    });
-    y += 2;
+  if (cfg.show_checklist !== false) {
+    const checklist = Array.isArray(report.checklist) ? report.checklist : [];
+    if (checklist.length > 0) {
+      drawSectionTitle("CHECKLIST TÉCNICO");
+      checklist.forEach((item: any) => {
+        checkPage(6);
+        doc.setFontSize(8);
+        const mark = item.checked ? "☑" : "☐";
+        addText(`${mark}  ${item.label}`, margin + 4, y);
+        y += 5;
+      });
+      y += 2;
+    }
   }
 
   // ====== FOTOS ======
-  const photos = (files || []).filter((f: any) => f.mime_type?.startsWith("image/"));
-  if (photos.length > 0) {
-    drawSectionTitle("REGISTROS FOTOGRÁFICOS");
-    for (const photo of photos) {
-      try {
-        checkPage(75);
-        const img = await loadImage(photo.file_path);
-        const maxW = contentWidth * 0.7;
-        const maxH = 65;
-        const ratio = Math.min(maxW / img.width, maxH / img.height);
-        const w = img.width * ratio;
-        const h = img.height * ratio;
-        doc.addImage(img, "JPEG", margin + 2, y, w, h);
-        y += h + 3;
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "italic");
-        addText(photo.file_name, margin + 2, y);
-        y += 4;
-        if (photo.description) {
+  if (cfg.show_photos !== false) {
+    const photos = (files || []).filter((f: any) => f.mime_type?.startsWith("image/"));
+    if (photos.length > 0) {
+      drawSectionTitle("REGISTROS FOTOGRÁFICOS");
+      for (const photo of photos) {
+        try {
+          checkPage(75);
+          const img = await loadImage(photo.file_path);
+          const maxW = contentWidth * 0.7;
+          const maxH = 65;
+          const ratio = Math.min(maxW / img.width, maxH / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          doc.addImage(img, "JPEG", margin + 2, y, w, h);
+          y += h + 3;
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "italic");
+          addText(photo.file_name, margin + 2, y);
+          y += 4;
+          if (photo.description) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            const descLines = doc.splitTextToSize(photo.description, contentWidth - 4);
+            descLines.forEach((line: string) => {
+              checkPage(5);
+              addText(line, margin + 2, y);
+              y += 4;
+            });
+          }
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          const descLines = doc.splitTextToSize(photo.description, contentWidth - 4);
-          descLines.forEach((line: string) => {
-            checkPage(5);
-            addText(line, margin + 2, y);
-            y += 4;
-          });
+          y += 3;
+        } catch {
+          // skip broken images
         }
-        doc.setFont("helvetica", "normal");
-        y += 3;
-      } catch {
-        // skip broken images
       }
     }
   }
 
   // ====== ASSINATURAS ======
+  if (cfg.show_signature !== false) {
   checkPage(60);
   drawSectionTitle("ASSINATURAS");
   y += 3;
@@ -295,15 +362,35 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   addText(`Data: ${dateStr}`, sigRightX + 5, cy);
 
   y = Math.max(techEndY, cy) + 8;
+  } // end show_signature
+
+  // ====== WATERMARK on all pages ======
+  if (watermarkImg) {
+    const totalPagesWm = doc.getNumberOfPages();
+    const wmOpacity = (cfg.watermark_opacity || 15) / 100;
+    for (let i = 1; i <= totalPagesWm; i++) {
+      doc.setPage(i);
+      doc.saveGraphicsState();
+      const gState = new (doc as any).GState({ opacity: wmOpacity });
+      doc.setGState(gState);
+      const wmMaxW = pageWidth * 0.6;
+      const wmMaxH = pageHeight * 0.6;
+      const wmRatio = Math.min(wmMaxW / watermarkImg.width, wmMaxH / watermarkImg.height);
+      const wmW = watermarkImg.width * wmRatio;
+      const wmH = watermarkImg.height * wmRatio;
+      doc.addImage(watermarkImg, "PNG", (pageWidth - wmW) / 2, (pageHeight - wmH) / 2, wmW, wmH);
+      doc.restoreGraphicsState();
+    }
+  }
 
   // ====== FOOTER ======
   const totalPages = doc.getNumberOfPages();
+  const footerLabel = cfg.footer_text || `${cfg.company_name || "Dimension CNC"} — Relatório Técnico #${report.report_number || ""}`;
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(130);
-    const footerText = `Dimension CNC — Relatório Técnico #${report.report_number || ""} — Página ${i}/${totalPages}`;
-    addText(footerText, margin, 290);
+    addText(`${footerLabel} — Página ${i}/${totalPages}`, margin, 290);
     doc.setTextColor(0);
   }
 

@@ -16,6 +16,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateTechnicalReportPdf } from "@/lib/technical-report-pdf";
+import { applyPhoneMask } from "@/lib/phone-mask";
 
 const DEFAULT_CHECKLIST = [
   { label: "Máquina testada", checked: false },
@@ -67,6 +68,35 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState("");
   const [clientSignatureImage, setClientSignatureImage] = useState<string | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
+
+  // Load clients
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase
+      .from("technical_report_clients")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("name")
+      .then(({ data }) => setClients((data as any[]) || []));
+  }, [session?.user?.id]);
+
+  const handleClientSelect = (clientId: string) => {
+    if (clientId === "none") {
+      setForm((p) => ({ ...p, client_id: undefined, client_name: "", client_company: "", client_city: "" }));
+      return;
+    }
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setForm((p) => ({
+        ...p,
+        client_id: client.id,
+        client_name: client.name,
+        client_company: client.company || "",
+        client_city: `${client.city || ""}${client.state ? ` - ${client.state}` : ""}`.trim(),
+      }));
+    }
+  };
 
   const handleClientSignatureSave = async (dataUrl: string) => {
     setClientSignatureImage(dataUrl);
@@ -301,24 +331,32 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
         </Button>
         {reportId && (
           <Button variant="outline" onClick={async () => {
-            // Fetch technician signature from profile
             let techSignatureUrl: string | null = null;
             let sigSize = 35;
             let sigOffX = 0, sigOffY = 0, sigZoom = 100, sigDarkness = 100;
             if (session?.user?.id) {
-              const { data: profile } = await supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single();
+              const [{ data: profile }, { data: pdfCfg }] = await Promise.all([
+                supabase.from("profiles").select("signature_url, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness").eq("id", session.user.id).single(),
+                supabase.from("technical_report_pdf_config").select("*").eq("user_id", session.user.id).single(),
+              ]);
               techSignatureUrl = profile?.signature_url || null;
               sigSize = (profile as any)?.signature_size || 35;
               sigOffX = (profile as any)?.signature_offset_x || 0;
               sigOffY = (profile as any)?.signature_offset_y || 0;
               sigZoom = (profile as any)?.signature_zoom || 100;
               sigDarkness = (profile as any)?.signature_darkness || 100;
+              generateTechnicalReportPdf(
+                { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+                files,
+                { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize, signatureOffsetX: sigOffX, signatureOffsetY: sigOffY, signatureZoom: sigZoom, signatureDarkness: sigDarkness },
+                (pdfCfg as any) || undefined,
+              );
+            } else {
+              generateTechnicalReportPdf(
+                { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
+                files,
+              );
             }
-            generateTechnicalReportPdf(
-              { ...existingReport, ...form, client_signature_image_url: clientSignatureImage },
-              files,
-              { technicianSignatureUrl: techSignatureUrl, technicianCompany: user?.company || "", signatureSize: sigSize, signatureOffsetX: sigOffX, signatureOffsetY: sigOffY, signatureZoom: sigZoom, signatureDarkness: sigDarkness }
-            );
           }}>
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
@@ -357,18 +395,32 @@ export function TechnicalReportForm({ reportId, onClose }: Props) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Dados do Cliente</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <CardContent className="space-y-3">
               <div>
-                <Label className="text-xs">Cliente</Label>
-                <Input value={form.client_name} onChange={(e) => updateField("client_name", e.target.value)} />
+                <Label className="text-xs">Selecionar Cliente Cadastrado</Label>
+                <Select value={(form as any).client_id || "none"} onValueChange={handleClientSelect}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nenhum —</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label className="text-xs">Empresa</Label>
-                <Input value={form.client_company} onChange={(e) => updateField("client_company", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Cidade / Local</Label>
-                <Input value={form.client_city} onChange={(e) => updateField("client_city", e.target.value)} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Cliente</Label>
+                  <Input value={form.client_name} onChange={(e) => updateField("client_name", e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Empresa</Label>
+                  <Input value={form.client_company} onChange={(e) => updateField("client_company", e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Cidade / Local</Label>
+                  <Input value={form.client_city} onChange={(e) => updateField("client_city", e.target.value)} />
+                </div>
               </div>
             </CardContent>
           </Card>

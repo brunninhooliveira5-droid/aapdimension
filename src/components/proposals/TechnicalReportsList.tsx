@@ -162,7 +162,7 @@ export function TechnicalReportsList() {
                         size="icon"
                         variant="ghost"
                         onClick={async () => {
-                          const [{ data: reportFiles }, { data: profile }] = await Promise.all([
+                          const [{ data: reportFiles }, { data: profile }, { data: pdfCfg }] = await Promise.all([
                             supabase
                               .from("technical_report_files")
                               .select("*")
@@ -173,6 +173,11 @@ export function TechnicalReportsList() {
                               .select("signature_url, company, signature_size, signature_offset_x, signature_offset_y, signature_zoom, signature_darkness")
                               .eq("id", r.created_by)
                               .single(),
+                            supabase
+                              .from("technical_report_pdf_config")
+                              .select("*")
+                              .eq("user_id", r.created_by)
+                              .single(),
                           ]);
                           generateTechnicalReportPdf(r, reportFiles || [], {
                             technicianSignatureUrl: profile?.signature_url || null,
@@ -182,7 +187,7 @@ export function TechnicalReportsList() {
                             signatureOffsetY: (profile as any)?.signature_offset_y || 0,
                             signatureZoom: (profile as any)?.signature_zoom || 100,
                             signatureDarkness: (profile as any)?.signature_darkness || 100,
-                          });
+                          }, (pdfCfg as any) || undefined);
                         }}
                         title="Gerar PDF"
                       >
