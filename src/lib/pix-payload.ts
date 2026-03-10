@@ -38,7 +38,7 @@ function crc16(payload: string): string {
 }
 
 export function generatePixPayload(params: PixPayloadParams): string {
-  const { key, amount, txid = "***" } = params;
+  const { key, amount, txid = "PGTO" } = params;
   const beneficiary = removeDiacritics(params.beneficiary).toUpperCase().slice(0, 25);
   const city = removeDiacritics(params.city).toUpperCase().slice(0, 15);
 
