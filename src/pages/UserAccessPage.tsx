@@ -141,6 +141,12 @@ const UserAccessPage = () => {
     ORCAMENTO_SUB_FEATURES.forEach((s) => {
       initial[s.key] = saved[s.key] ?? "hidden";
     });
+    OPERACOES_SUB_FEATURES.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes("controle_producao") ? "visible" : "hidden");
+    });
+    FERRAMENTAS_SUB_FEATURES.forEach((s) => {
+      initial[s.key] = saved[s.key] ?? (allowedByRole.includes("orcamento") ? "visible" : "hidden");
+    });
     setSections(initial);
     setLoading(false);
   };
