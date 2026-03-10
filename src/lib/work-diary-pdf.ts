@@ -32,6 +32,12 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
   const hc = (cfg.header_color || "30,64,120").split(",").map(Number);
   const [hR, hG, hB] = [hc[0] || 30, hc[1] || 64, hc[2] || 120];
 
+  // Pre-load watermark image if configured
+  let watermarkImg: HTMLImageElement | null = null;
+  if (cfg.show_watermark && cfg.watermark_image_url) {
+    try { watermarkImg = await loadImage(cfg.watermark_image_url); } catch { /* skip */ }
+  }
+
   const checkPage = (n: number) => { if (y + n > ph - 20) { doc.addPage(); y = 15; } };
 
   const sectionTitle = (title: string) => {
