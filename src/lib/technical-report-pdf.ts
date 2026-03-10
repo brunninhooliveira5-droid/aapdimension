@@ -222,6 +222,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const offX = (signatureOpts?.signatureOffsetX || 0) * 0.3;
       const offY = (signatureOpts?.signatureOffsetY || 0) * 0.3;
       doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, y + offY, sigW, sigH);
+      techSigH = sigH; // store for client signature constraint
       y += sigH + 2;
       techSigDrawn = true;
     } catch {
