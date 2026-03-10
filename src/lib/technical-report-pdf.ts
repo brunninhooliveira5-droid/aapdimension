@@ -205,6 +205,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
 
   // Try to load technician signature image
   let techSigDrawn = false;
+  const techSigAreaTop = y; // save where the signature area starts
   if (signatureOpts?.technicianSignatureUrl) {
     try {
       let sigImg = await loadImage(signatureOpts.technicianSignatureUrl);
@@ -219,11 +220,13 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const sigRatio = Math.min(sigMaxW / sigImg.width, sigMaxH / sigImg.height) * zoom;
       const sigW = sigImg.width * sigRatio;
       const sigH = sigImg.height * sigRatio;
+      techSigH = sigH;
+      // Position signature so its bottom edge sits ON the line
+      const lineY = techSigAreaTop + sigH;
       const offX = (signatureOpts?.signatureOffsetX || 0) * 0.3;
       const offY = (signatureOpts?.signatureOffsetY || 0) * 0.3;
-      doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, y + offY, sigW, sigH);
-      techSigH = sigH; // store for client signature constraint
-      y += sigH + 2;
+      doc.addImage(sigImg, "PNG", sigLeftX + 5 + offX, lineY - sigH + offY, sigW, sigH);
+      y = lineY;
       techSigDrawn = true;
     } catch {
       // fallback to line
@@ -234,7 +237,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
     y += 15;
   }
 
-  // Line
+  // Line — signature sits right above this
   doc.setDrawColor(100);
   doc.line(sigLeftX + 2, y, sigLeftX + sigColWidth - 2, y);
   y += 4;
@@ -261,6 +264,7 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
   cy += 5;
 
   let clientSigDrawn = false;
+  const clientSigAreaTop = cy; // save where the client signature area starts
   if (report.client_signature_image_url) {
     try {
       const clientImg = await loadImage(report.client_signature_image_url);
@@ -269,8 +273,10 @@ export async function generateTechnicalReportPdf(report: any, files?: any[], sig
       const cRatio = Math.min(cSigMaxW / clientImg.width, cSigMaxH / clientImg.height);
       const cW = clientImg.width * cRatio;
       const cH = clientImg.height * cRatio;
-      doc.addImage(clientImg, "PNG", sigRightX + 5, cy, cW, cH);
-      cy += cH + 2;
+      // Position client signature so its bottom edge sits ON the line
+      const clientLineY = clientSigAreaTop + cSigMaxH; // use same total area as tech sig
+      doc.addImage(clientImg, "PNG", sigRightX + 5, clientLineY - cH, cW, cH);
+      cy = clientLineY;
       clientSigDrawn = true;
     } catch {
       // fallback
