@@ -64,13 +64,21 @@ export function ContractPdfConfig() {
   const [settings, setSettings] = useState<PdfSettings>(DEFAULT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileSignature, setProfileSignature] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const watermarkRef = useRef<HTMLInputElement>(null);
-  const signatureRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (session?.user) loadSettings();
+    if (session?.user) {
+      loadSettings();
+      loadProfileSignature();
+    }
   }, [session]);
+
+  const loadProfileSignature = async () => {
+    const { data } = await supabase.from("profiles").select("signature_url").eq("id", session!.user.id).single();
+    if (data?.signature_url) setProfileSignature(data.signature_url);
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -267,6 +275,7 @@ export function ContractPdfConfig() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><PenLine className="w-4 h-4 text-primary" /> Assinatura</CardTitle>
+          <CardDescription>A assinatura é puxada automaticamente de Configurações do usuário.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -280,18 +289,15 @@ export function ContractPdfConfig() {
             </div>
           </div>
           <div>
-            <Label className="text-xs">Imagem da Assinatura</Label>
-            <input ref={signatureRef} type="file" accept="image/*" className="hidden" onChange={e => handleUpload(e, "signature_url", "signature")} />
-            <div className="flex items-center gap-3 mt-1">
-              {settings.signature_url ? (
-                <div className="relative">
-                  <img src={settings.signature_url} alt="Assinatura" className="h-12 w-auto rounded border border-border object-contain bg-white p-1" />
-                  <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground" onClick={() => update("signature_url", "")}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+            <Label className="text-xs">Assinatura cadastrada</Label>
+            <div className="mt-2">
+              {profileSignature ? (
+                <div className="flex items-center gap-3">
+                  <img src={profileSignature} alt="Assinatura" className="h-14 w-auto rounded border border-border object-contain bg-white p-1" />
+                  <span className="text-xs text-muted-foreground">Assinatura carregada de Configurações</span>
                 </div>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => signatureRef.current?.click()}><Upload className="w-3.5 h-3.5 mr-1" /> Enviar assinatura</Button>
+                <p className="text-xs text-muted-foreground">Nenhuma assinatura cadastrada. Acesse <strong>Configurações</strong> para cadastrar sua assinatura.</p>
               )}
             </div>
           </div>
