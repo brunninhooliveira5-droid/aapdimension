@@ -252,10 +252,32 @@ export async function generateWorkDiaryPdf(entry: any, files: any[], config: any
     y += 8;
   }
 
-  // === FOOTER ===
+  // === FOOTER & WATERMARK ===
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+
+    // Watermark
+    if (cfg.show_watermark && cfg.watermark_text) {
+      const opacity = (cfg.watermark_opacity || 15) / 100;
+      doc.saveGraphicsState();
+      // @ts-ignore - setGState exists in jsPDF
+      const gState = new (doc as any).GState({ opacity });
+      // @ts-ignore
+      doc.setGState(gState);
+      doc.setTextColor(hR, hG, hB);
+      doc.setFontSize(48);
+      doc.setFont("helvetica", "bold");
+      // Rotate and center
+      const cx = pw / 2;
+      const cy = ph / 2;
+      const text = cfg.watermark_text;
+      const tw = doc.getTextWidth(text);
+      doc.text(text, cx - tw / 2, cy, { angle: 30 });
+      doc.restoreGraphicsState();
+    }
+
+    // Footer
     doc.setFontSize(7);
     doc.setTextColor(130);
     const footerText = cfg.footer_text
