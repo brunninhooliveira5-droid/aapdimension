@@ -34,6 +34,7 @@ const SettingsPage = () => {
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [signatureSize, setSignatureSize] = useState(35);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
