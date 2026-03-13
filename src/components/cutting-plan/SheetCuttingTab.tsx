@@ -549,11 +549,12 @@ export function SheetCuttingTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">#</TableHead>
+                <TableHead className="w-20">#</TableHead>
+                <TableHead>Descrição</TableHead>
                 <TableHead>Largura (mm)</TableHead>
                 <TableHead>Altura (mm)</TableHead>
-                <TableHead className="w-24">Qtd</TableHead>
-                <TableHead className="w-16">Girar</TableHead>
+                <TableHead className="w-20">Qtd</TableHead>
+                <TableHead className="w-14">Girar</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -567,6 +568,9 @@ export function SheetCuttingTab() {
                         <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getPieceColor(index) }} />
                         <span className="text-sm font-medium">P{index + 1}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input value={piece.description} onChange={(e) => updatePiece(piece.id, "description", e.target.value)} data-piece-id={piece.id} data-field="description" className="h-8" placeholder="Ex: Base lateral" />
                     </TableCell>
                     <TableCell>
                       <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
