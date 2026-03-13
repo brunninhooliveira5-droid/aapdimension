@@ -233,12 +233,15 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     doc.text(`${matH} mm`, ox - 3, oy + drawH / 2, { align: "center", angle: 90 });
 
     // Draw pieces
+    const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
     layout.pieces.forEach((p, pi) => {
       const px = ox + p.x * s;
       const py = oy + p.y * s;
       const pW = p.width * s;
       const pH = p.height * s;
       const color = getPieceColorPdf(p.pieceIndex ?? pi);
+      const pieceDesc = data.pieces[p.pieceIndex]?.description || "";
+      const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
 
       doc.setFillColor(color[0], color[1], color[2]);
       doc.setDrawColor(255, 255, 255);
@@ -249,12 +252,12 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
       doc.setFont("helvetica", "bold");
-      const label = `P${(p.pieceIndex ?? pi) + 1}`;
-      const dimLabel = `${p.width}x${p.height}`;
       if (pW > 12 && pH > 8) {
-        doc.text(label, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
-        doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
-        doc.text(dimLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
+        doc.text(mainLabel, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
+        if (subLabel) {
+          doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
+          doc.text(subLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
+        }
       }
     });
 
