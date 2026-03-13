@@ -374,10 +374,11 @@ export function SheetCuttingTab() {
       dimensions: `${matW} x ${matH} mm`,
       unitPrice: parseFloat(materialPrice) || 0,
       kerfWidth: parseFloat(kerfWidth) || 0,
-      pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity) })),
+      pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity), description: p.description })),
       result,
       clientName,
       projectName,
+      nomenclatureConfig,
     }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
     setShowExportDialog(false);
   };
