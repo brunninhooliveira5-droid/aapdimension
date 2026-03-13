@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { SheetCuttingResult, TubeCuttingResult } from "./cutting-plan-engine";
+import { type PdfNomenclatureConfig, defaultNomenclatureConfig, formatPieceLabel } from "@/components/cutting-plan/CuttingPlanPdfConfig";
 
 export type PdfScale = "a4" | "1:1";
 
@@ -13,13 +14,14 @@ interface CuttingPlanPdfData {
   dimensions: string;
   unitPrice: number;
   kerfWidth: number;
-  pieces: { width?: number; height?: number; length?: number; quantity: number }[];
+  pieces: { width?: number; height?: number; length?: number; quantity: number; description?: string }[];
   result: SheetCuttingResult | TubeCuttingResult;
   clientName?: string;
   projectName?: string;
   scale?: PdfScale;
   folderName?: string;
   singleCut?: boolean;
+  nomenclatureConfig?: PdfNomenclatureConfig;
 }
 
 export interface ExportOptions {
@@ -85,10 +87,17 @@ export async function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
 
   // Pieces table
   if (data.planType === "chapa") {
+    const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
     autoTable(doc, {
       startY: y,
-      head: [["Peça", "Largura (mm)", "Altura (mm)", "Quantidade"]],
-      body: data.pieces.map((p, i) => [`Peça ${i + 1}`, String(p.width ?? 0), String(p.height ?? 0), String(p.quantity)]),
+      head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
+      body: data.pieces.map((p, i) => [
+        `${nc.piecePrefix}${i + 1}`,
+        p.description || "—",
+        String(p.width ?? 0),
+        String(p.height ?? 0),
+        String(p.quantity),
+      ]),
       theme: "striped",
       headStyles: { fillColor: [59, 130, 246] },
     });
@@ -224,12 +233,15 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     doc.text(`${matH} mm`, ox - 3, oy + drawH / 2, { align: "center", angle: 90 });
 
     // Draw pieces
+    const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
     layout.pieces.forEach((p, pi) => {
       const px = ox + p.x * s;
       const py = oy + p.y * s;
       const pW = p.width * s;
       const pH = p.height * s;
       const color = getPieceColorPdf(p.pieceIndex ?? pi);
+      const pieceDesc = data.pieces[p.pieceIndex]?.description || "";
+      const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
 
       doc.setFillColor(color[0], color[1], color[2]);
       doc.setDrawColor(255, 255, 255);
@@ -240,12 +252,12 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
       doc.setFont("helvetica", "bold");
-      const label = `P${(p.pieceIndex ?? pi) + 1}`;
-      const dimLabel = `${p.width}x${p.height}`;
       if (pW > 12 && pH > 8) {
-        doc.text(label, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
-        doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
-        doc.text(dimLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
+        doc.text(mainLabel, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
+        if (subLabel) {
+          doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
+          doc.text(subLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
+        }
       }
     });
 
@@ -448,21 +460,29 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
       });
 
       // Piece labels (dark text, no background)
+      const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
       layout.pieces.forEach((p, pi) => {
+        const pieceDesc = data.pieces[p.pieceIndex]?.description || "";
+        const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
         doc.setTextColor(40, 40, 40);
         const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
         if (fontSize >= 3) {
           doc.setFontSize(fontSize);
           doc.setFont("helvetica", "bold");
-          doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
-          doc.setFontSize(Math.max(3, fontSize * 0.7));
-          doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+          doc.text(mainLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+          if (subLabel) {
+            doc.setFontSize(Math.max(3, fontSize * 0.7));
+            doc.text(subLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+          }
         }
       });
     } else {
       // === NORMAL MODE — independent contours ===
+      const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
       layout.pieces.forEach((p, pi) => {
         const color = getPieceColorPdf(p.pieceIndex ?? pi);
+        const pieceDesc = data.pieces[p.pieceIndex]?.description || "";
+        const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
         doc.setFillColor(color[0], color[1], color[2]);
         doc.setDrawColor(40, 40, 40);
         doc.setLineWidth(0.3);
@@ -473,9 +493,11 @@ async function exportSheetRealScale(data: CuttingPlanPdfData) {
         if (fontSize >= 3) {
           doc.setFontSize(fontSize);
           doc.setFont("helvetica", "bold");
-          doc.text(`P${(p.pieceIndex ?? pi) + 1}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
-          doc.setFontSize(Math.max(3, fontSize * 0.7));
-          doc.text(`${p.width}x${p.height}`, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+          doc.text(mainLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+          if (subLabel) {
+            doc.setFontSize(Math.max(3, fontSize * 0.7));
+            doc.text(subLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+          }
         }
       });
     }

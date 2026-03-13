@@ -14,14 +14,17 @@ import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangl
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
+import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece } from "@/lib/cutting-plan-engine";
 import { exportCuttingPlanWithOptions, type ExportOptions } from "@/lib/cutting-plan-pdf";
+import { CuttingPlanPdfConfig, defaultNomenclatureConfig, type PdfNomenclatureConfig } from "./CuttingPlanPdfConfig";
+import { InteractiveSheetLayout } from "./InteractiveSheetLayout";
 
 interface PieceRow {
   id: string;
   width: string;
   height: string;
   quantity: string;
+  description: string;
   allowRotation: boolean;
 }
 
@@ -52,8 +55,11 @@ export function SheetCuttingTab() {
 
   // Pieces
   const [pieces, setPieces] = useState<PieceRow[]>([
-    { id: "1", width: "", height: "", quantity: "1", allowRotation: true },
+    { id: "1", width: "", height: "", quantity: "1", description: "", allowRotation: true },
   ]);
+
+  // PDF nomenclature config
+  const [nomenclatureConfig, setNomenclatureConfig] = useState<PdfNomenclatureConfig>(defaultNomenclatureConfig);
 
   // Result
   const [result, setResult] = useState<SheetCuttingResult | null>(null);
@@ -161,7 +167,7 @@ export function SheetCuttingTab() {
 
   const addPiece = () => {
     const newId = String(Date.now());
-    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", allowRotation: allowRotation }]);
+    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", description: "", allowRotation: allowRotation }]);
     setTimeout(() => {
       const el = document.querySelector(`[data-piece-id="${newId}"][data-field="width"]`) as HTMLInputElement;
       el?.focus();
@@ -205,7 +211,7 @@ export function SheetCuttingTab() {
   };
 
   const clearPieces = () => {
-    setPieces([{ id: String(Date.now()), width: "", height: "", quantity: "1", allowRotation: true }]);
+    setPieces([{ id: String(Date.now()), width: "", height: "", quantity: "1", description: "", allowRotation: true }]);
     setResult(null);
   };
 
@@ -226,7 +232,7 @@ export function SheetCuttingTab() {
         if (parts.length >= 3) {
           const w = parts[0], h = parts[1], q = parts[2];
           if (parseFloat(w) > 0 && parseFloat(h) > 0) {
-            newPieces.push({ id: String(Date.now() + Math.random()), width: w, height: h, quantity: q || "1", allowRotation: true });
+            newPieces.push({ id: String(Date.now() + Math.random()), width: w, height: h, quantity: q || "1", description: parts[3] || "", allowRotation: true });
           }
         }
       }
@@ -368,10 +374,11 @@ export function SheetCuttingTab() {
       dimensions: `${matW} x ${matH} mm`,
       unitPrice: parseFloat(materialPrice) || 0,
       kerfWidth: parseFloat(kerfWidth) || 0,
-      pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity) })),
+      pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity), description: p.description })),
       result,
       clientName,
       projectName,
+      nomenclatureConfig,
     }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
     setShowExportDialog(false);
   };
@@ -543,11 +550,12 @@ export function SheetCuttingTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">#</TableHead>
+                <TableHead className="w-20">#</TableHead>
+                <TableHead>Descrição</TableHead>
                 <TableHead>Largura (mm)</TableHead>
                 <TableHead>Altura (mm)</TableHead>
-                <TableHead className="w-24">Qtd</TableHead>
-                <TableHead className="w-16">Girar</TableHead>
+                <TableHead className="w-20">Qtd</TableHead>
+                <TableHead className="w-14">Girar</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -561,6 +569,9 @@ export function SheetCuttingTab() {
                         <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getPieceColor(index) }} />
                         <span className="text-sm font-medium">P{index + 1}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input value={piece.description} onChange={(e) => updatePiece(piece.id, "description", e.target.value)} data-piece-id={piece.id} data-field="description" className="h-8" placeholder="Ex: Base lateral" />
                     </TableCell>
                     <TableCell>
                       <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
@@ -638,208 +649,48 @@ export function SheetCuttingTab() {
             )}
           </div>
 
-          {/* Visual layouts */}
+          {/* Nomenclature config + interactive layouts */}
+          <div className="flex items-center justify-between">
+            <CuttingPlanPdfConfig config={nomenclatureConfig} onChange={setNomenclatureConfig} />
+          </div>
+
           <div className="space-y-6">
-            {result.layouts.map((layout, i) => {
-              const scrapX = layout.pieces.length > 0
-                ? Math.max(...layout.pieces.map(p => p.x + p.width))
-                : 0;
-              const scrapY = layout.pieces.length > 0
-                ? Math.max(...layout.pieces.map(p => p.y + p.height))
-                : 0;
-              const hasScrapRight = matW - scrapX > 10;
-              const hasScrapBottom = matH - scrapY > 10;
-
-              return (
-                <div key={i} className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Chapa {i + 1} — {layout.pieces.length} peça(s) — Aproveitamento: {layout.utilization.toFixed(1)}%
-                    {layout.scrapWidth && layout.scrapHeight && (
-                      <span className="text-muted-foreground ml-2">
-                        (Retalho: {layout.scrapWidth.toFixed(0)} x {layout.scrapHeight.toFixed(0)} mm)
-                      </span>
-                    )}
-                  </p>
-
-                  {/* Material dimension label */}
-                  <div className="text-xs text-muted-foreground font-medium mb-1">
-                    Material: {matW} x {matH} mm
-                  </div>
-
-                  <div className="relative">
-                    {/* Top dimension */}
-                    <div className="flex items-center justify-center mb-1">
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-                        <div className="h-px w-6 bg-muted-foreground/50" />
-                        {matW} mm
-                        <div className="h-px w-6 bg-muted-foreground/50" />
-                      </div>
-                    </div>
-
-                    <div className="flex items-stretch">
-                      {/* Sheet visual */}
-                      <div
-                        className="relative border-2 border-primary/60 rounded bg-muted/30 overflow-hidden flex-1"
-                        style={{ paddingBottom: `${(matH / matW) * 100}%`, maxHeight: 450 }}
-                      >
-                        {/* Pieces */}
-                        {layout.pieces.map((p, j) => (
-                          <div
-                            key={j}
-                            className="absolute flex flex-col items-center justify-center text-[9px] font-bold text-white border border-white/40 rounded-sm shadow-sm"
-                            title={`Peça ${p.pieceIndex + 1}: ${p.width} x ${p.height} mm${p.rotated ? " (girada)" : ""}`}
-                            style={{
-                              left: `${(p.x / matW) * 100}%`,
-                              top: `${(p.y / matH) * 100}%`,
-                              width: `${(p.width / matW) * 100}%`,
-                              height: `${(p.height / matH) * 100}%`,
-                              backgroundColor: getPieceColor(p.pieceIndex),
-                            }}
-                          >
-                            <span className="truncate px-0.5 leading-tight">
-                              P{p.pieceIndex + 1}{p.rotated ? " ↻" : ""}
-                            </span>
-                            <span className="truncate px-0.5 text-[8px] opacity-80 leading-tight">
-                              {p.width}x{p.height}
-                            </span>
-                          </div>
-                        ))}
-
-                        {/* Kerf lines between pieces (singleCut mode) — merged continuously */}
-                        {singleCut && (() => {
-                          const kerf = parseFloat(kerfWidth) || 0;
-                          if (kerf <= 0) return null;
-                          // Collect raw segments
-                          type Seg = { pos: number; start: number; end: number };
-                          const hSegs: Seg[] = [];
-                          const vSegs: Seg[] = [];
-                          const pcs = layout.pieces;
-                          for (let a = 0; a < pcs.length; a++) {
-                            for (let b = a + 1; b < pcs.length; b++) {
-                              const pa = pcs[a], pb = pcs[b];
-                              const aR = pa.x + pa.width, bR = pb.x + pb.width;
-                              const aB = pa.y + pa.height, bB = pb.y + pb.height;
-                              if (Math.abs(aR + kerf - pb.x) < 1) {
-                                const s = Math.max(pa.y, pb.y), e = Math.min(aB, bB);
-                                if (e > s) vSegs.push({ pos: aR + kerf / 2, start: s, end: e });
-                              }
-                              if (Math.abs(bR + kerf - pa.x) < 1) {
-                                const s = Math.max(pa.y, pb.y), e = Math.min(aB, bB);
-                                if (e > s) vSegs.push({ pos: bR + kerf / 2, start: s, end: e });
-                              }
-                              if (Math.abs(aB + kerf - pb.y) < 1) {
-                                const s = Math.max(pa.x, pb.x), e = Math.min(aR, bR);
-                                if (e > s) hSegs.push({ pos: aB + kerf / 2, start: s, end: e });
-                              }
-                              if (Math.abs(bB + kerf - pa.y) < 1) {
-                                const s = Math.max(pa.x, pb.x), e = Math.min(aR, bR);
-                                if (e > s) hSegs.push({ pos: bB + kerf / 2, start: s, end: e });
-                              }
-                            }
-                          }
-                          // Merge collinear segments
-                          const merge = (segs: Seg[], gap: number): Seg[] => {
-                            const groups = new Map<string, Seg[]>();
-                            for (const s of segs) {
-                              const key = s.pos.toFixed(1);
-                              if (!groups.has(key)) groups.set(key, []);
-                              groups.get(key)!.push(s);
-                            }
-                            const result: Seg[] = [];
-                            for (const [, g] of groups) {
-                              g.sort((a, b) => a.start - b.start);
-                              let cur = { ...g[0] };
-                              for (let i = 1; i < g.length; i++) {
-                                if (g[i].start <= cur.end + gap) {
-                                  cur.end = Math.max(cur.end, g[i].end);
-                                } else {
-                                  result.push(cur);
-                                  cur = { ...g[i] };
-                                }
-                              }
-                              result.push(cur);
-                            }
-                            return result;
-                          };
-                          const mergedH = merge(hSegs, kerf + 1);
-                          const mergedV = merge(vSegs, kerf + 1);
-                          const lines: { x1: number; y1: number; x2: number; y2: number; vertical: boolean }[] = [];
-                          for (const s of mergedV) lines.push({ x1: s.pos, y1: s.start, x2: s.pos, y2: s.end, vertical: true });
-                          for (const s of mergedH) lines.push({ x1: s.start, y1: s.pos, x2: s.end, y2: s.pos, vertical: false });
-                          return lines.map((line, idx) => (
-                            <div
-                              key={`kerf-${idx}`}
-                              className="absolute bg-destructive"
-                              style={line.vertical ? {
-                                left: `${(line.x1 / matW) * 100}%`,
-                                top: `${(line.y1 / matH) * 100}%`,
-                                width: '1.5px',
-                                height: `${((line.y2 - line.y1) / matH) * 100}%`,
-                              } : {
-                                left: `${(line.x1 / matW) * 100}%`,
-                                top: `${(line.y1 / matH) * 100}%`,
-                                width: `${((line.x2 - line.x1) / matW) * 100}%`,
-                                height: '1.5px',
-                              }}
-                              title={`Corte compartilhado (kerf: ${kerf}mm)`}
-                            />
-                          ));
-                        })()}
-
-                        {/* Scrap area - right */}
-                        {hasScrapRight && (
-                          <div
-                            className="absolute border-2 border-dashed border-orange-400/60 bg-orange-500/10 flex items-center justify-center rounded-sm"
-                            style={{
-                              left: `${(scrapX / matW) * 100}%`,
-                              top: "0%",
-                              width: `${((matW - scrapX) / matW) * 100}%`,
-                              height: `${(scrapY / matH) * 100}%`,
-                            }}
-                          >
-                            <span className="text-[8px] text-orange-600 dark:text-orange-400 font-medium opacity-80 truncate px-0.5">
-                              Sobra
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Scrap area - bottom */}
-                        {hasScrapBottom && (
-                          <div
-                            className="absolute border-2 border-dashed border-orange-400/60 bg-orange-500/10 flex items-center justify-center rounded-sm"
-                            style={{
-                              left: "0%",
-                              top: `${(scrapY / matH) * 100}%`,
-                              width: "100%",
-                              height: `${((matH - scrapY) / matH) * 100}%`,
-                            }}
-                          >
-                            <span className="text-[8px] text-orange-600 dark:text-orange-400 font-medium opacity-80 truncate px-0.5">
-                              Retalho {(matW).toFixed(0)}x{(matH - scrapY).toFixed(0)} mm
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right dimension */}
-                      <div className="flex flex-col items-center justify-center ml-1">
-                        <div className="w-px flex-1 bg-muted-foreground/50" />
-                        <span className="text-[10px] text-muted-foreground font-medium py-1 [writing-mode:vertical-rl]">{matH} mm</span>
-                        <div className="w-px flex-1 bg-muted-foreground/50" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {result.layouts.map((layout, i) => (
+              <InteractiveSheetLayout
+                key={i}
+                layout={layout}
+                matW={matW}
+                matH={matH}
+                sheetIndex={i}
+                singleCut={singleCut}
+                kerfWidth={parseFloat(kerfWidth) || 0}
+                descriptions={Object.fromEntries(pieces.map(p => [p.id, p.description]))}
+                nomenclatureConfig={nomenclatureConfig}
+                onLayoutChange={(sheetIdx, newPieces) => {
+                  setResult(prev => {
+                    if (!prev) return prev;
+                    const newLayouts = [...prev.layouts];
+                    const used = newPieces.reduce((s, p) => s + p.width * p.height, 0);
+                    const total = matW * matH;
+                    newLayouts[sheetIdx] = {
+                      ...newLayouts[sheetIdx],
+                      pieces: newPieces,
+                      utilization: (used / total) * 100,
+                      wasteArea: total - used,
+                    };
+                    return { ...prev, layouts: newLayouts };
+                  });
+                }}
+              />
+            ))}
           </div>
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3">
-            {pieces.map((_, i) => (
+            {pieces.map((p, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getPieceColor(i) }} />
-                Peça {i + 1}
+                {nomenclatureConfig.piecePrefix}{i + 1}{p.description ? ` - ${p.description}` : ""}
               </div>
             ))}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
