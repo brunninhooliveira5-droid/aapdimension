@@ -232,7 +232,7 @@ export function SheetCuttingTab() {
         if (parts.length >= 3) {
           const w = parts[0], h = parts[1], q = parts[2];
           if (parseFloat(w) > 0 && parseFloat(h) > 0) {
-            newPieces.push({ id: String(Date.now() + Math.random()), width: w, height: h, quantity: q || "1", allowRotation: true });
+            newPieces.push({ id: String(Date.now() + Math.random()), width: w, height: h, quantity: q || "1", description: parts[3] || "", allowRotation: true });
           }
         }
       }
