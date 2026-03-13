@@ -55,8 +55,11 @@ export function SheetCuttingTab() {
 
   // Pieces
   const [pieces, setPieces] = useState<PieceRow[]>([
-    { id: "1", width: "", height: "", quantity: "1", allowRotation: true },
+    { id: "1", width: "", height: "", quantity: "1", description: "", allowRotation: true },
   ]);
+
+  // PDF nomenclature config
+  const [nomenclatureConfig, setNomenclatureConfig] = useState<PdfNomenclatureConfig>(defaultNomenclatureConfig);
 
   // Result
   const [result, setResult] = useState<SheetCuttingResult | null>(null);
