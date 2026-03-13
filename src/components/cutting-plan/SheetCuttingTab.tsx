@@ -167,7 +167,7 @@ export function SheetCuttingTab() {
 
   const addPiece = () => {
     const newId = String(Date.now());
-    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", allowRotation: allowRotation }]);
+    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", description: "", allowRotation: allowRotation }]);
     setTimeout(() => {
       const el = document.querySelector(`[data-piece-id="${newId}"][data-field="width"]`) as HTMLInputElement;
       el?.focus();
