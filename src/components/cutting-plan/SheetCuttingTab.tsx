@@ -211,7 +211,7 @@ export function SheetCuttingTab() {
   };
 
   const clearPieces = () => {
-    setPieces([{ id: String(Date.now()), width: "", height: "", quantity: "1", allowRotation: true }]);
+    setPieces([{ id: String(Date.now()), width: "", height: "", quantity: "1", description: "", allowRotation: true }]);
     setResult(null);
   };
 
