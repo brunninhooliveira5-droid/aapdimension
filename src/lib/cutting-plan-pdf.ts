@@ -87,10 +87,17 @@ export async function exportCuttingPlanPdf(data: CuttingPlanPdfData) {
 
   // Pieces table
   if (data.planType === "chapa") {
+    const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
     autoTable(doc, {
       startY: y,
-      head: [["Peça", "Largura (mm)", "Altura (mm)", "Quantidade"]],
-      body: data.pieces.map((p, i) => [`Peça ${i + 1}`, String(p.width ?? 0), String(p.height ?? 0), String(p.quantity)]),
+      head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
+      body: data.pieces.map((p, i) => [
+        `${nc.piecePrefix}${i + 1}`,
+        p.description || "—",
+        String(p.width ?? 0),
+        String(p.height ?? 0),
+        String(p.quantity),
+      ]),
       theme: "striped",
       headStyles: { fillColor: [59, 130, 246] },
     });
