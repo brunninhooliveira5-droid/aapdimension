@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { SheetCuttingResult, TubeCuttingResult } from "./cutting-plan-engine";
+import { type PdfNomenclatureConfig, defaultNomenclatureConfig, formatPieceLabel } from "@/components/cutting-plan/CuttingPlanPdfConfig";
 
 export type PdfScale = "a4" | "1:1";
 
@@ -13,13 +14,14 @@ interface CuttingPlanPdfData {
   dimensions: string;
   unitPrice: number;
   kerfWidth: number;
-  pieces: { width?: number; height?: number; length?: number; quantity: number }[];
+  pieces: { width?: number; height?: number; length?: number; quantity: number; description?: string }[];
   result: SheetCuttingResult | TubeCuttingResult;
   clientName?: string;
   projectName?: string;
   scale?: PdfScale;
   folderName?: string;
   singleCut?: boolean;
+  nomenclatureConfig?: PdfNomenclatureConfig;
 }
 
 export interface ExportOptions {
