@@ -158,6 +158,9 @@ export default function ZMappingPage() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("gcode");
+  const [showExplanations, setShowExplanations] = useState(() => {
+    try { return localStorage.getItem("zmapping-show-explanations") !== "false"; } catch { return true; }
+  });
 
   const [engravingMode, setEngravingMode] = useState<EngravingMode>("standard");
   const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("off");
