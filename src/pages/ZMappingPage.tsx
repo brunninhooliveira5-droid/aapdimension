@@ -1090,11 +1090,19 @@ function StatusDot({ label, active }: { label: string; active: boolean }) {
 }
 
 /* ── Professional Heatmap ─────────────────────────────── */
-function ProfessionalHeatmap({ mesh, cols, rows, unit }: {
-  mesh: { x: number; y: number }[]; cols: number; rows: number; unit: string;
+function ProfessionalHeatmap({ mesh, cols, rows, unit, spacingX, spacingY }: {
+  mesh: { x: number; y: number }[]; cols: number; rows: number; unit: string; spacingX: number; spacingY: number;
 }) {
-  const cellW = 440 / cols;
-  const cellH = 320 / rows;
+  // Use actual spacing ratio so cells reflect real X/Y distances
+  const totalW = cols * spacingX;
+  const totalH = rows * spacingY;
+  const maxSvgW = 440;
+  const maxSvgH = 320;
+  const scaleToFit = Math.min(maxSvgW / totalW, maxSvgH / totalH);
+  const svgW = totalW * scaleToFit;
+  const svgH = totalH * scaleToFit;
+  const cellW = spacingX * scaleToFit;
+  const cellH = spacingY * scaleToFit;
 
   function heatColor(t: number): string {
     // t: 0 = low, 1 = high → blue → cyan → green → yellow → red
