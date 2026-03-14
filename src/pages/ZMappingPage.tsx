@@ -544,6 +544,9 @@ export default function ZMappingPage() {
             </div>
             <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Modo: <strong className="text-foreground">{areaMode === "auto" ? "Automático" : "Manual"}</strong></span>
+              <span>Mapeamento: <strong className="text-foreground">
+                {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
+              </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
               {analysis.arcCount > 0 && (
                 <>
