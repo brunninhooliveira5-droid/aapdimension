@@ -40,6 +40,7 @@ import BoxGeneratorPage from "./pages/BoxGeneratorPage";
 import AcmPlannerPage from "./pages/AcmPlannerPage";
 import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
 import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
+import ZMappingPage from "./pages/ZMappingPage";
 
 const queryClient = new QueryClient();
 
