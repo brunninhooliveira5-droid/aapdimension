@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
-import { CompensationSimulator } from "@/components/z-mapping/CompensationSimulator";
+import { CompensationSimulator3D } from "@/components/z-mapping/CompensationSimulator3D";
 import { GcodePreview } from "@/components/z-mapping/GcodePreview";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -731,9 +731,9 @@ export default function ZMappingPage() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Simulator ── */}
+      {/* ── Simulator 3D ── */}
       {analysis && mesh && originalGcode && showSimulator && (
-        <CompensationSimulator
+        <CompensationSimulator3D
           originalGcode={originalGcode}
           mesh={mesh}
           config={config}
@@ -745,9 +745,9 @@ export default function ZMappingPage() {
       {analysis && mesh && originalGcode && (
         <div className="flex items-center gap-2">
           {!showSimulator && (
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
+            <Button variant="outline" size="sm" className="gap-2"
               onClick={() => setShowSimulator(true)}>
-              <Layers className="h-3.5 w-3.5" /> Visualizar compensação
+              <Layers className="h-3.5 w-3.5" /> Abrir simulação 3D
             </Button>
           )}
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
