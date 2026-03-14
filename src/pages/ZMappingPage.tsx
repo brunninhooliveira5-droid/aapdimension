@@ -446,28 +446,44 @@ export default function ZMappingPage() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Card 6: Heatmap (opcional) ── */}
-      {mesh && (
-        <div className="space-y-2">
+      {/* ── Simulator ── */}
+      {analysis && mesh && originalGcode && showSimulator && (
+        <CompensationSimulator
+          originalGcode={originalGcode}
+          mesh={mesh}
+          config={config}
+          onClose={() => setShowSimulator(false)}
+        />
+      )}
+
+      {/* ── Card 6: Visualização (opcional) ── */}
+      {analysis && mesh && originalGcode && (
+        <div className="flex items-center gap-2">
+          {!showSimulator && (
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
+              onClick={() => setShowSimulator(true)}>
+              <Layers className="h-3.5 w-3.5" /> Visualizar compensação
+            </Button>
+          )}
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
             onClick={() => setShowHeatmap(h => !h)}>
             {showHeatmap ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {showHeatmap ? "Ocultar mapa da superfície" : "Visualizar mapa da superfície"}
           </Button>
-          {showHeatmap && (
-            <Card>
-              <CardContent className="pt-5">
-                <SurfaceHeatmap
-                  mesh={mesh.points}
-                  spacingX={mesh.actualSpacingX}
-                  spacingY={mesh.actualSpacingY}
-                  cols={mesh.pointsPerRow}
-                  rows={mesh.rows}
-                />
-              </CardContent>
-            </Card>
-          )}
         </div>
+      )}
+      {showHeatmap && mesh && (
+        <Card>
+          <CardContent className="pt-5">
+            <SurfaceHeatmap
+              mesh={mesh.points}
+              spacingX={mesh.actualSpacingX}
+              spacingY={mesh.actualSpacingY}
+              cols={mesh.pointsPerRow}
+              rows={mesh.rows}
+            />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
