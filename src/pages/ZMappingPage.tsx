@@ -338,6 +338,15 @@ export default function ZMappingPage() {
         endCommand: cpEndCmd,
         endDwell: cpEndDwell,
         endSafeZ: cpEndSafeZ,
+        postMappingMode,
+        toolOffsetZ: cpToolOffsetZ,
+        postSafeZ: cpPostSafeZ,
+        toolMeasure: postMappingMode === "auto_measure" ? {
+          measureX: cpMeasureX,
+          measureY: cpMeasureY,
+          measureCommand: cpMeasureCmd,
+          measureDwell: cpMeasureDwell,
+        } : undefined,
       } : undefined;
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
