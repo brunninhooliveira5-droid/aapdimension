@@ -202,14 +202,15 @@ function ToolpathLine({ path, config, surfMin, surfMax, compensated, color }: {
     return { positions: new Float32Array(pos), colors: new Float32Array(cols) };
   }, [path, config, surfMin, surfMax, compensated, color]);
 
-  if (path.length < 2) return null;
-
   const geom = useMemo(() => {
+    if (path.length < 2) return null;
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
     return g;
-  }, [positions, lineColors]);
+  }, [positions, lineColors, path.length]);
+
+  if (!geom) return null;
 
   return (
     <line>
