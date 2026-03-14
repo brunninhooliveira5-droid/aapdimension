@@ -702,10 +702,56 @@ export function CompensationSimulator3D({ originalGcode, mesh, config, onClose, 
             <p className="text-sm font-bold font-mono text-foreground">{mesh.totalPoints}</p>
           </div>
           <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Segmentos</p>
-            <p className="text-sm font-bold font-mono text-foreground">{path.length}</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">
+              {vbitSettings?.enabled ? "Inclinação máx." : "Segmentos"}
+            </p>
+            <p className="text-sm font-bold font-mono text-foreground">
+              {vbitSettings?.enabled ? `${maxSlopeDeg.toFixed(1)}°` : path.length}
+            </p>
           </div>
         </div>
+
+        {/* V-bit info */}
+        {vbitSettings?.enabled && vbitSettings.compMode !== "off" && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Ângulo V-bit</p>
+              <p className="text-sm font-bold font-mono text-foreground">{vbitSettings.angle}°</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Prof. nominal</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {fmt(vbitSettings.nominalDepth, 3)} <span className="text-[10px] font-normal">{config.unit}</span>
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Largura traço</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {fmt(2 * vbitSettings.nominalDepth * Math.tan((vbitSettings.angle / 2) * Math.PI / 180), 3)} <span className="text-[10px] font-normal">{config.unit}</span>
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Compensação</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {vbitSettings.compMode === "basic" ? "Básica" : "Avançada"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Slope warning */}
+        {vbitSettings?.enabled && maxSlopeDeg > 20 && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+            <span className="text-amber-500 mt-0.5">⚠</span>
+            <p className="text-xs text-muted-foreground">
+              Superfície com inclinação elevada ({maxSlopeDeg.toFixed(1)}°). A gravação com V-bit pode sofrer variações.
+              {vbitSettings.compMode === "advanced"
+                ? " A compensação avançada está ajustando a profundidade automaticamente."
+                : " Ative a compensação avançada para melhores resultados."
+              }
+            </p>
+          </div>
+        )}
 
         <p className="text-[10px] text-muted-foreground text-center italic">
           * Superfície simulada para demonstração. Os valores reais serão medidos pela CNC durante o nivelamento.
