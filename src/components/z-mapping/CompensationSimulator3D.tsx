@@ -135,22 +135,44 @@ function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], 
       const segs = segmentMove(from, to, 1);
       for (const s of segs) {
         const offset = bilinearZ(s.x, s.y, mesh, probeData, cfg);
-        path.push({ x: s.x, y: s.y, z: s.z, zComp: s.z + offset });
+        let zComp = s.z + offset;
+        if (vbit?.enabled && vbit.compMode !== "off" && s.z < 0) {
+          if (vbit.compMode === "advanced") {
+            const slope = surfaceSlope(s.x, s.y, mesh, probeData, cfg);
+            const cosSlope = Math.cos(slope);
+            const adjDepth = cosSlope > 0.01 ? vbit.nominalDepth / cosSlope : vbit.nominalDepth;
+            zComp = offset - adjDepth;
+          } else {
+            zComp = offset - vbit.nominalDepth;
+          }
+        }
+        path.push({ x: s.x, y: s.y, z: s.z, zComp });
       }
     }
     curX = newX; curY = newY; curZ = newZ;
   }
 
   let surfMin = Infinity, surfMax = -Infinity;
+  let maxSlopeDeg = 0;
   for (const pt of probeData) {
     if (pt.z != null) {
       surfMin = Math.min(surfMin, pt.z);
       surfMax = Math.max(surfMax, pt.z);
     }
   }
+  // Compute max slope across surface
+  for (let r = 0; r < mesh.rows; r++) {
+    for (let c = 0; c < mesh.pointsPerRow; c++) {
+      const p2 = probeData[r * mesh.pointsPerRow + c];
+      if (p2) {
+        const slope = surfaceSlope(p2.x, p2.y, mesh, probeData, cfg);
+        maxSlopeDeg = Math.max(maxSlopeDeg, slope * 180 / Math.PI);
+      }
+    }
+  }
   if (!isFinite(surfMin)) surfMin = 0;
   if (!isFinite(surfMax)) surfMax = 0;
-  return { path, surfMin, surfMax };
+  return { path, surfMin, surfMax, maxSlopeDeg };
 }
 
 /* ── Professional 5-stop heatmap: dark blue → cyan → green → yellow → red ── */
