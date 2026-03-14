@@ -856,6 +856,9 @@ export default function ZMappingPage() {
                   <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
                   <div><span className="text-muted-foreground">Toques por ponto:</span> <span className="font-medium">{touchesPerPoint}</span></div>
                   <div><span className="text-muted-foreground">Modo:</span> <span className="font-medium">{areaMode === "auto" ? "Automático" : "Manual"}</span></div>
+                  {retractionMode !== "standard" && (
+                    <div><span className="text-muted-foreground">Retração:</span> <span className="font-medium">{retractionMode === "safe" ? "Segura" : "Superfície curva"}</span></div>
+                  )}
                   {result.arcsDetected > 0 && (
                     <>
                       <div><span className="text-muted-foreground">Curvas detectadas:</span> <span className="font-medium">{result.arcsDetected}</span></div>
