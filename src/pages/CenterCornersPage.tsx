@@ -22,9 +22,9 @@ import {
 /* ── Illustration SVGs ────────────────────────── */
 function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string; refinement: boolean; zProbe: boolean }) {
   const flipX = quadrant.includes("right") ? -1 : 1;
-  const flipY = quadrant.includes("back") ? -1 : 1;
+  const flipY = quadrant.includes("front") ? 1 : -1;
   const cornerX = flipX > 0 ? 30 : 170;
-  const cornerY = flipY > 0 ? 20 : 140;
+  const cornerY = flipY > 0 ? 140 : 20;
   // Z probe point: inset from corner
   const zpX = cornerX + (flipX > 0 ? 12 : -12);
   const zpY = cornerY + (flipY > 0 ? 12 : -12);
