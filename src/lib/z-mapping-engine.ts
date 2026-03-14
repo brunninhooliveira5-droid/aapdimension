@@ -500,22 +500,22 @@ export function generateUnifiedGcode(
     lines.push("");
   }
 
-  // Serpentine scan — store in variables #500+
-  let ptIndex = 0;
+  // Serpentine scan — store in variables using GRID index (#500 + gridIdx)
+  // so bilinear lookup by [row][col] maps directly to #500 + row*cols + col
+  let scanCount = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const ltr = row % 2 === 0;
     for (let col = 0; col < mesh.pointsPerRow; col++) {
-      const idx = ltr
-        ? row * mesh.pointsPerRow + col
-        : row * mesh.pointsPerRow + (mesh.pointsPerRow - 1 - col);
-      const pt = mesh.points[idx];
+      const actualCol = ltr ? col : (mesh.pointsPerRow - 1 - col);
+      const gridIdx = row * mesh.pointsPerRow + actualCol;
+      const pt = mesh.points[gridIdx];
 
-      lines.push(`(Ponto ${ptIndex})`);
+      lines.push(`(Ponto ${scanCount} -> #${500 + gridIdx})`);
+      lines.push(`G0 Z${d(cfg.clearance)}`);
       lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
       lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
-      lines.push(`#${500 + ptIndex} = ${probeVar}`);
-      lines.push(`G0 Z${d(cfg.clearance)}`);
-      ptIndex++;
+      lines.push(`#${500 + gridIdx} = ${probeVar}`);
+      scanCount++;
     }
   }
 
