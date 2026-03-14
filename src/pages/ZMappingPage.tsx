@@ -407,6 +407,37 @@ export default function ZMappingPage() {
               )}
             </div>
 
+            {/* Mapping precision selector */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium">Precisão do mapeamento</Label>
+              <p className="text-xs text-muted-foreground">
+                {mappingPrecision === "smart"
+                  ? "Mais pontos onde há mais detalhes, menos pontos onde a peça é mais simples."
+                  : mappingPrecision === "maximum"
+                  ? "Grade densa em toda a área — maior precisão, mais tempo de medição."
+                  : "Grade regular com espaçamento uniforme em toda a área."
+                }
+              </p>
+              <RadioGroup
+                value={mappingPrecision}
+                onValueChange={(v) => setMappingPrecision(v as MappingPrecision)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="uniform" id="map-uniform" />
+                  <Label htmlFor="map-uniform" className="text-xs cursor-pointer">Uniforme</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="smart" id="map-smart" />
+                  <Label htmlFor="map-smart" className="text-xs cursor-pointer">Inteligente</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="maximum" id="map-max" />
+                  <Label htmlFor="map-max" className="text-xs cursor-pointer">Máxima</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             {/* Auto mode: show buffer */}
             {areaMode === "auto" && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
