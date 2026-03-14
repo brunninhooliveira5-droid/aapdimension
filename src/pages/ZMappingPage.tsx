@@ -745,9 +745,9 @@ export default function ZMappingPage() {
       {analysis && mesh && originalGcode && (
         <div className="flex items-center gap-2">
           {!showSimulator && (
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
+            <Button variant="outline" size="sm" className="gap-2"
               onClick={() => setShowSimulator(true)}>
-              <Layers className="h-3.5 w-3.5" /> Visualizar compensação
+              <Layers className="h-3.5 w-3.5" /> Abrir simulação 3D
             </Button>
           )}
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
