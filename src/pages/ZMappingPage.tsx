@@ -606,6 +606,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Crosshair className="h-3 w-3" /> Modo de mapeamento
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define a estratégia usada para medir a superfície da peça.</p>
+                )}
                 <RadioGroup value={mappingPrecision} onValueChange={(v) => setMappingPrecision(v as MappingPrecision)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="uniform" id="map-uni-p" />
