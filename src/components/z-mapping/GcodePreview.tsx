@@ -15,6 +15,9 @@ interface Props {
   xMax: number;
   yMax: number;
   densityMap?: DensityMap | null;
+  spacingX?: number;
+  spacingY?: number;
+  mappingMode?: "uniform" | "smart" | "maximum";
 }
 
 interface PathSeg { x: number; y: number; z: number; rapid: boolean }
@@ -59,6 +62,25 @@ function densityColor(density: "low" | "medium" | "high"): string {
   if (density === "high") return "rgba(239,68,68,0.15)";
   if (density === "medium") return "rgba(234,179,8,0.1)";
   return "rgba(59,130,246,0.05)";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computePointRadius(
+  mesh: MeshInfo,
+  scale: number,
+  spacingX?: number,
+  spacingY?: number,
+  mappingMode?: "uniform" | "smart" | "maximum"
+): number {
+  const inputSpacingX = spacingX && spacingX > 0 ? spacingX : mesh.actualSpacingX;
+  const inputSpacingY = spacingY && spacingY > 0 ? spacingY : mesh.actualSpacingY;
+  const spacingPx = Math.min(inputSpacingX * scale, inputSpacingY * scale);
+
+  const modeFactor = mappingMode === "maximum" ? 0.68 : mappingMode === "smart" ? 0.82 : 1;
+  return clamp(spacingPx * 0.2 * modeFactor, 1.1, 4.2);
 }
 
 export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yMax, densityMap }: Props) {
