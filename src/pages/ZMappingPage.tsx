@@ -277,13 +277,21 @@ export default function ZMappingPage() {
   }, [buffer, areaMode, analysis]);
 
   const handleGenerate = useCallback(() => {
-    if (!mesh || !originalGcode) return;
-    const r = generateUnifiedGcode(
-      originalGcode, mesh, config, originalFileName || "file", controller,
-      touchesPerPoint, touchStrategy
-    );
-    setResult(r);
-    toast.success("Arquivo de nivelamento gerado!");
+    if (!mesh || !originalGcode) {
+      toast.error("Carregue um arquivo G-code primeiro.");
+      return;
+    }
+    try {
+      const r = generateUnifiedGcode(
+        originalGcode, mesh, config, originalFileName || "file", controller,
+        touchesPerPoint, touchStrategy
+      );
+      setResult(r);
+      toast.success("Arquivo de nivelamento gerado!");
+    } catch (err: any) {
+      console.error("Erro ao gerar arquivo:", err);
+      toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
+    }
   }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy]);
 
   const handleDownload = useCallback(() => {
