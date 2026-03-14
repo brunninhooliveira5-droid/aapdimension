@@ -334,7 +334,40 @@ export default function ZMappingPage() {
     </div>
   );
 
-  return (
+    if (wizardMode) {
+      return (
+        <ZMappingWizard
+          onClose={() => setWizardMode(false)}
+          originalGcode={originalGcode}
+          originalFileName={originalFileName}
+          analysis={analysis}
+          onFileUpload={handleFileUpload}
+          fileRef={fileRef}
+          unit={unit}
+          safeHeight={safeHeight} setSafeHeight={setSafeHeight}
+          spacingX={spacingX} setSpacingX={setSpacingX}
+          spacingY={spacingY} setSpacingY={setSpacingY}
+          probeFeed={probeFeed} setProbeFeed={setProbeFeed}
+          mappingPrecision={mappingPrecision} setMappingPrecision={setMappingPrecision}
+          retractionMode={retractionMode} setRetractionMode={setRetractionMode}
+          retMinSafeZ={retMinSafeZ} setRetMinSafeZ={setRetMinSafeZ}
+          retAdaptiveClearance={retAdaptiveClearance} setRetAdaptiveClearance={setRetAdaptiveClearance}
+          engravingMode={engravingMode} setEngravingMode={setEngravingMode}
+          vbitAngle={vbitAngle} setVbitAngle={setVbitAngle}
+          nominalDepth={nominalDepth} setNominalDepth={setNominalDepth}
+          mesh={mesh}
+          config={config}
+          densityMap={densityMap}
+          onGenerate={handleGenerate}
+          onDownload={handleDownload}
+          result={result}
+          showSimulator={showSimulator}
+          setShowSimulator={setShowSimulator}
+        />
+      );
+    }
+
+    return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
