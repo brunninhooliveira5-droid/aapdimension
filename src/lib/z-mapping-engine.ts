@@ -99,7 +99,7 @@ interface ParsedMove {
   raw: string;
 }
 
-function parseGcodeLine(line: string): ParsedMove {
+export function parseGcodeLine(line: string): ParsedMove {
   const raw = line.trim();
   const upper = raw.toUpperCase();
   const res: ParsedMove = { raw };
