@@ -318,9 +318,21 @@ export default function ZMappingPage() {
         adaptiveClearance: retAdaptiveClearance,
         reinforcedClearance: retReinforcedClearance,
       };
+      const customProbeCfg: CustomProbeConfig | undefined = probeType === "custom" ? {
+        enabled: true,
+        offsetX: cpOffsetX,
+        offsetY: cpOffsetY,
+        offsetZ: cpOffsetZ,
+        startCommand: cpStartCmd,
+        startDwell: cpStartDwell,
+        startSafeZ: cpStartSafeZ,
+        endCommand: cpEndCmd,
+        endDwell: cpEndDwell,
+        endSafeZ: cpEndSafeZ,
+      } : undefined;
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
-        touchesPerPoint, touchStrategy, retractionCfg
+        touchesPerPoint, touchStrategy, retractionCfg, customProbeCfg
       );
       setResult(r);
       toast.success("Arquivo de nivelamento gerado!");
