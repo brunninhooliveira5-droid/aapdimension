@@ -688,62 +688,62 @@ export default function CenterCornersPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2">
             {showPreview ? (
-              <div className="max-w-md mx-auto">
-                <div className="rounded-xl border border-border bg-card/50 p-6">
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    {(() => { const Icon = modeInfo.icon; return <Icon className="h-5 w-5 text-primary" />; })()}
-                    <h2 className="text-sm font-semibold">{modeInfo.label}</h2>
-                    {refinementEnabled && (
-                      <Badge variant="outline" className="text-[9px] border-chart-2 text-chart-2 gap-1">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Conferência
-                      </Badge>
-                    )}
-                    {zProbeActive && (
-                      <Badge variant="outline" className="text-[9px] border-chart-5 text-chart-5 gap-1">
-                        <ArrowDown className="h-2.5 w-2.5" /> Probe Z
-                      </Badge>
-                    )}
-                    {probeType === "custom" && (
-                      <Badge variant="outline" className="text-[9px] border-chart-3 text-chart-3 gap-1">
-                        <Wrench className="h-2.5 w-2.5" /> Custom
-                      </Badge>
-                    )}
-                    {postAction === "locate-machining" && (
-                      <Badge variant="outline" className="text-[9px] border-chart-1 text-chart-1 gap-1">
-                        <FileText className="h-2.5 w-2.5" /> + Trabalho
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className="text-[9px] ml-auto">
-                      {controller.toUpperCase()}
+              <div className="h-full flex flex-col">
+                <div className="flex items-center gap-2 mb-2 px-2 flex-wrap">
+                  {(() => { const Icon = modeInfo.icon; return <Icon className="h-4 w-4 text-primary" />; })()}
+                  <h2 className="text-xs font-semibold">{modeInfo.label}</h2>
+                  {refinementEnabled && (
+                    <Badge variant="outline" className="text-[9px] border-chart-2 text-chart-2 gap-1">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Conferência
                     </Badge>
-                  </div>
-                  <div className="aspect-[5/4] bg-muted/20 rounded-lg border border-border/50 mb-4 p-2">
-                    {mode === "corner" && <IllustrationCorner quadrant={cornerQuadrant} refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "rect-center" && <IllustrationRectCenter refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "circle-center" && <IllustrationCircleCenter points={circlePoints} refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "hole-center" && <IllustrationHoleCenter refinement={refinementEnabled} zProbe={zProbeActive} holeZStrategy={holeZStrategy} />}
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">{modeInfo.desc}</p>
-                  {/* Legend */}
-                  <div className="mt-3 flex items-center gap-2 justify-center flex-wrap">
-                    {refinementEnabled && (
-                      <>
-                        <div className="h-0.5 w-5 rounded bg-primary opacity-40" />
-                        <span className="text-[9px] text-muted-foreground">1º toque</span>
-                        <div className="h-0.5 w-5 rounded bg-chart-2" />
-                        <span className="text-[9px] text-chart-2 font-medium">conferência</span>
-                      </>
-                    )}
-                    {zProbeActive && (
-                      <>
-                        <div className="h-0.5 w-5 rounded bg-chart-5" />
-                        <span className="text-[9px] text-chart-5 font-medium">probe Z</span>
-                      </>
-                    )}
-                  </div>
+                  )}
+                  {zProbeActive && (
+                    <Badge variant="outline" className="text-[9px] border-chart-5 text-chart-5 gap-1">
+                      <ArrowDown className="h-2.5 w-2.5" /> Probe Z
+                    </Badge>
+                  )}
+                  {probeType === "custom" && (
+                    <Badge variant="outline" className="text-[9px] border-chart-3 text-chart-3 gap-1">
+                      <Wrench className="h-2.5 w-2.5" /> Custom
+                    </Badge>
+                  )}
+                  {postAction === "locate-machining" && (
+                    <Badge variant="outline" className="text-[9px] border-chart-1 text-chart-1 gap-1">
+                      <FileText className="h-2.5 w-2.5" /> + Trabalho
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[9px] ml-auto">
+                    {controller.toUpperCase()}
+                  </Badge>
                 </div>
+                <div className="flex-1 rounded-lg border border-border/50 bg-muted/10 overflow-hidden">
+                  <InteractiveProbeDiagram
+                    mode={mode}
+                    cornerQuadrant={cornerQuadrant}
+                    approxSizeX={approxSizeX}
+                    approxSizeY={approxSizeY}
+                    approxDiameter={approxDiameter}
+                    circlePoints={circlePoints}
+                    probeFeed={probeFeed}
+                    probeDepth={probeDepth}
+                    safeZ={safeZ}
+                    refinementEnabled={refinementEnabled}
+                    refinementDistance={refinementDistance}
+                    zProbeActive={zProbeActive}
+                    zCornerInset={zCornerInset}
+                    holeZStrategy={holeZStrategy}
+                    holeZSafetyMargin={holeZSafetyMargin}
+                    onApproxSizeXChange={setApproxSizeX}
+                    onApproxSizeYChange={setApproxSizeY}
+                    onApproxDiameterChange={setApproxDiameter}
+                    onSafeZChange={setSafeZ}
+                    onZCornerInsetChange={setZCornerInset}
+                    onHoleZSafetyMarginChange={setHoleZSafetyMargin}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-1">{modeInfo.desc}</p>
               </div>
             ) : (
               <div className="h-full">
