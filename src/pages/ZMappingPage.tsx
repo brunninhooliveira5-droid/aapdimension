@@ -758,6 +758,11 @@ export default function ZMappingPage() {
                 {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
               </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
+              {retractionMode !== "standard" && (
+                <span>Retração: <strong className="text-foreground">
+                  {retractionMode === "safe" ? "Segura" : "Superfície curva"}
+                </strong></span>
+              )}
               {engravingMode !== "standard" && (
                 <span>Gravação: <strong className="text-foreground">
                   {engravingMode === "curved" ? "Superfície curva" : "V-bit curva"}
