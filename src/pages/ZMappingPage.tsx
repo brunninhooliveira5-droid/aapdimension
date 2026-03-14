@@ -939,6 +939,12 @@ export default function ZMappingPage() {
           mesh={mesh}
           config={config}
           onClose={() => setShowSimulator(false)}
+          vbitSettings={engravingMode === "vbit-curved" && toolType === "vbit" ? {
+            enabled: true,
+            angle: vbitAngle,
+            nominalDepth: nominalDepth,
+            compMode: vbitCompMode,
+          } : undefined}
         />
       )}
 
