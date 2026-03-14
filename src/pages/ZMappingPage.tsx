@@ -151,7 +151,11 @@ export default function ZMappingPage() {
 
   // Engraving mode
   const [engravingMode, setEngravingMode] = useState<EngravingMode>("standard");
-  const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("standard");
+  const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("off");
+  const [toolType, setToolType] = useState<ToolTypeOption>("straight");
+  const [vbitAngle, setVbitAngle] = useState(90);
+  const [nominalDepth, setNominalDepth] = useState(unit === "mm" ? 0.3 : 0.012);
+  const [slopeWarningThreshold] = useState(20); // degrees
 
   const fileRef = useRef<HTMLInputElement>(null);
 
