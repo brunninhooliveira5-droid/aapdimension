@@ -965,7 +965,9 @@ export function generateUnifiedGcode(
     lines.push("");
   }
 
-  if (!useCustomProbe) {
+  const postMode = customProbe?.postMappingMode ?? "manual";
+
+  if (!useCustomProbe || postMode === "manual") {
     lines.push("(============================================)");
     lines.push("( ATENCAO: Remova o sensor de medicao.       )");
     lines.push("( Coloque a fresa de usinagem.               )");
@@ -973,9 +975,32 @@ export function generateUnifiedGcode(
     lines.push("( Pressione INICIAR para continuar.          )");
     lines.push("(============================================)");
     lines.push("M0");
-  } else {
-    lines.push("(Probe recolhido automaticamente)");
-    lines.push("(Seguindo para usinagem compensada)");
+  } else if (postMode === "auto_offset" && customProbe) {
+    lines.push("(--- CONTINUIDADE AUTOMATICA COM OFFSET ---)");
+    lines.push(`(Offset Z calibrado: ${d(customProbe.toolOffsetZ)})`);
+    lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    if (customProbe.offsetZ !== 0 || customProbe.toolOffsetZ !== 0) {
+      const totalZOffset = customProbe.toolOffsetZ;
+      lines.push(`(Aplicando offset Z da ferramenta)`);
+      lines.push(`G92 Z[#5073 + ${d(totalZOffset)}]`);
+    }
+    lines.push("(Seguindo para usinagem compensada automaticamente)");
+  } else if (postMode === "auto_measure" && customProbe) {
+    lines.push("(--- MEDICAO AUTOMATICA DA FERRAMENTA ---)");
+    lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    if (customProbe.toolMeasure) {
+      const tm = customProbe.toolMeasure;
+      lines.push(`G0 X${d(tm.measureX)} Y${d(tm.measureY)}`);
+      if (tm.measureCommand.trim()) {
+        lines.push(tm.measureCommand.trim());
+      }
+      if (tm.measureDwell > 0) {
+        lines.push(`G4 P${tm.measureDwell}`);
+      }
+      lines.push("(Referencia Z corrigida pela medicao)");
+      lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    }
+    lines.push("(Seguindo para usinagem compensada automaticamente)");
   }
   lines.push("");
 
