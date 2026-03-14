@@ -44,6 +44,7 @@ interface SavedSettings {
   unit: ZUnit;
   areaMode: AreaMode;
   buffer: number;
+  mappingPrecision: MappingPrecision;
 }
 
 function loadSettings(): Partial<SavedSettings> {
