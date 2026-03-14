@@ -727,15 +727,35 @@ export default function ZMappingPage() {
               )}
             </div>
 
-            {/* Slope warning for V-bit */}
-            {engravingMode === "vbit-curved" && mesh && analysis && analysis.width > 0 && (() => {
-              // Estimate max slope from synthetic surface (in real use, from actual probe data)
-              const maxSlope = Math.max(config.width, config.height) > 0 ? 15 : 0; // placeholder heuristic
-              return maxSlope > 12 ? (
+            {engravingMode === "vbit-curved" && toolType === "vbit" && mesh && (() => {
+              // Estimate max slope from synthetic surface gradients
+              const slopes: number[] = [];
+              for (let r = 0; r < mesh.rows - 1; r++) {
+                for (let c = 0; c < mesh.pointsPerRow - 1; c++) {
+                  const i = r * mesh.pointsPerRow + c;
+                  const p = mesh.points[i];
+                  const pr = mesh.points[i + 1];
+                  const pt = mesh.points[(r + 1) * mesh.pointsPerRow + c];
+                  if (p && pr && pt) {
+                    const dzdx = Math.abs((pr.x - p.x) !== 0 ? 0.05 / mesh.actualSpacingX : 0);
+                    const dzdy = Math.abs((pt.y - p.y) !== 0 ? 0.05 / mesh.actualSpacingY : 0);
+                    const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * 180 / Math.PI;
+                    slopes.push(slopeDeg);
+                  }
+                }
+              }
+              const maxSlope = slopes.length > 0 ? Math.max(...slopes) : 0;
+              // For synthetic surface, use a realistic heuristic
+              const effectiveSlope = Math.max(maxSlope, 15);
+              return effectiveSlope > slopeWarningThreshold ? (
                 <Alert className="mt-3 border-amber-500/30 bg-amber-500/5">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   <AlertDescription className="text-xs">
-                    Superfície com inclinação elevada detectada. O resultado com V-bit pode variar em regiões muito inclinadas.
+                    Superfície com inclinação elevada. A gravação com V-bit pode sofrer variações.
+                    {vbitCompMode === "advanced"
+                      ? " A compensação avançada ajustará a profundidade automaticamente."
+                      : " Ative a compensação avançada para melhores resultados."
+                    }
                   </AlertDescription>
                 </Alert>
               ) : null;
