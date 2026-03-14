@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
+import { CompensationSimulator } from "@/components/z-mapping/CompensationSimulator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
