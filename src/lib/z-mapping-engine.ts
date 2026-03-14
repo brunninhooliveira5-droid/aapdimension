@@ -495,9 +495,25 @@ export type RetractionMode = "standard" | "safe" | "curved";
 
 export interface RetractionConfig {
   mode: RetractionMode;
-  minSafeZ: number;        // Z seguro mínimo
-  adaptiveClearance: number; // folga adaptativa (modo seguro)
-  reinforcedClearance: number; // folga adaptativa reforçada (modo superfície curva)
+  minSafeZ: number;
+  adaptiveClearance: number;
+  reinforcedClearance: number;
+}
+
+// ── Custom probe types ────────────────────────────────────────
+export type ProbeType = "standard" | "custom";
+
+export interface CustomProbeConfig {
+  enabled: boolean;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  startCommand: string;   // e.g. "M11"
+  startDwell: number;     // seconds
+  startSafeZ: number;
+  endCommand: string;     // e.g. "M10"
+  endDwell: number;       // seconds
+  endSafeZ: number;
 }
 
 export function generateProbeGcode(
