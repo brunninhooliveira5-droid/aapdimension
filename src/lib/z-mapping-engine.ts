@@ -490,6 +490,16 @@ export function generateDenseMesh(cfg: MeshConfig, factor: number): MeshInfo {
 // ── Probe G-code generators ────────────────────────────────────
 export type ControllerType = "mach3" | "generic";
 
+// ── Retraction mode types ─────────────────────────────────────
+export type RetractionMode = "standard" | "safe" | "curved";
+
+export interface RetractionConfig {
+  mode: RetractionMode;
+  minSafeZ: number;        // Z seguro mínimo
+  adaptiveClearance: number; // folga adaptativa (modo seguro)
+  reinforcedClearance: number; // folga adaptativa reforçada (modo superfície curva)
+}
+
 export function generateProbeGcode(
   mesh: MeshInfo,
   cfg: MeshConfig,
@@ -761,7 +771,8 @@ export function generateUnifiedGcode(
   originalName: string,
   controller: ControllerType,
   touchesPerPoint: number = 1,
-  touchStrategy: "last" | "average" = "last"
+  touchStrategy: "last" | "average" = "last",
+  retractionConfig?: RetractionConfig
 ): UnifiedResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
@@ -801,6 +812,20 @@ export function generateUnifiedGcode(
 
   // Serpentine scan — store in variables using GRID index
   const touches = Math.max(1, Math.min(5, touchesPerPoint));
+  const retMode = retractionConfig?.mode ?? "standard";
+  const retMinSafeZ = retractionConfig?.minSafeZ ?? cfg.clearance;
+  const retAdaptive = retractionConfig?.adaptiveClearance ?? (cfg.unit === "mm" ? 3 : 0.12);
+  const retReinforced = retractionConfig?.reinforcedClearance ?? (cfg.unit === "mm" ? 5 : 0.2);
+
+  // Variables used for adaptive retraction:
+  // #490 = last measured Z, #491 = previous measured Z
+  if (retMode !== "standard") {
+    lines.push("(Retracao adaptativa ativada)");
+    lines.push(`#490 = 0`);
+    lines.push(`#491 = 0`);
+    lines.push("");
+  }
+
   let scanCount = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const ltr = row % 2 === 0;
@@ -810,7 +835,35 @@ export function generateUnifiedGcode(
       const pt = mesh.points[gridIdx];
 
       lines.push(`(Ponto ${scanCount} -> #${500 + gridIdx})`);
-      lines.push(`G0 Z${d(cfg.clearance)}`);
+
+      // ── Retraction logic between points ──
+      if (retMode === "standard") {
+        lines.push(`G0 Z${d(cfg.clearance)}`);
+      } else if (retMode === "safe") {
+        // Z_desl = max(Z_seguro_min, ultimo_Z + folga_adaptativa)
+        if (scanCount === 0) {
+          lines.push(`G0 Z${d(cfg.clearance)}`);
+        } else {
+          lines.push(`#492 = ${d(retMinSafeZ)}`);
+          lines.push(`#493 = [#490 + ${d(retAdaptive)}]`);
+          lines.push("(Usar o maior entre Z minimo e Z adaptativo)");
+          lines.push("IF [#493 GT #492] THEN #492 = #493");
+          lines.push("G0 Z#492");
+        }
+      } else {
+        // curved: Z_desl = max(Z_seguro_min, ultimo_Z, Z_anterior) + folga_reforçada
+        if (scanCount === 0) {
+          lines.push(`G0 Z${d(cfg.clearance)}`);
+        } else {
+          lines.push(`#492 = ${d(retMinSafeZ)}`);
+          lines.push("(Maior entre Z minimo, ultimo Z e Z anterior)");
+          lines.push("IF [#490 GT #492] THEN #492 = #490");
+          lines.push("IF [#491 GT #492] THEN #492 = #491");
+          lines.push(`#492 = [#492 + ${d(retReinforced)}]`);
+          lines.push("G0 Z#492");
+        }
+      }
+
       lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
 
       if (touches === 1) {
@@ -836,6 +889,12 @@ export function generateUnifiedGcode(
           }
         }
       }
+      // Update retraction tracking variables after probe
+      if (retMode !== "standard") {
+        lines.push(`#491 = #490`);
+        lines.push(`#490 = #${500 + gridIdx}`);
+      }
+
       scanCount++;
     }
   }

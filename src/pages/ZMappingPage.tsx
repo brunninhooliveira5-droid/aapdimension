@@ -15,13 +15,14 @@ import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
   Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch,
-  PenTool, AlertTriangle,
+  PenTool, AlertTriangle, ShieldCheck,
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
   defaultConfigMM, defaultConfigInch,
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
   type ControllerType, type UnifiedResult, type DensityMap,
+  type RetractionMode, type RetractionConfig,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
@@ -157,6 +158,12 @@ export default function ZMappingPage() {
   const [nominalDepth, setNominalDepth] = useState(unit === "mm" ? 0.3 : 0.012);
   const [slopeWarningThreshold] = useState(20); // degrees
 
+  // Retraction mode
+  const [retractionMode, setRetractionMode] = useState<RetractionMode>("standard");
+  const [retMinSafeZ, setRetMinSafeZ] = useState(unit === "mm" ? 2 : 0.08);
+  const [retAdaptiveClearance, setRetAdaptiveClearance] = useState(unit === "mm" ? 3 : 0.12);
+  const [retReinforcedClearance, setRetReinforcedClearance] = useState(unit === "mm" ? 5 : 0.2);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Compute effective area based on mode
@@ -282,9 +289,15 @@ export default function ZMappingPage() {
       return;
     }
     try {
+      const retractionCfg: RetractionConfig = {
+        mode: retractionMode,
+        minSafeZ: retMinSafeZ,
+        adaptiveClearance: retAdaptiveClearance,
+        reinforcedClearance: retReinforcedClearance,
+      };
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
-        touchesPerPoint, touchStrategy
+        touchesPerPoint, touchStrategy, retractionCfg
       );
       setResult(r);
       toast.success("Arquivo de nivelamento gerado!");
@@ -292,7 +305,7 @@ export default function ZMappingPage() {
       console.error("Erro ao gerar arquivo:", err);
       toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
     }
-  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -511,6 +524,42 @@ export default function ZMappingPage() {
               </RadioGroup>
             </div>
 
+            {/* Retraction mode */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" /> Deslocamento entre pontos
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Ajusta automaticamente a altura de deslocamento entre os pontos para evitar choque com peças curvas ou inclinadas.
+              </p>
+              <RadioGroup
+                value={retractionMode}
+                onValueChange={(v) => setRetractionMode(v as RetractionMode)}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="standard" id="ret-standard" />
+                  <Label htmlFor="ret-standard" className="text-xs cursor-pointer">Padrão — altura fixa de segurança</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="safe" id="ret-safe" />
+                  <Label htmlFor="ret-safe" className="text-xs cursor-pointer">Seguro — adapta com base no último ponto medido</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="curved" id="ret-curved" />
+                  <Label htmlFor="ret-curved" className="text-xs cursor-pointer">Superfície curva — proteção reforçada para grandes variações</Label>
+                </div>
+              </RadioGroup>
+
+              {retractionMode !== "standard" && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/30 rounded-lg p-3 mt-2">
+                  {numField(`Z seguro mínimo (${unit})`, retMinSafeZ, setRetMinSafeZ, unit === "mm" ? 0.5 : 0.02)}
+                  {numField(`Folga adaptativa (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, unit === "mm" ? 0.5 : 0.02)}
+                  {retractionMode === "curved" && numField(`Folga reforçada (${unit})`, retReinforcedClearance, setRetReinforcedClearance, unit === "mm" ? 0.5 : 0.02)}
+                </div>
+              )}
+            </div>
+
             {/* Tool type & engraving mode */}
             <div className="space-y-3 pt-2 border-t border-border/50">
               <Label className="text-xs font-medium flex items-center gap-1.5">
@@ -709,6 +758,11 @@ export default function ZMappingPage() {
                 {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
               </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
+              {retractionMode !== "standard" && (
+                <span>Retração: <strong className="text-foreground">
+                  {retractionMode === "safe" ? "Segura" : "Superfície curva"}
+                </strong></span>
+              )}
               {engravingMode !== "standard" && (
                 <span>Gravação: <strong className="text-foreground">
                   {engravingMode === "curved" ? "Superfície curva" : "V-bit curva"}
@@ -802,6 +856,9 @@ export default function ZMappingPage() {
                   <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
                   <div><span className="text-muted-foreground">Toques por ponto:</span> <span className="font-medium">{touchesPerPoint}</span></div>
                   <div><span className="text-muted-foreground">Modo:</span> <span className="font-medium">{areaMode === "auto" ? "Automático" : "Manual"}</span></div>
+                  {retractionMode !== "standard" && (
+                    <div><span className="text-muted-foreground">Retração:</span> <span className="font-medium">{retractionMode === "safe" ? "Segura" : "Superfície curva"}</span></div>
+                  )}
                   {result.arcsDetected > 0 && (
                     <>
                       <div><span className="text-muted-foreground">Curvas detectadas:</span> <span className="font-medium">{result.arcsDetected}</span></div>
