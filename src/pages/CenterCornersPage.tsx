@@ -531,9 +531,18 @@ export default function CenterCornersPage() {
                       <NumField label="Curso do probe Z (mm)" value={zProbeTravel} onChange={setZProbeTravel} step={1}
                         hint="Distância máxima de descida (negativo)." />
 
-                      {mode === "corner" && (
+                      {mode === "corner" && zProbeMode === "auto" && (
                         <NumField label="Recuo interno da aresta (mm)" value={zCornerInset} onChange={setZCornerInset} step={0.5}
                           hint="Deslocamento para dentro ao medir Z na quina." />
+                      )}
+
+                      {mode === "corner" && zProbeMode === "manual" && (
+                        <>
+                          <NumField label="Posição X para probe Z (mm)" value={holeZManualOffsetX} onChange={setHoleZManualOffsetX} step={1}
+                            hint="Coordenada X onde o probe Z será realizado." />
+                          <NumField label="Posição Y para probe Z (mm)" value={holeZManualOffsetY} onChange={setHoleZManualOffsetY} step={1}
+                            hint="Coordenada Y onde o probe Z será realizado." />
+                        </>
                       )}
 
                       {mode === "hole-center" && holeZStrategy === "auto-safe" && (
