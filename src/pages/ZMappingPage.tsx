@@ -28,7 +28,7 @@ import {
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
   type ControllerType, type UnifiedResult, type DensityMap,
   type RetractionMode, type RetractionConfig,
-  type ProbeType, type CustomProbeConfig,
+  type ProbeType, type CustomProbeConfig, type PostMappingMode, type ToolMeasureConfig,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
