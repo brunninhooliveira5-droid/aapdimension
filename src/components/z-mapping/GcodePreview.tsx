@@ -238,7 +238,7 @@ export function GcodePreview({
     ctx.strokeRect(wx0, wy0, ww, wh);
     ctx.setLineDash([]);
 
-  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax, densityMap]);
+  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax, densityMap, spacingX, spacingY, mappingMode]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsPanning(true);
