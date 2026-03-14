@@ -22,6 +22,7 @@ const labTools = [
   { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", sectionKey: "ferr_gerador_caixas" },
   { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", sectionKey: "ferr_planificador_acm" },
   { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso", sectionKey: "ferr_gerador_percurso" },
+  { id: "mapeamento-z", label: "Mapeamento Z", icon: Grid3x3, route: "/mapeamento-z", sectionKey: "ferr_mapeamento_z" },
 ];
 
 function ToolButton({ tab, onClick }: { tab: typeof productionTools[0]; onClick: (route: string) => void }) {
