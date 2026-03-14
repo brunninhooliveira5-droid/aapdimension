@@ -3,7 +3,6 @@ import { ZMappingAnimation } from "@/components/ZMappingAnimation";
 import { CompensationSimulator3D } from "@/components/z-mapping/CompensationSimulator3D";
 import { GcodePreview } from "@/components/z-mapping/GcodePreview";
 import { ZMappingWizard } from "@/components/z-mapping/ZMappingWizard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +14,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch,
-  PenTool, AlertTriangle, ShieldCheck, Wand2, Save, Box, Crosshair,
-  HelpCircle, Monitor, BarChart3, Gauge, Activity,
+  Play, Timer, Cpu, Layers, PenTool, AlertTriangle, ShieldCheck, Wand2,
+  Save, Box, Crosshair, HelpCircle, Monitor, BarChart3, Activity,
+  FileCode, Maximize2, RotateCcw, ArrowUp, ArrowRight, SquareDashedBottomCode,
+  Scan, Target, Info, Gauge, Eye,
 } from "lucide-react";
 import { EnhancedHelpTip, PARAM_HELP } from "@/components/z-mapping/VisualHelpSystem";
 import {
