@@ -11,22 +11,23 @@ export interface CenterCornersConfig {
   probeFeed: number;
   probeDepth: number;
   probeDiameter: number;
-  /** For corner: which corner to find */
   cornerQuadrant: "front-left" | "front-right" | "back-left" | "back-right";
-  /** For rect/circle: approximate dimension to travel */
   approxSizeX: number;
   approxSizeY: number;
-  /** For circle/hole: approximate diameter */
   approxDiameter: number;
-  /** Number of touch points for circular mode */
   circlePoints: number;
-  /** Set origin after finding */
   setOrigin: boolean;
-  /** Move to found point */
   moveToCenter: boolean;
   decimalPlaces: number;
-  /** Controller */
   controller: "mach3" | "grbl" | "linuxcnc";
+  /** Refinement / precision check */
+  refinementEnabled: boolean;
+  /** Distance for the second closer touch (mm) */
+  refinementDistance: number;
+  /** Speed for the refinement touch (mm/min) */
+  refinementFeed: number;
+  /** Number of refinement cycles (structure prepared, default 1) */
+  refinementCycles: number;
 }
 
 export const defaultCenterCornersConfig: CenterCornersConfig = {
@@ -44,6 +45,10 @@ export const defaultCenterCornersConfig: CenterCornersConfig = {
   moveToCenter: true,
   decimalPlaces: 3,
   controller: "mach3",
+  refinementEnabled: false,
+  refinementDistance: 3,
+  refinementFeed: 25,
+  refinementCycles: 1,
 };
 
 export interface CenterCornersResult {
@@ -64,7 +69,6 @@ function probeCmd(controller: string): string {
 function setOriginCmd(controller: string, axis: string, value: string): string {
   if (controller === "grbl") return `G10 L20 P1 ${axis}${value}`;
   if (controller === "linuxcnc") return `G10 L20 P1 ${axis}${value}`;
-  // Mach3 uses G92
   return `G92 ${axis}${value}`;
 }
 
@@ -89,6 +93,7 @@ export function generateCenterCornersGcode(cfg: CenterCornersConfig): CenterCorn
   }
 }
 
+/* ── Corner ────────────────────────────────────────────── */
 function generateCorner(
   cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
   probe: string, r: number
@@ -98,13 +103,16 @@ function generateCorner(
   const approachDist = 10;
 
   out.push(`(  Modo: Encontrar Quina - ${cfg.cornerQuadrant})`);
+  if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
-  // Touch X side
+  // ── First touch ──
+  out.push("( ===== PRIMEIRO TOQUE ===== )");
+  out.push("");
   out.push("( --- Toque no eixo X --- )");
   out.push(`G0 X${d(dirX * -approachDist)} Y0`);
   out.push(`G0 Z${d(cfg.probeDepth)}`);
@@ -112,13 +120,11 @@ function generateCorner(
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
-  // Store X position (Mach3 uses #2000)
   if (cfg.controller === "mach3") {
     out.push("#2010 = #2000");
     out.push(`#2010 = #2010 + ${d(dirX * r)}`);
   }
 
-  // Touch Y side
   out.push("( --- Toque no eixo Y --- )");
   out.push(`G0 X0 Y${d(dirY * -approachDist)}`);
   out.push(`G0 Z${d(cfg.probeDepth)}`);
@@ -129,6 +135,50 @@ function generateCorner(
   if (cfg.controller === "mach3") {
     out.push("#2011 = #2001");
     out.push(`#2011 = #2011 + ${d(dirY * r)}`);
+  }
+
+  // ── Refinement passes ──
+  if (cfg.refinementEnabled) {
+    const refDist = cfg.refinementDistance;
+    const refFeed = cfg.refinementFeed;
+    for (let cycle = 0; cycle < cfg.refinementCycles; cycle++) {
+      out.push("");
+      out.push(`( ===== TOQUE DE CONFERÊNCIA ${cfg.refinementCycles > 1 ? cycle + 1 : ""} ===== )`);
+      out.push("( Refinamento: medição mais perto da borda )");
+      out.push("");
+
+      // Move closer to provisional corner, then re-touch
+      out.push("( --- Refinamento eixo X --- )");
+      if (cfg.controller === "mach3") {
+        out.push(`G0 X[#2010 + ${d(dirX * -refDist)}] Y#2011`);
+      } else {
+        out.push(`G0 X${d(dirX * -refDist)} Y0`);
+      }
+      out.push(`G0 Z${d(cfg.probeDepth)}`);
+      out.push(`${probe} X${d(dirX * (refDist + 3))} F${d(refFeed)}`);
+      out.push(`G0 Z${d(cfg.safeZ)}`);
+      if (cfg.controller === "mach3") {
+        out.push("#2010 = #2000");
+        out.push(`#2010 = #2010 + ${d(dirX * r)}`);
+      }
+      out.push("");
+
+      out.push("( --- Refinamento eixo Y --- )");
+      if (cfg.controller === "mach3") {
+        out.push(`G0 X#2010 Y[#2011 + ${d(dirY * -refDist)}]`);
+      } else {
+        out.push(`G0 X0 Y${d(dirY * -refDist)}`);
+      }
+      out.push(`G0 Z${d(cfg.probeDepth)}`);
+      out.push(`${probe} Y${d(dirY * (refDist + 3))} F${d(refFeed)}`);
+      out.push(`G0 Z${d(cfg.safeZ)}`);
+      if (cfg.controller === "mach3") {
+        out.push("#2011 = #2001");
+        out.push(`#2011 = #2011 + ${d(dirY * r)}`);
+      }
+    }
+    out.push("");
+    out.push("( --- Quina final refinada --- )");
   }
 
   if (cfg.setOrigin) {
@@ -151,9 +201,13 @@ function generateCorner(
   out.push("");
   out.push("M30");
 
-  return { code: out.join("\n"), fileName: "CC_Quina.tap", description: `Localizar quina ${cfg.cornerQuadrant}` };
+  const desc = cfg.refinementEnabled
+    ? `Localizar quina ${cfg.cornerQuadrant} (com conferência)`
+    : `Localizar quina ${cfg.cornerQuadrant}`;
+  return { code: out.join("\n"), fileName: "CC_Quina.tap", description: desc };
 }
 
+/* ── Rect Center ───────────────────────────────────────── */
 function generateRectCenter(
   cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
   probe: string, r: number
@@ -162,58 +216,52 @@ function generateRectCenter(
   const halfY = cfg.approxSizeY / 2 + 10;
 
   out.push("(  Modo: Centro Retangular                     )");
+  if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
-  // Touch left X
-  out.push("( --- Toque lado esquerdo (X-) --- )");
-  out.push(`G0 X${d(-halfX)} Y0`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} X${d(halfX)} F${d(cfg.probeFeed)}`);
-  if (cfg.controller === "mach3") out.push("#2010 = #2000");
-  out.push(`G0 Z${d(cfg.safeZ)}`);
+  out.push("( ===== PRIMEIRO TOQUE ===== )");
   out.push("");
 
-  // Touch right X
-  out.push("( --- Toque lado direito (X+) --- )");
-  out.push(`G0 X${d(halfX)} Y0`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} X${d(-halfX)} F${d(cfg.probeFeed)}`);
-  if (cfg.controller === "mach3") out.push("#2011 = #2000");
-  out.push(`G0 Z${d(cfg.safeZ)}`);
-  out.push("");
+  // Touch 4 sides
+  emitRectTouches(cfg, out, d, probe, halfX, halfY, cfg.probeFeed, "#201");
 
-  // Calculate center X
+  // Calculate provisional center
   if (cfg.controller === "mach3") {
-    out.push("( --- Centro X --- )");
+    out.push("( --- Centro provisório --- )");
     out.push("#2020 = [#2010 + #2011] / 2");
+    out.push("#2021 = [#2012 + #2013] / 2");
   }
 
-  // Touch front Y
-  out.push("( --- Toque lado frontal (Y-) --- )");
-  out.push(`G0 X0 Y${d(-halfY)}`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} Y${d(halfY)} F${d(cfg.probeFeed)}`);
-  if (cfg.controller === "mach3") out.push("#2012 = #2001");
-  out.push(`G0 Z${d(cfg.safeZ)}`);
-  out.push("");
+  // ── Refinement ──
+  if (cfg.refinementEnabled) {
+    const refDist = cfg.refinementDistance;
+    const refFeed = cfg.refinementFeed;
+    const closeHalfX = cfg.approxSizeX / 2 + refDist;
+    const closeHalfY = cfg.approxSizeY / 2 + refDist;
 
-  // Touch back Y
-  out.push("( --- Toque lado traseiro (Y+) --- )");
-  out.push(`G0 X0 Y${d(halfY)}`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} Y${d(-halfY)} F${d(cfg.probeFeed)}`);
-  if (cfg.controller === "mach3") out.push("#2013 = #2001");
-  out.push(`G0 Z${d(cfg.safeZ)}`);
-  out.push("");
+    for (let cycle = 0; cycle < cfg.refinementCycles; cycle++) {
+      out.push("");
+      out.push(`( ===== TOQUE DE CONFERÊNCIA ${cfg.refinementCycles > 1 ? cycle + 1 : ""} ===== )`);
+      out.push("( Refinamento: medição mais perto das bordas )");
+      out.push("");
 
-  // Calculate center Y
-  if (cfg.controller === "mach3") {
-    out.push("( --- Centro Y --- )");
-    out.push("#2021 = [#2012 + #2013] / 2");
+      // Move to provisional center first
+      if (cfg.controller === "mach3") {
+        out.push("G0 X#2020 Y#2021");
+      }
+
+      emitRectTouches(cfg, out, d, probe, closeHalfX, closeHalfY, refFeed, "#203");
+
+      if (cfg.controller === "mach3") {
+        out.push("( --- Centro final refinado --- )");
+        out.push("#2020 = [#2030 + #2031] / 2");
+        out.push("#2021 = [#2032 + #2033] / 2");
+      }
+    }
   }
 
   if (cfg.moveToCenter) {
@@ -236,9 +284,45 @@ function generateRectCenter(
   out.push("");
   out.push("M30");
 
-  return { code: out.join("\n"), fileName: "CC_CentroRetangular.tap", description: "Localizar centro de peça retangular" };
+  const desc = cfg.refinementEnabled
+    ? "Localizar centro retangular (com conferência)"
+    : "Localizar centro de peça retangular";
+  return { code: out.join("\n"), fileName: "CC_CentroRetangular.tap", description: desc };
 }
 
+/** Helper: emit the 4-side rectangular touches */
+function emitRectTouches(
+  cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
+  probe: string, halfX: number, halfY: number, feed: number, varPrefix: string
+) {
+  const sides: { label: string; axis: string; startVal: number; targetVal: number; varSuffix: string }[] = [
+    { label: "Toque lado esquerdo (X-)", axis: "X", startVal: -halfX, targetVal: halfX, varSuffix: "0" },
+    { label: "Toque lado direito (X+)", axis: "X", startVal: halfX, targetVal: -halfX, varSuffix: "1" },
+    { label: "Toque lado frontal (Y-)", axis: "Y", startVal: -halfY, targetVal: halfY, varSuffix: "2" },
+    { label: "Toque lado traseiro (Y+)", axis: "Y", startVal: halfY, targetVal: -halfY, varSuffix: "3" },
+  ];
+
+  for (const s of sides) {
+    out.push(`( --- ${s.label} --- )`);
+    const otherZero = s.axis === "X" ? " Y0" : "X0 ";
+    out.push(`G0 ${s.axis}${d(s.startVal)}${s.axis === "X" ? " Y0" : ""}`);
+    if (s.axis === "Y") out.push(`G0 X0 Y${d(s.startVal)}`);
+    if (s.axis === "X") {
+      out.push(`G0 X${d(s.startVal)} Y0`);
+    }
+    // Simplify: just position and probe
+    out.push(`G0 Z${d(cfg.probeDepth)}`);
+    out.push(`${probe} ${s.axis}${d(s.targetVal)} F${d(feed)}`);
+    if (cfg.controller === "mach3") {
+      const srcVar = s.axis === "X" ? "#2000" : "#2001";
+      out.push(`${varPrefix}${s.varSuffix} = ${srcVar}`);
+    }
+    out.push(`G0 Z${d(cfg.safeZ)}`);
+    out.push("");
+  }
+}
+
+/* ── Circle Center ─────────────────────────────────────── */
 function generateCircleCenter(
   cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
   probe: string, r: number
@@ -248,38 +332,49 @@ function generateCircleCenter(
 
   out.push("(  Modo: Centro Circular                       )");
   out.push(`(  Pontos de medição: ${pts}                   )`);
+  if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
-  for (let i = 0; i < pts; i++) {
-    const angle = (i / pts) * Math.PI * 2;
-    const startX = Math.cos(angle) * radius;
-    const startY = Math.sin(angle) * radius;
-    const targetX = -Math.cos(angle) * radius;
-    const targetY = -Math.sin(angle) * radius;
-    const angleDeg = Math.round((angle * 180) / Math.PI);
+  out.push("( ===== PRIMEIRO TOQUE ===== )");
+  out.push("");
+  emitCircleTouches(cfg, out, d, probe, radius, pts, cfg.probeFeed, 2010);
 
-    out.push(`( --- Toque ponto ${i + 1} (${angleDeg}°) --- )`);
-    out.push(`G0 X${d(startX)} Y${d(startY)}`);
-    out.push(`G0 Z${d(cfg.probeDepth)}`);
-    out.push(`${probe} X${d(targetX)} Y${d(targetY)} F${d(cfg.probeFeed)}`);
-    if (cfg.controller === "mach3") {
-      out.push(`#${2010 + i * 2} = #2000`);
-      out.push(`#${2011 + i * 2} = #2001`);
-    }
-    out.push(`G0 Z${d(cfg.safeZ)}`);
-    out.push("");
-  }
-
-  out.push("( --- Calcular centro --- )");
+  out.push("( --- Calcular centro provisório --- )");
   if (cfg.controller === "mach3" && pts >= 3) {
     const xVars = Array.from({ length: pts }, (_, i) => `#${2010 + i * 2}`).join(" + ");
     const yVars = Array.from({ length: pts }, (_, i) => `#${2011 + i * 2}`).join(" + ");
     out.push(`#2050 = [${xVars}] / ${pts}`);
     out.push(`#2051 = [${yVars}] / ${pts}`);
+  }
+
+  if (cfg.refinementEnabled) {
+    const closeRadius = cfg.approxDiameter / 2 + cfg.refinementDistance;
+    const refFeed = cfg.refinementFeed;
+
+    for (let cycle = 0; cycle < cfg.refinementCycles; cycle++) {
+      out.push("");
+      out.push(`( ===== TOQUE DE CONFERÊNCIA ${cfg.refinementCycles > 1 ? cycle + 1 : ""} ===== )`);
+      out.push("( Refinamento: medição mais perto da superfície )");
+      out.push("");
+
+      if (cfg.controller === "mach3") {
+        out.push("G0 X#2050 Y#2051");
+      }
+
+      emitCircleTouches(cfg, out, d, probe, closeRadius, pts, refFeed, 2060);
+
+      if (cfg.controller === "mach3" && pts >= 3) {
+        out.push("( --- Centro final refinado --- )");
+        const xVars2 = Array.from({ length: pts }, (_, i) => `#${2060 + i * 2}`).join(" + ");
+        const yVars2 = Array.from({ length: pts }, (_, i) => `#${2061 + i * 2}`).join(" + ");
+        out.push(`#2050 = [${xVars2}] / ${pts}`);
+        out.push(`#2051 = [${yVars2}] / ${pts}`);
+      }
+    }
   }
 
   if (cfg.moveToCenter) {
@@ -302,9 +397,39 @@ function generateCircleCenter(
   out.push("");
   out.push("M30");
 
-  return { code: out.join("\n"), fileName: "CC_CentroCircular.tap", description: "Localizar centro de peça circular" };
+  const desc = cfg.refinementEnabled
+    ? "Localizar centro circular (com conferência)"
+    : "Localizar centro de peça circular";
+  return { code: out.join("\n"), fileName: "CC_CentroCircular.tap", description: desc };
 }
 
+/** Helper: emit circle probe touches */
+function emitCircleTouches(
+  cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
+  probe: string, radius: number, pts: number, feed: number, varStart: number
+) {
+  for (let i = 0; i < pts; i++) {
+    const angle = (i / pts) * Math.PI * 2;
+    const startX = Math.cos(angle) * radius;
+    const startY = Math.sin(angle) * radius;
+    const targetX = -Math.cos(angle) * radius;
+    const targetY = -Math.sin(angle) * radius;
+    const angleDeg = Math.round((angle * 180) / Math.PI);
+
+    out.push(`( --- Toque ponto ${i + 1} (${angleDeg}°) --- )`);
+    out.push(`G0 X${d(startX)} Y${d(startY)}`);
+    out.push(`G0 Z${d(cfg.probeDepth)}`);
+    out.push(`${probe} X${d(targetX)} Y${d(targetY)} F${d(feed)}`);
+    if (cfg.controller === "mach3") {
+      out.push(`#${varStart + i * 2} = #2000`);
+      out.push(`#${varStart + 1 + i * 2} = #2001`);
+    }
+    out.push(`G0 Z${d(cfg.safeZ)}`);
+    out.push("");
+  }
+}
+
+/* ── Hole Center ───────────────────────────────────────── */
 function generateHoleCenter(
   cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
   probe: string, r: number
@@ -312,6 +437,7 @@ function generateHoleCenter(
   const approachDist = cfg.approxDiameter / 2 - 2;
 
   out.push("(  Modo: Centro de Furo                        )");
+  if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
@@ -319,29 +445,41 @@ function generateHoleCenter(
   out.push(`G0 Z${d(cfg.probeDepth)}`);
   out.push("");
 
-  // Touch 4 internal walls
-  const dirs = [
-    { label: "X+", axis: "X", val: approachDist },
-    { label: "X-", axis: "X", val: -approachDist },
-    { label: "Y+", axis: "Y", val: approachDist },
-    { label: "Y-", axis: "Y", val: -approachDist },
-  ];
-
-  dirs.forEach((dir, i) => {
-    out.push(`( --- Toque interno ${dir.label} --- )`);
-    out.push(`${probe} ${dir.axis}${d(dir.val)} F${d(cfg.probeFeed)}`);
-    if (cfg.controller === "mach3") {
-      const varIdx = dir.axis === "X" ? 2000 : 2001;
-      out.push(`#${2010 + i} = #${varIdx}`);
-    }
-    out.push("G0 X0 Y0");
-    out.push("");
-  });
+  out.push("( ===== PRIMEIRO TOQUE ===== )");
+  out.push("");
+  emitHoleTouches(cfg, out, d, probe, approachDist, cfg.probeFeed, 2010);
 
   if (cfg.controller === "mach3") {
-    out.push("( --- Calcular centro --- )");
+    out.push("( --- Centro provisório --- )");
     out.push("#2020 = [#2010 + #2011] / 2");
     out.push("#2021 = [#2012 + #2013] / 2");
+  }
+
+  if (cfg.refinementEnabled) {
+    const closeDist = cfg.approxDiameter / 2 - cfg.refinementDistance;
+    const refFeed = cfg.refinementFeed;
+
+    for (let cycle = 0; cycle < cfg.refinementCycles; cycle++) {
+      out.push("");
+      out.push(`( ===== TOQUE DE CONFERÊNCIA ${cfg.refinementCycles > 1 ? cycle + 1 : ""} ===== )`);
+      out.push("( Refinamento: medição mais perto do centro provisório )");
+      out.push("");
+
+      // Move to provisional center
+      if (cfg.controller === "mach3") {
+        out.push("G0 X#2020 Y#2021");
+      } else {
+        out.push("G0 X0 Y0");
+      }
+
+      emitHoleTouches(cfg, out, d, probe, closeDist, refFeed, 2030);
+
+      if (cfg.controller === "mach3") {
+        out.push("( --- Centro final refinado --- )");
+        out.push("#2020 = [#2030 + #2031] / 2");
+        out.push("#2021 = [#2032 + #2033] / 2");
+      }
+    }
   }
 
   out.push(`G0 Z${d(cfg.safeZ)}`);
@@ -366,5 +504,32 @@ function generateHoleCenter(
   out.push("");
   out.push("M30");
 
-  return { code: out.join("\n"), fileName: "CC_CentroFuro.tap", description: "Localizar centro de furo" };
+  const desc = cfg.refinementEnabled
+    ? "Localizar centro de furo (com conferência)"
+    : "Localizar centro de furo";
+  return { code: out.join("\n"), fileName: "CC_CentroFuro.tap", description: desc };
+}
+
+/** Helper: emit hole internal touches */
+function emitHoleTouches(
+  cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
+  probe: string, approachDist: number, feed: number, varStart: number
+) {
+  const dirs = [
+    { label: "X+", axis: "X", val: approachDist },
+    { label: "X-", axis: "X", val: -approachDist },
+    { label: "Y+", axis: "Y", val: approachDist },
+    { label: "Y-", axis: "Y", val: -approachDist },
+  ];
+
+  dirs.forEach((dir, i) => {
+    out.push(`( --- Toque interno ${dir.label} --- )`);
+    out.push(`${probe} ${dir.axis}${d(dir.val)} F${d(feed)}`);
+    if (cfg.controller === "mach3") {
+      const srcVar = dir.axis === "X" ? "#2000" : "#2001";
+      out.push(`#${varStart + i} = ${srcVar}`);
+    }
+    out.push("G0 X0 Y0");
+    out.push("");
+  });
 }
