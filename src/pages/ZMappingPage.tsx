@@ -3,7 +3,6 @@ import { ZMappingAnimation } from "@/components/ZMappingAnimation";
 import { CompensationSimulator3D } from "@/components/z-mapping/CompensationSimulator3D";
 import { GcodePreview } from "@/components/z-mapping/GcodePreview";
 import { ZMappingWizard } from "@/components/z-mapping/ZMappingWizard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +14,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch,
-  PenTool, AlertTriangle, ShieldCheck, Wand2, Save, Box, Crosshair,
-  HelpCircle, Monitor, BarChart3, Gauge, Activity,
+  Play, Timer, Cpu, Layers, PenTool, AlertTriangle, ShieldCheck, Wand2,
+  Save, Box, Crosshair, HelpCircle, Monitor, BarChart3, Activity,
+  FileCode, Maximize2, RotateCcw, ArrowUp, ArrowRight, SquareDashedBottomCode,
+  Scan, Target, Info, Gauge, Eye,
 } from "lucide-react";
 import { EnhancedHelpTip, PARAM_HELP } from "@/components/z-mapping/VisualHelpSystem";
 import {
@@ -445,76 +446,93 @@ export default function ZMappingPage() {
     );
   }
 
-  // ── Status items for bottom bar
-  const statusItems = [
-    { label: "Arquivo", active: !!originalFileName, text: originalFileName || "Nenhum" },
-    { label: "Malha", active: !!mesh, text: mesh ? `${mesh.totalPoints} pontos` : "—" },
-    { label: "Simulação", active: showSimulator, text: showSimulator ? "Ativa" : "—" },
-    { label: "G-code", active: !!result, text: result ? "Pronto" : "—" },
+  // ── Status pipeline for bottom bar
+  const pipeline = [
+    { label: "Arquivo", done: !!originalFileName },
+    { label: "Área detectada", done: !!analysis },
+    { label: "Malha pronta", done: !!mesh },
+    { label: "Compensação", done: !!result },
+    { label: "Exportação", done: !!result },
   ];
 
+  const pointsX = mesh ? mesh.pointsPerRow : 0;
+  const pointsY = mesh ? mesh.rows : 0;
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* ══════════════ TOP TOOLBAR ══════════════ */}
-      <div className="shrink-0 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-2">
-        <div className="flex items-center justify-between gap-3">
-          {/* Left: branding + file info */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Grid3x3 className="h-4 w-4 text-primary" />
+      <div className="shrink-0 border-b border-border bg-card px-4 py-0">
+        <div className="flex items-center h-12 gap-4">
+          {/* Left: branding */}
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="h-7 w-7 rounded bg-primary/15 flex items-center justify-center">
+              <Grid3x3 className="h-3.5 w-3.5 text-primary" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-bold tracking-tight truncate">Nivelamento Automático</h1>
-              {analysis ? (
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {originalFileName} — {fmt(analysis.width)} × {fmt(analysis.height)} {unit}
-                  {analysis.arcCount > 0 && ` — ${analysis.arcCount} curvas`}
-                </p>
-              ) : showExplanations && (
-                <p className="text-[10px] text-muted-foreground truncate">
-                  Mede a superfície da peça e ajusta automaticamente o percurso da usinagem.
-                </p>
-              )}
+              <h1 className="text-xs font-bold tracking-tight text-foreground leading-none">Mapeamento Z</h1>
+              <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 truncate max-w-[240px]">
+                {analysis
+                  ? `${originalFileName} · ${fmt(analysis.width)}×${fmt(analysis.height)} ${unit}`
+                  : "Correção automática de usinagem em superfícies planas, curvas ou inclinadas"}
+              </p>
             </div>
           </div>
 
-          {/* Center-left: explanations toggle */}
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Center actions */}
+          <div className="flex items-center gap-1 flex-1 justify-center">
+            <input ref={fileRef} type="file" accept=".nc,.tap,.gcode,.txt" className="hidden" onChange={handleFileUpload} />
+            <TooltipProvider delayDuration={300}>
+              <Tooltip><TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[11px] gap-1.5" onClick={() => fileRef.current?.click()}>
+                  <Upload className="h-3 w-3" /> <span className="hidden lg:inline">Carregar</span>
+                </Button>
+              </TooltipTrigger><TooltipContent className="text-xs">Carregar arquivo G-code</TooltipContent></Tooltip>
+
+              <Tooltip><TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[11px] gap-1.5" onClick={() => setWizardMode(true)}>
+                  <Wand2 className="h-3 w-3" /> <span className="hidden lg:inline">Assistente</span>
+                </Button>
+              </TooltipTrigger><TooltipContent className="text-xs">Modo assistente guiado</TooltipContent></Tooltip>
+
+              {analysis && mesh && originalGcode && (
+                <Tooltip><TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[11px] gap-1.5"
+                    onClick={() => { setShowSimulator(true); setViewMode("simulation"); }}>
+                    <Box className="h-3 w-3" /> <span className="hidden lg:inline">3D</span>
+                  </Button>
+                </TooltipTrigger><TooltipContent className="text-xs">Simulação 3D</TooltipContent></Tooltip>
+              )}
+
+              <Separator orientation="vertical" className="h-5 mx-1" />
+
+              <Button size="sm" className="h-7 px-3 text-[11px] gap-1.5 bg-primary hover:bg-primary/90" onClick={handleGenerate}
+                disabled={!mesh || !originalGcode}>
+                <Play className="h-3 w-3" /> Gerar
+              </Button>
+
+              {result && (
+                <Button size="sm" variant="outline" className="h-7 px-3 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10" onClick={handleDownload}>
+                  <Download className="h-3 w-3" /> Baixar
+                </Button>
+              )}
+            </TooltipProvider>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Right: toggle + info */}
           <div className="flex items-center gap-2 shrink-0">
-            <Label htmlFor="show-explanations" className="text-[10px] text-muted-foreground cursor-pointer select-none">
+            <Label htmlFor="show-explanations" className="text-[9px] text-muted-foreground cursor-pointer select-none">
               Explicações
             </Label>
-            <Switch id="show-explanations" checked={showExplanations} onCheckedChange={toggleExplanations} className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4" />
-          </div>
-
-          {/* Center: main actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <input ref={fileRef} type="file" accept=".nc,.tap,.gcode,.txt" className="hidden" onChange={handleFileUpload} />
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => fileRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> Carregar G-code
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setWizardMode(true)}>
-              <Wand2 className="h-3.5 w-3.5" /> Assistente
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveConfig}>
-              <Save className="h-3.5 w-3.5" /> Salvar
-            </Button>
-            {analysis && mesh && originalGcode && (
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
-                onClick={() => { setShowSimulator(true); setViewMode("simulation"); }}>
-                <Box className="h-3.5 w-3.5" /> Simulação 3D
-              </Button>
-            )}
-            <Separator orientation="vertical" className="h-6 mx-1" />
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleGenerate}
-              disabled={!mesh || !originalGcode}>
-              <Play className="h-3.5 w-3.5" /> Gerar G-code
+            <Switch id="show-explanations" checked={showExplanations} onCheckedChange={toggleExplanations}
+              className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3" />
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setShowAnimation(s => !s)}>
+              <Info className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </div>
-
-          {/* Right: info button */}
-          <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={() => setShowAnimation(s => !s)}>
-            <HelpCircle className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </div>
 
@@ -528,174 +546,143 @@ export default function ZMappingPage() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── LEFT PANEL: Parameters ── */}
-        <div className="w-[280px] shrink-0 border-r border-border bg-card/50 flex flex-col overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-border/50">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+        <div className="w-[240px] shrink-0 border-r border-border bg-card/60 flex flex-col overflow-hidden">
+          <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Settings2 className="h-3 w-3" /> Parâmetros
-            </h2>
+            </span>
+            <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-border">{unit}</Badge>
           </div>
           <ScrollArea className="flex-1">
-            <div className="p-3 space-y-4">
-
-              {/* Quick params */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Medição</p>
-                {numField(`Altura segura (${unit})`, safeHeight, setSafeHeight, undefined,
-                  undefined, "safeHeight")}
-                {numField(`Distância X (${unit})`, spacingX, setSpacingX, undefined,
-                  undefined, "spacingX")}
-                {numField(`Distância Y (${unit})`, spacingY, setSpacingY, undefined,
-                  undefined, "spacingY")}
-                {numField(`Vel. toque (${unit}/min)`, probeFeed, setProbeFeed, undefined,
-                  undefined, "probeFeed")}
+            <div className="p-2.5 space-y-3">
+              {/* ─── Measurement ─── */}
+              <SectionLabel icon={<Scan className="h-3 w-3" />} label="Medição" />
+              <div className="space-y-2">
+                {numField(`Altura segura (${unit})`, safeHeight, setSafeHeight, undefined, undefined, "safeHeight")}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {numField(`Dist. X`, spacingX, setSpacingX, undefined, undefined, "spacingX")}
+                  {numField(`Dist. Y`, spacingY, setSpacingY, undefined, undefined, "spacingY")}
+                </div>
+                {numField(`Vel. toque (${unit}/min)`, probeFeed, setProbeFeed, undefined, undefined, "probeFeed")}
               </div>
 
-              <Separator />
+              <Separator className="opacity-50" />
 
-              {/* Engraving mode */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <PenTool className="h-3 w-3" /> Tipo de gravação
-                </p>
-                {showExplanations && (
-                  <p className="text-[10px] text-muted-foreground">Define como o sistema irá compensar o percurso de usinagem após o mapeamento.</p>
-                )}
-                <RadioGroup value={engravingMode} onValueChange={(v) => setEngravingMode(v as EngravingMode)} className="space-y-1">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="standard" id="eng-std-p" />
-                    <span>Usinagem normal</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="curved" id="eng-curved-p" />
-                    <span>Superfície curva</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="vbit-curved" id="eng-vbit-p" />
-                    <span>V-bit em superfície curva</span>
-                  </label>
-                </RadioGroup>
-
-                {toolType === "vbit" && (
-                  <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Ângulo V-bit</Label>
-                      <Select value={String(vbitAngle)} onValueChange={(v) => setVbitAngle(Number(v))}>
-                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30">30°</SelectItem>
-                          <SelectItem value="45">45°</SelectItem>
-                          <SelectItem value="60">60°</SelectItem>
-                          <SelectItem value="90">90°</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {numField(`Prof. gravação (${unit})`, nominalDepth, setNominalDepth, unit === "mm" ? 0.05 : 0.002)}
-                    <p className="text-[10px] text-muted-foreground">
-                      Largura: <strong className="text-foreground">
-                        {fmt(2 * nominalDepth * Math.tan((vbitAngle / 2) * Math.PI / 180), 3)} {unit}
-                      </strong>
-                    </p>
+              {/* ─── Engraving mode ─── */}
+              <SectionLabel icon={<PenTool className="h-3 w-3" />} label="Gravação" />
+              {showExplanations && <p className="text-[9px] text-muted-foreground -mt-1">Tipo de compensação aplicada ao percurso.</p>}
+              <RadioGroup value={engravingMode} onValueChange={(v) => setEngravingMode(v as EngravingMode)} className="space-y-0.5">
+                <RadioOption value="standard" id="eng-std" label="Normal" />
+                <RadioOption value="curved" id="eng-curved" label="Superfície curva" />
+                <RadioOption value="vbit-curved" id="eng-vbit" label="V-bit curva" />
+              </RadioGroup>
+              {toolType === "vbit" && (
+                <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Ângulo V-bit</Label>
+                    <Select value={String(vbitAngle)} onValueChange={(v) => setVbitAngle(Number(v))}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[30, 45, 60, 90].map(a => <SelectItem key={a} value={String(a)}>{a}°</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {numField(`Prof. (${unit})`, nominalDepth, setNominalDepth, unit === "mm" ? 0.05 : 0.002)}
+                  <p className="text-[9px] text-muted-foreground">
+                    Largura: <strong className="text-foreground">{fmt(2 * nominalDepth * Math.tan((vbitAngle / 2) * Math.PI / 180), 3)} {unit}</strong>
+                  </p>
+                </div>
+              )}
+
+              <Separator className="opacity-50" />
+
+              {/* ─── Mapping mode ─── */}
+              <SectionLabel icon={<Crosshair className="h-3 w-3" />} label="Mapeamento" />
+              {showExplanations && <p className="text-[9px] text-muted-foreground -mt-1">Estratégia de distribuição dos pontos.</p>}
+              <RadioGroup value={mappingPrecision} onValueChange={(v) => setMappingPrecision(v as MappingPrecision)} className="space-y-0.5">
+                <RadioOption value="uniform" id="map-uni" label="Grade uniforme" />
+                <RadioOption value="smart" id="map-smart" label="Inteligente" />
+                <RadioOption value="maximum" id="map-max" label="Máxima" />
+              </RadioGroup>
+
+              <Separator className="opacity-50" />
+
+              {/* ─── Retraction ─── */}
+              <SectionLabel icon={<ShieldCheck className="h-3 w-3" />} label="Deslocamento" />
+              {showExplanations && <p className="text-[9px] text-muted-foreground -mt-1">Segurança entre pontos de medição.</p>}
+              <RadioGroup value={retractionMode} onValueChange={(v) => setRetractionMode(v as RetractionMode)} className="space-y-0.5">
+                <RadioOption value="standard" id="ret-std" label="Padrão" />
+                <RadioOption value="safe" id="ret-safe" label="Seguro" />
+                <RadioOption value="curved" id="ret-curv" label="Curva" />
+              </RadioGroup>
+              {retractionMode !== "standard" && (
+                <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                  {numField(`Z seguro mín.`, retMinSafeZ, setRetMinSafeZ, 0.5)}
+                  {numField(`Margem adapt.`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
+                  {retractionMode === "curved" && numField(`Margem reforç.`, retReinforcedClearance, setRetReinforcedClearance, 0.5)}
+                </div>
+              )}
+
+              <Separator className="opacity-50" />
+
+              {/* ─── Tool ─── */}
+              <SectionLabel icon={<Target className="h-3 w-3" />} label="Ferramenta" />
+              <RadioGroup value={toolType} onValueChange={(v) => {
+                setToolType(v as ToolTypeOption);
+                if (v !== "vbit") { setVbitCompMode("off"); if (engravingMode === "vbit-curved") setEngravingMode("curved"); }
+              }} className="space-y-0.5">
+                <RadioOption value="straight" id="tool-str" label="Fresa reta" />
+                <RadioOption value="fine-tip" id="tool-fin" label="Ponta fina" />
+                <RadioOption value="vbit" id="tool-vb" label="V-bit" />
+              </RadioGroup>
+
+              <Separator className="opacity-50" />
+
+              {/* ─── Actions ─── */}
+              <div className="space-y-1.5">
+                <Button onClick={handleGenerate} size="sm" className="gap-1.5 w-full text-[11px] h-8" disabled={!mesh || !originalGcode}>
+                  <Play className="h-3 w-3" /> Gerar G-code
+                </Button>
+                {result && (
+                  <Button onClick={handleDownload} variant="outline" size="sm" className="gap-1.5 w-full text-[11px] h-8 border-primary/30 text-primary hover:bg-primary/10">
+                    <Download className="h-3 w-3" /> Baixar arquivo
+                  </Button>
                 )}
               </div>
 
-              <Separator />
+              <Separator className="opacity-50" />
 
-              {/* Mapping precision */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Crosshair className="h-3 w-3" /> Modo de mapeamento
-                </p>
-                {showExplanations && (
-                  <p className="text-[10px] text-muted-foreground">Define a estratégia usada para medir a superfície da peça.</p>
-                )}
-                <RadioGroup value={mappingPrecision} onValueChange={(v) => setMappingPrecision(v as MappingPrecision)} className="space-y-1">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="uniform" id="map-uni-p" />
-                    <span>Grade tradicional</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="smart" id="map-smart-p" />
-                    <span>Inteligente</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="maximum" id="map-max-p" />
-                    <span>Varredura máxima</span>
-                  </label>
-                </RadioGroup>
-              </div>
-
-              <Separator />
-
-              {/* Tool type */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ferramenta</p>
-                <RadioGroup
-                  value={toolType}
-                  onValueChange={(v) => {
-                    setToolType(v as ToolTypeOption);
-                    if (v !== "vbit") {
-                      setVbitCompMode("off");
-                      if (engravingMode === "vbit-curved") setEngravingMode("curved");
-                    }
-                  }}
-                  className="space-y-1"
-                >
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="straight" id="tool-str-p" />
-                    <span>Fresa reta</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="fine-tip" id="tool-fin-p" />
-                    <span>Ponta fina</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="vbit" id="tool-vb-p" />
-                    <span>V-bit</span>
-                  </label>
-                </RadioGroup>
-              </div>
-
-              <Separator />
-
-              {/* Advanced settings */}
+              {/* ─── Advanced ─── */}
               <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                 <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full">
+                  <button className="flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors w-full py-1">
                     <Settings2 className="h-3 w-3" />
                     Configurações avançadas
                     <ChevronDown className={`h-3 w-3 ml-auto transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
                   </button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-2">
-                  {numField("Prof. máxima probe", probeDepth, setProbeDepth, 0.01,
-                    undefined, "probeDepth")}
-                  {numField(`Folga adaptativa (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
-                  
+                <CollapsibleContent className="space-y-2.5 pt-1.5">
+                  {numField("Prof. máx. probe", probeDepth, setProbeDepth, 0.01, undefined, "probeDepth")}
+                  {numField(`Folga adapt. (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
+
                   {engravingMode === "vbit-curved" && toolType === "vbit" && (
                     <div className="space-y-1.5">
-                      <Label className="text-[11px]">Compensação V-bit</Label>
-                      <RadioGroup value={vbitCompMode} onValueChange={(v) => setVbitCompMode(v as VbitCompMode)} className="space-y-1">
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="off" id="vc-off-p" /> Desligada
-                        </label>
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="basic" id="vc-bas-p" /> Básica
-                        </label>
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="advanced" id="vc-adv-p" /> Avançada
-                        </label>
+                      <Label className="text-[10px]">Compensação V-bit</Label>
+                      <RadioGroup value={vbitCompMode} onValueChange={(v) => setVbitCompMode(v as VbitCompMode)} className="space-y-0.5">
+                        <RadioOption value="off" id="vc-off" label="Desligada" small />
+                        <RadioOption value="basic" id="vc-bas" label="Básica" small />
+                        <RadioOption value="advanced" id="vc-adv" label="Avançada" small />
                       </RadioGroup>
                     </div>
                   )}
 
-                  {numField(`Segmento de arco (${unit})`, arcSegmentLen, (v) => setCustomArcSegLen(v > 0 ? v : null), unit === "mm" ? 0.1 : 0.01)}
-                  {numField("Comp. divisão", maxSegmentLen, setMaxSegmentLen)}
-                  {numField("Casas decimais", decimalPlaces, (v) => setDecimalPlaces(Math.max(1, Math.min(8, Math.round(v)))), 1)}
+                  {numField(`Segmento arco (${unit})`, arcSegmentLen, (v) => setCustomArcSegLen(v > 0 ? v : null), unit === "mm" ? 0.1 : 0.01)}
+                  {numField("Divisão comp.", maxSegmentLen, setMaxSegmentLen)}
+                  {numField("Decimais", decimalPlaces, (v) => setDecimalPlaces(Math.max(1, Math.min(8, Math.round(v)))), 1)}
                   {numField("Tolerância", tolerance, setTolerance, 0.0001)}
 
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Controlador</Label>
+                    <Label className="text-[10px]">Controlador</Label>
                     <Select value={controller} onValueChange={(v) => setController(v as ControllerType)}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -706,28 +693,21 @@ export default function ZMappingPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Unidade</Label>
+                    <Label className="text-[10px]">Unidade</Label>
                     <Select value={unit} onValueChange={(v) => {
-                      const u = v as ZUnit;
-                      setUnit(u);
+                      const u = v as ZUnit; setUnit(u);
                       const d = u === "mm" ? defaultConfigMM : defaultConfigInch;
-                      setSpacingX(d.spacing); setSpacingY(d.spacing);
-                      setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
-                      setClearance(d.clearance); setSafeHeight(d.safeHeight);
-                      setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
-                      setCustomArcSegLen(null);
-                      setBuffer(u === "mm" ? 5 : 0.2);
+                      setSpacingX(d.spacing); setSpacingY(d.spacing); setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
+                      setClearance(d.clearance); setSafeHeight(d.safeHeight); setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
+                      setCustomArcSegLen(null); setBuffer(u === "mm" ? 5 : 0.2);
                     }}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mm">mm</SelectItem>
-                        <SelectItem value="inch">pol</SelectItem>
-                      </SelectContent>
+                      <SelectContent><SelectItem value="mm">mm</SelectItem><SelectItem value="inch">pol</SelectItem></SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Fora da área</Label>
+                    <Label className="text-[10px]">Fora da área</Label>
                     <Select value={outOfMeshRule} onValueChange={(v) => setOutOfMeshRule(v as any)}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -738,57 +718,32 @@ export default function ZMappingPage() {
                     </Select>
                   </div>
 
-                  {/* Touch precision */}
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Precisão do toque</Label>
-                    <RadioGroup
-                      value={touchPrecision}
-                      onValueChange={(v) => { setTouchPrecision(v as TouchPrecision); setCustomTouches(null); }}
-                      className="space-y-1"
-                    >
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="fast" id="tp-fast-p" /> Rápida (1)
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="normal" id="tp-norm-p" /> Normal (2)
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="high" id="tp-high-p" /> Alta (3)
-                      </label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Precisão do toque</Label>
+                    <RadioGroup value={touchPrecision} onValueChange={(v) => { setTouchPrecision(v as TouchPrecision); setCustomTouches(null); }} className="space-y-0.5">
+                      <RadioOption value="fast" id="tp-fast" label="Rápida (1)" small />
+                      <RadioOption value="normal" id="tp-norm" label="Normal (2)" small />
+                      <RadioOption value="high" id="tp-high" label="Alta (3)" small />
                     </RadioGroup>
                   </div>
 
-                  {/* Touch strategy */}
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Estratégia multi-toque</Label>
-                    <RadioGroup value={touchStrategy} onValueChange={(v) => setTouchStrategy(v as "last" | "average")} className="space-y-1">
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="last" id="ts-last-p" /> Último toque
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="average" id="ts-avg-p" /> Média
-                      </label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Multi-toque</Label>
+                    <RadioGroup value={touchStrategy} onValueChange={(v) => setTouchStrategy(v as "last" | "average")} className="space-y-0.5">
+                      <RadioOption value="last" id="ts-last" label="Último" small />
+                      <RadioOption value="average" id="ts-avg" label="Média" small />
                     </RadioGroup>
                   </div>
 
-                  {/* Area mode */}
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Área de mapeamento</Label>
-                    <RadioGroup value={areaMode} onValueChange={(v) => setAreaMode(v as AreaMode)} className="space-y-1">
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="auto" id="am-auto-p" /> Automática
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="manual" id="am-man-p" /> Manual
-                      </label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Área de mapeamento</Label>
+                    <RadioGroup value={areaMode} onValueChange={(v) => setAreaMode(v as AreaMode)} className="space-y-0.5">
+                      <RadioOption value="auto" id="am-auto" label="Automática" small />
+                      <RadioOption value="manual" id="am-man" label="Manual" small />
                     </RadioGroup>
-                    {areaMode === "auto" && (
-                      <div className="pt-1">
-                        {numField(`Margem (${unit})`, buffer, setBuffer, unit === "mm" ? 1 : 0.05)}
-                      </div>
-                    )}
+                    {areaMode === "auto" && <div className="pt-1">{numField(`Margem (${unit})`, buffer, setBuffer, unit === "mm" ? 1 : 0.05)}</div>}
                     {areaMode === "manual" && (
-                      <div className="space-y-2 pt-1">
+                      <div className="space-y-1.5 pt-1">
                         {numField("X inicial", manualXStart, setManualXStart)}
                         {numField("Y inicial", manualYStart, setManualYStart)}
                         {numField("Largura", manualWidth, setManualWidth)}
@@ -797,25 +752,86 @@ export default function ZMappingPage() {
                     )}
                   </div>
 
-                  {/* Curve precision */}
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Precisão de curvas</Label>
-                    <RadioGroup
-                      value={curvePrecision}
-                      onValueChange={(v) => { setCurvePrecision(v as CurvePrecision); setCustomArcSegLen(null); }}
-                      className="space-y-1"
-                    >
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="high" id="cp-hi-p" /> Alta
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="medium" id="cp-med-p" /> Média
-                      </label>
-                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                        <RadioGroupItem value="fast" id="cp-fast-p" /> Rápida
-                      </label>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Precisão curvas</Label>
+                    <RadioGroup value={curvePrecision} onValueChange={(v) => { setCurvePrecision(v as CurvePrecision); setCustomArcSegLen(null); }} className="space-y-0.5">
+                      <RadioOption value="high" id="cp-hi" label="Alta" small />
+                      <RadioOption value="medium" id="cp-med" label="Média" small />
+                      <RadioOption value="fast" id="cp-fast" label="Rápida" small />
                     </RadioGroup>
                   </div>
+
+                  {/* ─── Custom Probe ─── */}
+                  <Separator className="opacity-50" />
+                  <SectionLabel icon={<Cpu className="h-3 w-3" />} label="Probe" />
+                  <RadioGroup value={probeType} onValueChange={(v) => setProbeType(v as ProbeType)} className="space-y-0.5">
+                    <RadioOption value="standard" id="probe-std" label="Padrão" small />
+                    <RadioOption value="custom" id="probe-cust" label="Personalizado" small />
+                  </RadioGroup>
+
+                  {probeType === "custom" && (
+                    <div className="space-y-2">
+                      {showExplanations && <p className="text-[9px] text-muted-foreground">Probe fixo lateral ou sistema automatizado.</p>}
+                      <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Offset</p>
+                        {numField(`X (${unit})`, cpOffsetX, setCpOffsetX, unit === "mm" ? 0.1 : 0.005, undefined, "probeOffsetX")}
+                        {numField(`Y (${unit})`, cpOffsetY, setCpOffsetY, unit === "mm" ? 0.1 : 0.005, undefined, "probeOffsetY")}
+                        {numField(`Z (${unit})`, cpOffsetZ, setCpOffsetZ, unit === "mm" ? 0.1 : 0.005, undefined, "probeOffsetZ")}
+                      </div>
+                      <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Início</p>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] flex items-center gap-1">Cmd. inicial <HelpTip text="Ex: M11" /></Label>
+                          <Input value={cpStartCmd} onChange={(e) => setCpStartCmd(e.target.value)} className="h-6 text-[10px] font-mono" placeholder="M11" />
+                        </div>
+                        {numField(`Espera (s)`, cpStartDwell, setCpStartDwell, 0.5)}
+                        {numField(`Safe Z`, cpStartSafeZ, setCpStartSafeZ, 1)}
+                      </div>
+                      <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Final</p>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] flex items-center gap-1">Cmd. final <HelpTip text="Ex: M10" /></Label>
+                          <Input value={cpEndCmd} onChange={(e) => setCpEndCmd(e.target.value)} className="h-6 text-[10px] font-mono" placeholder="M10" />
+                        </div>
+                        {numField(`Espera (s)`, cpEndDwell, setCpEndDwell, 0.5)}
+                        {numField(`Safe Z`, cpEndSafeZ, setCpEndSafeZ, 1)}
+                      </div>
+                      <div className="space-y-1.5 bg-muted/30 rounded-md p-2">
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Finalização</p>
+                        <RadioGroup value={postMappingMode} onValueChange={(v) => setPostMappingMode(v as PostMappingMode)} className="space-y-0.5">
+                          <RadioOption value="manual" id="pm-man" label="Manual" small />
+                          <RadioOption value="auto_offset" id="pm-auto" label="Automática" small />
+                          <RadioOption value="auto_measure" id="pm-meas" label="Auto+Medição" small />
+                        </RadioGroup>
+                        {postMappingMode === "auto_offset" && (
+                          <div className="space-y-1.5 pt-1">
+                            {numField(`Offset Z ferra.`, cpToolOffsetZ, setCpToolOffsetZ, 0.01)}
+                            {numField(`Safe Z pós`, cpPostSafeZ, setCpPostSafeZ, 1)}
+                          </div>
+                        )}
+                        {postMappingMode === "auto_measure" && (
+                          <div className="space-y-1.5 pt-1">
+                            {numField(`X medição`, cpMeasureX, setCpMeasureX, 1)}
+                            {numField(`Y medição`, cpMeasureY, setCpMeasureY, 1)}
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Cmd. medição</Label>
+                              <Input value={cpMeasureCmd} onChange={(e) => setCpMeasureCmd(e.target.value)} className="h-6 text-[10px] font-mono" />
+                            </div>
+                            {numField(`Espera`, cpMeasureDwell, setCpMeasureDwell, 0.5)}
+                            {numField(`Safe Z`, cpPostSafeZ, setCpPostSafeZ, 1)}
+                          </div>
+                        )}
+                        {postMappingMode !== "manual" && (
+                          <Alert className="border-amber-500/30 bg-amber-500/5 mt-1.5 py-1.5">
+                            <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            <AlertDescription className="text-[9px] text-muted-foreground">
+                              Apenas com sistema calibrado.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             </div>
@@ -823,54 +839,28 @@ export default function ZMappingPage() {
         </div>
 
         {/* ── CENTER: Visualization ── */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* View mode tabs */}
-          <div className="shrink-0 border-b border-border/50 px-3 py-1.5 flex items-center gap-1">
-            <button
-              onClick={() => setViewMode("gcode")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "gcode"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
-            >
-              <span className="flex items-center gap-1.5"><Monitor className="h-3 w-3" /> G-code</span>
-            </button>
-            <button
-              onClick={() => setViewMode("surface")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "surface"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
-            >
-              <span className="flex items-center gap-1.5"><BarChart3 className="h-3 w-3" /> Superfície</span>
-            </button>
-            <button
-              onClick={() => { setViewMode("simulation"); setShowSimulator(true); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "simulation"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
-              disabled={!analysis || !mesh || !originalGcode}
-            >
-              <span className="flex items-center gap-1.5"><Box className="h-3 w-3" /> Simulação 3D</span>
-            </button>
+          <div className="shrink-0 border-b border-border/50 px-3 py-1 flex items-center gap-0.5 bg-card/40">
+            <ViewTab active={viewMode === "gcode"} onClick={() => setViewMode("gcode")} icon={<FileCode className="h-3 w-3" />} label="G-code" />
+            <ViewTab active={viewMode === "surface"} onClick={() => setViewMode("surface")} icon={<BarChart3 className="h-3 w-3" />} label="Superfície" />
+            <ViewTab active={viewMode === "simulation"} onClick={() => { setViewMode("simulation"); setShowSimulator(true); }} icon={<Box className="h-3 w-3" />} label="Simulação 3D" disabled={!analysis || !mesh || !originalGcode} />
           </div>
 
           {/* Visualization content */}
-          <div className="flex-1 overflow-auto p-3">
+          <div className="flex-1 overflow-auto">
             {!analysis && (
-              <div className="h-full flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
-                <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-                  <Upload className="h-8 w-8 text-muted-foreground/50" />
+              <div className="h-full flex flex-col items-center justify-center text-center gap-5 text-muted-foreground px-8">
+                <div className="h-20 w-20 rounded-2xl bg-muted/30 border border-border/50 flex items-center justify-center">
+                  <Upload className="h-9 w-9 text-muted-foreground/30" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Nenhum arquivo carregado</p>
-                  <p className="text-xs mt-1">Carregue um arquivo G-code para começar ou use o assistente.</p>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Nenhum arquivo carregado</p>
+                  <p className="text-xs text-muted-foreground max-w-sm">
+                    Carregue um arquivo G-code (.nc, .tap, .gcode) para visualizar e configurar o mapeamento da superfície.
+                  </p>
                   {showExplanations && (
-                    <p className="text-xs mt-3 max-w-md text-muted-foreground leading-relaxed">
+                    <p className="text-[11px] text-muted-foreground/70 max-w-md mt-3 leading-relaxed">
                       Esta ferramenta mede a superfície da peça e ajusta automaticamente o percurso da usinagem para manter a profundidade correta mesmo em superfícies inclinadas ou irregulares.
                     </p>
                   )}
@@ -879,7 +869,7 @@ export default function ZMappingPage() {
                   <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5 text-xs">
                     <FileUp className="h-3.5 w-3.5" /> Carregar arquivo
                   </Button>
-                  <Button variant="default" size="sm" onClick={() => setWizardMode(true)} className="gap-1.5 text-xs">
+                  <Button size="sm" onClick={() => setWizardMode(true)} className="gap-1.5 text-xs">
                     <Wand2 className="h-3.5 w-3.5" /> Assistente
                   </Button>
                 </div>
@@ -887,59 +877,28 @@ export default function ZMappingPage() {
             )}
 
             {analysis && originalGcode && viewMode === "gcode" && (
-              <div className="h-full">
+              <div className="h-full p-2">
                 <GcodePreview
-                  originalGcode={originalGcode}
-                  mesh={mesh}
-                  config={config}
-                  xMin={analysis.xMin}
-                  yMin={analysis.yMin}
-                  xMax={analysis.xMax}
-                  yMax={analysis.yMax}
+                  originalGcode={originalGcode} mesh={mesh} config={config}
+                  xMin={analysis.xMin} yMin={analysis.yMin} xMax={analysis.xMax} yMax={analysis.yMax}
                   densityMap={densityMap}
                 />
               </div>
             )}
 
             {analysis && mesh && viewMode === "surface" && (
-              <div className="h-full flex flex-col gap-3">
-                <SurfaceHeatmap
-                  mesh={mesh.points}
-                  spacingX={mesh.actualSpacingX}
-                  spacingY={mesh.actualSpacingY}
-                  cols={mesh.pointsPerRow}
-                  rows={mesh.rows}
-                />
-                {/* Surface height scale */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-muted/50 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Altura mínima</p>
-                    <p className="text-sm font-semibold text-foreground">0.000 {unit}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/50 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Altura máxima</p>
-                    <p className="text-sm font-semibold text-foreground">~ simulada</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/50 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Variação total</p>
-                    <p className="text-sm font-semibold text-foreground">~ simulada</p>
-                  </div>
-                </div>
+              <div className="h-full p-3 flex flex-col gap-3">
+                <ProfessionalHeatmap mesh={mesh.points} cols={mesh.pointsPerRow} rows={mesh.rows} unit={unit} />
               </div>
             )}
 
             {analysis && mesh && originalGcode && viewMode === "simulation" && showSimulator && (
               <div className="h-full">
                 <CompensationSimulator3D
-                  originalGcode={originalGcode}
-                  mesh={mesh}
-                  config={config}
+                  originalGcode={originalGcode} mesh={mesh} config={config}
                   onClose={() => { setShowSimulator(false); setViewMode("gcode"); }}
                   vbitSettings={engravingMode === "vbit-curved" && toolType === "vbit" ? {
-                    enabled: true,
-                    angle: vbitAngle,
-                    nominalDepth: nominalDepth,
-                    compMode: vbitCompMode,
+                    enabled: true, angle: vbitAngle, nominalDepth, compMode: vbitCompMode,
                   } : undefined}
                 />
               </div>
@@ -947,8 +906,8 @@ export default function ZMappingPage() {
 
             {analysis && mesh && originalGcode && viewMode === "simulation" && !showSimulator && (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                <Box className="h-10 w-10" />
-                <p className="text-sm">Clique para abrir a simulação 3D</p>
+                <Box className="h-10 w-10 opacity-30" />
+                <p className="text-xs">Clique para iniciar a simulação 3D</p>
                 <Button variant="outline" size="sm" onClick={() => setShowSimulator(true)} className="gap-1.5 text-xs">
                   <Layers className="h-3.5 w-3.5" /> Abrir simulação
                 </Button>
@@ -957,276 +916,90 @@ export default function ZMappingPage() {
           </div>
         </div>
 
-        {/* ── RIGHT PANEL: Actions & Results ── */}
-        <div className="w-[260px] shrink-0 border-l border-border bg-card/50 flex flex-col overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-border/50">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Activity className="h-3 w-3" /> Resultados
-            </h2>
+        {/* ── RIGHT PANEL: Summary cards ── */}
+        <div className="w-[220px] shrink-0 border-l border-border bg-card/60 flex flex-col overflow-hidden">
+          <div className="px-3 py-2 border-b border-border/50">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="h-3 w-3" /> Resumo
+            </span>
           </div>
           <ScrollArea className="flex-1">
-            <div className="p-3 space-y-4">
+            <div className="p-2.5 space-y-2.5">
 
-              {/* Stats */}
-              {mesh && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Resumo</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="rounded-lg bg-muted/40 p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Pontos de medição</p>
-                      <p className="text-lg font-bold text-foreground flex items-center gap-1.5">
-                        <Grid3x3 className="h-4 w-4 text-primary" /> {mesh.totalPoints}
-                      </p>
-                      {mappingPrecision === "smart" && uniformPointCount > 0 && mesh.totalPoints < uniformPointCount && (
-                        <p className="text-[10px] text-emerald-500 mt-0.5">
-                          {Math.round((1 - mesh.totalPoints / uniformPointCount) * 100)}% menos medições
-                        </p>
-                      )}
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Tempo estimado</p>
-                      <p className="text-lg font-bold text-foreground flex items-center gap-1.5">
-                        <Timer className="h-4 w-4 text-primary" /> {formatTime(mesh.estimatedTimeSec)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Área de cobertura</p>
-                      <p className="text-sm font-semibold text-foreground">
-                        {fmt(effectiveWidth)} × {fmt(effectiveHeight)} {unit}
-                      </p>
-                      {areaMode === "auto" && analysis && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Corte: {fmt(analysis.width)} × {fmt(analysis.height)} + margem
-                        </p>
-                      )}
-                    </div>
+              {/* Card: File */}
+              <SummaryCard title="Arquivo" icon={<FileCode className="h-3 w-3" />}>
+                {analysis ? (
+                  <div className="space-y-1 text-[10px]">
+                    <SummaryRow label="Unidade" value={unit === "mm" ? "Milímetros" : "Polegadas"} />
+                    <SummaryRow label="Largura" value={`${fmt(analysis.width)} ${unit}`} />
+                    <SummaryRow label="Altura" value={`${fmt(analysis.height)} ${unit}`} />
+                    <SummaryRow label="Área" value={`${fmt(analysis.width * analysis.height)} ${unit}²`} />
+                    {analysis.arcCount > 0 && <SummaryRow label="Curvas" value={String(analysis.arcCount)} />}
+                    <SummaryRow label="Linhas" value={String(analysis.lineCount)} />
                   </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground/60 italic">Nenhum arquivo</p>
+                )}
+              </SummaryCard>
+
+              {/* Card: Mapping */}
+              <SummaryCard title="Mapeamento" icon={<Grid3x3 className="h-3 w-3" />}>
+                {mesh ? (
+                  <div className="space-y-1 text-[10px]">
+                    <SummaryRow label="Pontos X" value={String(pointsX)} />
+                    <SummaryRow label="Pontos Y" value={String(pointsY)} />
+                    <SummaryRow label="Total" value={String(mesh.totalPoints)} highlight />
+                    <SummaryRow label="Tempo est." value={formatTime(mesh.estimatedTimeSec)} />
+                    <SummaryRow label="Modo" value={mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"} />
+                    {mappingPrecision === "smart" && uniformPointCount > 0 && mesh.totalPoints < uniformPointCount && (
+                      <p className="text-[9px] text-primary mt-0.5">
+                        {Math.round((1 - mesh.totalPoints / uniformPointCount) * 100)}% menos medições
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground/60 italic">Aguardando dados</p>
+                )}
+              </SummaryCard>
+
+              {/* Card: Surface */}
+              <SummaryCard title="Superfície" icon={<BarChart3 className="h-3 w-3" />}>
+                <div className="space-y-1 text-[10px]">
+                  <SummaryRow label="Cobertura" value={mesh ? `${fmt(effectiveWidth)}×${fmt(effectiveHeight)} ${unit}` : "—"} />
+                  <SummaryRow label="Alt. mín." value={`0.000 ${unit}`} />
+                  <SummaryRow label="Alt. máx." value="~ simulada" />
+                  <SummaryRow label="Variação" value="~ simulada" />
                 </div>
-              )}
+              </SummaryCard>
 
-              <Separator />
+              {/* Card: Status */}
+              <SummaryCard title="Status" icon={<CheckCircle2 className="h-3 w-3" />}>
+                <div className="space-y-1">
+                  <StatusDot label="G-code carregado" active={!!originalFileName} />
+                  <StatusDot label="Malha gerada" active={!!mesh} />
+                  <StatusDot label="Simulação disponível" active={!!(analysis && mesh && originalGcode)} />
+                  <StatusDot label="Arquivo pronto" active={!!result} />
+                </div>
+              </SummaryCard>
 
-              {/* Retraction mode */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3" /> Deslocamento entre pontos
-                </p>
-                {showExplanations && (
-                  <p className="text-[10px] text-muted-foreground">Define como a ferramenta se desloca entre os pontos de medição.</p>
-                )}
-                <RadioGroup value={retractionMode} onValueChange={(v) => setRetractionMode(v as RetractionMode)} className="space-y-1">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="standard" id="ret-std-r" />
-                    <span>Padrão</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="safe" id="ret-safe-r" />
-                    <span>Seguro</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="curved" id="ret-curved-r" />
-                    <span>Superfície curva</span>
-                  </label>
-                </RadioGroup>
-
-                {retractionMode !== "standard" && (
-                  <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                    {numField(`Z seguro mín. (${unit})`, retMinSafeZ, setRetMinSafeZ, 0.5)}
-                    {numField(`Margem adapt. (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
-                    {retractionMode === "curved" && numField(`Margem reforç. (${unit})`, retReinforcedClearance, setRetReinforcedClearance, 0.5)}
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Custom probe */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Cpu className="h-3 w-3" /> Tipo de probe
-                </p>
-                <RadioGroup value={probeType} onValueChange={(v) => setProbeType(v as ProbeType)} className="space-y-1">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="standard" id="probe-std-r" />
-                    <span>Padrão</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="custom" id="probe-custom-r" />
-                    <span>Probe personalizado</span>
-                  </label>
-                </RadioGroup>
-
-                {probeType === "custom" && (
-                  <div className="space-y-3">
-                    <p className="text-[10px] text-muted-foreground">
-                      Use esta opção quando sua máquina tiver um probe fixo lateral ou sistema automático de abertura e recolhimento.
-                    </p>
-
-                    {/* Offsets */}
-                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Offset do probe</p>
-                      {numField(`Offset X (${unit})`, cpOffsetX, setCpOffsetX, unit === "mm" ? 0.1 : 0.005,
-                        "Diferença em X entre o centro da ferramenta e o ponto de toque do probe.")}
-                      {numField(`Offset Y (${unit})`, cpOffsetY, setCpOffsetY, unit === "mm" ? 0.1 : 0.005,
-                        "Diferença em Y entre o centro da ferramenta e o ponto de toque do probe.")}
-                      {numField(`Offset Z (${unit})`, cpOffsetZ, setCpOffsetZ, unit === "mm" ? 0.1 : 0.005,
-                        "Diferença em Z (opcional).")}
-                    </div>
-
-                    {/* Start behavior */}
-                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Início do mapeamento</p>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] flex items-center gap-1">
-                          Comando inicial <HelpTip text="Ex: M11 para acionar atuador, M64 P0 para saída digital." />
-                        </Label>
-                        <Input value={cpStartCmd} onChange={(e) => setCpStartCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="M11" />
-                      </div>
-                      {numField(`Espera após acionar (s)`, cpStartDwell, setCpStartDwell, 0.5,
-                        "Tempo de espera após acionar o probe.")}
-                      {numField(`Altura segura início (${unit})`, cpStartSafeZ, setCpStartSafeZ, 1,
-                        "Altura segura antes de acionar o probe.")}
-                    </div>
-
-                    {/* End behavior */}
-                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Final do mapeamento</p>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] flex items-center gap-1">
-                          Comando final <HelpTip text="Ex: M10 para recolher atuador, M65 P0 para desligar saída." />
-                        </Label>
-                        <Input value={cpEndCmd} onChange={(e) => setCpEndCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="M10" />
-                      </div>
-                      {numField(`Espera após recolher (s)`, cpEndDwell, setCpEndDwell, 0.5,
-                        "Tempo de espera após recolher o probe.")}
-                      {numField(`Altura segura final (${unit})`, cpEndSafeZ, setCpEndSafeZ, 1,
-                        "Altura segura antes de recolher o probe.")}
-                    </div>
-
-                    {/* Post-mapping mode */}
-                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Finalização do mapeamento</p>
-                      <RadioGroup value={postMappingMode} onValueChange={(v) => setPostMappingMode(v as PostMappingMode)} className="space-y-1">
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="manual" id="pm-manual" />
-                          <span>Manual</span>
-                          <HelpTip text="Pausa para o operador trocar ferramenta e zerar Z." />
-                        </label>
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="auto_offset" id="pm-auto" />
-                          <span>Automática</span>
-                          <HelpTip text="Usa offset calibrado entre probe e ferramenta para iniciar sem pausa." />
-                        </label>
-                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-                          <RadioGroupItem value="auto_measure" id="pm-measure" />
-                          <span>Automática com medição</span>
-                          <HelpTip text="Mede a ferramenta automaticamente após recolher o probe." />
-                        </label>
-                      </RadioGroup>
-
-                      {postMappingMode === "auto_offset" && (
-                        <div className="space-y-2 pt-1">
-                          {numField(`Offset Z ferramenta (${unit})`, cpToolOffsetZ, setCpToolOffsetZ, unit === "mm" ? 0.01 : 0.001,
-                            "Diferença em Z entre a ponta do probe e a ponta da ferramenta de corte.")}
-                          {numField(`Altura segura pós-recolhimento (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1,
-                            "Altura segura após recolher o probe antes de iniciar a usinagem.")}
-                        </div>
-                      )}
-
-                      {postMappingMode === "auto_measure" && (
-                        <div className="space-y-2 pt-1">
-                          {numField(`Posição X medição (${unit})`, cpMeasureX, setCpMeasureX, 1,
-                            "Posição X do sensor de medição de ferramenta.")}
-                          {numField(`Posição Y medição (${unit})`, cpMeasureY, setCpMeasureY, 1,
-                            "Posição Y do sensor de medição de ferramenta.")}
-                          <div className="space-y-1">
-                            <Label className="text-[11px] flex items-center gap-1">
-                              Comando de medição <HelpTip text="Comando G-code para medir a ferramenta. Ex: G31 Z-50 F100" />
-                            </Label>
-                            <Input value={cpMeasureCmd} onChange={(e) => setCpMeasureCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="G31 Z-50 F100" />
-                          </div>
-                          {numField(`Espera após medição (s)`, cpMeasureDwell, setCpMeasureDwell, 0.5)}
-                          {numField(`Altura segura pós-medição (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1)}
-                        </div>
-                      )}
-
-                      {postMappingMode !== "manual" && (
-                        <Alert className="border-amber-500/30 bg-amber-500/5 mt-2">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                          <AlertDescription className="text-[10px] text-muted-foreground">
-                            Use este modo apenas se o sistema estiver calibrado e tiver repetibilidade suficiente.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Action buttons */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ações</p>
-                <Button onClick={handleGenerate} size="sm" className="gap-1.5 w-full text-xs h-9" disabled={!mesh || !originalGcode}>
-                  <Play className="h-3.5 w-3.5" /> Gerar G-code de mapeamento
-                </Button>
-                {analysis && mesh && originalGcode && (
-                  <Button variant="outline" size="sm" className="gap-1.5 w-full text-xs h-9"
-                    onClick={() => { setShowSimulator(true); setViewMode("simulation"); }}>
-                    <Layers className="h-3.5 w-3.5" /> Abrir simulação 3D
-                  </Button>
-                )}
-              </div>
-
-              {/* Result */}
+              {/* Result details */}
               {result && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      <span className="text-xs font-semibold text-emerald-500">Arquivo pronto!</span>
-                    </div>
-
-                    <Alert className="border-amber-500/30 bg-amber-500/5">
-                      <AlertDescription className="text-[10px] text-amber-300">
-                        <strong>Instruções:</strong> Após o mapeamento, coloque a fresa, zere o Z e pressione iniciar.
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Arquivo</span>
-                        <span className="font-medium truncate ml-2 max-w-[120px]">{result.fileName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pontos</span>
-                        <span className="font-medium">{result.totalPoints}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Toques/ponto</span>
-                        <span className="font-medium">{touchesPerPoint}</span>
-                      </div>
-                      {result.arcsDetected > 0 && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Curvas</span>
-                            <span className="font-medium">{result.arcsDetected}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Segmentos</span>
-                            <span className="font-medium">{result.arcSegmentsGenerated}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <Button onClick={handleDownload} className="gap-1.5 w-full text-xs h-9">
-                      <Download className="h-3.5 w-3.5" /> Baixar arquivo
-                    </Button>
+                <SummaryCard title="Resultado" icon={<Download className="h-3 w-3" />} accent>
+                  <div className="space-y-1 text-[10px]">
+                    <SummaryRow label="Arquivo" value={result.fileName} />
+                    <SummaryRow label="Pontos" value={String(result.totalPoints)} />
+                    <SummaryRow label="Toques/pt" value={String(touchesPerPoint)} />
+                    {result.arcsDetected > 0 && (
+                      <>
+                        <SummaryRow label="Curvas" value={String(result.arcsDetected)} />
+                        <SummaryRow label="Segmentos" value={String(result.arcSegmentsGenerated)} />
+                      </>
+                    )}
                   </div>
-                </>
+                  <Button onClick={handleDownload} size="sm" className="gap-1.5 w-full text-[10px] h-7 mt-2">
+                    <Download className="h-3 w-3" /> Baixar
+                  </Button>
+                </SummaryCard>
               )}
             </div>
           </ScrollArea>
@@ -1234,79 +1007,146 @@ export default function ZMappingPage() {
       </div>
 
       {/* ══════════════ BOTTOM STATUS BAR ══════════════ */}
-      <div className="shrink-0 border-t border-border bg-card/80 px-4 py-1.5 flex items-center gap-6 text-[10px]">
-        {statusItems.map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <div className={`h-1.5 w-1.5 rounded-full ${item.active ? "bg-emerald-500" : "bg-muted-foreground/30"}`} />
-            <span className="text-muted-foreground">{item.label}:</span>
-            <span className={item.active ? "text-foreground font-medium" : "text-muted-foreground"}>{item.text}</span>
+      <div className="shrink-0 border-t border-border bg-card h-7 px-4 flex items-center gap-5 text-[9px]">
+        {pipeline.map((step, i) => (
+          <div key={step.label} className="flex items-center gap-1.5">
+            <div className={`h-1.5 w-1.5 rounded-full transition-colors ${step.done ? "bg-primary" : "bg-muted-foreground/20"}`} />
+            <span className={step.done ? "text-foreground font-medium" : "text-muted-foreground"}>{step.label}</span>
           </div>
         ))}
-        <div className="ml-auto flex items-center gap-3">
-          <span className="text-muted-foreground">
-            Controlador: <strong className="text-foreground">{controller === "mach3" ? "Mach3" : "Genérico"}</strong>
-          </span>
-          <span className="text-muted-foreground">
-            Modo: <strong className="text-foreground">
-              {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
-            </strong>
-          </span>
-          {retractionMode !== "standard" && (
-            <span className="text-muted-foreground">
-              Retração: <strong className="text-foreground">
-                {retractionMode === "safe" ? "Segura" : "Curva"}
-              </strong>
-            </span>
-          )}
-          {probeType === "custom" && (
-            <span className="text-muted-foreground">
-              Probe: <strong className="text-foreground">Personalizado</strong>
-              {postMappingMode !== "manual" && (
-                <> · Finalização: <strong>{postMappingMode === "auto_offset" ? "Auto" : "Auto+Medição"}</strong></>
-              )}
-            </span>
-          )}
+        <div className="ml-auto flex items-center gap-3 text-muted-foreground">
+          <span>Ctrl: <strong className="text-foreground">{controller === "mach3" ? "Mach3" : "Gen."}</strong></span>
+          <span>Modo: <strong className="text-foreground">{mappingPrecision === "smart" ? "Smart" : mappingPrecision === "maximum" ? "Max" : "Uni"}</strong></span>
+          {probeType === "custom" && <span>Probe: <strong className="text-foreground">Custom</strong></span>}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Heatmap mini-component ───────────────────────────── */
-function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
-  mesh: { x: number; y: number }[];
-  spacingX: number; spacingY: number; cols: number; rows: number;
-}) {
-  const cellW = 400 / cols;
-  const cellH = 300 / rows;
+/* ══════════════════════════════════════════════════════════════
+   Sub-components (internal to this file)
+   ══════════════════════════════════════════════════════════════ */
+
+function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="space-y-2 flex flex-col items-center">
-      <svg viewBox={`0 0 400 300`} className="w-full max-w-lg border rounded-lg bg-muted/30">
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((_, c) => (
-            <rect
-              key={`${r}-${c}`}
-              x={c * cellW} y={(rows - 1 - r) * cellH}
-              width={cellW} height={cellH}
-              fill="hsl(var(--primary))"
-              opacity={0.1 + (r / rows) * 0.3}
-              stroke="hsl(var(--border))" strokeWidth={0.5}
-            />
-          ))
-        )}
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((_, c) => (
-            <circle
-              key={`p${r}-${c}`}
-              cx={c * cellW + cellW / 2} cy={(rows - 1 - r) * cellH + cellH / 2}
-              r={2.5} fill="hsl(var(--primary))" opacity={0.6}
-            />
-          ))
-        )}
-      </svg>
-      <p className="text-xs text-muted-foreground">
-        Grade de medição: {cols} × {rows} = {cols * rows} pontos
-      </p>
+    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+      {icon} {label}
+    </p>
+  );
+}
+
+function RadioOption({ value, id, label, small }: { value: string; id: string; label: string; small?: boolean }) {
+  return (
+    <label htmlFor={id} className={`flex items-center gap-2 cursor-pointer rounded transition-colors hover:bg-muted/50 ${small ? "text-[10px] p-1" : "text-[11px] p-1.5"}`}>
+      <RadioGroupItem value={value} id={id} /> <span>{label}</span>
+    </label>
+  );
+}
+
+function ViewTab({ active, onClick, icon, label, disabled }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; disabled?: boolean;
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className={`px-3 py-1.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed ${
+        active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      }`}>
+      {icon} {label}
+    </button>
+  );
+}
+
+function SummaryCard({ title, icon, children, accent }: {
+  title: string; icon: React.ReactNode; children: React.ReactNode; accent?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border p-2.5 space-y-1.5 ${accent ? "border-primary/30 bg-primary/5" : "border-border/50 bg-muted/20"}`}>
+      <div className="flex items-center gap-1.5">
+        <span className={accent ? "text-primary" : "text-muted-foreground"}>{icon}</span>
+        <span className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-medium truncate ml-2 max-w-[100px] text-right ${highlight ? "text-primary" : "text-foreground"}`}>{value}</span>
+    </div>
+  );
+}
+
+function StatusDot({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <div className={`h-1.5 w-1.5 rounded-full ${active ? "bg-primary" : "bg-muted-foreground/20"}`} />
+      <span className={active ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+    </div>
+  );
+}
+
+/* ── Professional Heatmap ─────────────────────────────── */
+function ProfessionalHeatmap({ mesh, cols, rows, unit }: {
+  mesh: { x: number; y: number }[]; cols: number; rows: number; unit: string;
+}) {
+  const cellW = 440 / cols;
+  const cellH = 320 / rows;
+
+  function heatColor(t: number): string {
+    // t: 0 = low, 1 = high → blue → cyan → green → yellow → red
+    if (t < 0.25) {
+      const r = 0, g = Math.round(t * 4 * 200), b = Math.round(180 + t * 4 * 75);
+      return `rgb(${r},${g},${b})`;
+    } else if (t < 0.5) {
+      const r = 0, g = Math.round(200 + (t - 0.25) * 4 * 55), b = Math.round(255 - (t - 0.25) * 4 * 255);
+      return `rgb(${r},${g},${b})`;
+    } else if (t < 0.75) {
+      const r = Math.round((t - 0.5) * 4 * 255), g = 255, b = 0;
+      return `rgb(${r},${g},${b})`;
+    } else {
+      const r = 255, g = Math.round(255 - (t - 0.75) * 4 * 255), b = 0;
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+
+  return (
+    <div className="flex gap-3 items-start justify-center flex-1">
+      <div className="flex-1 max-w-2xl">
+        <svg viewBox={`0 0 440 320`} className="w-full border border-border/50 rounded-lg bg-background">
+          {Array.from({ length: rows }).map((_, r) =>
+            Array.from({ length: cols }).map((_, c) => {
+              const t = r / Math.max(1, rows - 1);
+              return (
+                <rect key={`h${r}-${c}`}
+                  x={c * cellW} y={(rows - 1 - r) * cellH} width={cellW} height={cellH}
+                  fill={heatColor(t)} opacity={0.55}
+                  stroke="hsl(var(--border))" strokeWidth={0.3} />
+              );
+            })
+          )}
+          {Array.from({ length: rows }).map((_, r) =>
+            Array.from({ length: cols }).map((_, c) => (
+              <circle key={`p${r}-${c}`}
+                cx={c * cellW + cellW / 2} cy={(rows - 1 - r) * cellH + cellH / 2}
+                r={Math.min(cellW, cellH) * 0.15} fill="white" opacity={0.5} />
+            ))
+          )}
+        </svg>
+        <p className="text-[10px] text-muted-foreground text-center mt-2">
+          Grade: {cols} × {rows} = {cols * rows} pontos · Espaçamento simulado
+        </p>
+      </div>
+      {/* Color scale */}
+      <div className="flex flex-col items-center gap-1 shrink-0">
+        <span className="text-[8px] text-muted-foreground">Alto</span>
+        <div className="w-3 h-40 rounded-sm overflow-hidden border border-border/50"
+          style={{ background: "linear-gradient(to bottom, rgb(255,0,0), rgb(255,255,0), rgb(0,255,0), rgb(0,200,255), rgb(0,0,180))" }} />
+        <span className="text-[8px] text-muted-foreground">Baixo</span>
+      </div>
     </div>
   );
 }
