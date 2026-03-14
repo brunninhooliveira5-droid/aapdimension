@@ -184,11 +184,12 @@ export function GcodePreview({
         }
       }
 
-      // Draw grid points
-      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.7)" : "rgba(59,130,246,0.5)";
+      // Draw grid points (radius follows spacing and mapping mode)
+      const pointRadius = computePointRadius(mesh, scale, spacingX, spacingY, mappingMode);
+      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.72)" : "rgba(59,130,246,0.56)";
       for (const pt of mesh.points) {
         ctx.beginPath();
-        ctx.arc(toSX(pt.x), toSY(pt.y), densityMap ? 3 : 2.5, 0, Math.PI * 2);
+        ctx.arc(toSX(pt.x), toSY(pt.y), pointRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
