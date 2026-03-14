@@ -20,11 +20,19 @@ import {
 /* ── Types ── */
 type GcodeSource = "original" | "custom";
 
+interface VbitSettings {
+  enabled: boolean;
+  angle: number;
+  nominalDepth: number;
+  compMode: "off" | "basic" | "advanced";
+}
+
 interface Props {
   originalGcode: string;
   mesh: MeshInfo;
   config: MeshConfig;
   onClose: () => void;
+  vbitSettings?: VbitSettings;
 }
 
 /* ── Synthetic surface ── */
@@ -64,8 +72,20 @@ function bilinearZ(x: number, y: number, mesh: MeshInfo, data: MeshPoint[], cfg:
 /* ── Extract toolpath ── */
 interface PathPt { x: number; y: number; z: number; zComp: number }
 
-function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], cfg: MeshConfig): {
-  path: PathPt[]; surfMin: number; surfMax: number;
+/* ── Compute surface slope at a point ── */
+function surfaceSlope(x: number, y: number, mesh: MeshInfo, data: MeshPoint[], cfg: MeshConfig): number {
+  const dx = mesh.actualSpacingX * 0.1;
+  const dy = mesh.actualSpacingY * 0.1;
+  const z0 = bilinearZ(x, y, mesh, data, cfg);
+  const zx = bilinearZ(x + dx, y, mesh, data, cfg);
+  const zy = bilinearZ(x, y + dy, mesh, data, cfg);
+  const dzdx = (zx - z0) / dx;
+  const dzdy = (zy - z0) / dy;
+  return Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)); // radians
+}
+
+function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], cfg: MeshConfig, vbit?: VbitSettings): {
+  path: PathPt[]; surfMin: number; surfMax: number; maxSlopeDeg: number;
 } {
   const lines = gcode.split("\n");
   const path: PathPt[] = [];
@@ -89,7 +109,19 @@ function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], 
         const segs = segmentMove(prev, ap, 1);
         for (const s of segs) {
           const offset = bilinearZ(s.x, s.y, mesh, probeData, cfg);
-          path.push({ x: s.x, y: s.y, z: s.z, zComp: s.z + offset });
+          let zComp = s.z + offset;
+          // V-bit depth compensation for cutting moves (Z < 0)
+          if (vbit?.enabled && vbit.compMode !== "off" && s.z < 0) {
+            if (vbit.compMode === "advanced") {
+              const slope = surfaceSlope(s.x, s.y, mesh, probeData, cfg);
+              const cosSlope = Math.cos(slope);
+              const adjDepth = cosSlope > 0.01 ? vbit.nominalDepth / cosSlope : vbit.nominalDepth;
+              zComp = offset - adjDepth;
+            } else {
+              zComp = offset - vbit.nominalDepth;
+            }
+          }
+          path.push({ x: s.x, y: s.y, z: s.z, zComp });
         }
         prev = ap;
       }
@@ -103,22 +135,44 @@ function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], 
       const segs = segmentMove(from, to, 1);
       for (const s of segs) {
         const offset = bilinearZ(s.x, s.y, mesh, probeData, cfg);
-        path.push({ x: s.x, y: s.y, z: s.z, zComp: s.z + offset });
+        let zComp = s.z + offset;
+        if (vbit?.enabled && vbit.compMode !== "off" && s.z < 0) {
+          if (vbit.compMode === "advanced") {
+            const slope = surfaceSlope(s.x, s.y, mesh, probeData, cfg);
+            const cosSlope = Math.cos(slope);
+            const adjDepth = cosSlope > 0.01 ? vbit.nominalDepth / cosSlope : vbit.nominalDepth;
+            zComp = offset - adjDepth;
+          } else {
+            zComp = offset - vbit.nominalDepth;
+          }
+        }
+        path.push({ x: s.x, y: s.y, z: s.z, zComp });
       }
     }
     curX = newX; curY = newY; curZ = newZ;
   }
 
   let surfMin = Infinity, surfMax = -Infinity;
+  let maxSlopeDeg = 0;
   for (const pt of probeData) {
     if (pt.z != null) {
       surfMin = Math.min(surfMin, pt.z);
       surfMax = Math.max(surfMax, pt.z);
     }
   }
+  // Compute max slope across surface
+  for (let r = 0; r < mesh.rows; r++) {
+    for (let c = 0; c < mesh.pointsPerRow; c++) {
+      const p2 = probeData[r * mesh.pointsPerRow + c];
+      if (p2) {
+        const slope = surfaceSlope(p2.x, p2.y, mesh, probeData, cfg);
+        maxSlopeDeg = Math.max(maxSlopeDeg, slope * 180 / Math.PI);
+      }
+    }
+  }
   if (!isFinite(surfMin)) surfMin = 0;
   if (!isFinite(surfMax)) surfMax = 0;
-  return { path, surfMin, surfMax };
+  return { path, surfMin, surfMax, maxSlopeDeg };
 }
 
 /* ── Professional 5-stop heatmap: dark blue → cyan → green → yellow → red ── */
@@ -410,7 +464,7 @@ function ColorScale({ min, max, unit }: { min: number; max: number; unit: string
 }
 
 /* ── Main component ── */
-export function CompensationSimulator3D({ originalGcode, mesh, config, onClose }: Props) {
+export function CompensationSimulator3D({ originalGcode, mesh, config, onClose, vbitSettings }: Props) {
   const [showSurface, setShowSurface] = useState(true);
   const [showCompensated, setShowCompensated] = useState(true);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -429,9 +483,9 @@ export function CompensationSimulator3D({ originalGcode, mesh, config, onClose }
   const activeGcode = gcodeSource === "custom" && customGcode ? customGcode : originalGcode;
 
   const probeData = useMemo(() => generateSyntheticSurface(mesh), [mesh]);
-  const { path, surfMin, surfMax } = useMemo(
-    () => extractToolpath(activeGcode, mesh, probeData, config),
-    [activeGcode, mesh, probeData, config]
+  const { path, surfMin, surfMax, maxSlopeDeg } = useMemo(
+    () => extractToolpath(activeGcode, mesh, probeData, config, vbitSettings),
+    [activeGcode, mesh, probeData, config, vbitSettings]
   );
   const surfRange = surfMax - surfMin;
 
@@ -648,10 +702,56 @@ export function CompensationSimulator3D({ originalGcode, mesh, config, onClose }
             <p className="text-sm font-bold font-mono text-foreground">{mesh.totalPoints}</p>
           </div>
           <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Segmentos</p>
-            <p className="text-sm font-bold font-mono text-foreground">{path.length}</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">
+              {vbitSettings?.enabled ? "Inclinação máx." : "Segmentos"}
+            </p>
+            <p className="text-sm font-bold font-mono text-foreground">
+              {vbitSettings?.enabled ? `${maxSlopeDeg.toFixed(1)}°` : path.length}
+            </p>
           </div>
         </div>
+
+        {/* V-bit info */}
+        {vbitSettings?.enabled && vbitSettings.compMode !== "off" && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Ângulo V-bit</p>
+              <p className="text-sm font-bold font-mono text-foreground">{vbitSettings.angle}°</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Prof. nominal</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {fmt(vbitSettings.nominalDepth, 3)} <span className="text-[10px] font-normal">{config.unit}</span>
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Largura traço</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {fmt(2 * vbitSettings.nominalDepth * Math.tan((vbitSettings.angle / 2) * Math.PI / 180), 3)} <span className="text-[10px] font-normal">{config.unit}</span>
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-2.5 text-center border border-border/30">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Compensação</p>
+              <p className="text-sm font-bold font-mono text-foreground">
+                {vbitSettings.compMode === "basic" ? "Básica" : "Avançada"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Slope warning */}
+        {vbitSettings?.enabled && maxSlopeDeg > 20 && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+            <span className="text-amber-500 mt-0.5">⚠</span>
+            <p className="text-xs text-muted-foreground">
+              Superfície com inclinação elevada ({maxSlopeDeg.toFixed(1)}°). A gravação com V-bit pode sofrer variações.
+              {vbitSettings.compMode === "advanced"
+                ? " A compensação avançada está ajustando a profundidade automaticamente."
+                : " Ative a compensação avançada para melhores resultados."
+              }
+            </p>
+          </div>
+        )}
 
         <p className="text-[10px] text-muted-foreground text-center italic">
           * Superfície simulada para demonstração. Os valores reais serão medidos pela CNC durante o nivelamento.
