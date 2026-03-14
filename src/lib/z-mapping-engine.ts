@@ -514,7 +514,9 @@ export function generateUnifiedGcode(
   mesh: MeshInfo,
   cfg: MeshConfig,
   originalName: string,
-  controller: ControllerType
+  controller: ControllerType,
+  touchesPerPoint: number = 1,
+  touchStrategy: "last" | "average" = "last"
 ): UnifiedResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
@@ -553,6 +555,7 @@ export function generateUnifiedGcode(
   }
 
   // Serpentine scan — store in variables using GRID index
+  const touches = Math.max(1, Math.min(5, touchesPerPoint));
   let scanCount = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const ltr = row % 2 === 0;
@@ -564,8 +567,30 @@ export function generateUnifiedGcode(
       lines.push(`(Ponto ${scanCount} -> #${500 + gridIdx})`);
       lines.push(`G0 Z${d(cfg.clearance)}`);
       lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
-      lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
-      lines.push(`#${500 + gridIdx} = ${probeVar}`);
+
+      if (touches === 1) {
+        lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
+        lines.push(`#${500 + gridIdx} = ${probeVar}`);
+      } else {
+        // Multi-touch: first touch faster, subsequent slower for refinement
+        for (let t = 0; t < touches; t++) {
+          const feed = t === 0 ? cfg.probeFeed : cfg.probeFeed * 0.5;
+          lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(feed)}`);
+          if (touchStrategy === "average") {
+            if (t === 0) {
+              lines.push(`#${500 + gridIdx} = ${probeVar}`);
+            } else {
+              lines.push(`#${500 + gridIdx} = [#${500 + gridIdx} + ${probeVar}] / 2`);
+            }
+          } else {
+            // "last" strategy — always overwrite
+            lines.push(`#${500 + gridIdx} = ${probeVar}`);
+          }
+          if (t < touches - 1) {
+            lines.push(`G0 Z${d(cfg.clearance)}`);
+          }
+        }
+      }
       scanCount++;
     }
   }

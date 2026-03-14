@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
 import { CompensationSimulator } from "@/components/z-mapping/CompensationSimulator";
+import { GcodePreview } from "@/components/z-mapping/GcodePreview";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,43 +23,36 @@ import {
   type ControllerType, type UnifiedResult,
 } from "@/lib/z-mapping-engine";
 
-/* ── Heatmap mini-component ───────────────────────────── */
-function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
-  mesh: { x: number; y: number }[];
-  spacingX: number; spacingY: number; cols: number; rows: number;
-}) {
-  const cellW = 280 / cols;
-  const cellH = 200 / rows;
-  return (
-    <div className="space-y-2">
-      <svg viewBox={`0 0 280 200`} className="w-full max-w-sm border rounded-lg bg-muted/30 mx-auto">
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((_, c) => (
-            <rect
-              key={`${r}-${c}`}
-              x={c * cellW} y={(rows - 1 - r) * cellH}
-              width={cellW} height={cellH}
-              fill="hsl(var(--primary))"
-              opacity={0.1 + (r / rows) * 0.3}
-              stroke="hsl(var(--border))" strokeWidth={0.5}
-            />
-          ))
-        )}
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((_, c) => (
-            <circle
-              key={`p${r}-${c}`}
-              cx={c * cellW + cellW / 2} cy={(rows - 1 - r) * cellH + cellH / 2}
-              r={2} fill="hsl(var(--primary))" opacity={0.6}
-            />
-          ))
-        )}
-      </svg>
-      <p className="text-xs text-center text-muted-foreground">
-        Grade de medição: {cols} × {rows} pontos
-      </p>
-    </div>
-  );
+/* ── localStorage persistence ──────────────────────────── */
+const STORAGE_KEY = "zmapping-settings";
+
+interface SavedSettings {
+  probeFeed: number;
+  probeDepth: number;
+  safeHeight: number;
+  spacingX: number;
+  spacingY: number;
+  clearance: number;
+  maxSegmentLen: number;
+  decimalPlaces: number;
+  controller: ControllerType;
+  curvePrecision: CurvePrecision;
+  touchPrecision: TouchPrecision;
+  customTouches: number | null;
+  touchStrategy: "last" | "average";
+  outOfMeshRule: "block" | "warn" | "nearest";
+  unit: ZUnit;
+}
+
+function loadSettings(): Partial<SavedSettings> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveSettings(s: SavedSettings) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
 }
 
 /* ── Curve precision presets ───────────────────────────── */
@@ -70,40 +64,56 @@ function getArcSegmentLen(precision: CurvePrecision, unit: ZUnit): number {
     if (precision === "medium") return 1.0;
     return 2.0;
   }
-  // inch
   if (precision === "high") return 0.02;
   if (precision === "medium") return 0.04;
   return 0.08;
 }
 
+/* ── Touch precision presets ───────────────────────────── */
+type TouchPrecision = "fast" | "normal" | "high";
+
+function getTouchCount(precision: TouchPrecision): number {
+  if (precision === "fast") return 1;
+  if (precision === "normal") return 2;
+  return 3;
+}
+
 export default function ZMappingPage() {
+  const saved = useMemo(() => loadSettings(), []);
+
   const [showAnimation, setShowAnimation] = useState(false);
   const [originalGcode, setOriginalGcode] = useState("");
   const [originalFileName, setOriginalFileName] = useState("");
   const [analysis, setAnalysis] = useState<GcodeAnalysis | null>(null);
 
-  const [unit, setUnit] = useState<ZUnit>("mm");
+  const [unit, setUnit] = useState<ZUnit>(saved.unit ?? "mm");
   const defaults = unit === "mm" ? defaultConfigMM : defaultConfigInch;
   const [xStart, setXStart] = useState(0);
   const [yStart, setYStart] = useState(0);
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
-  const [spacingX, setSpacingX] = useState(defaults.spacing);
-  const [spacingY, setSpacingY] = useState(defaults.spacing);
-  const [probeFeed, setProbeFeed] = useState(defaults.probeFeed);
-  const [probeDepth, setProbeDepth] = useState(defaults.probeDepth);
-  const [clearance, setClearance] = useState(defaults.clearance);
-  const [safeHeight, setSafeHeight] = useState(defaults.safeHeight);
-  const [maxSegmentLen, setMaxSegmentLen] = useState(defaults.maxSegmentLen);
-  const [decimalPlaces, setDecimalPlaces] = useState(defaults.decimalPlaces);
-  const [outOfMeshRule, setOutOfMeshRule] = useState<"block" | "warn" | "nearest">("warn");
+  const [spacingX, setSpacingX] = useState(saved.spacingX ?? defaults.spacing);
+  const [spacingY, setSpacingY] = useState(saved.spacingY ?? defaults.spacing);
+  const [probeFeed, setProbeFeed] = useState(saved.probeFeed ?? defaults.probeFeed);
+  const [probeDepth, setProbeDepth] = useState(saved.probeDepth ?? defaults.probeDepth);
+  const [clearance, setClearance] = useState(saved.clearance ?? defaults.clearance);
+  const [safeHeight, setSafeHeight] = useState(saved.safeHeight ?? defaults.safeHeight);
+  const [maxSegmentLen, setMaxSegmentLen] = useState(saved.maxSegmentLen ?? defaults.maxSegmentLen);
+  const [decimalPlaces, setDecimalPlaces] = useState(saved.decimalPlaces ?? defaults.decimalPlaces);
+  const [outOfMeshRule, setOutOfMeshRule] = useState<"block" | "warn" | "nearest">(saved.outOfMeshRule ?? "warn");
   const [tolerance, setTolerance] = useState(defaults.tolerance);
-  const [controller, setController] = useState<ControllerType>("mach3");
+  const [controller, setController] = useState<ControllerType>(saved.controller ?? "mach3");
 
   // Curve precision
-  const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>("medium");
+  const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>(saved.curvePrecision ?? "medium");
   const [customArcSegLen, setCustomArcSegLen] = useState<number | null>(null);
   const arcSegmentLen = customArcSegLen ?? getArcSegmentLen(curvePrecision, unit);
+
+  // Touch precision
+  const [touchPrecision, setTouchPrecision] = useState<TouchPrecision>(saved.touchPrecision ?? "normal");
+  const [customTouches, setCustomTouches] = useState<number | null>(saved.customTouches ?? null);
+  const [touchStrategy, setTouchStrategy] = useState<"last" | "average">(saved.touchStrategy ?? "last");
+  const touchesPerPoint = customTouches ?? getTouchCount(touchPrecision);
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -113,6 +123,19 @@ export default function ZMappingPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const spacing = (spacingX + spacingY) / 2;
+
+  // Save settings whenever they change
+  useEffect(() => {
+    saveSettings({
+      probeFeed, probeDepth, safeHeight, spacingX, spacingY,
+      clearance, maxSegmentLen, decimalPlaces, controller,
+      curvePrecision, touchPrecision, customTouches, touchStrategy,
+      outOfMeshRule, unit,
+    });
+  }, [probeFeed, probeDepth, safeHeight, spacingX, spacingY,
+      clearance, maxSegmentLen, decimalPlaces, controller,
+      curvePrecision, touchPrecision, customTouches, touchStrategy,
+      outOfMeshRule, unit]);
 
   const config: MeshConfig = useMemo(() => ({
     unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
@@ -139,10 +162,16 @@ export default function ZMappingPage() {
       if (a.unit) {
         setUnit(a.unit);
         const d = a.unit === "mm" ? defaultConfigMM : defaultConfigInch;
-        setSpacingX(d.spacing); setSpacingY(d.spacing);
-        setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
-        setClearance(d.clearance); setSafeHeight(d.safeHeight);
-        setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
+        // Only set spacing/feed if user hasn't saved custom values
+        const s = loadSettings();
+        if (!s.spacingX) setSpacingX(d.spacing);
+        if (!s.spacingY) setSpacingY(d.spacing);
+        if (!s.probeFeed) setProbeFeed(d.probeFeed);
+        if (!s.probeDepth) setProbeDepth(d.probeDepth);
+        if (!s.clearance) setClearance(d.clearance);
+        if (!s.safeHeight) setSafeHeight(d.safeHeight);
+        if (!s.maxSegmentLen) setMaxSegmentLen(d.maxSegmentLen);
+        setTolerance(d.tolerance);
         setCustomArcSegLen(null);
       }
       if (a.width > 0) {
@@ -158,10 +187,13 @@ export default function ZMappingPage() {
 
   const handleGenerate = useCallback(() => {
     if (!mesh || !originalGcode) return;
-    const r = generateUnifiedGcode(originalGcode, mesh, config, originalFileName || "file", controller);
+    const r = generateUnifiedGcode(
+      originalGcode, mesh, config, originalFileName || "file", controller,
+      touchesPerPoint, touchStrategy
+    );
     setResult(r);
     toast.success("Arquivo de nivelamento gerado!");
-  }, [mesh, originalGcode, config, originalFileName, controller]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -173,9 +205,11 @@ export default function ZMappingPage() {
   }, [result]);
 
   const formatTime = (sec: number) => {
-    if (sec < 60) return `${sec}s`;
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
+    // Adjust for multi-touch
+    const adjusted = sec * touchesPerPoint;
+    if (adjusted < 60) return `${adjusted}s`;
+    const m = Math.floor(adjusted / 60);
+    const s = adjusted % 60;
     return s > 0 ? `${m}min ${s}s` : `${m}min`;
   };
 
@@ -226,32 +260,84 @@ export default function ZMappingPage() {
           {analysis && analysis.arcCount > 0 && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <CircleDot className="h-3.5 w-3.5 text-primary" />
-              {analysis.arcCount} curva{analysis.arcCount > 1 ? "s" : ""} detectada{analysis.arcCount > 1 ? "s" : ""} — serão divididas automaticamente para manter a correção de altura com mais precisão.
+              {analysis.arcCount} curva{analysis.arcCount > 1 ? "s" : ""} detectada{analysis.arcCount > 1 ? "s" : ""} — serão divididas automaticamente para manter a correção de altura.
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* ── Card 2: Configurações principais ── */}
+      {/* ── Card 2: Preview do G-code + Grade ── */}
+      {analysis && originalGcode && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" /> Preview do percurso
+            </CardTitle>
+            <CardDescription>
+              Visualize o percurso de corte e a grade de medição sobreposta. A grade atualiza em tempo real.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GcodePreview
+              originalGcode={originalGcode}
+              mesh={mesh}
+              config={config}
+              xMin={analysis.xMin}
+              yMin={analysis.yMin}
+              xMax={analysis.xMax}
+              yMax={analysis.yMax}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Card 3: Configurações principais ── */}
       {analysis && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Ruler className="h-4 w-4 text-primary" /> Configurações
             </CardTitle>
-            <CardDescription>Ajuste a distância entre os pontos de medição e a altura segura.</CardDescription>
+            <CardDescription>Ajuste os parâmetros de medição da superfície.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {numField("Altura Z segura", safeHeight, setSafeHeight)}
               {numField("Distância entre pontos X", spacingX, setSpacingX)}
               {numField("Distância entre pontos Y", spacingY, setSpacingY)}
+              {numField(`Velocidade do toque (${unit}/min)`, probeFeed, setProbeFeed)}
+            </div>
+
+            {/* Touch precision */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium">Precisão do toque</Label>
+              <p className="text-xs text-muted-foreground">
+                Mais toques por ponto = medição mais precisa, porém mais lenta.
+              </p>
+              <RadioGroup
+                value={touchPrecision}
+                onValueChange={(v) => { setTouchPrecision(v as TouchPrecision); setCustomTouches(null); }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="fast" id="touch-fast" />
+                  <Label htmlFor="touch-fast" className="text-xs cursor-pointer">Rápida (1 toque)</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="normal" id="touch-normal" />
+                  <Label htmlFor="touch-normal" className="text-xs cursor-pointer">Normal (2 toques)</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="high" id="touch-high" />
+                  <Label htmlFor="touch-high" className="text-xs cursor-pointer">Alta (3 toques)</Label>
+                </div>
+              </RadioGroup>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* ── Card 3: Resumo ── */}
+      {/* ── Card 4: Resumo ── */}
       {analysis && mesh && (
         <Card className="border-primary/20">
           <CardHeader className="pb-3">
@@ -266,9 +352,9 @@ export default function ZMappingPage() {
                 <p className="text-sm font-semibold">{fmt(width)} × {fmt(height)} {unit}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total de pontos</p>
+                <p className="text-xs text-muted-foreground">Pontos (X × Y)</p>
                 <p className="text-sm font-semibold flex items-center gap-1">
-                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.totalPoints}
+                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.pointsPerRow} × {mesh.rows} = {mesh.totalPoints}
                 </p>
               </div>
               <div className="space-y-1">
@@ -284,21 +370,24 @@ export default function ZMappingPage() {
                 </p>
               </div>
             </div>
-            {analysis.arcCount > 0 && (
-              <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <CircleDot className="h-3 w-3 text-primary" /> Curvas: <strong className="text-foreground">{analysis.arcCount}</strong>
-                </span>
-                <span>Precisão: <strong className="text-foreground">
-                  {curvePrecision === "high" ? "Alta" : curvePrecision === "medium" ? "Média" : "Rápida"}
-                </strong></span>
-              </div>
-            )}
+            <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
+              {analysis.arcCount > 0 && (
+                <>
+                  <span className="flex items-center gap-1">
+                    <CircleDot className="h-3 w-3 text-primary" /> Curvas: <strong className="text-foreground">{analysis.arcCount}</strong>
+                  </span>
+                  <span>Precisão curvas: <strong className="text-foreground">
+                    {curvePrecision === "high" ? "Alta" : curvePrecision === "medium" ? "Média" : "Rápida"}
+                  </strong></span>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* ── Card 4: Botão principal ── */}
+      {/* ── Card 5: Botão principal ── */}
       {analysis && mesh && (
         <Card className="border-primary/30 bg-primary/[0.02]">
           <CardContent className="pt-6 space-y-4">
@@ -326,6 +415,7 @@ export default function ZMappingPage() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Arquivo:</span> <span className="font-medium">{result.fileName}</span></div>
                   <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
+                  <div><span className="text-muted-foreground">Toques por ponto:</span> <span className="font-medium">{touchesPerPoint}</span></div>
                   {result.arcsDetected > 0 && (
                     <>
                       <div><span className="text-muted-foreground">Curvas detectadas:</span> <span className="font-medium">{result.arcsDetected}</span></div>
@@ -343,7 +433,7 @@ export default function ZMappingPage() {
         </Card>
       )}
 
-      {/* ── Card 5: Configurações avançadas ── */}
+      {/* ── Card 6: Configurações avançadas ── */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
@@ -389,6 +479,28 @@ export default function ZMappingPage() {
                 </div>
               </div>
 
+              {/* Multi-touch strategy */}
+              <div className="space-y-2 border-t border-border/50 pt-4">
+                <Label className="text-xs font-medium">Estratégia de múltiplos toques</Label>
+                <RadioGroup
+                  value={touchStrategy}
+                  onValueChange={(v) => setTouchStrategy(v as "last" | "average")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="last" id="strat-last" />
+                    <Label htmlFor="strat-last" className="text-xs cursor-pointer">Usar último toque</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="average" id="strat-avg" />
+                    <Label htmlFor="strat-avg" className="text-xs cursor-pointer">Usar média</Label>
+                  </div>
+                </RadioGroup>
+                <div className="pt-1">
+                  {numField("Toques por ponto (manual)", customTouches ?? touchesPerPoint, (v) => setCustomTouches(v >= 1 ? Math.round(v) : null), 1)}
+                </div>
+              </div>
+
               <div className="border-t border-border/50 pt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Unidade</Label>
@@ -413,7 +525,6 @@ export default function ZMappingPage() {
                 {numField("Y inicial", yStart, setYStart)}
                 {numField("Largura", width, setWidth)}
                 {numField("Altura", height, setHeight)}
-                {numField("Velocidade de medição", probeFeed, setProbeFeed)}
                 {numField("Profundidade máxima", probeDepth, setProbeDepth, 0.01)}
                 {numField("Folga de segurança", clearance, setClearance)}
                 {numField("Comprimento de divisão", maxSegmentLen, setMaxSegmentLen)}
@@ -456,7 +567,7 @@ export default function ZMappingPage() {
         />
       )}
 
-      {/* ── Card 6: Visualização (opcional) ── */}
+      {/* ── Card 7: Visualização (opcional) ── */}
       {analysis && mesh && originalGcode && (
         <div className="flex items-center gap-2">
           {!showSimulator && (
@@ -485,6 +596,45 @@ export default function ZMappingPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+/* ── Heatmap mini-component ───────────────────────────── */
+function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
+  mesh: { x: number; y: number }[];
+  spacingX: number; spacingY: number; cols: number; rows: number;
+}) {
+  const cellW = 280 / cols;
+  const cellH = 200 / rows;
+  return (
+    <div className="space-y-2">
+      <svg viewBox={`0 0 280 200`} className="w-full max-w-sm border rounded-lg bg-muted/30 mx-auto">
+        {Array.from({ length: rows }).map((_, r) =>
+          Array.from({ length: cols }).map((_, c) => (
+            <rect
+              key={`${r}-${c}`}
+              x={c * cellW} y={(rows - 1 - r) * cellH}
+              width={cellW} height={cellH}
+              fill="hsl(var(--primary))"
+              opacity={0.1 + (r / rows) * 0.3}
+              stroke="hsl(var(--border))" strokeWidth={0.5}
+            />
+          ))
+        )}
+        {Array.from({ length: rows }).map((_, r) =>
+          Array.from({ length: cols }).map((_, c) => (
+            <circle
+              key={`p${r}-${c}`}
+              cx={c * cellW + cellW / 2} cy={(rows - 1 - r) * cellH + cellH / 2}
+              r={2} fill="hsl(var(--primary))" opacity={0.6}
+            />
+          ))
+        )}
+      </svg>
+      <p className="text-xs text-center text-muted-foreground">
+        Grade de medição: {cols} × {rows} pontos
+      </p>
     </div>
   );
 }
