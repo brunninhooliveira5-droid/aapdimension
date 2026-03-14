@@ -1,8 +1,8 @@
 // ── Z-Mapping Engine ──────────────────────────────────────────
 // Modules: G-code parser, unit detector, work area detector,
 // mesh generator, point importer, bilinear interpolation,
-// segment splitter, probe G-code generator, compensated G-code generator,
-// numeric formatter.
+// segment splitter, arc linearizer, probe G-code generator,
+// compensated G-code generator, numeric formatter.
 
 export type ZUnit = "mm" | "inch";
 
@@ -15,6 +15,7 @@ export interface GcodeAnalysis {
   width: number;
   height: number;
   lineCount: number;
+  arcCount: number;
 }
 
 export interface MeshConfig {
@@ -29,6 +30,7 @@ export interface MeshConfig {
   clearance: number;
   safeHeight: number;
   maxSegmentLen: number;
+  arcSegmentLen: number;
   decimalPlaces: number;
   outOfMeshRule: "block" | "warn" | "nearest";
   tolerance: number;
@@ -58,6 +60,7 @@ export const defaultConfigMM: Omit<MeshConfig, "xStart" | "yStart" | "width" | "
   clearance: 2,
   safeHeight: 20,
   maxSegmentLen: 5,
+  arcSegmentLen: 1,
   decimalPlaces: 5,
   outOfMeshRule: "warn",
   tolerance: 0.001,
@@ -71,6 +74,7 @@ export const defaultConfigInch: Omit<MeshConfig, "xStart" | "yStart" | "width" |
   clearance: 0.125,
   safeHeight: 1,
   maxSegmentLen: 0.187,
+  arcSegmentLen: 0.04,
   decimalPlaces: 5,
   outOfMeshRule: "warn",
   tolerance: 0.0001,
@@ -79,7 +83,6 @@ export const defaultConfigInch: Omit<MeshConfig, "xStart" | "yStart" | "width" |
 // ── Numeric formatter ─────────────────────────────────────────
 export function fmt(v: number, dp = 5): string {
   const s = v.toFixed(dp);
-  // strip trailing zeros but keep at least one decimal
   return s.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }
 
@@ -88,6 +91,9 @@ interface ParsedMove {
   x?: number;
   y?: number;
   z?: number;
+  i?: number;
+  j?: number;
+  r?: number;
   g?: number;
   f?: number;
   raw: string;
@@ -105,6 +111,12 @@ function parseGcodeLine(line: string): ParsedMove {
   if (ym) res.y = parseFloat(ym[1]);
   const zm = upper.match(/Z([+-]?\d*\.?\d+)/);
   if (zm) res.z = parseFloat(zm[1]);
+  const im = upper.match(/I([+-]?\d*\.?\d+)/);
+  if (im) res.i = parseFloat(im[1]);
+  const jm = upper.match(/J([+-]?\d*\.?\d+)/);
+  if (jm) res.j = parseFloat(jm[1]);
+  const rm = upper.match(/R([+-]?\d*\.?\d+)/);
+  if (rm) res.r = parseFloat(rm[1]);
   const fm = upper.match(/F([+-]?\d*\.?\d+)/);
   if (fm) res.f = parseFloat(fm[1]);
   return res;
@@ -116,15 +128,18 @@ export function analyzeGcode(text: string): GcodeAnalysis {
   let curX = 0, curY = 0, curZ = 0;
   let xMin = Infinity, yMin = Infinity, xMax = -Infinity, yMax = -Infinity;
   let found = false;
+  let arcCount = 0;
+  let curG = 0;
 
   for (const line of lines) {
     const p = parseGcodeLine(line);
     if (p.g === 21) unit = "mm";
     if (p.g === 20) unit = "inch";
+    if (p.g !== undefined) curG = p.g;
+    if (p.g === 2 || p.g === 3) arcCount++;
     if (p.x !== undefined) curX = p.x;
     if (p.y !== undefined) curY = p.y;
     if (p.z !== undefined) curZ = p.z;
-    // Only consider moves where Z < 0 (cutting)
     if (curZ < 0 && (p.x !== undefined || p.y !== undefined)) {
       xMin = Math.min(xMin, curX);
       yMin = Math.min(yMin, curY);
@@ -139,15 +154,67 @@ export function analyzeGcode(text: string): GcodeAnalysis {
   }
 
   return {
-    unit,
-    xMin,
-    yMin,
-    xMax,
-    yMax,
-    width: xMax - xMin,
-    height: yMax - yMin,
-    lineCount: lines.length,
+    unit, xMin, yMin, xMax, yMax,
+    width: xMax - xMin, height: yMax - yMin,
+    lineCount: lines.length, arcCount,
   };
+}
+
+// ── Arc linearizer ────────────────────────────────────────────
+interface CncPos { x: number; y: number; z: number; f?: number }
+
+function linearizeArc(
+  from: CncPos,
+  to: CncPos,
+  i: number,
+  j: number,
+  clockwise: boolean,
+  segLen: number,
+): CncPos[] {
+  const cx = from.x + i;
+  const cy = from.y + j;
+  const r = Math.sqrt(i * i + j * j);
+
+  let startAngle = Math.atan2(from.y - cy, from.x - cx);
+  let endAngle = Math.atan2(to.y - cy, to.x - cx);
+
+  // Compute sweep
+  let sweep: number;
+  if (clockwise) {
+    sweep = startAngle - endAngle;
+    if (sweep <= 0) sweep += 2 * Math.PI;
+  } else {
+    sweep = endAngle - startAngle;
+    if (sweep <= 0) sweep += 2 * Math.PI;
+  }
+
+  const arcLength = r * sweep;
+  const numSegs = Math.max(2, Math.ceil(arcLength / segLen));
+  const result: CncPos[] = [];
+  const dz = to.z - from.z;
+
+  for (let s = 1; s <= numSegs; s++) {
+    const t = s / numSegs;
+    const angle = clockwise
+      ? startAngle - sweep * t
+      : startAngle + sweep * t;
+    result.push({
+      x: cx + r * Math.cos(angle),
+      y: cy + r * Math.sin(angle),
+      z: from.z + dz * t,
+      f: to.f,
+    });
+  }
+
+  // Ensure last point matches exactly
+  if (result.length > 0) {
+    const last = result[result.length - 1];
+    last.x = to.x;
+    last.y = to.y;
+    last.z = to.z;
+  }
+
+  return result;
 }
 
 // ── Mesh generator ────────────────────────────────────────────
@@ -170,7 +237,6 @@ export function generateMesh(cfg: MeshConfig): MeshInfo {
     }
   }
 
-  // Estimate: ~2s per point (move + probe + retract)
   const estimatedTimeSec = points.length * 2;
 
   return { pointsPerRow, rows, totalPoints: points.length, actualSpacingX, actualSpacingY, points, estimatedTimeSec };
@@ -199,20 +265,17 @@ export function generateProbeGcode(
   lines.push("G90");
   lines.push("");
 
-  // Initial position
   const firstPt = mesh.points[0];
   lines.push(`G0 Z${d(cfg.safeHeight)}`);
   lines.push(`G0 X${d(firstPt.x)} Y${d(firstPt.y)}`);
 
   if (controller === "mach3") {
-    // Initial probe to zero
     lines.push(`G31 Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
     lines.push(`G92 Z0`);
     lines.push(`G0 Z${d(cfg.clearance)}`);
     lines.push("");
   }
 
-  // Serpentine scan
   let ptIndex = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const leftToRight = row % 2 === 0;
@@ -251,7 +314,6 @@ export function generateProbeGcode(
 // ── Point importer ────────────────────────────────────────────
 export function importProbeData(text: string, mesh: MeshInfo): MeshPoint[] {
   const values: number[] = [];
-  // Accept CSV, whitespace-separated, one per line
   const tokens = text.replace(/,/g, " ").split(/\s+/);
   for (const t of tokens) {
     const n = parseFloat(t);
@@ -261,12 +323,10 @@ export function importProbeData(text: string, mesh: MeshInfo): MeshPoint[] {
   const points = [...mesh.points];
 
   if (values.length >= mesh.totalPoints * 3) {
-    // X,Y,Z triplets
     for (let i = 0; i < mesh.totalPoints; i++) {
       points[i] = { x: values[i * 3], y: values[i * 3 + 1], z: values[i * 3 + 2] };
     }
   } else if (values.length >= mesh.totalPoints) {
-    // Z-only values in serpentine order
     for (let row = 0; row < mesh.rows; row++) {
       const leftToRight = row % 2 === 0;
       for (let col = 0; col < mesh.pointsPerRow; col++) {
@@ -304,7 +364,6 @@ function bilinearInterp(
     return cfg.outOfMeshRule === "block" ? null : 0;
   }
 
-  // Clamp within mesh
   px = Math.max(xStart, Math.min(xEnd, px));
   py = Math.max(yStart, Math.min(yEnd, py));
 
@@ -332,8 +391,6 @@ function bilinearInterp(
 }
 
 // ── Segment splitter ──────────────────────────────────────────
-interface CncPos { x: number; y: number; z: number; f?: number }
-
 function segmentMove(from: CncPos, to: CncPos, maxLen: number): CncPos[] {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -380,7 +437,6 @@ export function generateCompensatedGcode(
   let linesProcessed = 0;
 
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
-
   const allHaveZ = probeData.every((p) => p.z !== null);
 
   for (const line of lines) {
@@ -402,15 +458,11 @@ export function generateCompensatedGcode(
     const isCutMove = (curG === 1) && newZ < 0 && (p.x !== undefined || p.y !== undefined || p.z !== undefined);
 
     if (!isCutMove) {
-      // Pass through but update state
       if (p.x !== undefined || p.y !== undefined || p.z !== undefined) {
-        // For non-cut moves with Z, still apply compensation if Z < 0
         if (newZ < 0 && curG === 1) {
           // handled below
         } else {
-          curX = newX;
-          curY = newY;
-          curZ = newZ;
+          curX = newX; curY = newY; curZ = newZ;
           output.push(line);
           continue;
         }
@@ -420,7 +472,6 @@ export function generateCompensatedGcode(
       }
     }
 
-    // Segment the move
     const from: CncPos = { x: curX, y: curY, z: curZ };
     const to: CncPos = { x: newX, y: newY, z: newZ, f: p.f };
     const segments = segmentMove(from, to, cfg.maxSegmentLen);
@@ -435,9 +486,7 @@ export function generateCompensatedGcode(
       segmentsCreated++;
     }
 
-    curX = newX;
-    curY = newY;
-    curZ = newZ;
+    curX = newX; curY = newY; curZ = newZ;
   }
 
   const ext = controller === "mach3" ? "tap" : "nc";
@@ -446,9 +495,7 @@ export function generateCompensatedGcode(
   return {
     code: output.join("\n"),
     fileName: `MZ_${baseName}.${ext}`,
-    linesProcessed,
-    segmentsCreated,
-    meshValid: allHaveZ,
+    linesProcessed, segmentsCreated, meshValid: allHaveZ,
   };
 }
 
@@ -458,6 +505,8 @@ export interface UnifiedResult {
   fileName: string;
   totalPoints: number;
   estimatedProbeSec: number;
+  arcsDetected: number;
+  arcSegmentsGenerated: number;
 }
 
 export function generateUnifiedGcode(
@@ -472,6 +521,9 @@ export function generateUnifiedGcode(
   const lines: string[] = [];
   const probeVar = controller === "mach3" ? "#2002" : "#5063";
   const probeCmd = controller === "mach3" ? "G31" : "G38.2";
+
+  let arcsDetected = 0;
+  let arcSegmentsGenerated = 0;
 
   // ── Header ──
   lines.push("(==============================================)");
@@ -500,8 +552,7 @@ export function generateUnifiedGcode(
     lines.push("");
   }
 
-  // Serpentine scan — store in variables using GRID index (#500 + gridIdx)
-  // so bilinear lookup by [row][col] maps directly to #500 + row*cols + col
+  // Serpentine scan — store in variables using GRID index
   let scanCount = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const ltr = row % 2 === 0;
@@ -538,15 +589,45 @@ export function generateUnifiedGcode(
   lines.push("(--- INICIO DA USINAGEM COMPENSADA ---)");
   lines.push("");
 
-  // Build a helper: for each XY during cutting, compute bilinear using variable references
-  // Since we can't do real bilinear in pure G-code macros on all controllers,
-  // we generate the compensated G-code with variable references for each point.
-  // We create a lookup approach: for each segment point, compute the 4 surrounding
-  // probe variable indices and the interpolation fractions, then emit macro math.
-
   const origLines = originalGcode.split("\n");
   let curX = 0, curY = 0, curZ = 0;
   let curG = 0;
+  let curF: number | undefined;
+
+  // Helper: emit compensated linear segments with macro math
+  function emitCompensatedSegments(segments: CncPos[]) {
+    for (const seg of segments) {
+      const { xStart, yStart, width: w, height: h } = cfg;
+      const xEnd = xStart + w;
+      const yEnd = yStart + h;
+      const px = Math.max(xStart, Math.min(xEnd, seg.x));
+      const py = Math.max(yStart, Math.min(yEnd, seg.y));
+
+      const colF = (px - xStart) / mesh.actualSpacingX;
+      const rowF = (py - yStart) / mesh.actualSpacingY;
+      const col0 = Math.min(Math.floor(colF), mesh.pointsPerRow - 2);
+      const row0 = Math.min(Math.floor(rowF), mesh.rows - 2);
+      const col1 = col0 + 1;
+      const row1 = row0 + 1;
+
+      const blIdx = row0 * mesh.pointsPerRow + col0;
+      const brIdx = row0 * mesh.pointsPerRow + col1;
+      const tlIdx = row1 * mesh.pointsPerRow + col0;
+      const trIdx = row1 * mesh.pointsPerRow + col1;
+
+      const xFrac = colF - col0;
+      const yFrac = rowF - row0;
+
+      lines.push(`#100 = [#${500 + blIdx} + [#${500 + tlIdx} - #${500 + blIdx}] * ${d(yFrac)}]`);
+      lines.push(`#101 = [#${500 + brIdx} + [#${500 + trIdx} - #${500 + brIdx}] * ${d(yFrac)}]`);
+      lines.push(`#102 = [#100 + [#101 - #100] * ${d(xFrac)}]`);
+      lines.push(`#103 = [${d(seg.z)} + #102]`);
+
+      let cmd = `G1 X${d(seg.x)} Y${d(seg.y)} Z#103`;
+      if (seg.f !== undefined) cmd += ` F${d(seg.f)}`;
+      lines.push(cmd);
+    }
+  }
 
   for (const line of origLines) {
     const trimmed = line.trim();
@@ -557,11 +638,47 @@ export function generateUnifiedGcode(
 
     const p = parseGcodeLine(trimmed);
     if (p.g !== undefined) curG = p.g;
+    if (p.f !== undefined) curF = p.f;
 
     const newX = p.x ?? curX;
     const newY = p.y ?? curY;
     const newZ = p.z ?? curZ;
 
+    // ── Handle arcs G2/G3 ──
+    if ((curG === 2 || curG === 3) && (p.g === 2 || p.g === 3)) {
+      const iVal = p.i ?? 0;
+      const jVal = p.j ?? 0;
+      const clockwise = (p.g === 2);
+
+      const from: CncPos = { x: curX, y: curY, z: curZ };
+      const to: CncPos = { x: newX, y: newY, z: newZ, f: p.f ?? curF };
+
+      arcsDetected++;
+      const arcPoints = linearizeArc(from, to, iVal, jVal, clockwise, cfg.arcSegmentLen);
+      arcSegmentsGenerated += arcPoints.length;
+
+      if (newZ < 0) {
+        // Further segment each arc linear piece and compensate
+        let prevPos = from;
+        for (const ap of arcPoints) {
+          const subSegments = segmentMove(prevPos, ap, cfg.maxSegmentLen);
+          emitCompensatedSegments(subSegments);
+          prevPos = ap;
+        }
+      } else {
+        // Not cutting, just emit linearized as plain G1
+        for (const ap of arcPoints) {
+          let cmd = `G1 X${d(ap.x)} Y${d(ap.y)} Z${d(ap.z)}`;
+          if (ap.f !== undefined) cmd += ` F${d(ap.f)}`;
+          lines.push(cmd);
+        }
+      }
+
+      curX = newX; curY = newY; curZ = newZ;
+      continue;
+    }
+
+    // ── Handle linear moves ──
     const isCutMove = curG === 1 && newZ < 0 && (p.x !== undefined || p.y !== undefined || p.z !== undefined);
 
     if (!isCutMove) {
@@ -579,45 +696,10 @@ export function generateUnifiedGcode(
       }
     }
 
-    // Segment the move and emit macro-based compensation
     const from: CncPos = { x: curX, y: curY, z: curZ };
     const to: CncPos = { x: newX, y: newY, z: newZ, f: p.f };
     const segments = segmentMove(from, to, cfg.maxSegmentLen);
-
-    for (const seg of segments) {
-      // Compute bilinear indices and fractions at compile time
-      const { xStart, yStart, width: w, height: h } = cfg;
-      const xEnd = xStart + w;
-      const yEnd = yStart + h;
-      let px = Math.max(xStart, Math.min(xEnd, seg.x));
-      let py = Math.max(yStart, Math.min(yEnd, seg.y));
-
-      const colF = (px - xStart) / mesh.actualSpacingX;
-      const rowF = (py - yStart) / mesh.actualSpacingY;
-      const col0 = Math.min(Math.floor(colF), mesh.pointsPerRow - 2);
-      const row0 = Math.min(Math.floor(rowF), mesh.rows - 2);
-      const col1 = col0 + 1;
-      const row1 = row0 + 1;
-
-      const blIdx = row0 * mesh.pointsPerRow + col0;
-      const brIdx = row0 * mesh.pointsPerRow + col1;
-      const tlIdx = row1 * mesh.pointsPerRow + col0;
-      const trIdx = row1 * mesh.pointsPerRow + col1;
-
-      const xFrac = colF - col0;
-      const yFrac = rowF - row0;
-
-      // Bilinear: left = bl + (tl-bl)*yFrac, right = br + (tr-br)*yFrac, result = left + (right-left)*xFrac
-      // Use temp variables #100-#104
-      lines.push(`#100 = [#${500 + blIdx} + [#${500 + tlIdx} - #${500 + blIdx}] * ${d(yFrac)}]`);
-      lines.push(`#101 = [#${500 + brIdx} + [#${500 + trIdx} - #${500 + brIdx}] * ${d(yFrac)}]`);
-      lines.push(`#102 = [#100 + [#101 - #100] * ${d(xFrac)}]`);
-      lines.push(`#103 = [${d(seg.z)} + #102]`);
-
-      let cmd = `G1 X${d(seg.x)} Y${d(seg.y)} Z#103`;
-      if (seg.f !== undefined) cmd += ` F${d(seg.f)}`;
-      lines.push(cmd);
-    }
+    emitCompensatedSegments(segments);
 
     curX = newX; curY = newY; curZ = newZ;
   }
@@ -634,5 +716,7 @@ export function generateUnifiedGcode(
     fileName: `MZ_Auto_${baseName}.${ext}`,
     totalPoints: mesh.totalPoints,
     estimatedProbeSec: mesh.estimatedTimeSec,
+    arcsDetected,
+    arcSegmentsGenerated,
   };
 }
