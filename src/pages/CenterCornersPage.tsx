@@ -21,6 +21,7 @@ import {
   type ZProbeMode, type HoleZStrategy, type ProbeType, type PostLocationAction,
   type CustomProbeConfig, defaultCustomProbeConfig,
 } from "@/lib/center-corners-engine";
+import InteractiveProbeDiagram from "@/components/center-corners/InteractiveProbeDiagram";
 
 /* ── Illustration SVGs ────────────────────────── */
 function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string; refinement: boolean; zProbe: boolean }) {
