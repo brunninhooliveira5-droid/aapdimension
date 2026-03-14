@@ -888,7 +888,7 @@ export default function ZMappingPage() {
 
             {analysis && mesh && viewMode === "surface" && (
               <div className="h-full p-3 flex flex-col gap-3">
-                <ProfessionalHeatmap mesh={mesh.points} cols={mesh.pointsPerRow} rows={mesh.rows} unit={unit} />
+                <ProfessionalHeatmap mesh={mesh.points} cols={mesh.pointsPerRow} rows={mesh.rows} unit={unit} spacingX={spacingX} spacingY={spacingY} />
               </div>
             )}
 
