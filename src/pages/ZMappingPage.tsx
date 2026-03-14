@@ -380,9 +380,14 @@ export default function ZMappingPage() {
             <p className="text-muted-foreground text-sm">Gere um único arquivo que mapeia a superfície e corrige a altura automaticamente.</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowAnimation(s => !s)} className="gap-1.5 text-xs shrink-0">
-          {showAnimation ? "Fechar" : "Como funciona?"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="default" size="sm" onClick={() => setWizardMode(true)} className="gap-1.5 text-xs">
+            <Wand2 className="h-3.5 w-3.5" /> Iniciar assistente
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowAnimation(s => !s)} className="gap-1.5 text-xs">
+            {showAnimation ? "Fechar" : "Como funciona?"}
+          </Button>
+        </div>
       </div>
 
       {showAnimation && <ZMappingAnimation onClose={() => setShowAnimation(false)} />}
