@@ -28,6 +28,7 @@ import {
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
   type ControllerType, type UnifiedResult, type DensityMap,
   type RetractionMode, type RetractionConfig,
+  type ProbeType, type CustomProbeConfig,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
@@ -182,6 +183,18 @@ export default function ZMappingPage() {
   const [retAdaptiveClearance, setRetAdaptiveClearance] = useState(unit === "mm" ? 3 : 0.12);
   const [retReinforcedClearance, setRetReinforcedClearance] = useState(unit === "mm" ? 5 : 0.2);
 
+  // Custom probe
+  const [probeType, setProbeType] = useState<ProbeType>("standard");
+  const [cpOffsetX, setCpOffsetX] = useState(0);
+  const [cpOffsetY, setCpOffsetY] = useState(0);
+  const [cpOffsetZ, setCpOffsetZ] = useState(0);
+  const [cpStartCmd, setCpStartCmd] = useState("M11");
+  const [cpStartDwell, setCpStartDwell] = useState(1);
+  const [cpStartSafeZ, setCpStartSafeZ] = useState(unit === "mm" ? 20 : 1);
+  const [cpEndCmd, setCpEndCmd] = useState("M10");
+  const [cpEndDwell, setCpEndDwell] = useState(1);
+  const [cpEndSafeZ, setCpEndSafeZ] = useState(unit === "mm" ? 20 : 1);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const effectiveXStart = areaMode === "auto" ? xStart : manualXStart;
@@ -305,9 +318,21 @@ export default function ZMappingPage() {
         adaptiveClearance: retAdaptiveClearance,
         reinforcedClearance: retReinforcedClearance,
       };
+      const customProbeCfg: CustomProbeConfig | undefined = probeType === "custom" ? {
+        enabled: true,
+        offsetX: cpOffsetX,
+        offsetY: cpOffsetY,
+        offsetZ: cpOffsetZ,
+        startCommand: cpStartCmd,
+        startDwell: cpStartDwell,
+        startSafeZ: cpStartSafeZ,
+        endCommand: cpEndCmd,
+        endDwell: cpEndDwell,
+        endSafeZ: cpEndSafeZ,
+      } : undefined;
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
-        touchesPerPoint, touchStrategy, retractionCfg
+        touchesPerPoint, touchStrategy, retractionCfg, customProbeCfg
       );
       setResult(r);
       toast.success("Arquivo de nivelamento gerado!");
@@ -315,7 +340,7 @@ export default function ZMappingPage() {
       console.error("Erro ao gerar arquivo:", err);
       toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
     }
-  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance, probeType, cpOffsetX, cpOffsetY, cpOffsetZ, cpStartCmd, cpStartDwell, cpStartSafeZ, cpEndCmd, cpEndDwell, cpEndSafeZ]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -950,6 +975,74 @@ export default function ZMappingPage() {
 
               <Separator />
 
+              {/* Custom probe */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Cpu className="h-3 w-3" /> Tipo de probe
+                </p>
+                <RadioGroup value={probeType} onValueChange={(v) => setProbeType(v as ProbeType)} className="space-y-1">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="standard" id="probe-std-r" />
+                    <span>Padrão</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="custom" id="probe-custom-r" />
+                    <span>Probe personalizado</span>
+                  </label>
+                </RadioGroup>
+
+                {probeType === "custom" && (
+                  <div className="space-y-3">
+                    <p className="text-[10px] text-muted-foreground">
+                      Use esta opção quando sua máquina tiver um probe fixo lateral ou sistema automático de abertura e recolhimento.
+                    </p>
+
+                    {/* Offsets */}
+                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Offset do probe</p>
+                      {numField(`Offset X (${unit})`, cpOffsetX, setCpOffsetX, unit === "mm" ? 0.1 : 0.005,
+                        "Diferença em X entre o centro da ferramenta e o ponto de toque do probe.")}
+                      {numField(`Offset Y (${unit})`, cpOffsetY, setCpOffsetY, unit === "mm" ? 0.1 : 0.005,
+                        "Diferença em Y entre o centro da ferramenta e o ponto de toque do probe.")}
+                      {numField(`Offset Z (${unit})`, cpOffsetZ, setCpOffsetZ, unit === "mm" ? 0.1 : 0.005,
+                        "Diferença em Z (opcional).")}
+                    </div>
+
+                    {/* Start behavior */}
+                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Início do mapeamento</p>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] flex items-center gap-1">
+                          Comando inicial <HelpTip text="Ex: M11 para acionar atuador, M64 P0 para saída digital." />
+                        </Label>
+                        <Input value={cpStartCmd} onChange={(e) => setCpStartCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="M11" />
+                      </div>
+                      {numField(`Espera após acionar (s)`, cpStartDwell, setCpStartDwell, 0.5,
+                        "Tempo de espera após acionar o probe.")}
+                      {numField(`Altura segura início (${unit})`, cpStartSafeZ, setCpStartSafeZ, 1,
+                        "Altura segura antes de acionar o probe.")}
+                    </div>
+
+                    {/* End behavior */}
+                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Final do mapeamento</p>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] flex items-center gap-1">
+                          Comando final <HelpTip text="Ex: M10 para recolher atuador, M65 P0 para desligar saída." />
+                        </Label>
+                        <Input value={cpEndCmd} onChange={(e) => setCpEndCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="M10" />
+                      </div>
+                      {numField(`Espera após recolher (s)`, cpEndDwell, setCpEndDwell, 0.5,
+                        "Tempo de espera após recolher o probe.")}
+                      {numField(`Altura segura final (${unit})`, cpEndSafeZ, setCpEndSafeZ, 1,
+                        "Altura segura antes de recolher o probe.")}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
               {/* Action buttons */}
               <div className="space-y-2">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ações</p>
@@ -1041,6 +1134,11 @@ export default function ZMappingPage() {
               Retração: <strong className="text-foreground">
                 {retractionMode === "safe" ? "Segura" : "Curva"}
               </strong>
+            </span>
+          )}
+          {probeType === "custom" && (
+            <span className="text-muted-foreground">
+              Probe: <strong className="text-foreground">Personalizado</strong>
             </span>
           )}
         </div>

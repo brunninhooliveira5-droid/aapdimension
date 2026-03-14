@@ -495,9 +495,25 @@ export type RetractionMode = "standard" | "safe" | "curved";
 
 export interface RetractionConfig {
   mode: RetractionMode;
-  minSafeZ: number;        // Z seguro mínimo
-  adaptiveClearance: number; // folga adaptativa (modo seguro)
-  reinforcedClearance: number; // folga adaptativa reforçada (modo superfície curva)
+  minSafeZ: number;
+  adaptiveClearance: number;
+  reinforcedClearance: number;
+}
+
+// ── Custom probe types ────────────────────────────────────────
+export type ProbeType = "standard" | "custom";
+
+export interface CustomProbeConfig {
+  enabled: boolean;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  startCommand: string;   // e.g. "M11"
+  startDwell: number;     // seconds
+  startSafeZ: number;
+  endCommand: string;     // e.g. "M10"
+  endDwell: number;       // seconds
+  endSafeZ: number;
 }
 
 export function generateProbeGcode(
@@ -772,7 +788,8 @@ export function generateUnifiedGcode(
   controller: ControllerType,
   touchesPerPoint: number = 1,
   touchStrategy: "last" | "average" = "last",
-  retractionConfig?: RetractionConfig
+  retractionConfig?: RetractionConfig,
+  customProbe?: CustomProbeConfig
 ): UnifiedResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
@@ -799,9 +816,26 @@ export function generateUnifiedGcode(
   lines.push("(--- INICIO DO MAPEAMENTO DA SUPERFICIE ---)");
   lines.push("");
 
+  // ── Custom probe: start commands ──
+  const useCustomProbe = customProbe?.enabled ?? false;
+  const probeOffX = customProbe?.offsetX ?? 0;
+  const probeOffY = customProbe?.offsetY ?? 0;
+
+  if (useCustomProbe && customProbe) {
+    lines.push("(--- ACIONAMENTO DO PROBE PERSONALIZADO ---)");
+    lines.push(`G0 Z${d(customProbe.startSafeZ)}`);
+    if (customProbe.startCommand.trim()) {
+      lines.push(customProbe.startCommand.trim());
+    }
+    if (customProbe.startDwell > 0) {
+      lines.push(`G4 P${customProbe.startDwell}`);
+    }
+    lines.push("");
+  }
+
   const firstPt = mesh.points[0];
   lines.push(`G0 Z${d(cfg.safeHeight)}`);
-  lines.push(`G0 X${d(firstPt.x)} Y${d(firstPt.y)}`);
+  lines.push(`G0 X${d(firstPt.x + probeOffX)} Y${d(firstPt.y + probeOffY)}`);
 
   if (controller === "mach3") {
     lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
@@ -864,7 +898,7 @@ export function generateUnifiedGcode(
         }
       }
 
-      lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
+      lines.push(`G0 X${d(pt.x + probeOffX)} Y${d(pt.y + probeOffY)}`);
 
       if (touches === 1) {
         lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
@@ -905,13 +939,32 @@ export function generateUnifiedGcode(
   lines.push("");
   lines.push("(--- FIM DO MAPEAMENTO ---)");
   lines.push("");
-  lines.push("(============================================)");
-  lines.push("( ATENCAO: Remova o sensor de medicao.       )");
-  lines.push("( Coloque a fresa de usinagem.               )");
-  lines.push("( Zere o eixo Z novamente na superficie.     )");
-  lines.push("( Pressione INICIAR para continuar.          )");
-  lines.push("(============================================)");
-  lines.push("M0");
+
+  // ── Custom probe: end commands ──
+  if (useCustomProbe && customProbe) {
+    lines.push("(--- RECOLHIMENTO DO PROBE PERSONALIZADO ---)");
+    lines.push(`G0 Z${d(customProbe.endSafeZ)}`);
+    if (customProbe.endCommand.trim()) {
+      lines.push(customProbe.endCommand.trim());
+    }
+    if (customProbe.endDwell > 0) {
+      lines.push(`G4 P${customProbe.endDwell}`);
+    }
+    lines.push("");
+  }
+
+  if (!useCustomProbe) {
+    lines.push("(============================================)");
+    lines.push("( ATENCAO: Remova o sensor de medicao.       )");
+    lines.push("( Coloque a fresa de usinagem.               )");
+    lines.push("( Zere o eixo Z novamente na superficie.     )");
+    lines.push("( Pressione INICIAR para continuar.          )");
+    lines.push("(============================================)");
+    lines.push("M0");
+  } else {
+    lines.push("(Probe recolhido automaticamente)");
+    lines.push("(Seguindo para usinagem compensada)");
+  }
   lines.push("");
 
   // ── Part 2: Compensated original G-code using macro variables ──
