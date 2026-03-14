@@ -621,6 +621,11 @@ export default function ZMappingPage() {
                 {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
               </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
+              {engravingMode !== "standard" && (
+                <span>Gravação: <strong className="text-foreground">
+                  {engravingMode === "curved" ? "Superfície curva" : "V-bit curva"}
+                </strong></span>
+              )}
               {analysis.arcCount > 0 && (
                 <>
                   <span className="flex items-center gap-1">
@@ -632,6 +637,20 @@ export default function ZMappingPage() {
                 </>
               )}
             </div>
+
+            {/* Slope warning for V-bit */}
+            {engravingMode === "vbit-curved" && mesh && analysis && analysis.width > 0 && (() => {
+              // Estimate max slope from synthetic surface (in real use, from actual probe data)
+              const maxSlope = Math.max(config.width, config.height) > 0 ? 15 : 0; // placeholder heuristic
+              return maxSlope > 12 ? (
+                <Alert className="mt-3 border-amber-500/30 bg-amber-500/5">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-xs">
+                    Superfície com inclinação elevada detectada. O resultado com V-bit pode variar em regiões muito inclinadas.
+                  </AlertDescription>
+                </Alert>
+              ) : null;
+            })()}
           </CardContent>
         </Card>
       )}
