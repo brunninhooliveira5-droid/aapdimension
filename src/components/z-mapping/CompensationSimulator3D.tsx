@@ -360,15 +360,15 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
       )}
       {showOriginal && (
         <ToolpathLine path={path} config={config} surfMin={surfMin} surfMax={surfMax}
-          compensated={false} lineColor="#94a3b8" lineWidth={1} />
+          compensated={false} lineColor="#94a3b8" lineWidth={1} mesh={mesh} probeData={probeData} />
       )}
       {showCompensated && (
         <ToolpathLine path={path} config={config} surfMin={surfMin} surfMax={surfMax}
-          compensated lineColor="#facc15" lineWidth={2} />
+          compensated lineColor="#facc15" lineWidth={2} mesh={mesh} probeData={probeData} />
       )}
       {showAnimation && path.length > 1 && (
         <ToolMarker path={path} config={config} progress={animProgress}
-          isPlaying={showAnimation} speed={animSpeed} />
+          isPlaying={showAnimation} speed={animSpeed} mesh={mesh} probeData={probeData} />
       )}
 
       {/* Reference grid */}
