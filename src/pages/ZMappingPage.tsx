@@ -1055,6 +1055,63 @@ export default function ZMappingPage() {
                       {numField(`Altura segura final (${unit})`, cpEndSafeZ, setCpEndSafeZ, 1,
                         "Altura segura antes de recolher o probe.")}
                     </div>
+
+                    {/* Post-mapping mode */}
+                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Finalização do mapeamento</p>
+                      <RadioGroup value={postMappingMode} onValueChange={(v) => setPostMappingMode(v as PostMappingMode)} className="space-y-1">
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="manual" id="pm-manual" />
+                          <span>Manual</span>
+                          <HelpTip text="Pausa para o operador trocar ferramenta e zerar Z." />
+                        </label>
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="auto_offset" id="pm-auto" />
+                          <span>Automática</span>
+                          <HelpTip text="Usa offset calibrado entre probe e ferramenta para iniciar sem pausa." />
+                        </label>
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="auto_measure" id="pm-measure" />
+                          <span>Automática com medição</span>
+                          <HelpTip text="Mede a ferramenta automaticamente após recolher o probe." />
+                        </label>
+                      </RadioGroup>
+
+                      {postMappingMode === "auto_offset" && (
+                        <div className="space-y-2 pt-1">
+                          {numField(`Offset Z ferramenta (${unit})`, cpToolOffsetZ, setCpToolOffsetZ, unit === "mm" ? 0.01 : 0.001,
+                            "Diferença em Z entre a ponta do probe e a ponta da ferramenta de corte.")}
+                          {numField(`Altura segura pós-recolhimento (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1,
+                            "Altura segura após recolher o probe antes de iniciar a usinagem.")}
+                        </div>
+                      )}
+
+                      {postMappingMode === "auto_measure" && (
+                        <div className="space-y-2 pt-1">
+                          {numField(`Posição X medição (${unit})`, cpMeasureX, setCpMeasureX, 1,
+                            "Posição X do sensor de medição de ferramenta.")}
+                          {numField(`Posição Y medição (${unit})`, cpMeasureY, setCpMeasureY, 1,
+                            "Posição Y do sensor de medição de ferramenta.")}
+                          <div className="space-y-1">
+                            <Label className="text-[11px] flex items-center gap-1">
+                              Comando de medição <HelpTip text="Comando G-code para medir a ferramenta. Ex: G31 Z-50 F100" />
+                            </Label>
+                            <Input value={cpMeasureCmd} onChange={(e) => setCpMeasureCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="G31 Z-50 F100" />
+                          </div>
+                          {numField(`Espera após medição (s)`, cpMeasureDwell, setCpMeasureDwell, 0.5)}
+                          {numField(`Altura segura pós-medição (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1)}
+                        </div>
+                      )}
+
+                      {postMappingMode !== "manual" && (
+                        <Alert className="border-amber-500/30 bg-amber-500/5 mt-2">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                          <AlertDescription className="text-[10px] text-muted-foreground">
+                            Use este modo apenas se o sistema estiver calibrado e tiver repetibilidade suficiente.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
