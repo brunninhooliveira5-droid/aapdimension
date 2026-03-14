@@ -294,25 +294,29 @@ function ToolMarker({ path, config, progress, isPlaying, speed }: {
 /* ── Camera presets ── */
 function CameraController({ preset, config }: { preset: string | null; config: MeshConfig }) {
   const { camera } = useThree();
+  const controlsRef = useRef<any>(null);
   const handled = useRef<string | null>(null);
 
+  // Get OrbitControls ref via three internals
   useFrame(() => {
     if (!preset || preset === handled.current) return;
     handled.current = preset;
     const cx = config.width / 2;
     const cy = config.height / 2;
     const d = Math.max(config.width, config.height) * 1.2;
+    const target = new THREE.Vector3(cx, cy, 0);
 
-    if (preset === "top") {
+    const kind = preset.split("-")[0]; // strip timestamp suffix
+
+    if (kind === "top") {
       camera.position.set(cx, cy, d * 1.5);
-      camera.lookAt(cx, cy, 0);
-    } else if (preset === "side") {
+    } else if (kind === "side") {
       camera.position.set(cx, -d, d * 0.3);
-      camera.lookAt(cx, cy, 0);
-    } else if (preset === "iso") {
+    } else if (kind === "iso") {
       camera.position.set(cx + d * 0.7, cy - d * 0.5, d * 0.7);
-      camera.lookAt(cx, cy, 0);
     }
+    camera.lookAt(target);
+    camera.updateProjectionMatrix();
   });
 
   return null;
