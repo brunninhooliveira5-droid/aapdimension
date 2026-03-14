@@ -172,6 +172,8 @@ export default function ZMappingPage() {
     const cellCount = Math.max(4, Math.min(20, Math.round(Math.max(effectiveWidth, effectiveHeight) / spacing)));
     return analyzeDensity(originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, cellCount, cellCount, arcSegmentLen);
   }, [mappingPrecision, originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, spacing, arcSegmentLen]);
+
+  const config: MeshConfig = useMemo(() => ({
     unit,
     xStart: effectiveXStart,
     yStart: effectiveYStart,
@@ -184,8 +186,22 @@ export default function ZMappingPage() {
 
   const mesh = useMemo(() => {
     if (effectiveWidth <= 0 || effectiveHeight <= 0 || spacing <= 0) return null;
+    if (mappingPrecision === "smart" && densityMap) {
+      return generateAdaptiveMesh(config, densityMap, 2.0, 0.5);
+    }
+    if (mappingPrecision === "maximum") {
+      return generateDenseMesh(config, 0.5);
+    }
     return generateMesh(config);
-  }, [config, effectiveWidth, effectiveHeight, spacing]);
+  }, [config, effectiveWidth, effectiveHeight, spacing, mappingPrecision, densityMap]);
+
+  // Calculate uniform mesh for savings comparison
+  const uniformPointCount = useMemo(() => {
+    if (effectiveWidth <= 0 || effectiveHeight <= 0 || spacing <= 0) return 0;
+    const sx = Math.max(1, Math.round(effectiveWidth / spacing));
+    const sy = Math.max(1, Math.round(effectiveHeight / spacing));
+    return (sx + 1) * (sy + 1);
+  }, [effectiveWidth, effectiveHeight, spacing]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
