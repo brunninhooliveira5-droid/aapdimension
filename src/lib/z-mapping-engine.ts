@@ -812,6 +812,20 @@ export function generateUnifiedGcode(
 
   // Serpentine scan — store in variables using GRID index
   const touches = Math.max(1, Math.min(5, touchesPerPoint));
+  const retMode = retractionConfig?.mode ?? "standard";
+  const retMinSafeZ = retractionConfig?.minSafeZ ?? cfg.clearance;
+  const retAdaptive = retractionConfig?.adaptiveClearance ?? (cfg.unit === "mm" ? 3 : 0.12);
+  const retReinforced = retractionConfig?.reinforcedClearance ?? (cfg.unit === "mm" ? 5 : 0.2);
+
+  // Variables used for adaptive retraction:
+  // #490 = last measured Z, #491 = previous measured Z
+  if (retMode !== "standard") {
+    lines.push("(Retracao adaptativa ativada)");
+    lines.push(`#490 = 0`);
+    lines.push(`#491 = 0`);
+    lines.push("");
+  }
+
   let scanCount = 0;
   for (let row = 0; row < mesh.rows; row++) {
     const ltr = row % 2 === 0;
@@ -821,7 +835,35 @@ export function generateUnifiedGcode(
       const pt = mesh.points[gridIdx];
 
       lines.push(`(Ponto ${scanCount} -> #${500 + gridIdx})`);
-      lines.push(`G0 Z${d(cfg.clearance)}`);
+
+      // ── Retraction logic between points ──
+      if (retMode === "standard") {
+        lines.push(`G0 Z${d(cfg.clearance)}`);
+      } else if (retMode === "safe") {
+        // Z_desl = max(Z_seguro_min, ultimo_Z + folga_adaptativa)
+        if (scanCount === 0) {
+          lines.push(`G0 Z${d(cfg.clearance)}`);
+        } else {
+          lines.push(`#492 = ${d(retMinSafeZ)}`);
+          lines.push(`#493 = [#490 + ${d(retAdaptive)}]`);
+          lines.push("(Usar o maior entre Z minimo e Z adaptativo)");
+          lines.push("IF [#493 GT #492] THEN #492 = #493");
+          lines.push("G0 Z#492");
+        }
+      } else {
+        // curved: Z_desl = max(Z_seguro_min, ultimo_Z, Z_anterior) + folga_reforçada
+        if (scanCount === 0) {
+          lines.push(`G0 Z${d(cfg.clearance)}`);
+        } else {
+          lines.push(`#492 = ${d(retMinSafeZ)}`);
+          lines.push("(Maior entre Z minimo, ultimo Z e Z anterior)");
+          lines.push("IF [#490 GT #492] THEN #492 = #490");
+          lines.push("IF [#491 GT #492] THEN #492 = #491");
+          lines.push(`#492 = [#492 + ${d(retReinforced)}]`);
+          lines.push("G0 Z#492");
+        }
+      }
+
       lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
 
       if (touches === 1) {
