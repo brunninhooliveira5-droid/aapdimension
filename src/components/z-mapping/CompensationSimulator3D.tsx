@@ -255,24 +255,26 @@ function ToolpathLine({ path, config, surfMin, surfMax, compensated, lineColor, 
 }
 
 /* ── Animated tool marker ── */
-function ToolMarker({ path, config, progress, isPlaying, speed }: {
+function ToolMarker({ path, config, progress, isPlaying, speed, mesh, probeData }: {
   path: PathPt[]; config: MeshConfig; progress: number;
-  isPlaying: boolean; speed: number;
+  isPlaying: boolean; speed: number; mesh: MeshInfo; probeData: MeshPoint[];
 }) {
   const ref = useRef<THREE.Group>(null);
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
   const zScale = Math.max(config.width, config.height) * 0.4;
+  const lift = Math.max(config.width, config.height) * 0.015;
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (!ref.current || path.length < 2) return;
     const idx = Math.floor(progressRef.current * (path.length - 1));
     const pt = path[Math.min(idx, path.length - 1)];
+    const surfZ = bilinearZ(pt.x, pt.y, mesh, probeData, config);
     ref.current.position.set(
       pt.x - config.xStart,
       pt.y - config.yStart,
-      pt.zComp * zScale
+      surfZ * zScale + lift
     );
   });
 
