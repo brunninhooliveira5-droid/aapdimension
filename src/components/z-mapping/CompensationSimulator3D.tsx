@@ -20,11 +20,19 @@ import {
 /* ── Types ── */
 type GcodeSource = "original" | "custom";
 
+interface VbitSettings {
+  enabled: boolean;
+  angle: number;
+  nominalDepth: number;
+  compMode: "off" | "basic" | "advanced";
+}
+
 interface Props {
   originalGcode: string;
   mesh: MeshInfo;
   config: MeshConfig;
   onClose: () => void;
+  vbitSettings?: VbitSettings;
 }
 
 /* ── Synthetic surface ── */
