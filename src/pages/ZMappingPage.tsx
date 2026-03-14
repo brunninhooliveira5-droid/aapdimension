@@ -1214,6 +1214,9 @@ export default function ZMappingPage() {
           {probeType === "custom" && (
             <span className="text-muted-foreground">
               Probe: <strong className="text-foreground">Personalizado</strong>
+              {postMappingMode !== "manual" && (
+                <> · Finalização: <strong>{postMappingMode === "auto_offset" ? "Auto" : "Auto+Medição"}</strong></>
+              )}
             </span>
           )}
         </div>
