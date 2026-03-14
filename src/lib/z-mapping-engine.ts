@@ -391,7 +391,7 @@ function bilinearInterp(
 }
 
 // ── Segment splitter ──────────────────────────────────────────
-function segmentMove(from: CncPos, to: CncPos, maxLen: number): CncPos[] {
+export function segmentMove(from: CncPos, to: CncPos, maxLen: number): CncPos[] {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const dz = to.z - from.z;
