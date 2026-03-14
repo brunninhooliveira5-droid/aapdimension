@@ -358,7 +358,7 @@ export default function ZMappingPage() {
       console.error("Erro ao gerar arquivo:", err);
       toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
     }
-  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance, probeType, cpOffsetX, cpOffsetY, cpOffsetZ, cpStartCmd, cpStartDwell, cpStartSafeZ, cpEndCmd, cpEndDwell, cpEndSafeZ]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance, probeType, cpOffsetX, cpOffsetY, cpOffsetZ, cpStartCmd, cpStartDwell, cpStartSafeZ, cpEndCmd, cpEndDwell, cpEndSafeZ, postMappingMode, cpToolOffsetZ, cpPostSafeZ, cpMeasureX, cpMeasureY, cpMeasureCmd, cpMeasureDwell]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
