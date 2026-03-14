@@ -6,6 +6,32 @@ export type LocationMode = "corner" | "rect-center" | "circle-center" | "hole-ce
 export type ApproachDirection = "X+" | "X-" | "Y+" | "Y-";
 export type ZProbeMode = "none" | "auto" | "manual";
 export type HoleZStrategy = "auto-safe" | "manual-offset" | "none";
+export type ProbeType = "standard" | "custom";
+export type PostLocationAction = "locate-only" | "locate-origin" | "locate-machining";
+
+export interface CustomProbeConfig {
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  startCommand: string;
+  startDwell: number;
+  startSafeZ: number;
+  endCommand: string;
+  endDwell: number;
+  endSafeZ: number;
+}
+
+export const defaultCustomProbeConfig: CustomProbeConfig = {
+  offsetX: 0,
+  offsetY: 0,
+  offsetZ: 0,
+  startCommand: "M10",
+  startDwell: 1,
+  startSafeZ: 10,
+  endCommand: "M11",
+  endDwell: 1,
+  endSafeZ: 10,
+};
 
 export interface CenterCornersConfig {
   mode: LocationMode;
@@ -38,10 +64,15 @@ export interface CenterCornersConfig {
   holeZStrategy: HoleZStrategy;
   /** Hole: safety margin beyond hole radius */
   holeZSafetyMargin: number;
-  /** Hole manual: X offset for Z probe */
+  /** Manual: X offset for Z probe */
   holeZManualOffsetX: number;
-  /** Hole manual: Y offset for Z probe */
+  /** Manual: Y offset for Z probe */
   holeZManualOffsetY: number;
+  /** Custom probe */
+  probeType: ProbeType;
+  customProbe: CustomProbeConfig;
+  /** Post-location action */
+  postAction: PostLocationAction;
 }
 
 export const defaultCenterCornersConfig: CenterCornersConfig = {
@@ -72,6 +103,9 @@ export const defaultCenterCornersConfig: CenterCornersConfig = {
   holeZSafetyMargin: 5,
   holeZManualOffsetX: 0,
   holeZManualOffsetY: 0,
+  probeType: "standard",
+  customProbe: { ...defaultCustomProbeConfig },
+  postAction: "locate-origin",
 };
 
 export interface CenterCornersResult {
