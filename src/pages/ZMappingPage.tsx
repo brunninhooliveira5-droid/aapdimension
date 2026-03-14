@@ -104,6 +104,20 @@ type ToolTypeOption = "straight" | "fine-tip" | "vbit";
 /* ── View mode for central area ──────────── */
 type ViewMode = "gcode" | "surface" | "simulation";
 
+/* ── Inline description texts for explanations mode ──── */
+const INLINE_DESCRIPTIONS: Record<string, string> = {
+  safeHeight: "Altura usada para movimentações rápidas da ferramenta sem tocar na peça.",
+  spacingX: "Define o espaçamento entre os pontos de medição no sentido horizontal.",
+  spacingY: "Define o espaçamento entre os pontos de medição no sentido vertical.",
+  probeFeed: "Velocidade usada quando o probe desce para tocar a superfície da peça.",
+  probeDepth: "Limite máximo que a máquina pode descer procurando a superfície.",
+  touchPrecision: "Quantas vezes cada ponto será medido para aumentar a precisão.",
+  mappingUniform: "Define a estratégia usada para medir a superfície da peça.",
+  vbitComp: "Ajusta a profundidade da gravação considerando a inclinação da superfície.",
+  probeOffset: "Distância entre o probe e o centro da ferramenta.",
+  retraction: "Define como a ferramenta se desloca entre os pontos de medição.",
+};
+
 /* ── Help tooltip (uses VisualHelpSystem) ────────────── */
 function HelpTip({ text }: { text: string }) {
   return <EnhancedHelpTip text={text} />;
