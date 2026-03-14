@@ -569,6 +569,7 @@ export default function CenterCornersPage() {
                     onSafeZChange={setSafeZ}
                     onZCornerInsetChange={setZCornerInset}
                     onHoleZSafetyMarginChange={setHoleZSafetyMargin}
+                    onProbeDepthChange={setProbeDepth}
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground text-center mt-1">{modeInfo.desc}</p>
