@@ -17,10 +17,10 @@ import {
   Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch
 } from "lucide-react";
 import {
-  analyzeGcode, generateMesh, generateUnifiedGcode,
+  analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
   defaultConfigMM, defaultConfigInch,
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
-  type ControllerType, type UnifiedResult,
+  type ControllerType, type UnifiedResult, type DensityMap,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
