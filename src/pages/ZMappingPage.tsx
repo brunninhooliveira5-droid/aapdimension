@@ -503,11 +503,70 @@ export default function ZMappingPage() {
               </RadioGroup>
             </div>
 
+            {/* Tool type & engraving mode */}
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <PenTool className="h-3 w-3 text-primary" /> Tipo de ferramenta
+              </Label>
+              <RadioGroup
+                value={toolType}
+                onValueChange={(v) => {
+                  setToolType(v as ToolTypeOption);
+                  if (v !== "vbit") {
+                    setVbitCompMode("off");
+                    if (engravingMode === "vbit-curved") setEngravingMode("curved");
+                  }
+                }}
+                className="flex flex-wrap gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="straight" id="tool-straight" />
+                  <Label htmlFor="tool-straight" className="text-xs cursor-pointer">Fresa reta</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="fine-tip" id="tool-fine" />
+                  <Label htmlFor="tool-fine" className="text-xs cursor-pointer">Ponta fina</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="vbit" id="tool-vbit" />
+                  <Label htmlFor="tool-vbit" className="text-xs cursor-pointer">V-bit</Label>
+                </div>
+              </RadioGroup>
+
+              {/* V-bit parameters */}
+              {toolType === "vbit" && (
+                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ângulo da V-bit</Label>
+                    <Select value={String(vbitAngle)} onValueChange={(v) => setVbitAngle(Number(v))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">30°</SelectItem>
+                        <SelectItem value="45">45°</SelectItem>
+                        <SelectItem value="60">60°</SelectItem>
+                        <SelectItem value="90">90°</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Profundidade nominal ({unit})</Label>
+                    <Input type="number" value={nominalDepth} step={unit === "mm" ? 0.05 : 0.002}
+                      onChange={(e) => setNominalDepth(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Largura estimada do traço: <strong className="text-foreground">
+                        {fmt(2 * nominalDepth * Math.tan((vbitAngle / 2) * Math.PI / 180), 3)} {unit}
+                      </strong>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Engraving mode */}
             <div className="space-y-2 pt-2 border-t border-border/50">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <PenTool className="h-3 w-3 text-primary" /> Tipo de gravação
-              </Label>
+              <Label className="text-xs font-medium">Tipo de gravação</Label>
               <RadioGroup
                 value={engravingMode}
                 onValueChange={(v) => setEngravingMode(v as EngravingMode)}
@@ -534,35 +593,51 @@ export default function ZMappingPage() {
               )}
 
               {engravingMode === "vbit-curved" && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-                    Este modo ajusta um G-code plano para acompanhar a superfície curva da peça, mantendo a gravação V-bit uniforme mesmo em superfícies irregulares.
+                    Corrigir profundidade da gravação para manter o traço uniforme em superfícies curvas. A profundidade é ajustada automaticamente com base na altura e na inclinação local da superfície.
                   </p>
 
                   {/* V-bit compensation mode */}
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-medium">Compensação para V-bit</Label>
+                    <Label className="text-[11px] font-medium">Compensação V-bit</Label>
                     <RadioGroup
                       value={vbitCompMode}
                       onValueChange={(v) => setVbitCompMode(v as VbitCompMode)}
                       className="flex gap-4"
                     >
                       <div className="flex items-center gap-1.5">
-                        <RadioGroupItem value="standard" id="vbit-std" />
-                        <Label htmlFor="vbit-std" className="text-[11px] cursor-pointer">Padrão</Label>
+                        <RadioGroupItem value="off" id="vcomp-off" />
+                        <Label htmlFor="vcomp-off" className="text-[11px] cursor-pointer">Desligada</Label>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <RadioGroupItem value="enhanced" id="vbit-enh" />
-                        <Label htmlFor="vbit-enh" className="text-[11px] cursor-pointer">Aprimorada</Label>
+                        <RadioGroupItem value="basic" id="vcomp-basic" />
+                        <Label htmlFor="vcomp-basic" className="text-[11px] cursor-pointer">Básica</Label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="advanced" id="vcomp-adv" />
+                        <Label htmlFor="vcomp-adv" className="text-[11px] cursor-pointer">Avançada</Label>
                       </div>
                     </RadioGroup>
                     <p className="text-[10px] text-muted-foreground">
-                      {vbitCompMode === "standard"
+                      {vbitCompMode === "off"
+                        ? "Sem compensação de profundidade — apenas altura da superfície."
+                        : vbitCompMode === "basic"
                         ? "Compensa a altura local da superfície para manter a profundidade uniforme."
-                        : "Preparado para compensação futura baseada na inclinação local da superfície."
+                        : "Compensa altura e inclinação da superfície para manter a largura do traço constante."
                       }
                     </p>
                   </div>
+
+                  {/* Auto-select vbit tool if engraving vbit-curved */}
+                  {toolType !== "vbit" && (
+                    <Alert className="border-primary/30 bg-primary/5">
+                      <AlertTriangle className="h-4 w-4 text-primary" />
+                      <AlertDescription className="text-xs">
+                        Selecione "V-bit" como tipo de ferramenta para ativar os parâmetros de compensação avançada.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               )}
             </div>
