@@ -481,9 +481,14 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
         enableDamping
         dampingFactor={0.12}
         enablePan={false}
+        target={[
+          config.width / 2,
+          config.height / 2,
+          ((surfMin + surfMax) * 0.5) * Math.max(config.width, config.height) * 0.4,
+        ]}
         minDistance={orbitDistance * 0.35}
-        maxDistance={orbitDistance * 5}
-        minPolarAngle={0.05}
+        maxDistance={orbitDistance * 4}
+        minPolarAngle={0.08}
         maxPolarAngle={Math.PI * 0.48}
       />
     </>
