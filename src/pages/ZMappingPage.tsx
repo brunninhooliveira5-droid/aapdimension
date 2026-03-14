@@ -195,6 +195,15 @@ export default function ZMappingPage() {
   const [cpEndDwell, setCpEndDwell] = useState(1);
   const [cpEndSafeZ, setCpEndSafeZ] = useState(unit === "mm" ? 20 : 1);
 
+  // Post-mapping mode
+  const [postMappingMode, setPostMappingMode] = useState<PostMappingMode>("manual");
+  const [cpToolOffsetZ, setCpToolOffsetZ] = useState(0);
+  const [cpPostSafeZ, setCpPostSafeZ] = useState(unit === "mm" ? 20 : 1);
+  const [cpMeasureX, setCpMeasureX] = useState(0);
+  const [cpMeasureY, setCpMeasureY] = useState(0);
+  const [cpMeasureCmd, setCpMeasureCmd] = useState("G31 Z-50 F100");
+  const [cpMeasureDwell, setCpMeasureDwell] = useState(1);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const effectiveXStart = areaMode === "auto" ? xStart : manualXStart;
