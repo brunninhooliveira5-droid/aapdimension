@@ -14,7 +14,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
@@ -22,6 +21,7 @@ import {
   PenTool, AlertTriangle, ShieldCheck, Wand2, Save, Box, Crosshair,
   HelpCircle, Monitor, BarChart3, Gauge, Activity,
 } from "lucide-react";
+import { EnhancedHelpTip, PARAM_HELP } from "@/components/z-mapping/VisualHelpSystem";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
   defaultConfigMM, defaultConfigInch,

@@ -5,13 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Upload, FileUp, ChevronLeft, ChevronRight, Grid3x3, Play, Download,
-  CheckCircle2, HelpCircle, Layers, Shield, PenTool, Wand2, X, Sparkles,
+  CheckCircle2, Layers, Shield, PenTool, Wand2, X, Sparkles,
 } from "lucide-react";
 import { GcodePreview } from "./GcodePreview";
 import { CompensationSimulator3D } from "./CompensationSimulator3D";
+import { EnhancedHelpTip, PARAM_HELP, VisualHelpCard } from "./VisualHelpSystem";
 import type { GcodeAnalysis, MeshInfo, MeshConfig, DensityMap, RetractionMode, UnifiedResult } from "@/lib/z-mapping-engine";
 import { fmt } from "@/lib/z-mapping-engine";
 
@@ -21,57 +21,31 @@ type EngravingMode = "standard" | "curved" | "vbit-curved";
 
 interface WizardProps {
   onClose: () => void;
-  // File
   originalGcode: string;
   originalFileName: string;
   analysis: GcodeAnalysis | null;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
-  // Config
   unit: string;
   safeHeight: number; setSafeHeight: (v: number) => void;
   spacingX: number; setSpacingX: (v: number) => void;
   spacingY: number; setSpacingY: (v: number) => void;
   probeFeed: number; setProbeFeed: (v: number) => void;
-  // Mapping
   mappingPrecision: MappingPrecision; setMappingPrecision: (v: MappingPrecision) => void;
-  // Retraction
   retractionMode: RetractionMode; setRetractionMode: (v: RetractionMode) => void;
   retMinSafeZ: number; setRetMinSafeZ: (v: number) => void;
   retAdaptiveClearance: number; setRetAdaptiveClearance: (v: number) => void;
-  // Engraving
   engravingMode: EngravingMode; setEngravingMode: (v: EngravingMode) => void;
   vbitAngle: number; setVbitAngle: (v: number) => void;
   nominalDepth: number; setNominalDepth: (v: number) => void;
-  // Mesh & preview
   mesh: MeshInfo | null;
   config: MeshConfig;
   densityMap: DensityMap | null;
-  // Generate
   onGenerate: () => void;
   onDownload: () => void;
   result: UnifiedResult | null;
-  // Simulator
   showSimulator: boolean;
   setShowSimulator: (v: boolean) => void;
-}
-
-/* ── Help tooltip ──────────────────────────────────────── */
-function HelpTip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button type="button" className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">
-            <HelpCircle className="h-3 w-3" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px] text-xs">
-          {text}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
 }
 
 /* ── Step indicator ────────────────────────────────────── */
@@ -83,6 +57,16 @@ const STEP_LABELS = [
   "Gravação",
   "Simulação",
   "Gerar",
+];
+
+const STEP_DESCRIPTIONS = [
+  "Carregue o arquivo G-code que será usinado na máquina.",
+  "Agora você vai definir como a máquina irá medir a superfície da peça.",
+  "Escolha como o sistema irá distribuir os pontos de medição sobre a área.",
+  "Configure a segurança do deslocamento entre os pontos de medição.",
+  "Defina como o sistema deve compensar a altura durante a gravação.",
+  "Visualize em 3D como a ferramenta acompanhará a superfície da peça.",
+  "Gere o arquivo final pronto para executar na máquina CNC.",
 ];
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
@@ -99,14 +83,21 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
   );
 }
 
-/* ── Number field ──────────────────────────────────────── */
-function NumField({ label, value, onChange, step, help }: {
-  label: string; value: number; onChange: (v: number) => void; step?: number; help?: string;
+/* ── Number field with visual help ────────────────────── */
+function NumField({ label, value, onChange, step, helpKey, helpText }: {
+  label: string; value: number; onChange: (v: number) => void; step?: number;
+  helpKey?: string; helpText?: string;
 }) {
+  const helpData = helpKey ? PARAM_HELP[helpKey] : undefined;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs flex items-center gap-1.5">
-        {label} {help && <HelpTip text={help} />}
+        {label}
+        {helpData ? (
+          <EnhancedHelpTip {...helpData} />
+        ) : helpText ? (
+          <EnhancedHelpTip text={helpText} />
+        ) : null}
       </Label>
       <Input type="number" value={value} step={step ?? 1}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="h-9" />
@@ -147,6 +138,11 @@ export function ZMappingWizard(props: WizardProps) {
       </div>
 
       <StepIndicator current={step} total={totalSteps} />
+
+      {/* Step description banner */}
+      <div className="rounded-lg bg-primary/5 border border-primary/10 px-4 py-2.5">
+        <p className="text-xs text-foreground leading-relaxed">{STEP_DESCRIPTIONS[step]}</p>
+      </div>
 
       {/* Step content */}
       <Card>
@@ -190,7 +186,7 @@ function Step1File(props: WizardProps) {
           <Upload className="h-4 w-4 text-primary" /> Carregar arquivo
         </h3>
         <p className="text-xs text-muted-foreground">
-          Primeiro, carregue o arquivo G-code que será usinado.
+          O arquivo G-code contém o percurso que a ferramenta fará na peça. O sistema analisa esse arquivo para calcular a área de mapeamento.
         </p>
       </div>
 
@@ -240,19 +236,19 @@ function Step2Config(props: WizardProps) {
       <div className="space-y-1">
         <h3 className="text-sm font-semibold">Configurar o mapeamento</h3>
         <p className="text-xs text-muted-foreground">
-          Essas configurações definem como a máquina irá medir a superfície da peça.
+          Esses parâmetros controlam como a máquina irá medir a superfície. Passe o mouse sobre o ícone <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-muted text-muted-foreground mx-0.5 align-middle text-[8px]">?</span> e aguarde para ver uma ilustração explicativa.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <NumField label={`Altura segura (${props.unit})`} value={props.safeHeight} onChange={props.setSafeHeight}
-          help="Altura em que a ferramenta se move sem tocar na peça." />
+          helpKey="safeHeight" />
         <NumField label="Distância entre pontos X" value={props.spacingX} onChange={props.setSpacingX}
-          help="Quanto menor a distância, mais preciso será o mapeamento." />
+          helpKey="spacingX" />
         <NumField label="Distância entre pontos Y" value={props.spacingY} onChange={props.setSpacingY}
-          help="Quanto menor a distância, mais preciso será o mapeamento." />
+          helpKey="spacingY" />
         <NumField label={`Velocidade do toque (${props.unit}/min)`} value={props.probeFeed} onChange={props.setProbeFeed}
-          help="Velocidade usada pela máquina para tocar a superfície." />
+          helpKey="probeFeed" />
       </div>
 
       {props.mesh && (
@@ -280,30 +276,36 @@ function Step3Mapping(props: WizardProps) {
       <div className="space-y-1">
         <h3 className="text-sm font-semibold">Modo de mapeamento</h3>
         <p className="text-xs text-muted-foreground">
-          Escolha como o sistema irá distribuir os pontos de medição.
+          Escolha como os pontos de medição serão distribuídos. Cada modo é indicado para um tipo de trabalho diferente.
         </p>
       </div>
 
       <RadioGroup value={props.mappingPrecision} onValueChange={(v) => props.setMappingPrecision(v as MappingPrecision)} className="space-y-3">
         <label htmlFor="wiz-uniform" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="uniform" id="wiz-uniform" className="mt-0.5" />
-          <div>
-            <p className="text-sm font-medium">Grade tradicional</p>
-            <p className="text-xs text-muted-foreground">Mede a superfície em pontos organizados.</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Grade tradicional</p>
+              <EnhancedHelpTip {...PARAM_HELP.mappingUniform} />
+            </div>
+            <p className="text-xs text-muted-foreground">Mede a superfície em pontos organizados em grade regular. Ideal para peças planas ou com pouca variação.</p>
           </div>
         </label>
         <label htmlFor="wiz-smart" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="smart" id="wiz-smart" className="mt-0.5" />
-          <div>
-            <p className="text-sm font-medium">Inteligente</p>
-            <p className="text-xs text-muted-foreground">Coloca mais pontos onde o trabalho tem mais detalhes.</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Inteligente</p>
+              <EnhancedHelpTip {...PARAM_HELP.mappingSmart} />
+            </div>
+            <p className="text-xs text-muted-foreground">Coloca mais pontos onde o trabalho tem mais detalhes. Economiza tempo sem perder precisão.</p>
           </div>
         </label>
         <label htmlFor="wiz-max" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="maximum" id="wiz-max" className="mt-0.5" />
           <div>
             <p className="text-sm font-medium">Varredura máxima</p>
-            <p className="text-xs text-muted-foreground">Mede a superfície com alta densidade, mais preciso porém mais lento.</p>
+            <p className="text-xs text-muted-foreground">Mede com alta densidade de pontos. Mais preciso porém mais lento. Indicado para peças pequenas com muita variação.</p>
           </div>
         </label>
       </RadioGroup>
@@ -333,30 +335,33 @@ function Step4Safety(props: WizardProps) {
           <Shield className="h-4 w-4 text-primary" /> Segurança do mapeamento
         </h3>
         <p className="text-xs text-muted-foreground">
-          Ajusta automaticamente a altura de deslocamento entre os pontos para evitar choque com peças curvas ou inclinadas.
+          Define como a ferramenta se desloca entre os pontos de medição. Em peças curvas ou irregulares, usar o modo adaptativo evita colisões.
         </p>
       </div>
 
       <RadioGroup value={props.retractionMode} onValueChange={(v) => props.setRetractionMode(v as RetractionMode)} className="space-y-3">
         <label htmlFor="wiz-ret-std" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="standard" id="wiz-ret-std" className="mt-0.5" />
-          <div>
-            <p className="text-sm font-medium">Padrão</p>
-            <p className="text-xs text-muted-foreground">Usa altura fixa de segurança.</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Padrão</p>
+              <EnhancedHelpTip {...PARAM_HELP.retraction} />
+            </div>
+            <p className="text-xs text-muted-foreground">Usa a mesma altura fixa de segurança para todos os deslocamentos. Mais simples e previsível.</p>
           </div>
         </label>
         <label htmlFor="wiz-ret-safe" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="safe" id="wiz-ret-safe" className="mt-0.5" />
           <div>
             <p className="text-sm font-medium">Seguro</p>
-            <p className="text-xs text-muted-foreground">Adapta a altura com base no último ponto medido.</p>
+            <p className="text-xs text-muted-foreground">Adapta a altura de deslocamento com base no último ponto medido. Evita colisões em peças com variação moderada.</p>
           </div>
         </label>
         <label htmlFor="wiz-ret-curved" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="curved" id="wiz-ret-curved" className="mt-0.5" />
           <div>
             <p className="text-sm font-medium">Superfície curva</p>
-            <p className="text-xs text-muted-foreground">Proteção reforçada para grandes variações de altura.</p>
+            <p className="text-xs text-muted-foreground">Proteção reforçada com margem extra para grandes variações de altura. Indicado para peças muito irregulares.</p>
           </div>
         </label>
       </RadioGroup>
@@ -364,9 +369,9 @@ function Step4Safety(props: WizardProps) {
       {props.retractionMode !== "standard" && (
         <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-lg p-3">
           <NumField label={`Z seguro mínimo (${props.unit})`} value={props.retMinSafeZ} onChange={props.setRetMinSafeZ}
-            help="Altura mínima de segurança durante o deslocamento." step={0.5} />
+            helpText="Altura mínima de segurança durante o deslocamento entre pontos." step={0.5} />
           <NumField label={`Margem adaptativa (${props.unit})`} value={props.retAdaptiveClearance} onChange={props.setRetAdaptiveClearance}
-            help="Margem extra adicionada sobre o último ponto medido." step={0.5} />
+            helpText="Margem extra adicionada sobre o último ponto medido para evitar colisão." step={0.5} />
         </div>
       )}
     </div>
@@ -382,7 +387,7 @@ function Step5Engraving(props: WizardProps) {
           <PenTool className="h-4 w-4 text-primary" /> Tipo de gravação
         </h3>
         <p className="text-xs text-muted-foreground">
-          Escolha como o sistema deve compensar a altura da ferramenta.
+          Escolha como o sistema deve tratar a altura da ferramenta durante a usinagem. Para gravação em peças curvas, use os modos de compensação.
         </p>
       </div>
 
@@ -391,21 +396,24 @@ function Step5Engraving(props: WizardProps) {
           <RadioGroupItem value="standard" id="wiz-eng-std" className="mt-0.5" />
           <div>
             <p className="text-sm font-medium">Usinagem normal</p>
-            <p className="text-xs text-muted-foreground">Sem compensação especial de curvatura.</p>
+            <p className="text-xs text-muted-foreground">Sem compensação especial de curvatura. Ideal para peças planas ou quando não há necessidade de acompanhar a superfície.</p>
           </div>
         </label>
         <label htmlFor="wiz-eng-curved" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="curved" id="wiz-eng-curved" className="mt-0.5" />
           <div>
             <p className="text-sm font-medium">Gravação em superfície curva</p>
-            <p className="text-xs text-muted-foreground">Acompanha a superfície mantendo a profundidade relativa.</p>
+            <p className="text-xs text-muted-foreground">A ferramenta acompanha a superfície mantendo a profundidade relativa constante.</p>
           </div>
         </label>
         <label htmlFor="wiz-eng-vbit" className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
           <RadioGroupItem value="vbit-curved" id="wiz-eng-vbit" className="mt-0.5" />
-          <div>
-            <p className="text-sm font-medium">Gravação V-bit em superfície curva</p>
-            <p className="text-xs text-muted-foreground">Compensa altura e inclinação para manter a largura do traço.</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Gravação V-bit em superfície curva</p>
+              <EnhancedHelpTip {...PARAM_HELP.vbitComp} />
+            </div>
+            <p className="text-xs text-muted-foreground">Compensa altura e inclinação para manter a largura do traço da V-bit constante, mesmo em superfícies irregulares.</p>
           </div>
         </label>
       </RadioGroup>
@@ -413,9 +421,9 @@ function Step5Engraving(props: WizardProps) {
       {props.engravingMode === "vbit-curved" && (
         <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-lg p-3">
           <NumField label="Ângulo da V-bit (°)" value={props.vbitAngle} onChange={props.setVbitAngle}
-            help="Ângulo total da ponta da ferramenta V-bit." step={5} />
+            helpText="Ângulo total da ponta da ferramenta V-bit. Ângulos maiores geram traços mais largos." step={5} />
           <NumField label={`Profundidade da gravação (${props.unit})`} value={props.nominalDepth} onChange={props.setNominalDepth}
-            help="Profundidade desejada da gravação." step={0.05} />
+            helpText="Profundidade desejada da gravação. Determina a largura final do traço junto com o ângulo da V-bit." step={0.05} />
         </div>
       )}
     </div>
@@ -431,7 +439,7 @@ function Step6Simulation(props: WizardProps) {
           <Layers className="h-4 w-4 text-primary" /> Simulação 3D
         </h3>
         <p className="text-xs text-muted-foreground">
-          A simulação mostra como a ferramenta irá subir ou descer para acompanhar a superfície.
+          A simulação mostra uma prévia visual de como a ferramenta irá subir ou descer para acompanhar a superfície da peça. Você pode girar, dar zoom e explorar o mapa de cores.
         </p>
       </div>
 
@@ -449,9 +457,16 @@ function Step6Simulation(props: WizardProps) {
               onClose={() => props.setShowSimulator(false)}
             />
           )}
-          <p className="text-[11px] text-muted-foreground text-center">
-            Você pode girar, dar zoom e visualizar o heatmap da superfície.
-          </p>
+          <div className="rounded-lg bg-muted/30 p-3 text-center space-y-1">
+            <p className="text-[11px] text-muted-foreground">
+              As cores representam a variação de altura da superfície.
+            </p>
+            <div className="flex items-center justify-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> Mais baixo</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Médio</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Mais alto</span>
+            </div>
+          </div>
         </>
       ) : (
         <div className="rounded-lg bg-muted/30 p-6 text-center">
@@ -475,7 +490,7 @@ function Step7Generate(props: WizardProps) {
           <Sparkles className="h-4 w-4 text-primary" /> Gerar arquivo final
         </h3>
         <p className="text-xs text-muted-foreground">
-          O sistema irá criar um novo arquivo que acompanha a superfície da peça.
+          O sistema criará um arquivo único que primeiro faz o mapeamento da superfície e depois executa a usinagem com compensação automática de altura.
         </p>
       </div>
 
@@ -492,6 +507,15 @@ function Step7Generate(props: WizardProps) {
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <span className="text-sm font-medium">Arquivo pronto para ser executado na CNC.</span>
+          </div>
+
+          <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-xs text-muted-foreground">
+            <p><strong className="text-foreground">O que acontece ao executar:</strong></p>
+            <ol className="list-decimal list-inside space-y-0.5">
+              <li>A máquina mede a superfície da peça</li>
+              <li>Pausa para trocar a ferramenta</li>
+              <li>Inicia a usinagem com compensação</li>
+            </ol>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
