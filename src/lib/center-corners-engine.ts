@@ -129,7 +129,7 @@ function setOriginCmd(controller: string, axis: string, value: string): string {
   return `G92 ${axis}${value}`;
 }
 
-export function generateCenterCornersGcode(cfg: CenterCornersConfig): CenterCornersResult {
+export function generateCenterCornersGcode(cfg: CenterCornersConfig, workGcode?: string): CenterCornersResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const probe = probeCmd(cfg.controller);
   const r = cfg.probeDiameter / 2;
@@ -138,16 +138,112 @@ export function generateCenterCornersGcode(cfg: CenterCornersConfig): CenterCorn
   out.push("(==============================================)");
   out.push("(  Centro e Quinas - Dimension CNC             )");
 
+  // Custom probe: emit start sequence
+  if (cfg.probeType === "custom") {
+    out.push("(  Probe Personalizado: ATIVO                  )");
+    out.push("(==============================================)");
+    out.push("");
+    out.push("( ===== ACIONAMENTO DO PROBE ===== )");
+    out.push(`G0 Z${d(cfg.customProbe.startSafeZ)}`);
+    if (cfg.customProbe.startCommand.trim()) {
+      out.push(cfg.customProbe.startCommand.trim());
+    }
+    if (cfg.customProbe.startDwell > 0) {
+      out.push(`G4 P${cfg.customProbe.startDwell}`);
+    }
+    // Apply probe offset — move to compensate
+    if (cfg.customProbe.offsetX !== 0 || cfg.customProbe.offsetY !== 0) {
+      out.push("( --- Compensar offset do probe --- )");
+      out.push(`( Offset: X${d(cfg.customProbe.offsetX)} Y${d(cfg.customProbe.offsetY)} )`);
+    }
+    out.push("");
+  }
+
+  let result: CenterCornersResult;
   switch (cfg.mode) {
     case "corner":
-      return generateCorner(cfg, out, d, probe, r);
+      result = generateCorner(cfg, out, d, probe, r);
+      break;
     case "rect-center":
-      return generateRectCenter(cfg, out, d, probe, r);
+      result = generateRectCenter(cfg, out, d, probe, r);
+      break;
     case "circle-center":
-      return generateCircleCenter(cfg, out, d, probe, r);
+      result = generateCircleCenter(cfg, out, d, probe, r);
+      break;
     case "hole-center":
-      return generateHoleCenter(cfg, out, d, probe, r);
+      result = generateHoleCenter(cfg, out, d, probe, r);
+      break;
   }
+
+  // If custom probe, we need to insert end sequence before M30
+  if (cfg.probeType === "custom") {
+    // Remove M30 from the end
+    const lines = result.code.split("\n");
+    const m30Idx = lines.lastIndexOf("M30");
+    if (m30Idx >= 0) lines.splice(m30Idx, 1);
+    // Remove trailing empty lines
+    while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+
+    lines.push("");
+    lines.push("( ===== RECOLHIMENTO DO PROBE ===== )");
+    lines.push(`G0 Z${d(cfg.customProbe.endSafeZ)}`);
+    if (cfg.customProbe.endCommand.trim()) {
+      lines.push(cfg.customProbe.endCommand.trim());
+    }
+    if (cfg.customProbe.endDwell > 0) {
+      lines.push(`G4 P${cfg.customProbe.endDwell}`);
+    }
+    // Compensate offset back
+    if (cfg.customProbe.offsetX !== 0 || cfg.customProbe.offsetY !== 0) {
+      lines.push("( --- Compensar offset de volta --- )");
+      lines.push(`G92 X[#5061 + ${d(cfg.customProbe.offsetX)}] Y[#5062 + ${d(cfg.customProbe.offsetY)}]`);
+    }
+    lines.push("");
+
+    // Append work G-code if provided
+    if (workGcode && cfg.postAction === "locate-machining") {
+      lines.push("( ===== INÍCIO DO TRABALHO ===== )");
+      lines.push(`G0 Z${d(cfg.customProbe.endSafeZ)}`);
+      lines.push("");
+      // Strip any leading M30/% from work gcode
+      const workLines = workGcode.split("\n").filter(l => {
+        const t = l.trim().toUpperCase();
+        return t !== "M30" && t !== "M2" && t !== "%";
+      });
+      lines.push(...workLines);
+      lines.push("");
+    } else if (workGcode && cfg.postAction === "locate-machining") {
+      // fallback
+    }
+
+    lines.push("M30");
+    result.code = lines.join("\n");
+  } else if (workGcode && cfg.postAction === "locate-machining") {
+    // Standard probe + work G-code
+    const lines = result.code.split("\n");
+    const m30Idx = lines.lastIndexOf("M30");
+    if (m30Idx >= 0) lines.splice(m30Idx, 1);
+    while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+    lines.push("");
+    lines.push("( ===== INÍCIO DO TRABALHO ===== )");
+    lines.push(`G0 Z${d(cfg.safeZ)}`);
+    lines.push("");
+    const workLines = workGcode.split("\n").filter(l => {
+      const t = l.trim().toUpperCase();
+      return t !== "M30" && t !== "M2" && t !== "%";
+    });
+    lines.push(...workLines);
+    lines.push("");
+    lines.push("M30");
+    result.code = lines.join("\n");
+  }
+
+  if (cfg.postAction === "locate-machining" && workGcode) {
+    result.description += " + Trabalho";
+    result.fileName = "CC_Localizar_Trabalho.tap";
+  }
+
+  return result;
 }
 
 /* ── Z Probe helper ────────────────────────────────────── */
