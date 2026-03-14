@@ -183,6 +183,18 @@ export default function ZMappingPage() {
   const [retAdaptiveClearance, setRetAdaptiveClearance] = useState(unit === "mm" ? 3 : 0.12);
   const [retReinforcedClearance, setRetReinforcedClearance] = useState(unit === "mm" ? 5 : 0.2);
 
+  // Custom probe
+  const [probeType, setProbeType] = useState<ProbeType>("standard");
+  const [cpOffsetX, setCpOffsetX] = useState(0);
+  const [cpOffsetY, setCpOffsetY] = useState(0);
+  const [cpOffsetZ, setCpOffsetZ] = useState(0);
+  const [cpStartCmd, setCpStartCmd] = useState("M11");
+  const [cpStartDwell, setCpStartDwell] = useState(1);
+  const [cpStartSafeZ, setCpStartSafeZ] = useState(unit === "mm" ? 20 : 1);
+  const [cpEndCmd, setCpEndCmd] = useState("M10");
+  const [cpEndDwell, setCpEndDwell] = useState(1);
+  const [cpEndSafeZ, setCpEndSafeZ] = useState(unit === "mm" ? 20 : 1);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const effectiveXStart = areaMode === "auto" ? xStart : manualXStart;
