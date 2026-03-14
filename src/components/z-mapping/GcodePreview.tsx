@@ -59,9 +59,15 @@ function extractPaths(gcode: string, arcSegLen: number): PathSeg[] {
 }
 
 function densityColor(density: "low" | "medium" | "high"): string {
-  if (density === "high") return "rgba(239,68,68,0.15)";
-  if (density === "medium") return "rgba(234,179,8,0.1)";
-  return "rgba(59,130,246,0.05)";
+  if (density === "high") return "rgba(239,68,68,0.22)";
+  if (density === "medium") return "rgba(234,179,8,0.15)";
+  return "rgba(59,130,246,0.07)";
+}
+
+function densityBorderColor(density: "low" | "medium" | "high"): string {
+  if (density === "high") return "rgba(239,68,68,0.35)";
+  if (density === "medium") return "rgba(234,179,8,0.25)";
+  return "rgba(59,130,246,0.12)";
 }
 
 function clamp(value: number, min: number, max: number): number {
