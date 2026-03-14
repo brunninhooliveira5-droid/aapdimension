@@ -483,9 +483,9 @@ export function CompensationSimulator3D({ originalGcode, mesh, config, onClose, 
   const activeGcode = gcodeSource === "custom" && customGcode ? customGcode : originalGcode;
 
   const probeData = useMemo(() => generateSyntheticSurface(mesh), [mesh]);
-  const { path, surfMin, surfMax } = useMemo(
-    () => extractToolpath(activeGcode, mesh, probeData, config),
-    [activeGcode, mesh, probeData, config]
+  const { path, surfMin, surfMax, maxSlopeDeg } = useMemo(
+    () => extractToolpath(activeGcode, mesh, probeData, config, vbitSettings),
+    [activeGcode, mesh, probeData, config, vbitSettings]
   );
   const surfRange = surfMax - surfMin;
 
