@@ -354,32 +354,59 @@ function ToolMarker({ path, config, progress, isPlaying, speed, mesh, probeData 
 }
 
 /* ── Camera presets ── */
-function CameraController({ preset, config }: { preset: string | null; config: MeshConfig }) {
+function CameraController({
+  preset,
+  config,
+  surfMin,
+  surfMax,
+  controlsRef,
+}: {
+  preset: string | null;
+  config: MeshConfig;
+  surfMin: number;
+  surfMax: number;
+  controlsRef: React.MutableRefObject<any>;
+}) {
   const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
-  const handled = useRef<string | null>(null);
 
-  // Get OrbitControls ref via three internals
-  useFrame(() => {
-    if (!preset || preset === handled.current) return;
-    handled.current = preset;
+  const applyPreset = useCallback((kind: "top" | "side" | "iso") => {
     const cx = config.width / 2;
     const cy = config.height / 2;
-    const d = Math.max(config.width, config.height) * 1.2;
-    const target = new THREE.Vector3(cx, cy, 0);
+    const zScale = Math.max(config.width, config.height) * 0.4;
+    const cz = ((surfMin + surfMax) * 0.5) * zScale;
+    const d = Math.max(config.width, config.height) * 1.35;
+    const target = new THREE.Vector3(cx, cy, cz);
 
-    const kind = preset.split("-")[0]; // strip timestamp suffix
+    // Keep Z as the vertical axis to avoid orbit drift/flip.
+    camera.up.set(0, 0, 1);
 
     if (kind === "top") {
-      camera.position.set(cx, cy, d * 1.5);
+      camera.position.set(cx, cy, cz + d * 1.4);
     } else if (kind === "side") {
-      camera.position.set(cx, -d, d * 0.3);
-    } else if (kind === "iso") {
-      camera.position.set(cx + d * 0.7, cy - d * 0.5, d * 0.7);
+      camera.position.set(cx + d * 1.05, cy - d * 0.9, cz + d * 0.35);
+    } else {
+      camera.position.set(cx + d * 0.75, cy - d * 0.65, cz + d * 0.8);
     }
+
     camera.lookAt(target);
     camera.updateProjectionMatrix();
-  });
+
+    if (controlsRef.current) {
+      controlsRef.current.target.copy(target);
+      controlsRef.current.update();
+    }
+  }, [camera, config.width, config.height, surfMin, surfMax, controlsRef]);
+
+  useEffect(() => {
+    applyPreset("iso");
+  }, [applyPreset]);
+
+  useEffect(() => {
+    if (!preset) return;
+    const kind = preset.split("-")[0] as "top" | "side" | "iso";
+    if (kind !== "top" && kind !== "side" && kind !== "iso") return;
+    applyPreset(kind);
+  }, [preset, applyPreset]);
 
   return null;
 }
@@ -394,6 +421,9 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
   showAnimation: boolean; animProgress: number; animSpeed: number;
   cameraPreset: string | null;
 }) {
+  const controlsRef = useRef<any>(null);
+  const orbitDistance = Math.max(config.width, config.height);
+
   return (
     <>
       {/* Lighting for depth */}
@@ -434,12 +464,23 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
         position={[config.width / 2, config.height / 2, -0.02]}
       />
 
-      <CameraController preset={cameraPreset} config={config} />
+      <CameraController
+        preset={cameraPreset}
+        config={config}
+        surfMin={surfMin}
+        surfMax={surfMax}
+        controlsRef={controlsRef}
+      />
       <OrbitControls
+        ref={controlsRef}
         makeDefault
         enableDamping
         dampingFactor={0.12}
-        target={[config.width / 2, config.height / 2, 0]}
+        enablePan={false}
+        minDistance={orbitDistance * 0.35}
+        maxDistance={orbitDistance * 5}
+        minPolarAngle={0.05}
+        maxPolarAngle={Math.PI * 0.48}
       />
     </>
   );
