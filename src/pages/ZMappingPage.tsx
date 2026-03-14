@@ -88,6 +88,10 @@ type AreaMode = "auto" | "manual";
 /* ── Mapping precision ───────────────────── */
 type MappingPrecision = "uniform" | "smart" | "maximum";
 
+/* ── Engraving mode ──────────────────────── */
+type EngravingMode = "standard" | "curved" | "vbit-curved";
+type VbitCompMode = "standard" | "enhanced";
+
 export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
