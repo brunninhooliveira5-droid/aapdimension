@@ -536,25 +536,19 @@ export default function CenterCornersPage() {
                           hint="Deslocamento para dentro ao medir Z na quina." />
                       )}
 
-                      {mode === "corner" && zProbeMode === "manual" && (
+                      {zProbeMode === "manual" && (
                         <>
-                          <NumField label="Posição X para probe Z (mm)" value={holeZManualOffsetX} onChange={setHoleZManualOffsetX} step={1}
+                          <p className="text-[10px] text-muted-foreground">Posição manual do probe Z</p>
+                          <NumField label="Posição X (mm)" value={holeZManualOffsetX} onChange={setHoleZManualOffsetX} step={1}
                             hint="Coordenada X onde o probe Z será realizado." />
-                          <NumField label="Posição Y para probe Z (mm)" value={holeZManualOffsetY} onChange={setHoleZManualOffsetY} step={1}
+                          <NumField label="Posição Y (mm)" value={holeZManualOffsetY} onChange={setHoleZManualOffsetY} step={1}
                             hint="Coordenada Y onde o probe Z será realizado." />
                         </>
                       )}
 
-                      {mode === "hole-center" && holeZStrategy === "auto-safe" && (
+                      {mode === "hole-center" && zProbeMode === "auto" && (
                         <NumField label="Margem de segurança do furo (mm)" value={holeZSafetyMargin} onChange={setHoleZSafetyMargin} step={1}
                           hint="Distância além do raio do furo." />
-                      )}
-
-                      {mode === "hole-center" && holeZStrategy === "manual-offset" && (
-                        <>
-                          <NumField label="Deslocamento X para Z (mm)" value={holeZManualOffsetX} onChange={setHoleZManualOffsetX} step={1} />
-                          <NumField label="Deslocamento Y para Z (mm)" value={holeZManualOffsetY} onChange={setHoleZManualOffsetY} step={1} />
-                        </>
                       )}
                     </>
                   )}
