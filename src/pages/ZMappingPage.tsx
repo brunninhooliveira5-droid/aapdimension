@@ -1124,7 +1124,7 @@ function ProfessionalHeatmap({ mesh, cols, rows, unit, spacingX, spacingY }: {
   return (
     <div className="flex gap-3 items-start justify-center flex-1">
       <div className="flex-1 max-w-2xl">
-        <svg viewBox={`0 0 440 320`} className="w-full border border-border/50 rounded-lg bg-background">
+        <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full border border-border/50 rounded-lg bg-background">
           {Array.from({ length: rows }).map((_, r) =>
             Array.from({ length: cols }).map((_, c) => {
               const t = r / Math.max(1, rows - 1);
