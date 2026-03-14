@@ -706,6 +706,15 @@ export default function ZMappingPage() {
                   {engravingMode === "curved" ? "Superfície curva" : "V-bit curva"}
                 </strong></span>
               )}
+              {engravingMode === "vbit-curved" && toolType === "vbit" && (
+                <>
+                  <span>V-bit: <strong className="text-foreground">{vbitAngle}°</strong></span>
+                  <span>Prof. nominal: <strong className="text-foreground">{fmt(nominalDepth)} {unit}</strong></span>
+                  <span>Comp.: <strong className="text-foreground">
+                    {vbitCompMode === "off" ? "Desligada" : vbitCompMode === "basic" ? "Básica" : "Avançada"}
+                  </strong></span>
+                </>
+              )}
               {analysis.arcCount > 0 && (
                 <>
                   <span className="flex items-center gap-1">
