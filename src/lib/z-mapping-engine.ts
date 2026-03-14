@@ -87,7 +87,7 @@ export function fmt(v: number, dp = 5): string {
 }
 
 // ── G-code parser & analyzer ──────────────────────────────────
-interface ParsedMove {
+export interface ParsedMove {
   x?: number;
   y?: number;
   z?: number;
@@ -99,7 +99,7 @@ interface ParsedMove {
   raw: string;
 }
 
-function parseGcodeLine(line: string): ParsedMove {
+export function parseGcodeLine(line: string): ParsedMove {
   const raw = line.trim();
   const upper = raw.toUpperCase();
   const res: ParsedMove = { raw };
@@ -161,9 +161,9 @@ export function analyzeGcode(text: string): GcodeAnalysis {
 }
 
 // ── Arc linearizer ────────────────────────────────────────────
-interface CncPos { x: number; y: number; z: number; f?: number }
+export interface CncPos { x: number; y: number; z: number; f?: number }
 
-function linearizeArc(
+export function linearizeArc(
   from: CncPos,
   to: CncPos,
   i: number,
@@ -391,7 +391,7 @@ function bilinearInterp(
 }
 
 // ── Segment splitter ──────────────────────────────────────────
-function segmentMove(from: CncPos, to: CncPos, maxLen: number): CncPos[] {
+export function segmentMove(from: CncPos, to: CncPos, maxLen: number): CncPos[] {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const dz = to.z - from.z;

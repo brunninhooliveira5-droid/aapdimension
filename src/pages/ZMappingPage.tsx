@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
+import { CompensationSimulator } from "@/components/z-mapping/CompensationSimulator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode,
@@ -106,6 +107,7 @@ export default function ZMappingPage() {
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -444,28 +446,44 @@ export default function ZMappingPage() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Card 6: Heatmap (opcional) ── */}
-      {mesh && (
-        <div className="space-y-2">
+      {/* ── Simulator ── */}
+      {analysis && mesh && originalGcode && showSimulator && (
+        <CompensationSimulator
+          originalGcode={originalGcode}
+          mesh={mesh}
+          config={config}
+          onClose={() => setShowSimulator(false)}
+        />
+      )}
+
+      {/* ── Card 6: Visualização (opcional) ── */}
+      {analysis && mesh && originalGcode && (
+        <div className="flex items-center gap-2">
+          {!showSimulator && (
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
+              onClick={() => setShowSimulator(true)}>
+              <Layers className="h-3.5 w-3.5" /> Visualizar compensação
+            </Button>
+          )}
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
             onClick={() => setShowHeatmap(h => !h)}>
             {showHeatmap ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {showHeatmap ? "Ocultar mapa da superfície" : "Visualizar mapa da superfície"}
           </Button>
-          {showHeatmap && (
-            <Card>
-              <CardContent className="pt-5">
-                <SurfaceHeatmap
-                  mesh={mesh.points}
-                  spacingX={mesh.actualSpacingX}
-                  spacingY={mesh.actualSpacingY}
-                  cols={mesh.pointsPerRow}
-                  rows={mesh.rows}
-                />
-              </CardContent>
-            </Card>
-          )}
         </div>
+      )}
+      {showHeatmap && mesh && (
+        <Card>
+          <CardContent className="pt-5">
+            <SurfaceHeatmap
+              mesh={mesh.points}
+              spacingX={mesh.actualSpacingX}
+              spacingY={mesh.actualSpacingY}
+              cols={mesh.pointsPerRow}
+              rows={mesh.rows}
+            />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
