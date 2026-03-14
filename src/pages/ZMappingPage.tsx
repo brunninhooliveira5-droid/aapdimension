@@ -882,6 +882,9 @@ export default function ZMappingPage() {
                   originalGcode={originalGcode} mesh={mesh} config={config}
                   xMin={analysis.xMin} yMin={analysis.yMin} xMax={analysis.xMax} yMax={analysis.yMax}
                   densityMap={densityMap}
+                  spacingX={spacingX}
+                  spacingY={spacingY}
+                  mappingMode={mappingPrecision}
                 />
               </div>
             )}

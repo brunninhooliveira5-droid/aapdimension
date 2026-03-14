@@ -15,6 +15,9 @@ interface Props {
   xMax: number;
   yMax: number;
   densityMap?: DensityMap | null;
+  spacingX?: number;
+  spacingY?: number;
+  mappingMode?: "uniform" | "smart" | "maximum";
 }
 
 interface PathSeg { x: number; y: number; z: number; rapid: boolean }
@@ -61,7 +64,38 @@ function densityColor(density: "low" | "medium" | "high"): string {
   return "rgba(59,130,246,0.05)";
 }
 
-export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yMax, densityMap }: Props) {
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computePointRadius(
+  mesh: MeshInfo,
+  scale: number,
+  spacingX?: number,
+  spacingY?: number,
+  mappingMode?: "uniform" | "smart" | "maximum"
+): number {
+  const inputSpacingX = spacingX && spacingX > 0 ? spacingX : mesh.actualSpacingX;
+  const inputSpacingY = spacingY && spacingY > 0 ? spacingY : mesh.actualSpacingY;
+  const spacingPx = Math.min(inputSpacingX * scale, inputSpacingY * scale);
+
+  const modeFactor = mappingMode === "maximum" ? 0.68 : mappingMode === "smart" ? 0.82 : 1;
+  return clamp(spacingPx * 0.2 * modeFactor, 1.1, 4.2);
+}
+
+export function GcodePreview({
+  originalGcode,
+  mesh,
+  config,
+  xMin,
+  yMin,
+  xMax,
+  yMax,
+  densityMap,
+  spacingX,
+  spacingY,
+  mappingMode,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -150,11 +184,12 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
         }
       }
 
-      // Draw grid points
-      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.7)" : "rgba(59,130,246,0.5)";
+      // Draw grid points (radius follows spacing and mapping mode)
+      const pointRadius = computePointRadius(mesh, scale, spacingX, spacingY, mappingMode);
+      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.72)" : "rgba(59,130,246,0.56)";
       for (const pt of mesh.points) {
         ctx.beginPath();
-        ctx.arc(toSX(pt.x), toSY(pt.y), densityMap ? 3 : 2.5, 0, Math.PI * 2);
+        ctx.arc(toSX(pt.x), toSY(pt.y), pointRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -203,7 +238,7 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
     ctx.strokeRect(wx0, wy0, ww, wh);
     ctx.setLineDash([]);
 
-  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax, densityMap]);
+  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax, densityMap, spacingX, spacingY, mappingMode]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsPanning(true);
