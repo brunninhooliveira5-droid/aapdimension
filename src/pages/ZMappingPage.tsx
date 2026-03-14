@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode,
@@ -25,7 +26,6 @@ function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
   mesh: { x: number; y: number }[];
   spacingX: number; spacingY: number; cols: number; rows: number;
 }) {
-  // No real Z data yet, show grid layout preview
   const cellW = 280 / cols;
   const cellH = 200 / rows;
   return (
@@ -60,6 +60,21 @@ function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
   );
 }
 
+/* ── Curve precision presets ───────────────────────────── */
+type CurvePrecision = "high" | "medium" | "fast";
+
+function getArcSegmentLen(precision: CurvePrecision, unit: ZUnit): number {
+  if (unit === "mm") {
+    if (precision === "high") return 0.5;
+    if (precision === "medium") return 1.0;
+    return 2.0;
+  }
+  // inch
+  if (precision === "high") return 0.02;
+  if (precision === "medium") return 0.04;
+  return 0.08;
+}
+
 export default function ZMappingPage() {
   const [showAnimation, setShowAnimation] = useState(false);
   const [originalGcode, setOriginalGcode] = useState("");
@@ -84,20 +99,24 @@ export default function ZMappingPage() {
   const [tolerance, setTolerance] = useState(defaults.tolerance);
   const [controller, setController] = useState<ControllerType>("mach3");
 
+  // Curve precision
+  const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>("medium");
+  const [customArcSegLen, setCustomArcSegLen] = useState<number | null>(null);
+  const arcSegmentLen = customArcSegLen ?? getArcSegmentLen(curvePrecision, unit);
+
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Use spacingX for mesh config (the engine uses a single spacing, take average)
   const spacing = (spacingX + spacingY) / 2;
 
   const config: MeshConfig = useMemo(() => ({
     unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
-    clearance, safeHeight, maxSegmentLen, decimalPlaces, outOfMeshRule, tolerance,
+    clearance, safeHeight, maxSegmentLen, arcSegmentLen, decimalPlaces, outOfMeshRule, tolerance,
   }), [unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
-    clearance, safeHeight, maxSegmentLen, decimalPlaces, outOfMeshRule, tolerance]);
+    clearance, safeHeight, maxSegmentLen, arcSegmentLen, decimalPlaces, outOfMeshRule, tolerance]);
 
   const mesh = useMemo(() => {
     if (width <= 0 || height <= 0 || spacing <= 0) return null;
@@ -122,6 +141,7 @@ export default function ZMappingPage() {
         setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
         setClearance(d.clearance); setSafeHeight(d.safeHeight);
         setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
+        setCustomArcSegLen(null);
       }
       if (a.width > 0) {
         setXStart(parseFloat(a.xMin.toFixed(3)));
@@ -201,6 +221,12 @@ export default function ZMappingPage() {
             <input ref={fileRef} type="file" accept=".nc,.tap,.gcode,.txt" className="hidden" onChange={handleFileUpload} />
             {originalFileName && <Badge variant="secondary">{originalFileName}</Badge>}
           </div>
+          {analysis && analysis.arcCount > 0 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <CircleDot className="h-3.5 w-3.5 text-primary" />
+              {analysis.arcCount} curva{analysis.arcCount > 1 ? "s" : ""} detectada{analysis.arcCount > 1 ? "s" : ""} — serão divididas automaticamente para manter a correção de altura com mais precisão.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -256,6 +282,16 @@ export default function ZMappingPage() {
                 </p>
               </div>
             </div>
+            {analysis.arcCount > 0 && (
+              <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <CircleDot className="h-3 w-3 text-primary" /> Curvas: <strong className="text-foreground">{analysis.arcCount}</strong>
+                </span>
+                <span>Precisão: <strong className="text-foreground">
+                  {curvePrecision === "high" ? "Alta" : curvePrecision === "medium" ? "Média" : "Rápida"}
+                </strong></span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -288,6 +324,12 @@ export default function ZMappingPage() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Arquivo:</span> <span className="font-medium">{result.fileName}</span></div>
                   <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
+                  {result.arcsDetected > 0 && (
+                    <>
+                      <div><span className="text-muted-foreground">Curvas detectadas:</span> <span className="font-medium">{result.arcsDetected}</span></div>
+                      <div><span className="text-muted-foreground">Segmentos de curva:</span> <span className="font-medium">{result.arcSegmentsGenerated}</span></div>
+                    </>
+                  )}
                 </div>
 
                 <Button onClick={handleDownload} size="lg" className="gap-2 w-full">
@@ -310,8 +352,42 @@ export default function ZMappingPage() {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <Card className="mt-3">
-            <CardContent className="pt-5 space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <CardContent className="pt-5 space-y-5">
+              {/* Curve precision */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Precisão de curvas</Label>
+                <p className="text-xs text-muted-foreground">
+                  Curvas serão divididas automaticamente para manter a correção de altura com mais precisão.
+                </p>
+                <RadioGroup
+                  value={curvePrecision}
+                  onValueChange={(v) => { setCurvePrecision(v as CurvePrecision); setCustomArcSegLen(null); }}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="high" id="curve-high" />
+                    <Label htmlFor="curve-high" className="text-xs cursor-pointer">Alta precisão</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="medium" id="curve-med" />
+                    <Label htmlFor="curve-med" className="text-xs cursor-pointer">Média precisão</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="fast" id="curve-fast" />
+                    <Label htmlFor="curve-fast" className="text-xs cursor-pointer">Rápida</Label>
+                  </div>
+                </RadioGroup>
+                <div className="pt-1">
+                  {numField(
+                    `Comprimento máximo do segmento de curva (${unit})`,
+                    arcSegmentLen,
+                    (v) => setCustomArcSegLen(v > 0 ? v : null),
+                    unit === "mm" ? 0.1 : 0.01
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-border/50 pt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Unidade</Label>
                   <Select value={unit} onValueChange={(v) => {
@@ -322,6 +398,7 @@ export default function ZMappingPage() {
                     setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
                     setClearance(d.clearance); setSafeHeight(d.safeHeight);
                     setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
+                    setCustomArcSegLen(null);
                   }}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
