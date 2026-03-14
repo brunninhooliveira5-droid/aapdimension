@@ -521,6 +521,7 @@ export function generateUnifiedGcode(
 
   lines.push("");
   lines.push(`G0 Z${d(cfg.safeHeight)}`);
+  lines.push(`G0 X${d(cfg.xStart)} Y${d(cfg.yStart)}`);
   lines.push("");
   lines.push("(--- FIM DO MAPEAMENTO ---)");
   lines.push("");
