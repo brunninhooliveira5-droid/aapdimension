@@ -816,9 +816,26 @@ export function generateUnifiedGcode(
   lines.push("(--- INICIO DO MAPEAMENTO DA SUPERFICIE ---)");
   lines.push("");
 
+  // ── Custom probe: start commands ──
+  const useCustomProbe = customProbe?.enabled ?? false;
+  const probeOffX = customProbe?.offsetX ?? 0;
+  const probeOffY = customProbe?.offsetY ?? 0;
+
+  if (useCustomProbe && customProbe) {
+    lines.push("(--- ACIONAMENTO DO PROBE PERSONALIZADO ---)");
+    lines.push(`G0 Z${d(customProbe.startSafeZ)}`);
+    if (customProbe.startCommand.trim()) {
+      lines.push(customProbe.startCommand.trim());
+    }
+    if (customProbe.startDwell > 0) {
+      lines.push(`G4 P${customProbe.startDwell}`);
+    }
+    lines.push("");
+  }
+
   const firstPt = mesh.points[0];
   lines.push(`G0 Z${d(cfg.safeHeight)}`);
-  lines.push(`G0 X${d(firstPt.x)} Y${d(firstPt.y)}`);
+  lines.push(`G0 X${d(firstPt.x + probeOffX)} Y${d(firstPt.y + probeOffY)}`);
 
   if (controller === "mach3") {
     lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
