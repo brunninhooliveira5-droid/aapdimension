@@ -833,6 +833,42 @@ export default function CenterCornersPage() {
                 </div>
               </div>
 
+              {/* Custom probe summary */}
+              {probeType === "custom" && (
+                <div className="rounded-lg border border-chart-3/40 bg-chart-3/5 p-2.5 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                    <Wrench className="h-3 w-3" /> Probe Custom
+                  </p>
+                  <div className="space-y-1 text-[11px]">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Offset X</span><span>{customProbe.offsetX} mm</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Offset Y</span><span>{customProbe.offsetY} mm</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Início</span><span className="font-mono text-[10px]">{customProbe.startCommand}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Fim</span><span className="font-mono text-[10px]">{customProbe.endCommand}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Post-action summary */}
+              <div className={`rounded-lg border p-2.5 space-y-1.5 ${postAction === "locate-machining" ? "border-chart-1/40 bg-chart-1/5" : "border-border/50"}`}>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> Após localização
+                </p>
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ação</span>
+                    <Badge variant={postAction === "locate-machining" ? "default" : "secondary"} className="text-[9px] h-4">
+                      {postAction === "locate-only" ? "Localizar" : postAction === "locate-origin" ? "Origem" : "Usinagem"}
+                    </Badge>
+                  </div>
+                  {postAction === "locate-machining" && workFileName && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Arquivo</span>
+                      <span className="text-[10px] truncate max-w-[90px]">{workFileName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="rounded-lg border border-border/50 p-2.5 space-y-1.5">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase">Opções</p>
                 <div className="space-y-1 text-[11px]">
