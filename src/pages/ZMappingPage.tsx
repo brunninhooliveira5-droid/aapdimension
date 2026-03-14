@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode,
