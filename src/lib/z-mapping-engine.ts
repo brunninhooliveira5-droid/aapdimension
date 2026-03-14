@@ -242,6 +242,253 @@ export function generateMesh(cfg: MeshConfig): MeshInfo {
   return { pointsPerRow, rows, totalPoints: points.length, actualSpacingX, actualSpacingY, points, estimatedTimeSec };
 }
 
+// ── Density analysis ──────────────────────────────────────────
+export interface DensityCell {
+  pathLength: number;
+  passages: number;
+  dirChanges: number;
+  density: "low" | "medium" | "high";
+}
+
+export interface DensityMap {
+  cellsX: number;
+  cellsY: number;
+  cellW: number;
+  cellH: number;
+  cells: DensityCell[][];
+  maxPathLen: number;
+  avgPathLen: number;
+}
+
+export function analyzeDensity(
+  gcode: string,
+  xStart: number,
+  yStart: number,
+  width: number,
+  height: number,
+  cellsX: number,
+  cellsY: number,
+  arcSegLen: number
+): DensityMap {
+  const cellW = width / cellsX;
+  const cellH = height / cellsY;
+  const cells: DensityCell[][] = [];
+  for (let r = 0; r < cellsY; r++) {
+    cells[r] = [];
+    for (let c = 0; c < cellsX; c++) {
+      cells[r][c] = { pathLength: 0, passages: 0, dirChanges: 0, density: "low" };
+    }
+  }
+
+  const lines = gcode.split("\n");
+  let curX = 0, curY = 0, curZ = 0, curG = 0;
+  let prevDx = 0, prevDy = 0;
+
+  function cellAt(x: number, y: number): [number, number] | null {
+    const c = Math.floor((x - xStart) / cellW);
+    const r = Math.floor((y - yStart) / cellH);
+    if (c < 0 || c >= cellsX || r < 0 || r >= cellsY) return null;
+    return [r, c];
+  }
+
+  function addSegment(x0: number, y0: number, x1: number, y1: number) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.001) return;
+
+    // Register in destination cell
+    const dest = cellAt(x1, y1);
+    if (dest) {
+      const [r, c] = dest;
+      cells[r][c].pathLength += len;
+      cells[r][c].passages++;
+      // Direction change detection
+      if (prevDx !== 0 || prevDy !== 0) {
+        const dot = dx * prevDx + dy * prevDy;
+        const cross = dx * prevDy - dy * prevDx;
+        if (Math.abs(cross) > len * 0.3 || dot < 0) {
+          cells[r][c].dirChanges++;
+        }
+      }
+    }
+    prevDx = dx;
+    prevDy = dy;
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("(") || trimmed.startsWith(";") || trimmed.startsWith("%")) continue;
+    const p = parseGcodeLine(trimmed);
+    if (p.g !== undefined) curG = p.g;
+
+    const newX = p.x ?? curX;
+    const newY = p.y ?? curY;
+    const newZ = p.z ?? curZ;
+
+    if ((p.g === 2 || p.g === 3) && newZ < 0) {
+      const from: CncPos = { x: curX, y: curY, z: curZ };
+      const to: CncPos = { x: newX, y: newY, z: newZ };
+      const arcPts = linearizeArc(from, to, p.i ?? 0, p.j ?? 0, p.g === 2, arcSegLen);
+      let prev = from;
+      for (const ap of arcPts) {
+        addSegment(prev.x, prev.y, ap.x, ap.y);
+        prev = ap;
+      }
+    } else if (curG === 1 && newZ < 0 && (p.x !== undefined || p.y !== undefined)) {
+      addSegment(curX, curY, newX, newY);
+    }
+
+    curX = newX; curY = newY; curZ = newZ;
+  }
+
+  // Calculate thresholds
+  let maxPathLen = 0;
+  let totalLen = 0;
+  let cellCount = 0;
+  for (let r = 0; r < cellsY; r++) {
+    for (let c = 0; c < cellsX; c++) {
+      const cell = cells[r][c];
+      const score = cell.pathLength + cell.dirChanges * 5;
+      if (score > 0) {
+        totalLen += score;
+        cellCount++;
+      }
+      if (score > maxPathLen) maxPathLen = score;
+    }
+  }
+  const avgPathLen = cellCount > 0 ? totalLen / cellCount : 0;
+  const highThreshold = avgPathLen * 1.5;
+  const lowThreshold = avgPathLen * 0.5;
+
+  for (let r = 0; r < cellsY; r++) {
+    for (let c = 0; c < cellsX; c++) {
+      const cell = cells[r][c];
+      const score = cell.pathLength + cell.dirChanges * 5;
+      if (score >= highThreshold) cell.density = "high";
+      else if (score >= lowThreshold) cell.density = "medium";
+      else cell.density = "low";
+    }
+  }
+
+  return { cellsX, cellsY, cellW, cellH, cells, maxPathLen, avgPathLen };
+}
+
+// ── Adaptive mesh generator ───────────────────────────────────
+export function generateAdaptiveMesh(
+  cfg: MeshConfig,
+  densityMap: DensityMap,
+  spacingMultiplierLow: number,    // e.g. 2.0
+  spacingMultiplierHigh: number,   // e.g. 0.5
+): MeshInfo {
+  // Strategy: use a fine base grid, then thin points in low-density areas
+  // This keeps the grid regular (required for bilinear interpolation)
+  // but uses the densest spacing needed anywhere
+  
+  // Find the densest region to determine fine spacing
+  const baseSpacing = cfg.spacing;
+  const fineSpacing = baseSpacing * spacingMultiplierHigh;
+  const coarseSpacing = baseSpacing * spacingMultiplierLow;
+  
+  // Build the grid at fine resolution
+  const fineSpacesX = Math.max(1, Math.round(cfg.width / fineSpacing));
+  const fineSpacesY = Math.max(1, Math.round(cfg.height / fineSpacing));
+  const fineActualX = cfg.width / fineSpacesX;
+  const fineActualY = cfg.height / fineSpacesY;
+  const fineCols = fineSpacesX + 1;
+  const fineRows = fineSpacesY + 1;
+  
+  // For each fine grid point, check if it should be kept
+  const keepPoint: boolean[][] = [];
+  for (let r = 0; r < fineRows; r++) {
+    keepPoint[r] = [];
+    for (let c = 0; c < fineCols; c++) {
+      // Always keep boundary points
+      if (r === 0 || r === fineRows - 1 || c === 0 || c === fineCols - 1) {
+        keepPoint[r][c] = true;
+        continue;
+      }
+      
+      const px = cfg.xStart + c * fineActualX;
+      const py = cfg.yStart + r * fineActualY;
+      
+      // Find which density cell this point is in
+      const dc = Math.min(Math.floor((px - cfg.xStart) / densityMap.cellW), densityMap.cellsX - 1);
+      const dr = Math.min(Math.floor((py - cfg.yStart) / densityMap.cellH), densityMap.cellsY - 1);
+      const density = (dc >= 0 && dr >= 0) ? densityMap.cells[dr][dc].density : "medium";
+      
+      // Determine skip interval based on density
+      let skipInterval: number;
+      if (density === "high") {
+        skipInterval = 1; // keep every point
+      } else if (density === "medium") {
+        skipInterval = Math.max(1, Math.round(baseSpacing / fineActualX));
+      } else {
+        skipInterval = Math.max(1, Math.round(coarseSpacing / fineActualX));
+      }
+      
+      const skipIntervalY = density === "high" ? 1 
+        : density === "medium" ? Math.max(1, Math.round(baseSpacing / fineActualY))
+        : Math.max(1, Math.round(coarseSpacing / fineActualY));
+      
+      keepPoint[r][c] = (r % skipIntervalY === 0) && (c % skipInterval === 0);
+    }
+  }
+  
+  // Collect kept points
+  const points: MeshPoint[] = [];
+  for (let r = 0; r < fineRows; r++) {
+    for (let c = 0; c < fineCols; c++) {
+      if (keepPoint[r][c]) {
+        points.push({
+          x: cfg.xStart + c * fineActualX,
+          y: cfg.yStart + r * fineActualY,
+          z: null,
+        });
+      }
+    }
+  }
+  
+  const estimatedTimeSec = points.length * 2;
+  
+  // For adaptive mesh, we still report the fine grid dimensions
+  // but the actual points array may be smaller
+  return {
+    pointsPerRow: fineCols,
+    rows: fineRows,
+    totalPoints: points.length,
+    actualSpacingX: fineActualX,
+    actualSpacingY: fineActualY,
+    points,
+    estimatedTimeSec,
+  };
+}
+
+// ── Regular mesh for "maximum" mode ───────────────────────────
+export function generateDenseMesh(cfg: MeshConfig, factor: number): MeshInfo {
+  const denseSpacing = cfg.spacing * factor;
+  const spacesX = Math.max(1, Math.round(cfg.width / denseSpacing));
+  const spacesY = Math.max(1, Math.round(cfg.height / denseSpacing));
+  const actualSpacingX = cfg.width / spacesX;
+  const actualSpacingY = cfg.height / spacesY;
+  const pointsPerRow = spacesX + 1;
+  const rows = spacesY + 1;
+  const points: MeshPoint[] = [];
+
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < pointsPerRow; i++) {
+      points.push({
+        x: cfg.xStart + i * actualSpacingX,
+        y: cfg.yStart + j * actualSpacingY,
+        z: null,
+      });
+    }
+  }
+
+  const estimatedTimeSec = points.length * 2;
+  return { pointsPerRow, rows, totalPoints: points.length, actualSpacingX, actualSpacingY, points, estimatedTimeSec };
+}
+
 // ── Probe G-code generators ────────────────────────────────────
 export type ControllerType = "mach3" | "generic";
 
