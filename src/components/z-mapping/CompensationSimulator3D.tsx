@@ -72,8 +72,20 @@ function bilinearZ(x: number, y: number, mesh: MeshInfo, data: MeshPoint[], cfg:
 /* ── Extract toolpath ── */
 interface PathPt { x: number; y: number; z: number; zComp: number }
 
-function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], cfg: MeshConfig): {
-  path: PathPt[]; surfMin: number; surfMax: number;
+/* ── Compute surface slope at a point ── */
+function surfaceSlope(x: number, y: number, mesh: MeshInfo, data: MeshPoint[], cfg: MeshConfig): number {
+  const dx = mesh.actualSpacingX * 0.1;
+  const dy = mesh.actualSpacingY * 0.1;
+  const z0 = bilinearZ(x, y, mesh, data, cfg);
+  const zx = bilinearZ(x + dx, y, mesh, data, cfg);
+  const zy = bilinearZ(x, y + dy, mesh, data, cfg);
+  const dzdx = (zx - z0) / dx;
+  const dzdy = (zy - z0) / dy;
+  return Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)); // radians
+}
+
+function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], cfg: MeshConfig, vbit?: VbitSettings): {
+  path: PathPt[]; surfMin: number; surfMax: number; maxSlopeDeg: number;
 } {
   const lines = gcode.split("\n");
   const path: PathPt[] = [];
