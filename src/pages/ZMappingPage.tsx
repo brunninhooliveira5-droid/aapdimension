@@ -159,14 +159,19 @@ export default function ZMappingPage() {
       probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit, areaMode, buffer,
+      outOfMeshRule, unit, areaMode, buffer, mappingPrecision,
     });
   }, [probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit, areaMode, buffer]);
+      outOfMeshRule, unit, areaMode, buffer, mappingPrecision]);
 
-  const config: MeshConfig = useMemo(() => ({
+  // Density analysis
+  const densityMap = useMemo<DensityMap | null>(() => {
+    if (mappingPrecision !== "smart" || !originalGcode || effectiveWidth <= 0 || effectiveHeight <= 0) return null;
+    const cellCount = Math.max(4, Math.min(20, Math.round(Math.max(effectiveWidth, effectiveHeight) / spacing)));
+    return analyzeDensity(originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, cellCount, cellCount, arcSegmentLen);
+  }, [mappingPrecision, originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, spacing, arcSegmentLen]);
     unit,
     xStart: effectiveXStart,
     yStart: effectiveYStart,
