@@ -22,6 +22,7 @@ import {
 } from "@/lib/z-mapping-engine";
 
 export default function ZMappingPage() {
+  const [showAnimation, setShowAnimation] = useState(false);
   const [originalGcode, setOriginalGcode] = useState("");
   const [originalFileName, setOriginalFileName] = useState("");
   const [analysis, setAnalysis] = useState<GcodeAnalysis | null>(null);
