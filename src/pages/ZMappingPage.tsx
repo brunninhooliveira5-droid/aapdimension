@@ -465,13 +465,25 @@ export default function ZMappingPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-tight truncate">Nivelamento Automático</h1>
-              {analysis && (
+              {analysis ? (
                 <p className="text-[10px] text-muted-foreground truncate">
                   {originalFileName} — {fmt(analysis.width)} × {fmt(analysis.height)} {unit}
                   {analysis.arcCount > 0 && ` — ${analysis.arcCount} curvas`}
                 </p>
+              ) : showExplanations && (
+                <p className="text-[10px] text-muted-foreground truncate">
+                  Mede a superfície da peça e ajusta automaticamente o percurso da usinagem.
+                </p>
               )}
             </div>
+          </div>
+
+          {/* Center-left: explanations toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="show-explanations" className="text-[10px] text-muted-foreground cursor-pointer select-none">
+              Explicações
+            </Label>
+            <Switch id="show-explanations" checked={showExplanations} onCheckedChange={toggleExplanations} className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4" />
           </div>
 
           {/* Center: main actions */}
