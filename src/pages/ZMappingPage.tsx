@@ -888,7 +888,7 @@ export default function ZMappingPage() {
 
             {analysis && mesh && viewMode === "surface" && (
               <div className="h-full p-3 flex flex-col gap-3">
-                <ProfessionalHeatmap mesh={mesh.points} cols={mesh.pointsPerRow} rows={mesh.rows} unit={unit} />
+                <ProfessionalHeatmap mesh={mesh.points} cols={mesh.pointsPerRow} rows={mesh.rows} unit={unit} spacingX={spacingX} spacingY={spacingY} />
               </div>
             )}
 
@@ -1090,11 +1090,19 @@ function StatusDot({ label, active }: { label: string; active: boolean }) {
 }
 
 /* ── Professional Heatmap ─────────────────────────────── */
-function ProfessionalHeatmap({ mesh, cols, rows, unit }: {
-  mesh: { x: number; y: number }[]; cols: number; rows: number; unit: string;
+function ProfessionalHeatmap({ mesh, cols, rows, unit, spacingX, spacingY }: {
+  mesh: { x: number; y: number }[]; cols: number; rows: number; unit: string; spacingX: number; spacingY: number;
 }) {
-  const cellW = 440 / cols;
-  const cellH = 320 / rows;
+  // Use actual spacing ratio so cells reflect real X/Y distances
+  const totalW = cols * spacingX;
+  const totalH = rows * spacingY;
+  const maxSvgW = 440;
+  const maxSvgH = 320;
+  const scaleToFit = Math.min(maxSvgW / totalW, maxSvgH / totalH);
+  const svgW = totalW * scaleToFit;
+  const svgH = totalH * scaleToFit;
+  const cellW = spacingX * scaleToFit;
+  const cellH = spacingY * scaleToFit;
 
   function heatColor(t: number): string {
     // t: 0 = low, 1 = high → blue → cyan → green → yellow → red
@@ -1116,7 +1124,7 @@ function ProfessionalHeatmap({ mesh, cols, rows, unit }: {
   return (
     <div className="flex gap-3 items-start justify-center flex-1">
       <div className="flex-1 max-w-2xl">
-        <svg viewBox={`0 0 440 320`} className="w-full border border-border/50 rounded-lg bg-background">
+        <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full border border-border/50 rounded-lg bg-background">
           {Array.from({ length: rows }).map((_, r) =>
             Array.from({ length: cols }).map((_, c) => {
               const t = r / Math.max(1, rows - 1);
