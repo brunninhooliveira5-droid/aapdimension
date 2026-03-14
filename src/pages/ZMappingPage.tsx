@@ -107,6 +107,7 @@ export default function ZMappingPage() {
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
