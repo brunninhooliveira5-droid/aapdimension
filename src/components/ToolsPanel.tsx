@@ -16,6 +16,7 @@ const productionTools = [
   { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", sectionKey: "orcamento" },
   { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", sectionKey: "ferr_plano_corte" },
   { id: "mapeamento-z", label: "Nivelamento Automático", icon: Grid3x3, route: "/mapeamento-z", sectionKey: "ferr_mapeamento_z" },
+  { id: "mapa-usinagem", label: "Mapa por Usinagem", icon: Layers, route: "/mapa-usinagem", sectionKey: "ferr_mapeamento_z" },
 ];
 
 const labTools = [
