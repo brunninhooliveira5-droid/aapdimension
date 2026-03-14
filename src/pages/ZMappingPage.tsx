@@ -557,6 +557,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <PenTool className="h-3 w-3" /> Tipo de gravação
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define como o sistema irá compensar o percurso de usinagem após o mapeamento.</p>
+                )}
                 <RadioGroup value={engravingMode} onValueChange={(v) => setEngravingMode(v as EngravingMode)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="standard" id="eng-std-p" />
