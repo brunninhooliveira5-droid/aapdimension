@@ -4,6 +4,8 @@
 
 export type LocationMode = "corner" | "rect-center" | "circle-center" | "hole-center";
 export type ApproachDirection = "X+" | "X-" | "Y+" | "Y-";
+export type ZProbeMode = "none" | "auto" | "manual";
+export type HoleZStrategy = "auto-safe" | "manual-offset" | "none";
 
 export interface CenterCornersConfig {
   mode: LocationMode;
@@ -20,14 +22,26 @@ export interface CenterCornersConfig {
   moveToCenter: boolean;
   decimalPlaces: number;
   controller: "mach3" | "grbl" | "linuxcnc";
-  /** Refinement / precision check */
+  /** Refinement */
   refinementEnabled: boolean;
-  /** Distance for the second closer touch (mm) */
   refinementDistance: number;
-  /** Speed for the refinement touch (mm/min) */
   refinementFeed: number;
-  /** Number of refinement cycles (structure prepared, default 1) */
   refinementCycles: number;
+  /** Z Probe after XY location */
+  zProbeMode: ZProbeMode;
+  zProbeFeed: number;
+  zProbeTravel: number;
+  zSetOrigin: boolean;
+  /** Corner: internal offset to avoid probing on the edge */
+  zCornerInset: number;
+  /** Hole: strategy for safe Z probe */
+  holeZStrategy: HoleZStrategy;
+  /** Hole: safety margin beyond hole radius */
+  holeZSafetyMargin: number;
+  /** Hole manual: X offset for Z probe */
+  holeZManualOffsetX: number;
+  /** Hole manual: Y offset for Z probe */
+  holeZManualOffsetY: number;
 }
 
 export const defaultCenterCornersConfig: CenterCornersConfig = {
@@ -49,6 +63,15 @@ export const defaultCenterCornersConfig: CenterCornersConfig = {
   refinementDistance: 3,
   refinementFeed: 25,
   refinementCycles: 1,
+  zProbeMode: "none",
+  zProbeFeed: 30,
+  zProbeTravel: -20,
+  zSetOrigin: true,
+  zCornerInset: 5,
+  holeZStrategy: "auto-safe",
+  holeZSafetyMargin: 5,
+  holeZManualOffsetX: 0,
+  holeZManualOffsetY: 0,
 };
 
 export interface CenterCornersResult {
@@ -93,6 +116,29 @@ export function generateCenterCornersGcode(cfg: CenterCornersConfig): CenterCorn
   }
 }
 
+/* ── Z Probe helper ────────────────────────────────────── */
+function emitZProbe(
+  cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
+  probe: string, posX: string, posY: string, comment: string
+) {
+  out.push("");
+  out.push(`( ===== PROBE EM Z ===== )`);
+  out.push(`( ${comment} )`);
+  out.push(`G0 Z${d(cfg.safeZ)}`);
+  out.push(`G0 X${posX} Y${posY}`);
+  out.push(`${probe} Z${d(cfg.zProbeTravel)} F${d(cfg.zProbeFeed)}`);
+  if (cfg.zSetOrigin) {
+    out.push("( --- Definir Z=0 --- )");
+    out.push(setOriginCmd(cfg.controller, "Z", "0"));
+  }
+  out.push(`G0 Z${d(cfg.safeZ)}`);
+}
+
+/** Decide if we should emit Z probe for this config */
+function shouldDoZProbe(cfg: CenterCornersConfig): boolean {
+  return cfg.zProbeMode !== "none";
+}
+
 /* ── Corner ────────────────────────────────────────────── */
 function generateCorner(
   cfg: CenterCornersConfig, out: string[], d: (v: number) => string,
@@ -104,13 +150,13 @@ function generateCorner(
 
   out.push(`(  Modo: Encontrar Quina - ${cfg.cornerQuadrant})`);
   if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
+  if (shouldDoZProbe(cfg)) out.push("(  Probe em Z: LIGADO )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
-  // ── First touch ──
   out.push("( ===== PRIMEIRO TOQUE ===== )");
   out.push("");
   out.push("( --- Toque no eixo X --- )");
@@ -137,7 +183,7 @@ function generateCorner(
     out.push(`#2011 = #2011 + ${d(dirY * r)}`);
   }
 
-  // ── Refinement passes ──
+  // Refinement
   if (cfg.refinementEnabled) {
     const refDist = cfg.refinementDistance;
     const refFeed = cfg.refinementFeed;
@@ -147,7 +193,6 @@ function generateCorner(
       out.push("( Refinamento: medição mais perto da borda )");
       out.push("");
 
-      // Move closer to provisional corner, then re-touch
       out.push("( --- Refinamento eixo X --- )");
       if (cfg.controller === "mach3") {
         out.push(`G0 X[#2010 + ${d(dirX * -refDist)}] Y#2011`);
@@ -198,12 +243,29 @@ function generateCorner(
     out.push("G0 X0 Y0");
   }
 
+  // Z Probe — offset inward to avoid edge
+  if (shouldDoZProbe(cfg)) {
+    const insetX = dirX * -cfg.zCornerInset; // move inward from corner
+    const insetY = dirY * -cfg.zCornerInset;
+    if (cfg.controller === "mach3") {
+      emitZProbe(cfg, out, d, probe,
+        `[#2010 + ${d(insetX)}]`, `[#2011 + ${d(insetY)}]`,
+        "Probe Z com recuo da aresta"
+      );
+    } else {
+      emitZProbe(cfg, out, d, probe, d(insetX), d(insetY),
+        "Probe Z com recuo da aresta"
+      );
+    }
+  }
+
   out.push("");
   out.push("M30");
 
-  const desc = cfg.refinementEnabled
+  let desc = cfg.refinementEnabled
     ? `Localizar quina ${cfg.cornerQuadrant} (com conferência)`
     : `Localizar quina ${cfg.cornerQuadrant}`;
+  if (shouldDoZProbe(cfg)) desc += " + Z";
   return { code: out.join("\n"), fileName: "CC_Quina.tap", description: desc };
 }
 
@@ -217,6 +279,7 @@ function generateRectCenter(
 
   out.push("(  Modo: Centro Retangular                     )");
   if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
+  if (shouldDoZProbe(cfg)) out.push("(  Probe em Z: LIGADO )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
@@ -225,18 +288,14 @@ function generateRectCenter(
 
   out.push("( ===== PRIMEIRO TOQUE ===== )");
   out.push("");
-
-  // Touch 4 sides
   emitRectTouches(cfg, out, d, probe, halfX, halfY, cfg.probeFeed, "#201");
 
-  // Calculate provisional center
   if (cfg.controller === "mach3") {
     out.push("( --- Centro provisório --- )");
     out.push("#2020 = [#2010 + #2011] / 2");
     out.push("#2021 = [#2012 + #2013] / 2");
   }
 
-  // ── Refinement ──
   if (cfg.refinementEnabled) {
     const refDist = cfg.refinementDistance;
     const refFeed = cfg.refinementFeed;
@@ -249,7 +308,6 @@ function generateRectCenter(
       out.push("( Refinamento: medição mais perto das bordas )");
       out.push("");
 
-      // Move to provisional center first
       if (cfg.controller === "mach3") {
         out.push("G0 X#2020 Y#2021");
       }
@@ -281,12 +339,22 @@ function generateRectCenter(
     out.push(setOriginCmd(cfg.controller, "Y", "0"));
   }
 
+  // Z Probe at center
+  if (shouldDoZProbe(cfg)) {
+    if (cfg.controller === "mach3") {
+      emitZProbe(cfg, out, d, probe, "#2020", "#2021", "Probe Z no centro da peça");
+    } else {
+      emitZProbe(cfg, out, d, probe, "0", "0", "Probe Z no centro da peça");
+    }
+  }
+
   out.push("");
   out.push("M30");
 
-  const desc = cfg.refinementEnabled
+  let desc = cfg.refinementEnabled
     ? "Localizar centro retangular (com conferência)"
     : "Localizar centro de peça retangular";
+  if (shouldDoZProbe(cfg)) desc += " + Z";
   return { code: out.join("\n"), fileName: "CC_CentroRetangular.tap", description: desc };
 }
 
@@ -304,13 +372,11 @@ function emitRectTouches(
 
   for (const s of sides) {
     out.push(`( --- ${s.label} --- )`);
-    const otherZero = s.axis === "X" ? " Y0" : "X0 ";
-    out.push(`G0 ${s.axis}${d(s.startVal)}${s.axis === "X" ? " Y0" : ""}`);
-    if (s.axis === "Y") out.push(`G0 X0 Y${d(s.startVal)}`);
     if (s.axis === "X") {
       out.push(`G0 X${d(s.startVal)} Y0`);
+    } else {
+      out.push(`G0 X0 Y${d(s.startVal)}`);
     }
-    // Simplify: just position and probe
     out.push(`G0 Z${d(cfg.probeDepth)}`);
     out.push(`${probe} ${s.axis}${d(s.targetVal)} F${d(feed)}`);
     if (cfg.controller === "mach3") {
@@ -333,6 +399,7 @@ function generateCircleCenter(
   out.push("(  Modo: Centro Circular                       )");
   out.push(`(  Pontos de medição: ${pts}                   )`);
   if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
+  if (shouldDoZProbe(cfg)) out.push("(  Probe em Z: LIGADO )");
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
@@ -394,12 +461,22 @@ function generateCircleCenter(
     out.push(setOriginCmd(cfg.controller, "Y", "0"));
   }
 
+  // Z Probe at center
+  if (shouldDoZProbe(cfg)) {
+    if (cfg.controller === "mach3") {
+      emitZProbe(cfg, out, d, probe, "#2050", "#2051", "Probe Z no centro da peça circular");
+    } else {
+      emitZProbe(cfg, out, d, probe, "0", "0", "Probe Z no centro da peça circular");
+    }
+  }
+
   out.push("");
   out.push("M30");
 
-  const desc = cfg.refinementEnabled
+  let desc = cfg.refinementEnabled
     ? "Localizar centro circular (com conferência)"
     : "Localizar centro de peça circular";
+  if (shouldDoZProbe(cfg)) desc += " + Z";
   return { code: out.join("\n"), fileName: "CC_CentroCircular.tap", description: desc };
 }
 
@@ -438,6 +515,10 @@ function generateHoleCenter(
 
   out.push("(  Modo: Centro de Furo                        )");
   if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
+  if (shouldDoZProbe(cfg)) {
+    out.push("(  Probe em Z: LIGADO - posição segura )");
+    out.push("(  AVISO: Z NÃO será tocado no centro vazio )");
+  }
   out.push("(==============================================)");
   out.push("");
   out.push("G90 G21");
@@ -465,7 +546,6 @@ function generateHoleCenter(
       out.push("( Refinamento: medição mais perto do centro provisório )");
       out.push("");
 
-      // Move to provisional center
       if (cfg.controller === "mach3") {
         out.push("G0 X#2020 Y#2021");
       } else {
@@ -501,12 +581,47 @@ function generateHoleCenter(
     out.push(setOriginCmd(cfg.controller, "Y", "0"));
   }
 
+  // Z Probe — SAFE position, never at center of hole
+  if (shouldDoZProbe(cfg) && cfg.holeZStrategy !== "none") {
+    out.push("");
+    out.push("( ===== PROBE EM Z - POSIÇÃO SEGURA ===== )");
+    out.push("( ATENÇÃO: Probe Z deslocado para fora do furo )");
+
+    if (cfg.holeZStrategy === "auto-safe") {
+      const safeOffset = cfg.approxDiameter / 2 + cfg.holeZSafetyMargin;
+      if (cfg.controller === "mach3") {
+        emitZProbe(cfg, out, d, probe,
+          `[#2020 + ${d(safeOffset)}]`, "#2021",
+          `Probe Z em ponto seguro (centro + ${d(safeOffset)} mm em X)`
+        );
+      } else {
+        emitZProbe(cfg, out, d, probe, d(safeOffset), "0",
+          `Probe Z em ponto seguro (${d(safeOffset)} mm em X)`
+        );
+      }
+    } else if (cfg.holeZStrategy === "manual-offset") {
+      if (cfg.controller === "mach3") {
+        emitZProbe(cfg, out, d, probe,
+          `[#2020 + ${d(cfg.holeZManualOffsetX)}]`,
+          `[#2021 + ${d(cfg.holeZManualOffsetY)}]`,
+          "Probe Z em posição manual deslocada"
+        );
+      } else {
+        emitZProbe(cfg, out, d, probe,
+          d(cfg.holeZManualOffsetX), d(cfg.holeZManualOffsetY),
+          "Probe Z em posição manual deslocada"
+        );
+      }
+    }
+  }
+
   out.push("");
   out.push("M30");
 
-  const desc = cfg.refinementEnabled
+  let desc = cfg.refinementEnabled
     ? "Localizar centro de furo (com conferência)"
     : "Localizar centro de furo";
+  if (shouldDoZProbe(cfg) && cfg.holeZStrategy !== "none") desc += " + Z seguro";
   return { code: out.join("\n"), fileName: "CC_CentroFuro.tap", description: desc };
 }
 
