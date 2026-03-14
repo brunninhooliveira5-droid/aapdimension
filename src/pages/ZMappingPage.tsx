@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -103,6 +104,20 @@ type ToolTypeOption = "straight" | "fine-tip" | "vbit";
 /* ── View mode for central area ──────────── */
 type ViewMode = "gcode" | "surface" | "simulation";
 
+/* ── Inline description texts for explanations mode ──── */
+const INLINE_DESCRIPTIONS: Record<string, string> = {
+  safeHeight: "Altura usada para movimentações rápidas da ferramenta sem tocar na peça.",
+  spacingX: "Define o espaçamento entre os pontos de medição no sentido horizontal.",
+  spacingY: "Define o espaçamento entre os pontos de medição no sentido vertical.",
+  probeFeed: "Velocidade usada quando o probe desce para tocar a superfície da peça.",
+  probeDepth: "Limite máximo que a máquina pode descer procurando a superfície.",
+  touchPrecision: "Quantas vezes cada ponto será medido para aumentar a precisão.",
+  mappingUniform: "Define a estratégia usada para medir a superfície da peça.",
+  vbitComp: "Ajusta a profundidade da gravação considerando a inclinação da superfície.",
+  probeOffset: "Distância entre o probe e o centro da ferramenta.",
+  retraction: "Define como a ferramenta se desloca entre os pontos de medição.",
+};
+
 /* ── Help tooltip (uses VisualHelpSystem) ────────────── */
 function HelpTip({ text }: { text: string }) {
   return <EnhancedHelpTip text={text} />;
@@ -157,6 +172,9 @@ export default function ZMappingPage() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("gcode");
+  const [showExplanations, setShowExplanations] = useState(() => {
+    try { return localStorage.getItem("zmapping-show-explanations") !== "false"; } catch { return true; }
+  });
 
   const [engravingMode, setEngravingMode] = useState<EngravingMode>("standard");
   const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("off");
@@ -364,18 +382,29 @@ export default function ZMappingPage() {
     return s > 0 ? `${m}min ${s}s` : `${m}min`;
   };
 
+  const toggleExplanations = useCallback((v: boolean) => {
+    setShowExplanations(v);
+    try { localStorage.setItem("zmapping-show-explanations", String(v)); } catch {}
+  }, []);
+
   const numField = (label: string, value: number, onChange: (v: number) => void, step?: number, help?: string, helpKey?: string) => (
     <div className="space-y-1">
       <Label className="text-[11px] flex items-center gap-1">
         {label}
-        {helpKey && PARAM_HELP[helpKey] ? (
+        {showExplanations && helpKey && PARAM_HELP[helpKey] ? (
           <EnhancedHelpTip {...PARAM_HELP[helpKey]} />
-        ) : help ? (
+        ) : showExplanations && help ? (
           <EnhancedHelpTip text={help} />
         ) : null}
       </Label>
       <Input type="number" value={value} step={step ?? (unit === "mm" ? 1 : 0.01)}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+      {showExplanations && helpKey && INLINE_DESCRIPTIONS[helpKey] && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed">{INLINE_DESCRIPTIONS[helpKey]}</p>
+      )}
+      {showExplanations && help && !helpKey && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed">{help}</p>
+      )}
     </div>
   );
 
@@ -436,13 +465,25 @@ export default function ZMappingPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-tight truncate">Nivelamento Automático</h1>
-              {analysis && (
+              {analysis ? (
                 <p className="text-[10px] text-muted-foreground truncate">
                   {originalFileName} — {fmt(analysis.width)} × {fmt(analysis.height)} {unit}
                   {analysis.arcCount > 0 && ` — ${analysis.arcCount} curvas`}
                 </p>
+              ) : showExplanations && (
+                <p className="text-[10px] text-muted-foreground truncate">
+                  Mede a superfície da peça e ajusta automaticamente o percurso da usinagem.
+                </p>
               )}
             </div>
+          </div>
+
+          {/* Center-left: explanations toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="show-explanations" className="text-[10px] text-muted-foreground cursor-pointer select-none">
+              Explicações
+            </Label>
+            <Switch id="show-explanations" checked={showExplanations} onCheckedChange={toggleExplanations} className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4" />
           </div>
 
           {/* Center: main actions */}
@@ -516,6 +557,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <PenTool className="h-3 w-3" /> Tipo de gravação
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define como o sistema irá compensar o percurso de usinagem após o mapeamento.</p>
+                )}
                 <RadioGroup value={engravingMode} onValueChange={(v) => setEngravingMode(v as EngravingMode)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="standard" id="eng-std-p" />
@@ -562,6 +606,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Crosshair className="h-3 w-3" /> Modo de mapeamento
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define a estratégia usada para medir a superfície da peça.</p>
+                )}
                 <RadioGroup value={mappingPrecision} onValueChange={(v) => setMappingPrecision(v as MappingPrecision)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="uniform" id="map-uni-p" />
@@ -822,6 +869,11 @@ export default function ZMappingPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground">Nenhum arquivo carregado</p>
                   <p className="text-xs mt-1">Carregue um arquivo G-code para começar ou use o assistente.</p>
+                  {showExplanations && (
+                    <p className="text-xs mt-3 max-w-md text-muted-foreground leading-relaxed">
+                      Esta ferramenta mede a superfície da peça e ajusta automaticamente o percurso da usinagem para manter a profundidade correta mesmo em superfícies inclinadas ou irregulares.
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5 text-xs">
@@ -959,6 +1011,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <ShieldCheck className="h-3 w-3" /> Deslocamento entre pontos
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define como a ferramenta se desloca entre os pontos de medição.</p>
+                )}
                 <RadioGroup value={retractionMode} onValueChange={(v) => setRetractionMode(v as RetractionMode)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="standard" id="ret-std-r" />
