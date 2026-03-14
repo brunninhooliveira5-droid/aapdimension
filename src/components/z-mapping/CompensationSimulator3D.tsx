@@ -211,24 +211,30 @@ function SurfaceMesh({ mesh, probeData, config, surfMin, surfMax }: {
   );
 }
 
-/* ── Toolpath tube line ── */
-function ToolpathLine({ path, config, surfMin, surfMax, compensated, lineColor, lineWidth }: {
+/* ── Toolpath line — rendered ABOVE surface ── */
+function ToolpathLine({ path, config, surfMin, surfMax, compensated, lineColor, lineWidth, mesh, probeData }: {
   path: PathPt[]; config: MeshConfig; surfMin: number; surfMax: number;
   compensated: boolean; lineColor: string; lineWidth?: number;
+  mesh: MeshInfo; probeData: MeshPoint[];
 }) {
   const { positions, colors: lineColors } = useMemo(() => {
     const pos: number[] = [];
     const cols: number[] = [];
     const zScale = Math.max(config.width, config.height) * 0.4;
+    // Small lift above surface so path is always visible on top
+    const lift = Math.max(config.width, config.height) * 0.015;
 
     for (const pt of path) {
-      const z = compensated ? pt.zComp : pt.z;
-      pos.push(pt.x - config.xStart, pt.y - config.yStart, z * zScale);
+      // Get the surface height at this XY point
+      const surfZ = bilinearZ(pt.x, pt.y, mesh, probeData, config);
+      // Place the path on top of the surface + a small lift
+      const displayZ = surfZ * zScale + lift;
+      pos.push(pt.x - config.xStart, pt.y - config.yStart, displayZ);
       const c = new THREE.Color(lineColor);
       cols.push(c.r, c.g, c.b);
     }
     return { positions: new Float32Array(pos), colors: new Float32Array(cols) };
-  }, [path, config, compensated, lineColor]);
+  }, [path, config, compensated, lineColor, mesh, probeData]);
 
   const geom = useMemo(() => {
     if (path.length < 2) return null;
@@ -249,24 +255,26 @@ function ToolpathLine({ path, config, surfMin, surfMax, compensated, lineColor, 
 }
 
 /* ── Animated tool marker ── */
-function ToolMarker({ path, config, progress, isPlaying, speed }: {
+function ToolMarker({ path, config, progress, isPlaying, speed, mesh, probeData }: {
   path: PathPt[]; config: MeshConfig; progress: number;
-  isPlaying: boolean; speed: number;
+  isPlaying: boolean; speed: number; mesh: MeshInfo; probeData: MeshPoint[];
 }) {
   const ref = useRef<THREE.Group>(null);
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
   const zScale = Math.max(config.width, config.height) * 0.4;
+  const lift = Math.max(config.width, config.height) * 0.015;
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (!ref.current || path.length < 2) return;
     const idx = Math.floor(progressRef.current * (path.length - 1));
     const pt = path[Math.min(idx, path.length - 1)];
+    const surfZ = bilinearZ(pt.x, pt.y, mesh, probeData, config);
     ref.current.position.set(
       pt.x - config.xStart,
       pt.y - config.yStart,
-      pt.zComp * zScale
+      surfZ * zScale + lift
     );
   });
 
@@ -354,15 +362,15 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
       )}
       {showOriginal && (
         <ToolpathLine path={path} config={config} surfMin={surfMin} surfMax={surfMax}
-          compensated={false} lineColor="#94a3b8" lineWidth={1} />
+          compensated={false} lineColor="#94a3b8" lineWidth={1} mesh={mesh} probeData={probeData} />
       )}
       {showCompensated && (
         <ToolpathLine path={path} config={config} surfMin={surfMin} surfMax={surfMax}
-          compensated lineColor="#facc15" lineWidth={2} />
+          compensated lineColor="#facc15" lineWidth={2} mesh={mesh} probeData={probeData} />
       )}
       {showAnimation && path.length > 1 && (
         <ToolMarker path={path} config={config} progress={animProgress}
-          isPlaying={showAnimation} speed={animSpeed} />
+          isPlaying={showAnimation} speed={animSpeed} mesh={mesh} probeData={probeData} />
       )}
 
       {/* Reference grid */}
