@@ -464,7 +464,7 @@ function ColorScale({ min, max, unit }: { min: number; max: number; unit: string
 }
 
 /* ── Main component ── */
-export function CompensationSimulator3D({ originalGcode, mesh, config, onClose }: Props) {
+export function CompensationSimulator3D({ originalGcode, mesh, config, onClose, vbitSettings }: Props) {
   const [showSurface, setShowSurface] = useState(true);
   const [showCompensated, setShowCompensated] = useState(true);
   const [showOriginal, setShowOriginal] = useState(false);
