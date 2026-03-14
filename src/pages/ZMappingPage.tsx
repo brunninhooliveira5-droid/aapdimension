@@ -1,25 +1,64 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Scan, ClipboardPaste, Wrench, Play
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff
 } from "lucide-react";
 import {
-  analyzeGcode, generateMesh, generateProbeGcode, importProbeData,
-  generateCompensatedGcode, defaultConfigMM, defaultConfigInch,
+  analyzeGcode, generateMesh, generateUnifiedGcode,
+  defaultConfigMM, defaultConfigInch,
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
-  type MeshPoint, type ControllerType, type CompensationResult,
+  type ControllerType, type UnifiedResult,
 } from "@/lib/z-mapping-engine";
+
+/* ── Heatmap mini-component ───────────────────────────── */
+function SurfaceHeatmap({ mesh, spacingX, spacingY, cols, rows }: {
+  mesh: { x: number; y: number }[];
+  spacingX: number; spacingY: number; cols: number; rows: number;
+}) {
+  // No real Z data yet, show grid layout preview
+  const cellW = 280 / cols;
+  const cellH = 200 / rows;
+  return (
+    <div className="space-y-2">
+      <svg viewBox={`0 0 280 200`} className="w-full max-w-sm border rounded-lg bg-muted/30 mx-auto">
+        {Array.from({ length: rows }).map((_, r) =>
+          Array.from({ length: cols }).map((_, c) => (
+            <rect
+              key={`${r}-${c}`}
+              x={c * cellW} y={(rows - 1 - r) * cellH}
+              width={cellW} height={cellH}
+              fill="hsl(var(--primary))"
+              opacity={0.1 + (r / rows) * 0.3}
+              stroke="hsl(var(--border))" strokeWidth={0.5}
+            />
+          ))
+        )}
+        {Array.from({ length: rows }).map((_, r) =>
+          Array.from({ length: cols }).map((_, c) => (
+            <circle
+              key={`p${r}-${c}`}
+              cx={c * cellW + cellW / 2} cy={(rows - 1 - r) * cellH + cellH / 2}
+              r={2} fill="hsl(var(--primary))" opacity={0.6}
+            />
+          ))
+        )}
+      </svg>
+      <p className="text-xs text-center text-muted-foreground">
+        Grade de medição: {cols} × {rows} pontos
+      </p>
+    </div>
+  );
+}
 
 export default function ZMappingPage() {
   const [showAnimation, setShowAnimation] = useState(false);
@@ -33,7 +72,8 @@ export default function ZMappingPage() {
   const [yStart, setYStart] = useState(0);
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
-  const [spacing, setSpacing] = useState(defaults.spacing);
+  const [spacingX, setSpacingX] = useState(defaults.spacing);
+  const [spacingY, setSpacingY] = useState(defaults.spacing);
   const [probeFeed, setProbeFeed] = useState(defaults.probeFeed);
   const [probeDepth, setProbeDepth] = useState(defaults.probeDepth);
   const [clearance, setClearance] = useState(defaults.clearance);
@@ -44,15 +84,14 @@ export default function ZMappingPage() {
   const [tolerance, setTolerance] = useState(defaults.tolerance);
   const [controller, setController] = useState<ControllerType>("mach3");
 
-  const [probeDataText, setProbeDataText] = useState("");
-  const [probePoints, setProbePoints] = useState<MeshPoint[]>([]);
-
-  const [compensationResult, setCompensationResult] = useState<CompensationResult | null>(null);
-  const [probeGenerated, setProbeGenerated] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [result, setResult] = useState<UnifiedResult | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Use spacingX for mesh config (the engine uses a single spacing, take average)
+  const spacing = (spacingX + spacingY) / 2;
 
   const config: MeshConfig = useMemo(() => ({
     unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
@@ -63,12 +102,13 @@ export default function ZMappingPage() {
   const mesh = useMemo(() => {
     if (width <= 0 || height <= 0 || spacing <= 0) return null;
     return generateMesh(config);
-  }, [config]);
+  }, [config, width, height, spacing]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setOriginalFileName(file.name);
+    setResult(null);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
@@ -78,9 +118,10 @@ export default function ZMappingPage() {
       if (a.unit) {
         setUnit(a.unit);
         const d = a.unit === "mm" ? defaultConfigMM : defaultConfigInch;
-        setSpacing(d.spacing); setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
-        setClearance(d.clearance); setSafeHeight(d.safeHeight); setMaxSegmentLen(d.maxSegmentLen);
-        setTolerance(d.tolerance);
+        setSpacingX(d.spacing); setSpacingY(d.spacing);
+        setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
+        setClearance(d.clearance); setSafeHeight(d.safeHeight);
+        setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
       }
       if (a.width > 0) {
         setXStart(parseFloat(a.xMin.toFixed(3)));
@@ -88,57 +129,33 @@ export default function ZMappingPage() {
         setWidth(parseFloat(a.width.toFixed(3)));
         setHeight(parseFloat(a.height.toFixed(3)));
       }
-      toast.success("Arquivo carregado");
+      toast.success("Arquivo carregado com sucesso");
     };
     reader.readAsText(file);
   }, []);
 
-  const handleUnitChange = useCallback((u: ZUnit) => {
-    setUnit(u);
-    const d = u === "mm" ? defaultConfigMM : defaultConfigInch;
-    setSpacing(d.spacing); setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
-    setClearance(d.clearance); setSafeHeight(d.safeHeight); setMaxSegmentLen(d.maxSegmentLen);
-    setTolerance(d.tolerance);
-  }, []);
-
-  const handleGenerateProbe = useCallback(() => {
-    if (!mesh) return;
-    const { code, fileName } = generateProbeGcode(mesh, config, controller, originalFileName || "file");
-    downloadText(code, fileName);
-    setProbeGenerated(true);
-    toast.success("Arquivo de mapeamento gerado!");
-  }, [mesh, config, controller, originalFileName]);
-
-  const handleLoadData = useCallback(() => {
-    if (!mesh || !probeDataText.trim()) return;
-    const pts = importProbeData(probeDataText, mesh);
-    setProbePoints(pts);
-    setDataLoaded(true);
-    toast.success("Dados carregados com sucesso");
-  }, [mesh, probeDataText]);
-
-  const handleCompensate = useCallback(() => {
-    if (!mesh || !originalGcode || probePoints.filter(p => p.z !== null).length === 0) {
-      toast.error("Carregue o G-code e os dados medidos primeiro");
-      return;
-    }
-    const result = generateCompensatedGcode(originalGcode, mesh, probePoints, config, originalFileName || "file", controller);
-    setCompensationResult(result);
-    toast.success("G-code corrigido gerado!");
-  }, [mesh, originalGcode, probePoints, config, originalFileName, controller]);
+  const handleGenerate = useCallback(() => {
+    if (!mesh || !originalGcode) return;
+    const r = generateUnifiedGcode(originalGcode, mesh, config, originalFileName || "file", controller);
+    setResult(r);
+    toast.success("Arquivo de nivelamento gerado!");
+  }, [mesh, originalGcode, config, originalFileName, controller]);
 
   const handleDownload = useCallback(() => {
-    if (!compensationResult) return;
-    downloadText(compensationResult.code, compensationResult.fileName);
-  }, [compensationResult]);
-
-  function downloadText(text: string, name: string) {
-    const blob = new Blob([text], { type: "text/plain" });
+    if (!result) return;
+    const blob = new Blob([result.code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = name; a.click();
+    a.href = url; a.download = result.fileName; a.click();
     URL.revokeObjectURL(url);
-  }
+  }, [result]);
+
+  const formatTime = (sec: number) => {
+    if (sec < 60) return `${sec}s`;
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return s > 0 ? `${m}min ${s}s` : `${m}min`;
+  };
 
   const numField = (label: string, value: number, onChange: (v: number) => void, step?: number) => (
     <div className="space-y-1.5">
@@ -148,19 +165,17 @@ export default function ZMappingPage() {
     </div>
   );
 
-  const filledPoints = probePoints.filter(p => p.z !== null).length;
-
   return (
-    <div className="space-y-8 max-w-3xl mx-auto">
-      {/* Header */}
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Grid3x3 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Mapeamento Z</h1>
-            <p className="text-muted-foreground text-sm">Corrija a altura do G-code automaticamente mapeando a superfície da peça.</p>
+            <h1 className="text-2xl font-bold tracking-tight">Nivelamento Automático</h1>
+            <p className="text-muted-foreground text-sm">Gere um único arquivo que mapeia a superfície e corrige a altura automaticamente.</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={() => setShowAnimation(s => !s)} className="gap-1.5 text-xs shrink-0">
@@ -168,18 +183,17 @@ export default function ZMappingPage() {
         </Button>
       </div>
 
-      {/* Animation */}
-      {showAnimation && (
-        <ZMappingAnimation onClose={() => setShowAnimation(false)} />
-      )}
+      {showAnimation && <ZMappingAnimation onClose={() => setShowAnimation(false)} />}
 
-      {/* Upload */}
+      {/* ── Card 1: Arquivo original ── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4 text-primary" /> Arquivo G-code</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Upload className="h-4 w-4 text-primary" /> Arquivo G-code original
+          </CardTitle>
+          <CardDescription>Carregue o arquivo que será nivelado automaticamente.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">Carregue o arquivo G-code que deseja corrigir.</p>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => fileRef.current?.click()} className="gap-2">
               <FileUp className="h-4 w-4" /> Carregar arquivo
@@ -187,127 +201,105 @@ export default function ZMappingPage() {
             <input ref={fileRef} type="file" accept=".nc,.tap,.gcode,.txt" className="hidden" onChange={handleFileUpload} />
             {originalFileName && <Badge variant="secondary">{originalFileName}</Badge>}
           </div>
-          {analysis && (
-            <div className="rounded-lg border bg-muted/30 p-3 grid grid-cols-3 gap-2 text-xs">
-              <div><span className="text-muted-foreground">Área X:</span> <span className="font-medium">{fmt(analysis.width)}</span></div>
-              <div><span className="text-muted-foreground">Área Y:</span> <span className="font-medium">{fmt(analysis.height)}</span></div>
-              <div><span className="text-muted-foreground">Unidade:</span> <span className="font-medium">{analysis.unit === "mm" ? "mm" : analysis.unit === "inch" ? "pol" : "—"}</span></div>
+        </CardContent>
+      </Card>
+
+      {/* ── Card 2: Configurações principais ── */}
+      {analysis && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Ruler className="h-4 w-4 text-primary" /> Configurações
+            </CardTitle>
+            <CardDescription>Ajuste a distância entre os pontos de medição e a altura segura.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {numField("Altura Z segura", safeHeight, setSafeHeight)}
+              {numField("Distância entre pontos X", spacingX, setSpacingX)}
+              {numField("Distância entre pontos Y", spacingY, setSpacingY)}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* ── PASSO 1 ── */}
-      <Card className="border-l-4 border-l-primary/40">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">1</div>
-            <CardTitle className="text-lg">Gerar arquivo de mapeamento</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Primeiro vamos criar o arquivo que a máquina usará para medir a superfície da peça.
-          </p>
-
-          {mesh && (
-            <div className="text-xs text-muted-foreground">
-              A malha terá <span className="font-medium text-foreground">{mesh.totalPoints} pontos</span> de medição.
-            </div>
-          )}
-
-          <Button onClick={handleGenerateProbe} disabled={!mesh} size="lg" className="gap-2 w-full sm:w-auto">
-            <Scan className="h-4 w-4" /> Gerar arquivo de mapeamento
-          </Button>
-
-          <p className="text-xs text-muted-foreground">
-            Execute este arquivo na máquina para medir os pontos da superfície.
-          </p>
-
-          {probeGenerated && (
-            <Alert className="border-emerald-500/30 bg-emerald-500/5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <AlertDescription className="text-sm text-emerald-400">
-                Arquivo gerado! Execute na máquina e depois cole os valores medidos no passo 2.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── PASSO 2 ── */}
-      <Card className="border-l-4 border-l-primary/40">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</div>
-            <CardTitle className="text-lg">Inserir os valores medidos</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Depois que a máquina medir a superfície, copie os valores e cole aqui.
-          </p>
-
-          <Textarea
-            placeholder={"Exemplo:\n-0.02, -0.01, 0.00\n-0.03, -0.02, -0.01\n-0.04, -0.03, -0.02"}
-            rows={7}
-            value={probeDataText}
-            onChange={(e) => setProbeDataText(e.target.value)}
-            className="font-mono text-xs"
-          />
-
-          <Button onClick={handleLoadData} disabled={!mesh || !probeDataText.trim()} variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
-            <ClipboardPaste className="h-4 w-4" /> Carregar dados
-          </Button>
-
-          {dataLoaded && (
-            <Alert className="border-emerald-500/30 bg-emerald-500/5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <AlertDescription className="text-sm text-emerald-400">
-                Dados carregados com sucesso — {filledPoints} pontos reconhecidos.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── PASSO 3 ── */}
-      <Card className="border-l-4 border-l-primary/40">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">3</div>
-            <CardTitle className="text-lg">Gerar G-code corrigido</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            O sistema irá corrigir automaticamente a altura do G-code usando o mapeamento da superfície.
-          </p>
-
-          <Button onClick={handleCompensate} size="lg" className="gap-2 w-full sm:w-auto"
-            disabled={!originalGcode || !mesh || filledPoints === 0}>
-            <Play className="h-4 w-4" /> Gerar G-code corrigido
-          </Button>
-
-          {compensationResult && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm font-medium">Arquivo corrigido pronto!</span>
+      {/* ── Card 3: Resumo ── */}
+      {analysis && mesh && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" /> Resumo do nivelamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Área detectada</p>
+                <p className="text-sm font-semibold">{fmt(width)} × {fmt(height)} {unit}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div><span className="text-muted-foreground">Arquivo:</span> <span className="font-medium">{compensationResult.fileName}</span></div>
-                <div><span className="text-muted-foreground">Linhas:</span> <span className="font-medium">{compensationResult.linesProcessed}</span></div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total de pontos</p>
+                <p className="text-sm font-semibold flex items-center gap-1">
+                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.totalPoints}
+                </p>
               </div>
-              <Button onClick={handleDownload} size="lg" variant="outline" className="gap-2 w-full sm:w-auto">
-                <Download className="h-4 w-4" /> Baixar arquivo corrigido
-              </Button>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Controlador</p>
+                <p className="text-sm font-semibold flex items-center gap-1">
+                  <Cpu className="h-3.5 w-3.5 text-primary" /> {controller === "mach3" ? "Mach3" : "Genérico"}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Tempo estimado</p>
+                <p className="text-sm font-semibold flex items-center gap-1">
+                  <Timer className="h-3.5 w-3.5 text-primary" /> {formatTime(mesh.estimatedTimeSec)}
+                </p>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* ── Configurações avançadas ── */}
+      {/* ── Card 4: Botão principal ── */}
+      {analysis && mesh && (
+        <Card className="border-primary/30 bg-primary/[0.02]">
+          <CardContent className="pt-6 space-y-4">
+            <Button onClick={handleGenerate} size="lg" className="gap-2 w-full text-base h-12">
+              <Play className="h-5 w-5" /> Gerar arquivo de nivelamento automático
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              O arquivo gerado irá: medir a superfície → pausar para trocar a fresa → usinar com correção automática de altura.
+            </p>
+
+            {result && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium">Arquivo pronto!</span>
+                </div>
+
+                <Alert className="border-amber-500/30 bg-amber-500/5">
+                  <AlertDescription className="text-xs text-amber-300">
+                    <strong>Instruções para o operador:</strong> Depois do mapeamento, coloque a fresa, zere o Z novamente e pressione iniciar para continuar.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Arquivo:</span> <span className="font-medium">{result.fileName}</span></div>
+                  <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
+                </div>
+
+                <Button onClick={handleDownload} size="lg" className="gap-2 w-full">
+                  <Download className="h-4 w-4" /> Baixar arquivo de nivelamento
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Card 5: Configurações avançadas ── */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
@@ -322,7 +314,15 @@ export default function ZMappingPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Unidade</Label>
-                  <Select value={unit} onValueChange={(v) => handleUnitChange(v as ZUnit)}>
+                  <Select value={unit} onValueChange={(v) => {
+                    const u = v as ZUnit;
+                    setUnit(u);
+                    const d = u === "mm" ? defaultConfigMM : defaultConfigInch;
+                    setSpacingX(d.spacing); setSpacingY(d.spacing);
+                    setProbeFeed(d.probeFeed); setProbeDepth(d.probeDepth);
+                    setClearance(d.clearance); setSafeHeight(d.safeHeight);
+                    setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
+                  }}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="mm">mm</SelectItem>
@@ -335,10 +335,8 @@ export default function ZMappingPage() {
                 {numField("Largura", width, setWidth)}
                 {numField("Altura", height, setHeight)}
                 {numField("Velocidade de medição", probeFeed, setProbeFeed)}
-                {numField("Profundidade de medição", probeDepth, setProbeDepth, 0.01)}
+                {numField("Profundidade máxima", probeDepth, setProbeDepth, 0.01)}
                 {numField("Folga de segurança", clearance, setClearance)}
-                {numField("Espaçamento dos pontos", spacing, setSpacing)}
-                {numField("Altura segura", safeHeight, setSafeHeight)}
                 {numField("Comprimento de divisão", maxSegmentLen, setMaxSegmentLen)}
                 {numField("Casas decimais", decimalPlaces, (v) => setDecimalPlaces(Math.max(1, Math.min(8, Math.round(v)))), 1)}
                 {numField("Tolerância", tolerance, setTolerance, 0.0001)}
@@ -368,6 +366,30 @@ export default function ZMappingPage() {
           </Card>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* ── Card 6: Heatmap (opcional) ── */}
+      {mesh && (
+        <div className="space-y-2">
+          <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground"
+            onClick={() => setShowHeatmap(h => !h)}>
+            {showHeatmap ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {showHeatmap ? "Ocultar mapa da superfície" : "Visualizar mapa da superfície"}
+          </Button>
+          {showHeatmap && (
+            <Card>
+              <CardContent className="pt-5">
+                <SurfaceHeatmap
+                  mesh={mesh.points}
+                  spacingX={mesh.actualSpacingX}
+                  spacingY={mesh.actualSpacingY}
+                  cols={mesh.pointsPerRow}
+                  rows={mesh.rows}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

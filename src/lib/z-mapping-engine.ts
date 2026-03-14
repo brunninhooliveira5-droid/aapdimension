@@ -451,3 +451,187 @@ export function generateCompensatedGcode(
     meshValid: allHaveZ,
   };
 }
+
+// ── Unified G-code generator (probe + pause + compensated cut) ──
+export interface UnifiedResult {
+  code: string;
+  fileName: string;
+  totalPoints: number;
+  estimatedProbeSec: number;
+}
+
+export function generateUnifiedGcode(
+  originalGcode: string,
+  mesh: MeshInfo,
+  cfg: MeshConfig,
+  originalName: string,
+  controller: ControllerType
+): UnifiedResult {
+  const d = (v: number) => fmt(v, cfg.decimalPlaces);
+  const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
+  const lines: string[] = [];
+  const probeVar = controller === "mach3" ? "#2002" : "#5063";
+  const probeCmd = controller === "mach3" ? "G31" : "G38.2";
+
+  // ── Header ──
+  lines.push("(==============================================)");
+  lines.push("(  Nivelamento Automatico - Dimension CNC     )");
+  lines.push("(  Mapeamento + Compensacao em arquivo unico  )");
+  lines.push(`(  Pontos: ${mesh.totalPoints}  |  Grade: ${mesh.pointsPerRow}x${mesh.rows})`);
+  lines.push(`(  Controller: ${controller === "mach3" ? "Mach3" : "Generic"})`);
+  lines.push("(==============================================)");
+  lines.push("");
+  lines.push(unitCmd);
+  lines.push("G90");
+  lines.push("");
+
+  // ── Part 1: Probe routine ──
+  lines.push("(--- INICIO DO MAPEAMENTO DA SUPERFICIE ---)");
+  lines.push("");
+
+  const firstPt = mesh.points[0];
+  lines.push(`G0 Z${d(cfg.safeHeight)}`);
+  lines.push(`G0 X${d(firstPt.x)} Y${d(firstPt.y)}`);
+
+  if (controller === "mach3") {
+    lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
+    lines.push("G92 Z0");
+    lines.push(`G0 Z${d(cfg.clearance)}`);
+    lines.push("");
+  }
+
+  // Serpentine scan — store in variables #500+
+  let ptIndex = 0;
+  for (let row = 0; row < mesh.rows; row++) {
+    const ltr = row % 2 === 0;
+    for (let col = 0; col < mesh.pointsPerRow; col++) {
+      const idx = ltr
+        ? row * mesh.pointsPerRow + col
+        : row * mesh.pointsPerRow + (mesh.pointsPerRow - 1 - col);
+      const pt = mesh.points[idx];
+
+      lines.push(`(Ponto ${ptIndex})`);
+      lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
+      lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
+      lines.push(`#${500 + ptIndex} = ${probeVar}`);
+      lines.push(`G0 Z${d(cfg.clearance)}`);
+      ptIndex++;
+    }
+  }
+
+  lines.push("");
+  lines.push(`G0 Z${d(cfg.safeHeight)}`);
+  lines.push("");
+  lines.push("(--- FIM DO MAPEAMENTO ---)");
+  lines.push("");
+  lines.push("(============================================)");
+  lines.push("( ATENCAO: Remova o sensor de medicao.       )");
+  lines.push("( Coloque a fresa de usinagem.               )");
+  lines.push("( Zere o eixo Z novamente na superficie.     )");
+  lines.push("( Pressione INICIAR para continuar.          )");
+  lines.push("(============================================)");
+  lines.push("M0");
+  lines.push("");
+
+  // ── Part 2: Compensated original G-code using macro variables ──
+  lines.push("(--- INICIO DA USINAGEM COMPENSADA ---)");
+  lines.push("");
+
+  // Build a helper: for each XY during cutting, compute bilinear using variable references
+  // Since we can't do real bilinear in pure G-code macros on all controllers,
+  // we generate the compensated G-code with variable references for each point.
+  // We create a lookup approach: for each segment point, compute the 4 surrounding
+  // probe variable indices and the interpolation fractions, then emit macro math.
+
+  const origLines = originalGcode.split("\n");
+  let curX = 0, curY = 0, curZ = 0;
+  let curG = 0;
+
+  for (const line of origLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("(") || trimmed.startsWith(";") || trimmed.startsWith("%")) {
+      lines.push(line);
+      continue;
+    }
+
+    const p = parseGcodeLine(trimmed);
+    if (p.g !== undefined) curG = p.g;
+
+    const newX = p.x ?? curX;
+    const newY = p.y ?? curY;
+    const newZ = p.z ?? curZ;
+
+    const isCutMove = curG === 1 && newZ < 0 && (p.x !== undefined || p.y !== undefined || p.z !== undefined);
+
+    if (!isCutMove) {
+      if (p.x !== undefined || p.y !== undefined || p.z !== undefined) {
+        if (newZ < 0 && curG === 1) {
+          // fall through to compensation
+        } else {
+          curX = newX; curY = newY; curZ = newZ;
+          lines.push(line);
+          continue;
+        }
+      } else {
+        lines.push(line);
+        continue;
+      }
+    }
+
+    // Segment the move and emit macro-based compensation
+    const from: CncPos = { x: curX, y: curY, z: curZ };
+    const to: CncPos = { x: newX, y: newY, z: newZ, f: p.f };
+    const segments = segmentMove(from, to, cfg.maxSegmentLen);
+
+    for (const seg of segments) {
+      // Compute bilinear indices and fractions at compile time
+      const { xStart, yStart, width: w, height: h } = cfg;
+      const xEnd = xStart + w;
+      const yEnd = yStart + h;
+      let px = Math.max(xStart, Math.min(xEnd, seg.x));
+      let py = Math.max(yStart, Math.min(yEnd, seg.y));
+
+      const colF = (px - xStart) / mesh.actualSpacingX;
+      const rowF = (py - yStart) / mesh.actualSpacingY;
+      const col0 = Math.min(Math.floor(colF), mesh.pointsPerRow - 2);
+      const row0 = Math.min(Math.floor(rowF), mesh.rows - 2);
+      const col1 = col0 + 1;
+      const row1 = row0 + 1;
+
+      const blIdx = row0 * mesh.pointsPerRow + col0;
+      const brIdx = row0 * mesh.pointsPerRow + col1;
+      const tlIdx = row1 * mesh.pointsPerRow + col0;
+      const trIdx = row1 * mesh.pointsPerRow + col1;
+
+      const xFrac = colF - col0;
+      const yFrac = rowF - row0;
+
+      // Bilinear: left = bl + (tl-bl)*yFrac, right = br + (tr-br)*yFrac, result = left + (right-left)*xFrac
+      // Use temp variables #100-#104
+      lines.push(`#100 = [#${500 + blIdx} + [#${500 + tlIdx} - #${500 + blIdx}] * ${d(yFrac)}]`);
+      lines.push(`#101 = [#${500 + brIdx} + [#${500 + trIdx} - #${500 + brIdx}] * ${d(yFrac)}]`);
+      lines.push(`#102 = [#100 + [#101 - #100] * ${d(xFrac)}]`);
+      lines.push(`#103 = [${d(seg.z)} + #102]`);
+
+      let cmd = `G1 X${d(seg.x)} Y${d(seg.y)} Z#103`;
+      if (seg.f !== undefined) cmd += ` F${d(seg.f)}`;
+      lines.push(cmd);
+    }
+
+    curX = newX; curY = newY; curZ = newZ;
+  }
+
+  lines.push("");
+  lines.push("(--- FIM DA USINAGEM COMPENSADA ---)");
+  lines.push("M30");
+
+  const ext = controller === "mach3" ? "tap" : "nc";
+  const baseName = originalName.replace(/\.[^.]+$/, "");
+
+  return {
+    code: lines.join("\n"),
+    fileName: `MZ_Auto_${baseName}.${ext}`,
+    totalPoints: mesh.totalPoints,
+    estimatedProbeSec: mesh.estimatedTimeSec,
+  };
+}
