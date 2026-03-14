@@ -297,8 +297,8 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
           <>
             <Arrow x1={cx - r2 - 40} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} width={2.5} />
             <AnimProbe x1={cx - r2 - 40} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} />
-            <Arrow x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} width={2.5} />
-            <AnimProbe x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} delay={0.6} />
+          <Arrow x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} width={2.5} />
+            <AnimProbe x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} />
           </>
         );
       })()}
