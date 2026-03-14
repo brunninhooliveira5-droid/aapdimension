@@ -22,26 +22,26 @@ import {
 /* ── Illustration SVGs ────────────────────────── */
 function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string; refinement: boolean; zProbe: boolean }) {
   const flipX = quadrant.includes("right") ? -1 : 1;
-  const flipY = quadrant.includes("back") ? -1 : 1;
+  const flipY = quadrant.includes("front") ? 1 : -1;
   const cornerX = flipX > 0 ? 30 : 170;
-  const cornerY = flipY > 0 ? 20 : 140;
+  const cornerY = flipY > 0 ? 140 : 20;
   // Z probe point: inset from corner
   const zpX = cornerX + (flipX > 0 ? 12 : -12);
   const zpY = cornerY + (flipY > 0 ? 12 : -12);
   return (
     <svg viewBox="0 0 200 160" className="w-full h-full">
       <rect x="30" y="20" width="140" height="120" rx="2" fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.3" />
-      <rect x={flipX > 0 ? 30 : 100} y={flipY > 0 ? 20 : 72} width="70" height="68" rx="1"
+      <rect x={flipX > 0 ? 30 : 100} y={flipY > 0 ? 72 : 20} width="70" height="68" rx="1"
         fill="hsl(var(--primary))" opacity="0.08" stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="3 2" />
       <line x1={flipX > 0 ? 10 : 190} y1="90" x2={flipX > 0 ? 30 : 170} y2="90"
         stroke="hsl(var(--primary))" strokeWidth="2" markerEnd="url(#arrowCC)" opacity={refinement ? 0.35 : 1} />
-      <line x1="65" y1={flipY > 0 ? 2 : 158} x2="65" y2={flipY > 0 ? 20 : 140}
+      <line x1="65" y1={flipY > 0 ? 158 : 2} x2="65" y2={flipY > 0 ? 140 : 20}
         stroke="hsl(var(--chart-4))" strokeWidth="2" markerEnd="url(#arrowCC2)" opacity={refinement ? 0.35 : 1} />
       {refinement && (
         <>
           <line x1={flipX > 0 ? 22 : 178} y1="80" x2={flipX > 0 ? 30 : 170} y2="80"
             stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
-          <line x1="55" y1={flipY > 0 ? 14 : 146} x2="55" y2={flipY > 0 ? 20 : 140}
+          <line x1="55" y1={flipY > 0 ? 146 : 14} x2="55" y2={flipY > 0 ? 140 : 20}
             stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
         </>
       )}
