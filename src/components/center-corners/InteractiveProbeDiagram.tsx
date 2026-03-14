@@ -253,7 +253,7 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
           <SolidPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
           <Arrow x1={px - 50} y1={cy} x2={px} y2={cy} color={PROBE_X} width={3} />
           <AnimProbe x1={px - 50} y1={cy} x2={px} y2={cy} color={PROBE_X} />
-          <Arrow x1={px + pw + 50} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} delay={0.8} />
+          <Arrow x1={px + pw + 50} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} width={3} />
           <AnimProbe x1={px + pw + 50} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} delay={0.8} />
           <text x={px - 50} y={cy - 14} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="600">X−</text>
           <text x={px + pw + 50} y={cy - 14} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="600">X+</text>
