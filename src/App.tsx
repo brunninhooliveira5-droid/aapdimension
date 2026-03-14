@@ -41,6 +41,7 @@ import AcmPlannerPage from "./pages/AcmPlannerPage";
 import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
 import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 import ZMappingPage from "./pages/ZMappingPage";
+import MachiningMapPage from "./pages/MachiningMapPage";
 
 const queryClient = new QueryClient();
 
