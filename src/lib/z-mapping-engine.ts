@@ -87,7 +87,7 @@ export function fmt(v: number, dp = 5): string {
 }
 
 // ── G-code parser & analyzer ──────────────────────────────────
-interface ParsedMove {
+export interface ParsedMove {
   x?: number;
   y?: number;
   z?: number;
