@@ -435,24 +435,22 @@ export function generateAdaptiveMesh(
     }
   }
   
-  // Collect kept points
+  // Collect ALL grid points (full rectangular grid required for bilinear macro interpolation)
+  // The adaptive analysis informs density display but the probe must visit every grid node
+  // because the G-code compensation uses #500+gridIndex addressing.
   const points: MeshPoint[] = [];
   for (let r = 0; r < fineRows; r++) {
     for (let c = 0; c < fineCols; c++) {
-      if (keepPoint[r][c]) {
-        points.push({
-          x: cfg.xStart + c * fineActualX,
-          y: cfg.yStart + r * fineActualY,
-          z: null,
-        });
-      }
+      points.push({
+        x: cfg.xStart + c * fineActualX,
+        y: cfg.yStart + r * fineActualY,
+        z: null,
+      });
     }
   }
   
   const estimatedTimeSec = points.length * 2;
   
-  // For adaptive mesh, we still report the fine grid dimensions
-  // but the actual points array may be smaller
   return {
     pointsPerRow: fineCols,
     rows: fineRows,
