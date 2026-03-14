@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical, Lock, Grid3x3 } from "lucide-react";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical, Lock, Grid3x3, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ const productionTools = [
   { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", sectionKey: "orcamento" },
   { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", sectionKey: "ferr_plano_corte" },
   { id: "mapeamento-z", label: "Nivelamento Automático", icon: Grid3x3, route: "/mapeamento-z", sectionKey: "ferr_mapeamento_z" },
+  { id: "mapa-usinagem", label: "Mapa por Usinagem", icon: Layers, route: "/mapa-usinagem", sectionKey: "ferr_mapeamento_z" },
 ];
 
 const labTools = [

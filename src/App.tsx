@@ -41,6 +41,7 @@ import AcmPlannerPage from "./pages/AcmPlannerPage";
 import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
 import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 import ZMappingPage from "./pages/ZMappingPage";
+import MachiningMapPage from "./pages/MachiningMapPage";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,7 @@ const AppRoutes = () => {
         <Route path="/planificador-acm" element={<RoleGate section="ferr_planificador_acm"><AcmPlannerPage /></RoleGate>} />
         <Route path="/gerador-percurso" element={<RoleGate section="ferr_gerador_percurso"><ToolpathGeneratorPage /></RoleGate>} />
         <Route path="/mapeamento-z" element={<RoleGate section="ferr_mapeamento_z"><ZMappingPage /></RoleGate>} />
+        <Route path="/mapa-usinagem" element={<RoleGate section="ferr_mapeamento_z"><MachiningMapPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
