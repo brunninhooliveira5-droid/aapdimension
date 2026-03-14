@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,16 +7,19 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Crosshair, Download, Play, Target, Square, Circle, Disc,
   Settings2, ChevronDown, Eye, Copy, ShieldCheck, ArrowDown, AlertTriangle,
+  Upload, Wrench, FileText,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   generateCenterCornersGcode, defaultCenterCornersConfig,
   type LocationMode, type CenterCornersConfig, type CenterCornersResult,
-  type ZProbeMode, type HoleZStrategy,
+  type ZProbeMode, type HoleZStrategy, type ProbeType, type PostLocationAction,
+  type CustomProbeConfig, defaultCustomProbeConfig,
 } from "@/lib/center-corners-engine";
 
 /* ── Illustration SVGs ────────────────────────── */
