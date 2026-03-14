@@ -153,15 +153,25 @@ export default function ZMappingPage() {
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Grid3x3 className="h-5 w-5 text-primary" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Grid3x3 className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Mapeamento Z</h1>
+            <p className="text-muted-foreground text-sm">Corrija a altura do G-code automaticamente mapeando a superfície da peça.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mapeamento Z</h1>
-          <p className="text-muted-foreground text-sm">Corrija a altura do G-code automaticamente mapeando a superfície da peça.</p>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => setShowAnimation(s => !s)} className="gap-1.5 text-xs shrink-0">
+          {showAnimation ? "Fechar" : "Como funciona?"}
+        </Button>
       </div>
+
+      {/* Animation */}
+      {showAnimation && (
+        <ZMappingAnimation onClose={() => setShowAnimation(false)} />
+      )}
 
       {/* Upload */}
       <Card>
