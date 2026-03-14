@@ -41,7 +41,7 @@ function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string
         <>
           <line x1={flipX > 0 ? 22 : 178} y1="80" x2={flipX > 0 ? 30 : 170} y2="80"
             stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
-          <line x1="55" y1={flipY > 0 ? 14 : 146} x2="55" y2={flipY > 0 ? 20 : 140}
+          <line x1="55" y1={flipY > 0 ? 146 : 14} x2="55" y2={flipY > 0 ? 140 : 20}
             stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
         </>
       )}
