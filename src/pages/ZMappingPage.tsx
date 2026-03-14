@@ -289,9 +289,15 @@ export default function ZMappingPage() {
       return;
     }
     try {
+      const retractionCfg: RetractionConfig = {
+        mode: retractionMode,
+        minSafeZ: retMinSafeZ,
+        adaptiveClearance: retAdaptiveClearance,
+        reinforcedClearance: retReinforcedClearance,
+      };
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
-        touchesPerPoint, touchStrategy
+        touchesPerPoint, touchStrategy, retractionCfg
       );
       setResult(r);
       toast.success("Arquivo de nivelamento gerado!");
@@ -299,7 +305,7 @@ export default function ZMappingPage() {
       console.error("Erro ao gerar arquivo:", err);
       toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
     }
-  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
