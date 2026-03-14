@@ -84,6 +84,9 @@ function getTouchCount(precision: TouchPrecision): number {
 /* ── Area mode ───────────────────────────── */
 type AreaMode = "auto" | "manual";
 
+/* ── Mapping precision ───────────────────── */
+type MappingPrecision = "uniform" | "smart" | "maximum";
+
 export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
