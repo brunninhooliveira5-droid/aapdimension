@@ -898,7 +898,7 @@ export function generateUnifiedGcode(
         }
       }
 
-      lines.push(`G0 X${d(pt.x)} Y${d(pt.y)}`);
+      lines.push(`G0 X${d(pt.x + probeOffX)} Y${d(pt.y + probeOffY)}`);
 
       if (touches === 1) {
         lines.push(`${probeCmd} Z${d(cfg.probeDepth)} F${d(cfg.probeFeed)}`);
