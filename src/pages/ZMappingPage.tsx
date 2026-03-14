@@ -365,6 +365,7 @@ export default function ZMappingPage() {
               yMin={analysis.yMin}
               xMax={analysis.xMax}
               yMax={analysis.yMax}
+              densityMap={densityMap}
             />
           </CardContent>
         </Card>
