@@ -889,6 +889,12 @@ export function generateUnifiedGcode(
           }
         }
       }
+      // Update retraction tracking variables after probe
+      if (retMode !== "standard") {
+        lines.push(`#491 = #490`);
+        lines.push(`#490 = #${500 + gridIdx}`);
+      }
+
       scanCount++;
     }
   }
