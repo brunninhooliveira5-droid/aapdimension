@@ -502,18 +502,30 @@ export interface RetractionConfig {
 
 // ── Custom probe types ────────────────────────────────────────
 export type ProbeType = "standard" | "custom";
+export type PostMappingMode = "manual" | "auto_offset" | "auto_measure";
+
+export interface ToolMeasureConfig {
+  measureX: number;
+  measureY: number;
+  measureCommand: string;  // e.g. "G31 Z-50 F100"
+  measureDwell: number;
+}
 
 export interface CustomProbeConfig {
   enabled: boolean;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
-  startCommand: string;   // e.g. "M11"
-  startDwell: number;     // seconds
+  startCommand: string;
+  startDwell: number;
   startSafeZ: number;
-  endCommand: string;     // e.g. "M10"
-  endDwell: number;       // seconds
+  endCommand: string;
+  endDwell: number;
   endSafeZ: number;
+  postMappingMode: PostMappingMode;
+  toolOffsetZ: number;         // offset final da ferramenta (probe tip → tool tip)
+  postSafeZ: number;           // altura segura após recolhimento
+  toolMeasure?: ToolMeasureConfig;
 }
 
 export function generateProbeGcode(
@@ -953,7 +965,9 @@ export function generateUnifiedGcode(
     lines.push("");
   }
 
-  if (!useCustomProbe) {
+  const postMode = customProbe?.postMappingMode ?? "manual";
+
+  if (!useCustomProbe || postMode === "manual") {
     lines.push("(============================================)");
     lines.push("( ATENCAO: Remova o sensor de medicao.       )");
     lines.push("( Coloque a fresa de usinagem.               )");
@@ -961,9 +975,32 @@ export function generateUnifiedGcode(
     lines.push("( Pressione INICIAR para continuar.          )");
     lines.push("(============================================)");
     lines.push("M0");
-  } else {
-    lines.push("(Probe recolhido automaticamente)");
-    lines.push("(Seguindo para usinagem compensada)");
+  } else if (postMode === "auto_offset" && customProbe) {
+    lines.push("(--- CONTINUIDADE AUTOMATICA COM OFFSET ---)");
+    lines.push(`(Offset Z calibrado: ${d(customProbe.toolOffsetZ)})`);
+    lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    if (customProbe.offsetZ !== 0 || customProbe.toolOffsetZ !== 0) {
+      const totalZOffset = customProbe.toolOffsetZ;
+      lines.push(`(Aplicando offset Z da ferramenta)`);
+      lines.push(`G92 Z[#5073 + ${d(totalZOffset)}]`);
+    }
+    lines.push("(Seguindo para usinagem compensada automaticamente)");
+  } else if (postMode === "auto_measure" && customProbe) {
+    lines.push("(--- MEDICAO AUTOMATICA DA FERRAMENTA ---)");
+    lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    if (customProbe.toolMeasure) {
+      const tm = customProbe.toolMeasure;
+      lines.push(`G0 X${d(tm.measureX)} Y${d(tm.measureY)}`);
+      if (tm.measureCommand.trim()) {
+        lines.push(tm.measureCommand.trim());
+      }
+      if (tm.measureDwell > 0) {
+        lines.push(`G4 P${tm.measureDwell}`);
+      }
+      lines.push("(Referencia Z corrigida pela medicao)");
+      lines.push(`G0 Z${d(customProbe.postSafeZ)}`);
+    }
+    lines.push("(Seguindo para usinagem compensada automaticamente)");
   }
   lines.push("");
 

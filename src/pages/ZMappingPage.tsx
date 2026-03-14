@@ -28,7 +28,7 @@ import {
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
   type ControllerType, type UnifiedResult, type DensityMap,
   type RetractionMode, type RetractionConfig,
-  type ProbeType, type CustomProbeConfig,
+  type ProbeType, type CustomProbeConfig, type PostMappingMode, type ToolMeasureConfig,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
@@ -195,6 +195,15 @@ export default function ZMappingPage() {
   const [cpEndDwell, setCpEndDwell] = useState(1);
   const [cpEndSafeZ, setCpEndSafeZ] = useState(unit === "mm" ? 20 : 1);
 
+  // Post-mapping mode
+  const [postMappingMode, setPostMappingMode] = useState<PostMappingMode>("manual");
+  const [cpToolOffsetZ, setCpToolOffsetZ] = useState(0);
+  const [cpPostSafeZ, setCpPostSafeZ] = useState(unit === "mm" ? 20 : 1);
+  const [cpMeasureX, setCpMeasureX] = useState(0);
+  const [cpMeasureY, setCpMeasureY] = useState(0);
+  const [cpMeasureCmd, setCpMeasureCmd] = useState("G31 Z-50 F100");
+  const [cpMeasureDwell, setCpMeasureDwell] = useState(1);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const effectiveXStart = areaMode === "auto" ? xStart : manualXStart;
@@ -329,6 +338,15 @@ export default function ZMappingPage() {
         endCommand: cpEndCmd,
         endDwell: cpEndDwell,
         endSafeZ: cpEndSafeZ,
+        postMappingMode,
+        toolOffsetZ: cpToolOffsetZ,
+        postSafeZ: cpPostSafeZ,
+        toolMeasure: postMappingMode === "auto_measure" ? {
+          measureX: cpMeasureX,
+          measureY: cpMeasureY,
+          measureCommand: cpMeasureCmd,
+          measureDwell: cpMeasureDwell,
+        } : undefined,
       } : undefined;
       const r = generateUnifiedGcode(
         originalGcode, mesh, config, originalFileName || "file", controller,
@@ -340,7 +358,7 @@ export default function ZMappingPage() {
       console.error("Erro ao gerar arquivo:", err);
       toast.error("Erro ao gerar arquivo: " + (err?.message || "erro desconhecido"));
     }
-  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance, probeType, cpOffsetX, cpOffsetY, cpOffsetZ, cpStartCmd, cpStartDwell, cpStartSafeZ, cpEndCmd, cpEndDwell, cpEndSafeZ]);
+  }, [mesh, originalGcode, config, originalFileName, controller, touchesPerPoint, touchStrategy, retractionMode, retMinSafeZ, retAdaptiveClearance, retReinforcedClearance, probeType, cpOffsetX, cpOffsetY, cpOffsetZ, cpStartCmd, cpStartDwell, cpStartSafeZ, cpEndCmd, cpEndDwell, cpEndSafeZ, postMappingMode, cpToolOffsetZ, cpPostSafeZ, cpMeasureX, cpMeasureY, cpMeasureCmd, cpMeasureDwell]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -1037,6 +1055,63 @@ export default function ZMappingPage() {
                       {numField(`Altura segura final (${unit})`, cpEndSafeZ, setCpEndSafeZ, 1,
                         "Altura segura antes de recolher o probe.")}
                     </div>
+
+                    {/* Post-mapping mode */}
+                    <div className="space-y-2 bg-muted/30 rounded-lg p-2.5">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Finalização do mapeamento</p>
+                      <RadioGroup value={postMappingMode} onValueChange={(v) => setPostMappingMode(v as PostMappingMode)} className="space-y-1">
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="manual" id="pm-manual" />
+                          <span>Manual</span>
+                          <HelpTip text="Pausa para o operador trocar ferramenta e zerar Z." />
+                        </label>
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="auto_offset" id="pm-auto" />
+                          <span>Automática</span>
+                          <HelpTip text="Usa offset calibrado entre probe e ferramenta para iniciar sem pausa." />
+                        </label>
+                        <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <RadioGroupItem value="auto_measure" id="pm-measure" />
+                          <span>Automática com medição</span>
+                          <HelpTip text="Mede a ferramenta automaticamente após recolher o probe." />
+                        </label>
+                      </RadioGroup>
+
+                      {postMappingMode === "auto_offset" && (
+                        <div className="space-y-2 pt-1">
+                          {numField(`Offset Z ferramenta (${unit})`, cpToolOffsetZ, setCpToolOffsetZ, unit === "mm" ? 0.01 : 0.001,
+                            "Diferença em Z entre a ponta do probe e a ponta da ferramenta de corte.")}
+                          {numField(`Altura segura pós-recolhimento (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1,
+                            "Altura segura após recolher o probe antes de iniciar a usinagem.")}
+                        </div>
+                      )}
+
+                      {postMappingMode === "auto_measure" && (
+                        <div className="space-y-2 pt-1">
+                          {numField(`Posição X medição (${unit})`, cpMeasureX, setCpMeasureX, 1,
+                            "Posição X do sensor de medição de ferramenta.")}
+                          {numField(`Posição Y medição (${unit})`, cpMeasureY, setCpMeasureY, 1,
+                            "Posição Y do sensor de medição de ferramenta.")}
+                          <div className="space-y-1">
+                            <Label className="text-[11px] flex items-center gap-1">
+                              Comando de medição <HelpTip text="Comando G-code para medir a ferramenta. Ex: G31 Z-50 F100" />
+                            </Label>
+                            <Input value={cpMeasureCmd} onChange={(e) => setCpMeasureCmd(e.target.value)} className="h-7 text-xs font-mono" placeholder="G31 Z-50 F100" />
+                          </div>
+                          {numField(`Espera após medição (s)`, cpMeasureDwell, setCpMeasureDwell, 0.5)}
+                          {numField(`Altura segura pós-medição (${unit})`, cpPostSafeZ, setCpPostSafeZ, 1)}
+                        </div>
+                      )}
+
+                      {postMappingMode !== "manual" && (
+                        <Alert className="border-amber-500/30 bg-amber-500/5 mt-2">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                          <AlertDescription className="text-[10px] text-muted-foreground">
+                            Use este modo apenas se o sistema estiver calibrado e tiver repetibilidade suficiente.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1139,6 +1214,9 @@ export default function ZMappingPage() {
           {probeType === "custom" && (
             <span className="text-muted-foreground">
               Probe: <strong className="text-foreground">Personalizado</strong>
+              {postMappingMode !== "manual" && (
+                <> · Finalização: <strong>{postMappingMode === "auto_offset" ? "Auto" : "Auto+Medição"}</strong></>
+              )}
             </span>
           )}
         </div>
