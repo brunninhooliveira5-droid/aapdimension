@@ -1006,6 +1006,9 @@ export default function ZMappingPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <ShieldCheck className="h-3 w-3" /> Deslocamento entre pontos
                 </p>
+                {showExplanations && (
+                  <p className="text-[10px] text-muted-foreground">Define como a ferramenta se desloca entre os pontos de medição.</p>
+                )}
                 <RadioGroup value={retractionMode} onValueChange={(v) => setRetractionMode(v as RetractionMode)} className="space-y-1">
                   <label className="flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-muted/50 transition-colors">
                     <RadioGroupItem value="standard" id="ret-std-r" />
