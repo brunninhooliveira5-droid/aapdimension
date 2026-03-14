@@ -59,9 +59,15 @@ function extractPaths(gcode: string, arcSegLen: number): PathSeg[] {
 }
 
 function densityColor(density: "low" | "medium" | "high"): string {
-  if (density === "high") return "rgba(239,68,68,0.15)";
-  if (density === "medium") return "rgba(234,179,8,0.1)";
-  return "rgba(59,130,246,0.05)";
+  if (density === "high") return "rgba(239,68,68,0.22)";
+  if (density === "medium") return "rgba(234,179,8,0.15)";
+  return "rgba(59,130,246,0.07)";
+}
+
+function densityBorderColor(density: "low" | "medium" | "high"): string {
+  if (density === "high") return "rgba(239,68,68,0.35)";
+  if (density === "medium") return "rgba(234,179,8,0.25)";
+  return "rgba(59,130,246,0.12)";
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -141,7 +147,7 @@ export function GcodePreview({
     const toSX = (x: number) => ox + (x - bx0) * scale;
     const toSY = (y: number) => oy - (y - by0) * scale;
 
-    // Draw density heatmap cells
+    // Draw density heatmap cells (smart mode)
     if (densityMap) {
       for (let r = 0; r < densityMap.cellsY; r++) {
         for (let c = 0; c < densityMap.cellsX; c++) {
@@ -152,8 +158,13 @@ export function GcodePreview({
           const sy = toSY(cellY + densityMap.cellH);
           const sw = densityMap.cellW * scale;
           const sh = densityMap.cellH * scale;
+          // Fill zone
           ctx.fillStyle = densityColor(cell.density);
           ctx.fillRect(sx, sy, sw, sh);
+          // Border per zone cell
+          ctx.strokeStyle = densityBorderColor(cell.density);
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(sx, sy, sw, sh);
         }
       }
     }
@@ -170,8 +181,8 @@ export function GcodePreview({
       ctx.strokeRect(mx0, my0, mw, mh);
       ctx.setLineDash([]);
 
-      // Draw grid lines (only for uniform mesh)
-      if (!densityMap) {
+      // Draw grid lines (only for uniform mesh — NOT for smart/density)
+      if (!densityMap && mappingMode !== "smart") {
         ctx.strokeStyle = "rgba(59,130,246,0.12)";
         ctx.lineWidth = 0.5;
         for (let r = 0; r < mesh.rows; r++) {
@@ -186,7 +197,7 @@ export function GcodePreview({
 
       // Draw grid points (radius follows spacing and mapping mode)
       const pointRadius = computePointRadius(mesh, scale, spacingX, spacingY, mappingMode);
-      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.72)" : "rgba(59,130,246,0.56)";
+      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.85)" : "rgba(59,130,246,0.56)";
       for (const pt of mesh.points) {
         ctx.beginPath();
         ctx.arc(toSX(pt.x), toSY(pt.y), pointRadius, 0, Math.PI * 2);
