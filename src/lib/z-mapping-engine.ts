@@ -490,6 +490,16 @@ export function generateDenseMesh(cfg: MeshConfig, factor: number): MeshInfo {
 // ── Probe G-code generators ────────────────────────────────────
 export type ControllerType = "mach3" | "generic";
 
+// ── Retraction mode types ─────────────────────────────────────
+export type RetractionMode = "standard" | "safe" | "curved";
+
+export interface RetractionConfig {
+  mode: RetractionMode;
+  minSafeZ: number;        // Z seguro mínimo
+  adaptiveClearance: number; // folga adaptativa (modo seguro)
+  reinforcedClearance: number; // folga adaptativa reforçada (modo superfície curva)
+}
+
 export function generateProbeGcode(
   mesh: MeshInfo,
   cfg: MeshConfig,
