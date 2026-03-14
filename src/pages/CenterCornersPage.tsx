@@ -504,6 +504,93 @@ export default function CenterCornersPage() {
 
               <Separator />
 
+              {/* ── Probe Type ── */}
+              <div className="rounded-lg border border-border/50 p-3 space-y-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Wrench className="h-3.5 w-3.5 text-chart-3" />
+                  <Label className="text-[11px] font-medium">Tipo de probe</Label>
+                </div>
+                <Select value={probeType} onValueChange={(v) => setProbeType(v as ProbeType)}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Probe padrão</SelectItem>
+                    <SelectItem value="custom">Probe personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {probeType === "custom" && (
+                  <div className="space-y-2.5 pt-1">
+                    <p className="text-[10px] text-muted-foreground/70">
+                      Para probe lateral ao spindle, pneumático ou outro sistema deslocado.
+                    </p>
+
+                    <p className="text-[10px] font-semibold text-chart-3 uppercase tracking-wider">Offset do probe</p>
+                    <NumField label="Offset X (mm)" value={customProbe.offsetX} onChange={(v) => updateCustomProbe({ offsetX: v })} step={0.1} />
+                    <NumField label="Offset Y (mm)" value={customProbe.offsetY} onChange={(v) => updateCustomProbe({ offsetY: v })} step={0.1} />
+                    <NumField label="Offset Z (mm)" value={customProbe.offsetZ} onChange={(v) => updateCustomProbe({ offsetZ: v })} step={0.1} />
+
+                    <Separator />
+                    <p className="text-[10px] font-semibold text-chart-3 uppercase tracking-wider">Início do probe</p>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Comando inicial</Label>
+                      <Input value={customProbe.startCommand} onChange={(e) => updateCustomProbe({ startCommand: e.target.value })}
+                        className="h-8 text-xs font-mono" placeholder="M10" />
+                    </div>
+                    <NumField label="Espera após acionamento (s)" value={customProbe.startDwell} onChange={(v) => updateCustomProbe({ startDwell: v })} step={0.5} />
+                    <NumField label="Altura segura antes (mm)" value={customProbe.startSafeZ} onChange={(v) => updateCustomProbe({ startSafeZ: v })} step={1} />
+
+                    <Separator />
+                    <p className="text-[10px] font-semibold text-chart-3 uppercase tracking-wider">Final do probe</p>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Comando final</Label>
+                      <Input value={customProbe.endCommand} onChange={(e) => updateCustomProbe({ endCommand: e.target.value })}
+                        className="h-8 text-xs font-mono" placeholder="M11" />
+                    </div>
+                    <NumField label="Espera após recolhimento (s)" value={customProbe.endDwell} onChange={(v) => updateCustomProbe({ endDwell: v })} step={0.5} />
+                    <NumField label="Altura segura antes do trabalho (mm)" value={customProbe.endSafeZ} onChange={(v) => updateCustomProbe({ endSafeZ: v })} step={1} />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* ── Post-location action ── */}
+              <div className="rounded-lg border border-border/50 p-3 space-y-2.5">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-chart-1" />
+                  <Label className="text-[11px] font-medium">Após a localização</Label>
+                </div>
+                <Select value={postAction} onValueChange={(v) => setPostAction(v as PostLocationAction)}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="locate-only">Apenas localizar</SelectItem>
+                    <SelectItem value="locate-origin">Localizar e definir origem</SelectItem>
+                    <SelectItem value="locate-machining">Localizar e iniciar usinagem</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {postAction === "locate-machining" && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+                      Localiza a peça automaticamente e inicia o trabalho em seguida, sem rodar dois arquivos separados.
+                    </p>
+                    <input ref={fileInputRef} type="file" accept=".tap,.nc,.gcode,.txt,.ngc" className="hidden" onChange={handleFileUpload} />
+                    <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-3.5 w-3.5" />
+                      {workFileName || "Carregar G-code do trabalho"}
+                    </Button>
+                    {workFileName && (
+                      <div className="rounded-md bg-chart-1/10 border border-chart-1/20 p-2">
+                        <p className="text-[10px] text-chart-1 font-medium">{workFileName}</p>
+                        <p className="text-[9px] text-muted-foreground">{workGcode.split("\n").length} linhas carregadas</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
               {/* Options */}
               <div className="flex items-center justify-between">
                 <Label className="text-[11px] text-muted-foreground">Definir origem X/Y</Label>
