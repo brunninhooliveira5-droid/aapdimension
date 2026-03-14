@@ -148,6 +148,10 @@ export default function ZMappingPage() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
+  // Engraving mode
+  const [engravingMode, setEngravingMode] = useState<EngravingMode>("standard");
+  const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("standard");
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Compute effective area based on mode
