@@ -500,13 +500,13 @@ export default function ZMappingPage() {
               <div className="space-y-3">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Medição</p>
                 {numField(`Altura segura (${unit})`, safeHeight, setSafeHeight, undefined,
-                  "Altura em que a ferramenta se move sem tocar na peça.")}
+                  undefined, "safeHeight")}
                 {numField(`Distância X (${unit})`, spacingX, setSpacingX, undefined,
-                  "Quanto menor a distância, mais preciso será o mapeamento.")}
+                  undefined, "spacingX")}
                 {numField(`Distância Y (${unit})`, spacingY, setSpacingY, undefined,
-                  "Quanto menor a distância, mais preciso será o mapeamento.")}
+                  undefined, "spacingY")}
                 {numField(`Vel. toque (${unit}/min)`, probeFeed, setProbeFeed, undefined,
-                  "Velocidade usada pela máquina para tocar a superfície.")}
+                  undefined, "probeFeed")}
               </div>
 
               <Separator />
