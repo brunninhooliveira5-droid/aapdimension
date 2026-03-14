@@ -373,7 +373,12 @@ function SimScene({ mesh, probeData, config, path, surfMin, surfMax,
       />
 
       <CameraController preset={cameraPreset} config={config} />
-      <OrbitControls makeDefault enableDamping dampingFactor={0.12} />
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.12}
+        target={[config.width / 2, config.height / 2, 0]}
+      />
     </>
   );
 }
