@@ -42,6 +42,7 @@ import ToolpathGeneratorPage from "./pages/ToolpathGeneratorPage";
 import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 import ZMappingPage from "./pages/ZMappingPage";
 import MachiningMapPage from "./pages/MachiningMapPage";
+import CenterCornersPage from "./pages/CenterCornersPage";
 
 const queryClient = new QueryClient();
 
