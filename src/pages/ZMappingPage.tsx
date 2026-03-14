@@ -869,6 +869,11 @@ export default function ZMappingPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground">Nenhum arquivo carregado</p>
                   <p className="text-xs mt-1">Carregue um arquivo G-code para começar ou use o assistente.</p>
+                  {showExplanations && (
+                    <p className="text-xs mt-3 max-w-md text-muted-foreground leading-relaxed">
+                      Esta ferramenta mede a superfície da peça e ajusta automaticamente o percurso da usinagem para manter a profundidade correta mesmo em superfícies inclinadas ou irregulares.
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5 text-xs">
