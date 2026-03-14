@@ -524,6 +524,42 @@ export default function ZMappingPage() {
               </RadioGroup>
             </div>
 
+            {/* Retraction mode */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" /> Deslocamento entre pontos
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Ajusta automaticamente a altura de deslocamento entre os pontos para evitar choque com peças curvas ou inclinadas.
+              </p>
+              <RadioGroup
+                value={retractionMode}
+                onValueChange={(v) => setRetractionMode(v as RetractionMode)}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="standard" id="ret-standard" />
+                  <Label htmlFor="ret-standard" className="text-xs cursor-pointer">Padrão — altura fixa de segurança</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="safe" id="ret-safe" />
+                  <Label htmlFor="ret-safe" className="text-xs cursor-pointer">Seguro — adapta com base no último ponto medido</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="curved" id="ret-curved" />
+                  <Label htmlFor="ret-curved" className="text-xs cursor-pointer">Superfície curva — proteção reforçada para grandes variações</Label>
+                </div>
+              </RadioGroup>
+
+              {retractionMode !== "standard" && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/30 rounded-lg p-3 mt-2">
+                  {numField(`Z seguro mínimo (${unit})`, retMinSafeZ, setRetMinSafeZ, unit === "mm" ? 0.5 : 0.02)}
+                  {numField(`Folga adaptativa (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, unit === "mm" ? 0.5 : 0.02)}
+                  {retractionMode === "curved" && numField(`Folga reforçada (${unit})`, retReinforcedClearance, setRetReinforcedClearance, unit === "mm" ? 0.5 : 0.02)}
+                </div>
+              )}
+            </div>
+
             {/* Tool type & engraving mode */}
             <div className="space-y-3 pt-2 border-t border-border/50">
               <Label className="text-xs font-medium flex items-center gap-1.5">
