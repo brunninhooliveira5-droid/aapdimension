@@ -704,6 +704,16 @@ export default function CenterCornersPage() {
                         <ArrowDown className="h-2.5 w-2.5" /> Probe Z
                       </Badge>
                     )}
+                    {probeType === "custom" && (
+                      <Badge variant="outline" className="text-[9px] border-chart-3 text-chart-3 gap-1">
+                        <Wrench className="h-2.5 w-2.5" /> Custom
+                      </Badge>
+                    )}
+                    {postAction === "locate-machining" && (
+                      <Badge variant="outline" className="text-[9px] border-chart-1 text-chart-1 gap-1">
+                        <FileText className="h-2.5 w-2.5" /> + Trabalho
+                      </Badge>
+                    )}
                     <Badge variant="secondary" className="text-[9px] ml-auto">
                       {controller.toUpperCase()}
                     </Badge>
