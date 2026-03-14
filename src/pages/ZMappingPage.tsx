@@ -1136,6 +1136,11 @@ export default function ZMappingPage() {
               </strong>
             </span>
           )}
+          {probeType === "custom" && (
+            <span className="text-muted-foreground">
+              Probe: <strong className="text-foreground">Personalizado</strong>
+            </span>
+          )}
         </div>
       </div>
     </div>
