@@ -1,717 +1,641 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronLeft, Crosshair, ArrowRight, ArrowDown } from "lucide-react";
+import { useRef } from "react";
 import type { LocationMode, HoleZStrategy } from "@/lib/center-corners-engine";
 
 /* ── Types ── */
-interface DiagramProps {
+export interface WizardDiagramProps {
+  wizardStep: number;
   mode: LocationMode;
   cornerQuadrant: string;
   approxSizeX: number;
   approxSizeY: number;
   approxDiameter: number;
   circlePoints: number;
-  probeFeed: number;
   probeDepth: number;
+  probeFeed: number;
   safeZ: number;
   refinementEnabled: boolean;
   refinementDistance: number;
+  refinementFeed: number;
   zProbeActive: boolean;
   zCornerInset: number;
   holeZStrategy: HoleZStrategy;
   holeZSafetyMargin: number;
-  onApproxSizeXChange: (v: number) => void;
-  onApproxSizeYChange: (v: number) => void;
-  onApproxDiameterChange: (v: number) => void;
-  onSafeZChange: (v: number) => void;
-  onZCornerInsetChange: (v: number) => void;
-  onHoleZSafetyMarginChange: (v: number) => void;
-  onProbeDepthChange: (v: number) => void;
+  customProbeOffsetX: number;
+  customProbeOffsetY: number;
+  customProbeOffsetZ: number;
 }
 
 /* ── Constants ── */
-const VW = 500;
-const VH = 320;
-const PIECE_COLOR = "hsl(var(--muted-foreground))";
-const PIECE_FILL = "hsl(var(--muted))";
+const VW = 520;
+const VH = 360;
+const PIECE_STROKE = "hsl(var(--muted-foreground))";
+const PIECE_FILL_LIGHT = "hsl(var(--muted))";
 const PROBE_X = "hsl(var(--primary))";
 const PROBE_Y = "hsl(var(--chart-4))";
-const REFINE_COLOR = "hsl(var(--chart-2))";
-const Z_COLOR = "hsl(var(--chart-5))";
-const LABEL_COLOR = "hsl(var(--foreground))";
-const DIM_COLOR = "hsl(var(--muted-foreground))";
+const REFINE_CLR = "hsl(var(--chart-2))";
+const Z_CLR = "hsl(var(--chart-5))";
+const CUSTOM_CLR = "hsl(var(--chart-3))";
+const DIM_CLR = "hsl(var(--muted-foreground))";
+const BG = "hsl(var(--background))";
+const SHADOW = "hsl(var(--muted-foreground))";
 
-/* ── Animated probe arrow ── */
-function AnimatedProbeArrow({
-  x1, y1, x2, y2, color, delay = 0,
-}: {
+/* ── Helpers ── */
+function AnimProbe({ x1, y1, x2, y2, color, delay = 0 }: {
   x1: number; y1: number; x2: number; y2: number; color: string; delay?: number;
 }) {
-  const pathId = `ap-${x1}-${y1}-${x2}-${y2}`;
+  const id = `ap${x1}${y1}${x2}${y2}`.replace(/[.-]/g, "_");
   return (
     <g>
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2" opacity="0.3" />
-      <circle r="3" fill={color}>
-        <animateMotion dur="2s" repeatCount="indefinite" begin={`${delay}s`}>
-          <mpath xlinkHref={`#${pathId}`} />
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2" opacity="0.25" />
+      <circle r="4" fill={color} opacity="0.9">
+        <animateMotion dur="2.5s" repeatCount="indefinite" begin={`${delay}s`}>
+          <mpath xlinkHref={`#${id}`} />
         </animateMotion>
       </circle>
-      <path id={pathId} d={`M${x1},${y1} L${x2},${y2}`} fill="none" />
+      <path id={id} d={`M${x1},${y1} L${x2},${y2}`} fill="none" />
     </g>
   );
 }
 
-/* ── Dimension line ── */
-function DimLine({
-  x1, y1, x2, y2, label, color = DIM_COLOR,
-}: {
+function DimLine({ x1, y1, x2, y2, label, color = DIM_CLR }: {
   x1: number; y1: number; x2: number; y2: number; label: string; color?: string;
 }) {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const isV = Math.abs(x2 - x1) < 2;
   return (
     <g>
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="0.7" strokeDasharray="4 2" opacity="0.5" />
-      <line x1={x1} y1={y1 - 3} x2={x1} y2={y1 + 3} stroke={color} strokeWidth="0.7" opacity="0.5" />
-      <line x1={x2} y1={y2 - 3} x2={x2} y2={y2 + 3} stroke={color} strokeWidth="0.7" opacity="0.5" />
-      {label && <text x={mx} y={my - 4} textAnchor="middle" fontSize="8" fill={color} opacity="0.7">{label}</text>}
-    </g>
-  );
-}
-
-/* ── Step navigation bar ── */
-function StepNav({ step, total, labels, onStep }: {
-  step: number; total: number; labels: string[]; onStep: (s: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between px-3 py-1.5 bg-card/80 border-t border-border/50">
-      <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 px-2"
-        disabled={step <= 0} onClick={() => onStep(step - 1)}>
-        <ChevronLeft className="h-3 w-3" /> Anterior
-      </Button>
-      <div className="flex items-center gap-1.5">
-        {labels.map((l, i) => (
-          <button key={i} onClick={() => onStep(i)}
-            className={`px-2 py-0.5 rounded text-[9px] font-medium transition-colors ${
-              i === step ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}>
-            {l}
-          </button>
-        ))}
-      </div>
-      <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 px-2"
-        disabled={step >= total - 1} onClick={() => onStep(step + 1)}>
-        Próxima <ChevronRight className="h-3 w-3" />
-      </Button>
-    </div>
-  );
-}
-
-/* ── Parameter input card (external, below SVG) ── */
-function ParamInput({
-  label, value, onChange, unit, color, description, highlighted, onFocus, onBlur, icon,
-}: {
-  label: string; value: number; onChange: (v: number) => void; unit?: string;
-  color: string; description: string; highlighted: boolean;
-  onFocus: () => void; onBlur: () => void; icon?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex-1 min-w-[120px] rounded-lg border-2 p-2.5 transition-all duration-200 cursor-pointer ${
-        highlighted
-          ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
-          : "border-border/50 bg-card/60 hover:border-border"
-      }`}
-    >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        {icon && <span style={{ color }}>{icon}</span>}
-        <span className="text-[11px] font-semibold" style={{ color }}>{label}</span>
-      </div>
-      <div className="relative">
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => {
-            const v = parseFloat(e.target.value);
-            if (!isNaN(v)) onChange(Math.max(0, v));
-          }}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          className="w-full h-10 text-center text-lg font-mono font-bold rounded-md border border-border/60 bg-background/80 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-        />
-        {unit && (
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">{unit}</span>
-        )}
-      </div>
-      <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">{description}</p>
-    </div>
-  );
-}
-
-/* ── SVG label badge (read-only, on SVG) ── */
-function SvgBadge({
-  x, y, text, color, highlighted = false,
-}: {
-  x: number; y: number; text: string; color: string; highlighted?: boolean;
-}) {
-  return (
-    <g>
-      <rect x={x - 24} y={y - 8} width={48} height={16} rx={4}
-        fill={highlighted ? color : "hsl(var(--background))"}
-        opacity={highlighted ? 0.2 : 0.85}
-        stroke={color} strokeWidth={highlighted ? 2 : 0.8} />
-      <text x={x} y={y + 3} textAnchor="middle" fontSize="9"
-        fill={color} fontWeight="700" fontFamily="monospace">{text}</text>
-    </g>
-  );
-}
-
-/* ──── MAIN COMPONENT ──── */
-export default function InteractiveProbeDiagram(props: DiagramProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [step, setStep] = useState(0);
-  const [highlight, setHighlight] = useState<string | null>(null);
-
-  const getSteps = () => {
-    const base = ["Posição"];
-    if (props.refinementEnabled) base.push("Conferência");
-    if (props.zProbeActive) base.push("Probe Z");
-    return base;
-  };
-  const steps = getSteps();
-  const clampedStep = Math.min(step, steps.length - 1);
-
-  const common = { ...props, svgRef, step: clampedStep, highlight, setHighlight };
-
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-hidden">
-        {props.mode === "corner" && <CornerDiagram {...common} />}
-        {props.mode === "rect-center" && <RectCenterDiagram {...common} />}
-        {props.mode === "circle-center" && <CircleCenterDiagram {...common} />}
-        {props.mode === "hole-center" && <HoleCenterDiagram {...common} />}
-      </div>
-      {steps.length > 1 && (
-        <StepNav step={clampedStep} total={steps.length} labels={steps} onStep={setStep} />
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="0.8" strokeDasharray="4 2" opacity="0.5" />
+      {isV ? (
+        <>
+          <line x1={x1 - 4} y1={y1} x2={x1 + 4} y2={y1} stroke={color} strokeWidth="0.8" opacity="0.5" />
+          <line x1={x2 - 4} y1={y2} x2={x2 + 4} y2={y2} stroke={color} strokeWidth="0.8" opacity="0.5" />
+        </>
+      ) : (
+        <>
+          <line x1={x1} y1={y1 - 4} x2={x1} y2={y1 + 4} stroke={color} strokeWidth="0.8" opacity="0.5" />
+          <line x1={x2} y1={y2 - 4} x2={x2} y2={y2 + 4} stroke={color} strokeWidth="0.8" opacity="0.5" />
+        </>
       )}
-    </div>
+      {label && (
+        <text x={isV ? mx + 10 : mx} y={isV ? my : my - 5}
+          textAnchor="middle" fontSize="10" fill={color} fontWeight="600">{label}</text>
+      )}
+    </g>
   );
 }
 
-type SubDiagramProps = DiagramProps & {
-  svgRef: React.RefObject<SVGSVGElement | null>;
-  step: number;
-  highlight: string | null;
-  setHighlight: (h: string | null) => void;
-};
+/* ── Solid piece block (iso look) ── */
+function SolidPiece({ x, y, w, h, label }: { x: number; y: number; w: number; h: number; label?: string }) {
+  const d = 12; // depth offset
+  return (
+    <g>
+      {/* shadow */}
+      <rect x={x + 4} y={y + 4} width={w} height={h} rx={4} fill={SHADOW} opacity="0.08" />
+      {/* top face */}
+      <rect x={x} y={y} width={w} height={h} rx={4} fill={PIECE_FILL_LIGHT} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.5" />
+      {/* right edge (3D feel) */}
+      <path d={`M${x + w},${y + 4} l${d},${-d} l0,${h} l${-d},${d} Z`} fill={PIECE_FILL_LIGHT} opacity="0.12" stroke={PIECE_STROKE} strokeWidth="0.8" />
+      {/* top edge (3D feel) */}
+      <path d={`M${x + 4},${y} l${d},${-d} l${w},0 l${-d},${d} Z`} fill={PIECE_FILL_LIGHT} opacity="0.18" stroke={PIECE_STROKE} strokeWidth="0.8" />
+      {label && (
+        <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" fontSize="14" fill={DIM_CLR} opacity="0.3" fontWeight="700">{label}</text>
+      )}
+    </g>
+  );
+}
+
+function SpindleIcon({ x, y, color, label }: { x: number; y: number; color: string; label?: string }) {
+  return (
+    <g>
+      <rect x={x - 8} y={y - 40} width={16} height={30} rx={3} fill={color} opacity="0.15" stroke={color} strokeWidth="1.5" />
+      <line x1={x} y1={y - 10} x2={x} y2={y} stroke={color} strokeWidth="2.5" />
+      <circle cx={x} cy={y} r={3} fill={color} />
+      {label && <text x={x} y={y - 46} textAnchor="middle" fontSize="9" fill={color} fontWeight="700">{label}</text>}
+    </g>
+  );
+}
+
+function Badge({ x, y, text, color }: { x: number; y: number; text: string; color: string }) {
+  const w = Math.max(50, text.length * 7 + 16);
+  return (
+    <g>
+      <rect x={x - w / 2} y={y - 10} width={w} height={20} rx={6} fill={BG} opacity="0.92" stroke={color} strokeWidth="1.5" />
+      <text x={x} y={y + 4} textAnchor="middle" fontSize="10" fill={color} fontWeight="700" fontFamily="monospace">{text}</text>
+    </g>
+  );
+}
+
+function Arrow({ x1, y1, x2, y2, color, width = 2.5 }: {
+  x1: number; y1: number; x2: number; y2: number; color: string; width?: number;
+}) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const hl = 8;
+  const ha = 0.5;
+  return (
+    <g>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={width} strokeLinecap="round" />
+      <line x1={x2} y1={y2}
+        x2={x2 - hl * Math.cos(angle - ha)} y2={y2 - hl * Math.sin(angle - ha)}
+        stroke={color} strokeWidth={width} strokeLinecap="round" />
+      <line x1={x2} y1={y2}
+        x2={x2 - hl * Math.cos(angle + ha)} y2={y2 - hl * Math.sin(angle + ha)}
+        stroke={color} strokeWidth={width} strokeLinecap="round" />
+    </g>
+  );
+}
 
 /* ════════════════════════════════════════════════ */
-/* ── CORNER DIAGRAM ── */
-function CornerDiagram({
-  cornerQuadrant, safeZ, probeDepth, refinementEnabled, refinementDistance, zProbeActive, zCornerInset,
-  onSafeZChange, onZCornerInsetChange, onProbeDepthChange, svgRef, step, highlight, setHighlight,
-}: SubDiagramProps) {
-  const isLeft = cornerQuadrant.includes("left");
-  const isFront = cornerQuadrant.includes("front");
-
-  const px = 100, py = 50, pw = 300, ph = 210;
-  const cornerX = isLeft ? px : px + pw;
-  const cornerY = isFront ? py + ph : py;
-
-  const probeGap = Math.max(30, Math.min(80, probeDepth * 2));
-  const probeXStart = isLeft ? px - probeGap : px + pw + probeGap;
-  const probeXEnd = cornerX;
-  const probeYStart = isFront ? py + ph + probeGap : py - probeGap;
-  const probeYEnd = cornerY;
-
-  const zpX = cornerX + (isLeft ? 1 : -1) * zCornerInset * 2;
-  const zpY = cornerY + (isFront ? -1 : 1) * zCornerInset * 2;
-
-  const showMain = step === 0;
-  const showRefine = step === 1 && refinementEnabled;
-  const showZ = (step === 2 && zProbeActive) || (step === 1 && !refinementEnabled && zProbeActive);
-
-  // Dragging for X probe
-  const [draggingX, setDraggingX] = useState(false);
-  const handlePointerDown = useCallback((axis: "x" | "y") => (e: React.PointerEvent) => {
-    e.preventDefault();
-    if (axis === "x") setDraggingX(true);
-  }, []);
-
-  useEffect(() => {
-    if (!draggingX) return;
-    const svg = svgRef.current;
-    if (!svg) return;
-    const onMove = (e: PointerEvent) => {
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX; pt.y = e.clientY;
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return;
-      const svgPt = pt.matrixTransform(ctm.inverse());
-      const dist = Math.abs(svgPt.x - cornerX) / 2;
-      onProbeDepthChange(Math.max(1, Math.round(dist)));
-    };
-    const onUp = () => setDraggingX(false);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
-  }, [draggingX, cornerX, onProbeDepthChange, svgRef]);
+/* ── MAIN COMPONENT ── */
+export default function InteractiveProbeDiagram(props: WizardDiagramProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* SVG area — clean illustration only */}
-      <div className="flex-1 min-h-0">
-        <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full select-none" style={{ touchAction: "none" }}>
-          <defs>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_COLOR} strokeWidth="0.3" opacity="0.3" />
-            </pattern>
-          </defs>
-          <rect width={VW} height={VH} fill="url(#grid)" />
+    <div className="w-full h-full flex items-center justify-center">
+      <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full max-h-[420px] select-none">
+        <defs>
+          <pattern id="wizGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_CLR} strokeWidth="0.2" opacity="0.2" />
+          </pattern>
+        </defs>
+        <rect width={VW} height={VH} fill="url(#wizGrid)" rx="8" />
 
-          {/* Piece */}
-          <rect x={px} y={py} width={pw} height={ph} rx={3}
-            fill={PIECE_FILL} opacity="0.15" stroke={PIECE_COLOR} strokeWidth="1.5" />
-          <text x={px + pw / 2} y={py + ph / 2} textAnchor="middle" fontSize="13" fill={DIM_COLOR} opacity="0.35"
-            dominantBaseline="middle" fontWeight="600">PEÇA</text>
-
-          {/* Corner highlight zone */}
-          <rect x={isLeft ? px : px + pw - 80} y={isFront ? py + ph - 60 : py}
-            width={80} height={60} rx={2} fill={PROBE_X} opacity="0.06" stroke={PROBE_X} strokeWidth="1" strokeDasharray="4 3" />
-
-          {/* Safe Z badge on SVG */}
-          <SvgBadge x={px + pw / 2} y={py - 14} text={`Z ${safeZ}mm`} color={Z_COLOR} highlighted={highlight === "safeZ"} />
-
-          {/* ── STEP 0: Main touch ── */}
-          {showMain && (
-            <g>
-              {/* Probe X arrow */}
-              <AnimatedProbeArrow x1={probeXStart} y1={cornerY - 20} x2={probeXEnd} y2={cornerY - 20} color={PROBE_X} delay={0} />
-              <line x1={probeXStart} y1={cornerY - 20} x2={probeXEnd} y2={cornerY - 20}
-                stroke={PROBE_X} strokeWidth={highlight === "distX" ? 4 : 2.5} opacity={highlight === "distX" ? 1 : 0.8}
-                markerEnd="url(#arrowInt1)" className="transition-all" />
-              {/* Draggable handle at probe start */}
-              <circle cx={probeXStart} cy={cornerY - 20} r={8} fill={PROBE_X} opacity={0.25}
-                className="cursor-ew-resize" onPointerDown={handlePointerDown("x")} />
-              {/* X distance badge on arrow */}
-              <SvgBadge x={(probeXStart + probeXEnd) / 2} y={cornerY - 36}
-                text={`${probeDepth}mm`} color={PROBE_X} highlighted={highlight === "distX"} />
-
-              {/* Probe Y arrow */}
-              <AnimatedProbeArrow x1={cornerX + (isLeft ? 20 : -20)} y1={probeYStart} x2={cornerX + (isLeft ? 20 : -20)} y2={probeYEnd} color={PROBE_Y} delay={0.5} />
-              <line x1={cornerX + (isLeft ? 20 : -20)} y1={probeYStart} x2={cornerX + (isLeft ? 20 : -20)} y2={probeYEnd}
-                stroke={PROBE_Y} strokeWidth={highlight === "distY" ? 4 : 2.5} opacity={highlight === "distY" ? 1 : 0.8}
-                markerEnd="url(#arrowInt2)" className="transition-all" />
-              {/* Y distance badge */}
-              <SvgBadge x={cornerX + (isLeft ? 56 : -56)} y={(probeYStart + probeYEnd) / 2}
-                text={`${probeDepth}mm`} color={PROBE_Y} highlighted={highlight === "distY"} />
-
-              {/* Labels on arrows */}
-              <text x={(probeXStart + probeXEnd) / 2} y={cornerY - 48} textAnchor="middle"
-                fontSize="9" fill={PROBE_X} fontWeight="700" opacity={0.7}>TOQUE X</text>
-              <text x={cornerX + (isLeft ? 56 : -56)} y={(probeYStart + probeYEnd) / 2 - 14} textAnchor="middle"
-                fontSize="9" fill={PROBE_Y} fontWeight="700" opacity={0.7}>TOQUE Y</text>
-            </g>
-          )}
-
-          {/* ── STEP 1: Refinement ── */}
-          {showRefine && (
-            <g>
-              <line x1={cornerX + (isLeft ? -(refinementDistance * 2 + 8) : (refinementDistance * 2 + 8))} y1={cornerY - 10}
-                x2={cornerX} y2={cornerY - 10}
-                stroke={REFINE_COLOR} strokeWidth="3" markerEnd="url(#arrowInt3)" />
-              <AnimatedProbeArrow
-                x1={cornerX + (isLeft ? -(refinementDistance * 2 + 8) : (refinementDistance * 2 + 8))}
-                y1={cornerY - 10} x2={cornerX} y2={cornerY - 10} color={REFINE_COLOR} delay={0} />
-              <text x={cornerX + (isLeft ? -40 : 40)} y={cornerY - 22} textAnchor="middle"
-                fontSize="10" fill={REFINE_COLOR} fontWeight="700">Conferência X</text>
-
-              <line x1={cornerX + (isLeft ? 10 : -10)} y1={cornerY + (isFront ? -(refinementDistance * 2 + 8) : (refinementDistance * 2 + 8))}
-                x2={cornerX + (isLeft ? 10 : -10)} y2={cornerY}
-                stroke={REFINE_COLOR} strokeWidth="3" markerEnd="url(#arrowInt3)" />
-              <AnimatedProbeArrow
-                x1={cornerX + (isLeft ? 10 : -10)}
-                y1={cornerY + (isFront ? -(refinementDistance * 2 + 8) : (refinementDistance * 2 + 8))}
-                x2={cornerX + (isLeft ? 10 : -10)} y2={cornerY} color={REFINE_COLOR} delay={0.5} />
-              <text x={cornerX + (isLeft ? 34 : -34)} y={cornerY + (isFront ? -30 : 30)} textAnchor="middle"
-                fontSize="10" fill={REFINE_COLOR} fontWeight="700">Conferência Y</text>
-            </g>
-          )}
-
-          {/* ── STEP 2: Z probe ── */}
-          {showZ && (
-            <g>
-              <line x1={zpX} y1={zpY - 30} x2={zpX} y2={zpY} stroke={Z_COLOR} strokeWidth="3" markerEnd="url(#arrowIntZ)" />
-              <circle cx={zpX} cy={zpY} r={5} fill="none" stroke={Z_COLOR} strokeWidth="2" strokeDasharray="3 2" />
-              <SvgBadge x={zpX + (isLeft ? 46 : -46)} y={zpY} text={`${zCornerInset}mm`} color={Z_COLOR} highlighted={highlight === "zInset"} />
-              <text x={zpX} y={zpY - 36} textAnchor="middle" fontSize="10" fill={Z_COLOR} fontWeight="700">Probe Z</text>
-              <AnimatedProbeArrow x1={zpX} y1={zpY - 30} x2={zpX} y2={zpY} color={Z_COLOR} delay={0} />
-            </g>
-          )}
-
-          {/* Corner point — always visible */}
-          <circle cx={cornerX} cy={cornerY} r={7} fill={PROBE_X} stroke="hsl(var(--background))" strokeWidth="2" />
-
-          {/* Arrow defs */}
-          <defs>
-            <marker id="arrowInt1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill={PROBE_X} /></marker>
-            <marker id="arrowInt2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill={PROBE_Y} /></marker>
-            <marker id="arrowInt3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill={REFINE_COLOR} /></marker>
-            <marker id="arrowIntZ" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L4,8 L8,0" fill={Z_COLOR} /></marker>
-          </defs>
-        </svg>
-      </div>
-
-      {/* ── Parameters panel below SVG ── */}
-      <div className="border-t border-border/50 bg-card/40 px-3 py-2.5">
-        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Parâmetros do Toque</p>
-        <div className="flex gap-2 flex-wrap">
-          {showMain && (
-            <>
-              <ParamInput
-                label="Distância X" value={probeDepth} onChange={onProbeDepthChange}
-                unit="mm" color={PROBE_X}
-                description="Distância do probe até tocar na lateral da peça."
-                highlighted={highlight === "distX"}
-                onFocus={() => setHighlight("distX")} onBlur={() => setHighlight(null)}
-                icon={<ArrowRight className="h-3.5 w-3.5" />}
-              />
-              <ParamInput
-                label="Distância Y" value={probeDepth} onChange={onProbeDepthChange}
-                unit="mm" color={PROBE_Y}
-                description="Distância do probe até tocar na frente da peça."
-                highlighted={highlight === "distY"}
-                onFocus={() => setHighlight("distY")} onBlur={() => setHighlight(null)}
-                icon={<ArrowDown className="h-3.5 w-3.5" />}
-              />
-              <ParamInput
-                label="Altura segura Z" value={safeZ} onChange={onSafeZChange}
-                unit="mm" color={Z_COLOR}
-                description="Altura usada para movimentações seguras acima da peça."
-                highlighted={highlight === "safeZ"}
-                onFocus={() => setHighlight("safeZ")} onBlur={() => setHighlight(null)}
-                icon={<Crosshair className="h-3.5 w-3.5" />}
-              />
-            </>
-          )}
-          {showRefine && (
-            <ParamInput
-              label="Altura segura Z" value={safeZ} onChange={onSafeZChange}
-              unit="mm" color={Z_COLOR}
-              description="Altura segura para conferência de precisão."
-              highlighted={highlight === "safeZ"}
-              onFocus={() => setHighlight("safeZ")} onBlur={() => setHighlight(null)}
-              icon={<Crosshair className="h-3.5 w-3.5" />}
-            />
-          )}
-          {showZ && (
-            <ParamInput
-              label="Recuo Z" value={zCornerInset} onChange={onZCornerInsetChange}
-              unit="mm" color={Z_COLOR}
-              description="Distância de recuo da quina para medir Z com segurança."
-              highlighted={highlight === "zInset"}
-              onFocus={() => setHighlight("zInset")} onBlur={() => setHighlight(null)}
-              icon={<ArrowDown className="h-3.5 w-3.5" />}
-            />
-          )}
-        </div>
-      </div>
+        {props.wizardStep === 0 && <StepModeSelect {...props} />}
+        {props.wizardStep === 1 && <StepTouchX {...props} />}
+        {props.wizardStep === 2 && <StepTouchY {...props} />}
+        {props.wizardStep === 3 && <StepSafeZ {...props} />}
+        {props.wizardStep === 4 && <StepRefinement {...props} />}
+        {props.wizardStep === 5 && <StepProbeZ {...props} />}
+        {props.wizardStep === 6 && <StepCustomProbe {...props} />}
+        {props.wizardStep === 7 && <StepApply {...props} />}
+      </svg>
     </div>
   );
 }
 
 /* ════════════════════════════════════════════════ */
-/* ── RECT CENTER DIAGRAM ── */
-function RectCenterDiagram({
-  approxSizeX, approxSizeY, safeZ, probeDepth, refinementEnabled, zProbeActive,
-  onApproxSizeXChange, onApproxSizeYChange, onSafeZChange, onProbeDepthChange, svgRef, step,
-  highlight, setHighlight,
-}: SubDiagramProps) {
+/* STEP 0 — Mode selection illustration */
+function StepModeSelect({ mode }: WizardDiagramProps) {
+  const cx = VW / 2, cy = VH / 2;
+  return (
+    <g>
+      {mode === "corner" && (
+        <>
+          <SolidPiece x={cx - 100} y={cy - 60} w={200} h={120} label="PEÇA" />
+          <circle cx={cx - 100} cy={cy + 60} r={8} fill={PROBE_X} stroke={BG} strokeWidth="2" />
+          <text x={cx - 100} y={cy + 80} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="600">Quina</text>
+        </>
+      )}
+      {mode === "rect-center" && (
+        <>
+          <SolidPiece x={cx - 100} y={cy - 60} w={200} h={120} label="PEÇA" />
+          <circle cx={cx} cy={cy} r={6} fill="none" stroke={PROBE_X} strokeWidth="2" />
+          <line x1={cx - 14} y1={cy} x2={cx + 14} y2={cy} stroke={PROBE_X} strokeWidth="1.5" />
+          <line x1={cx} y1={cy - 14} x2={cx} y2={cy + 14} stroke={PROBE_X} strokeWidth="1.5" />
+          <text x={cx} y={cy + 80} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="600">Centro Retangular</text>
+        </>
+      )}
+      {mode === "circle-center" && (
+        <>
+          <circle cx={cx} cy={cy - 10} r={70} fill={PIECE_FILL_LIGHT} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.5" />
+          <text x={cx} y={cy - 6} textAnchor="middle" fontSize="14" fill={DIM_CLR} opacity="0.3" fontWeight="700">PEÇA</text>
+          <circle cx={cx} cy={cy - 10} r={6} fill="none" stroke={PROBE_X} strokeWidth="2" />
+          <text x={cx} y={cy + 80} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="600">Centro Circular</text>
+        </>
+      )}
+      {mode === "hole-center" && (
+        <>
+          <SolidPiece x={cx - 120} y={cy - 80} w={240} h={150} label="" />
+          <circle cx={cx} cy={cy - 10} r={50} fill={BG} stroke={PIECE_STROKE} strokeWidth="2" />
+          <text x={cx} y={cy - 6} textAnchor="middle" fontSize="11" fill={DIM_CLR} opacity="0.5">FURO</text>
+          <text x={cx} y={cy + 90} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="600">Centro de Furo</text>
+        </>
+      )}
+    </g>
+  );
+}
+
+/* STEP 1 — Touch X */
+function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
-  const scaleX = Math.min(1, 260 / approxSizeX);
-  const scaleY = Math.min(1, 180 / approxSizeY);
-  const scale = Math.min(scaleX, scaleY);
-  const w = approxSizeX * scale;
-  const h = approxSizeY * scale;
-  const px = cx - w / 2, py = cy - h / 2;
-  const probeGap = Math.max(30, Math.min(60, probeDepth * 2));
 
-  const showMain = step === 0;
-  const showZ = (step === 1 && !refinementEnabled && zProbeActive) || (step === 2 && zProbeActive);
+  if (mode === "corner") {
+    const isLeft = cornerQuadrant.includes("left");
+    const px = 120, py = 60, pw = 280, ph = 200;
+    const cornerX = isLeft ? px : px + pw;
+    const probeGap = Math.max(40, Math.min(90, probeDepth * 2.5));
+    const probeStart = isLeft ? cornerX - probeGap : cornerX + probeGap;
+    const arrowY = py + ph - 40;
 
+    return (
+      <g>
+        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_X} width={3} />
+        <AnimProbe x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_X} />
+        <Badge x={(probeStart + cornerX) / 2} y={arrowY - 20} text={`${probeDepth} mm`} color={PROBE_X} />
+        <SpindleIcon x={probeStart} y={arrowY - 10} color={PROBE_X} label="PROBE" />
+        <circle cx={cornerX} cy={arrowY} r={6} fill={PROBE_X} stroke={BG} strokeWidth="2" />
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_X} fontWeight="600">
+          Primeiro toque lateral (Eixo X)
+        </text>
+      </g>
+    );
+  }
+
+  if (mode === "rect-center" || mode === "hole-center") {
+    const r = mode === "hole-center" ? Math.min(80, approxDiameter * 0.6) : 0;
+    const pw = mode === "rect-center" ? Math.min(260, approxSizeX * 0.9) : 0;
+    const ph = mode === "rect-center" ? Math.min(180, approxSizeY * 0.9) : 0;
+
+    if (mode === "rect-center") {
+      const px = cx - pw / 2, py2 = cy - ph / 2;
+      return (
+        <g>
+          <SolidPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
+          <Arrow x1={px - 50} y1={cy} x2={px} y2={cy} color={PROBE_X} width={3} />
+          <AnimProbe x1={px - 50} y1={cy} x2={px} y2={cy} color={PROBE_X} />
+          <Arrow x1={px + pw + 50} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} width={3} />
+          <AnimProbe x1={px + pw + 50} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} delay={0.8} />
+          <text x={px - 50} y={cy - 14} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="600">X−</text>
+          <text x={px + pw + 50} y={cy - 14} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="600">X+</text>
+          <Badge x={cx} y={cy + ph / 2 + 30} text={`${approxSizeX} mm`} color={PROBE_X} />
+          <DimLine x1={px} y1={cy + ph / 2 + 20} x2={px + pw} y2={cy + ph / 2 + 20} label="" color={PROBE_X} />
+          <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_X} fontWeight="600">
+            Toques laterais no eixo X
+          </text>
+        </g>
+      );
+    }
+
+    // hole-center
+    return (
+      <g>
+        <SolidPiece x={cx - r - 50} y={cy - r - 40} w={(r + 50) * 2} h={(r + 40) * 2} label="" />
+        <circle cx={cx} cy={cy} r={r} fill={BG} stroke={PIECE_STROKE} strokeWidth="2" />
+        <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.5">FURO</text>
+        <Arrow x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_X} width={2.5} />
+        <Arrow x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_X} width={2.5} />
+        <AnimProbe x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_X} />
+        <AnimProbe x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_X} delay={0.6} />
+        <text x={cx + r + 14} y={cy + 4} fontSize="9" fill={PROBE_X} fontWeight="600">X+</text>
+        <text x={cx - r - 14} y={cy + 4} fontSize="9" fill={PROBE_X} fontWeight="600" textAnchor="end">X−</text>
+        <Badge x={cx} y={cy + r + 28} text={`Ø ${approxDiameter} mm`} color={PROBE_X} />
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_X} fontWeight="600">
+          Toques no eixo X (furo)
+        </text>
+      </g>
+    );
+  }
+
+  // circle-center
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
-        <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full select-none" style={{ touchAction: "none" }}>
-          <defs>
-            <pattern id="grid2" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_COLOR} strokeWidth="0.3" opacity="0.3" />
-            </pattern>
-          </defs>
-          <rect width={VW} height={VH} fill="url(#grid2)" />
-
-          <rect x={px} y={py} width={w} height={h} rx={3}
-            fill={PIECE_FILL} opacity="0.15" stroke={PIECE_COLOR} strokeWidth="1.5" />
-          <text x={cx} y={cy} textAnchor="middle" fontSize="13" fill={DIM_COLOR} opacity="0.35" dominantBaseline="middle" fontWeight="600">PEÇA</text>
-
-          {/* Dimension lines with badges */}
-          <DimLine x1={px} y1={py + h + 18} x2={px + w} y2={py + h + 18} label="" />
-          <SvgBadge x={cx} y={py + h + 22} text={`${approxSizeX}mm`} color={PROBE_X} highlighted={highlight === "sizeX"} />
-          <DimLine x1={px - 18} y1={py} x2={px - 18} y2={py + h} label="" />
-          <SvgBadge x={px - 18} y={cy} text={`${approxSizeY}mm`} color={PROBE_Y} highlighted={highlight === "sizeY"} />
-
-          {showMain && (
-            <g>
-              {[
-                { x1: px - probeGap, y1: cy, x2: px, y2: cy, color: PROBE_X, label: "X-", delay: 0 },
-                { x1: px + w + probeGap, y1: cy, x2: px + w, y2: cy, color: PROBE_X, label: "X+", delay: 0.5 },
-                { x1: cx, y1: py - probeGap, x2: cx, y2: py, color: PROBE_Y, label: "Y-", delay: 1 },
-                { x1: cx, y1: py + h + probeGap - 8, x2: cx, y2: py + h, color: PROBE_Y, label: "Y+", delay: 1.5 },
-              ].map((p, i) => (
-                <g key={i}>
-                  <AnimatedProbeArrow x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} color={p.color} delay={p.delay} />
-                  <line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={p.color} strokeWidth="2.5"
-                    opacity={0.8} markerEnd={`url(#arrowR${i})`} />
-                  <text x={p.x1 + (i < 2 ? 0 : (i === 2 ? 14 : 14))} y={p.y1 + (i >= 2 ? 0 : -8)}
-                    textAnchor="middle" fontSize="9" fill={p.color} fontWeight="600">{p.label}</text>
-                </g>
-              ))}
-            </g>
-          )}
-
-          <circle cx={cx} cy={cy} r={8} fill="none" stroke={PROBE_X} strokeWidth="1.5" />
-          <line x1={cx - 12} y1={cy} x2={cx + 12} y2={cy} stroke={PROBE_X} strokeWidth="1" />
-          <line x1={cx} y1={cy - 12} x2={cx} y2={cy + 12} stroke={PROBE_X} strokeWidth="1" />
-
-          <SvgBadge x={cx} y={py - 30} text={`Z ${safeZ}mm`} color={Z_COLOR} highlighted={highlight === "safeZ"} />
-
-          {showZ && (
-            <g>
-              <line x1={cx + 20} y1={cy - 30} x2={cx + 20} y2={cy} stroke={Z_COLOR} strokeWidth="3" markerEnd="url(#arrowRZ)" />
-              <text x={cx + 36} y={cy - 14} fontSize="9" fill={Z_COLOR} fontWeight="600">Z</text>
-              <AnimatedProbeArrow x1={cx + 20} y1={cy - 30} x2={cx + 20} y2={cy} color={Z_COLOR} delay={0} />
-            </g>
-          )}
-
-          <defs>
-            {[0, 1, 2, 3].map(i => (
-              <marker key={i} id={`arrowR${i}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                <path d="M0,0 L8,4 L0,8" fill={i < 2 ? PROBE_X : PROBE_Y} />
-              </marker>
-            ))}
-            <marker id="arrowRZ" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L4,8 L8,0" fill={Z_COLOR} /></marker>
-          </defs>
-        </svg>
-      </div>
-
-      <div className="border-t border-border/50 bg-card/40 px-3 py-2.5">
-        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Parâmetros do Toque</p>
-        <div className="flex gap-2 flex-wrap">
-          <ParamInput label="Largura X" value={approxSizeX} onChange={onApproxSizeXChange}
-            unit="mm" color={PROBE_X} description="Largura aproximada da peça no eixo X."
-            highlighted={highlight === "sizeX"} onFocus={() => setHighlight("sizeX")} onBlur={() => setHighlight(null)}
-            icon={<ArrowRight className="h-3.5 w-3.5" />} />
-          <ParamInput label="Altura Y" value={approxSizeY} onChange={onApproxSizeYChange}
-            unit="mm" color={PROBE_Y} description="Comprimento aproximado da peça no eixo Y."
-            highlighted={highlight === "sizeY"} onFocus={() => setHighlight("sizeY")} onBlur={() => setHighlight(null)}
-            icon={<ArrowDown className="h-3.5 w-3.5" />} />
-          <ParamInput label="Altura segura Z" value={safeZ} onChange={onSafeZChange}
-            unit="mm" color={Z_COLOR} description="Altura usada para movimentações seguras acima da peça."
-            highlighted={highlight === "safeZ"} onFocus={() => setHighlight("safeZ")} onBlur={() => setHighlight(null)}
-            icon={<Crosshair className="h-3.5 w-3.5" />} />
-        </div>
-      </div>
-    </div>
+    <g>
+      <circle cx={cx} cy={cy} r={Math.min(90, approxDiameter * 0.7)} fill={PIECE_FILL_LIGHT} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.5" />
+      <text x={cx} y={cy + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.3" fontWeight="700">PEÇA</text>
+      {(() => {
+        const r2 = Math.min(90, approxDiameter * 0.7);
+        return (
+          <>
+            <Arrow x1={cx - r2 - 40} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} width={2.5} />
+            <AnimProbe x1={cx - r2 - 40} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} />
+          <Arrow x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} width={2.5} />
+            <AnimProbe x1={cx + r2 + 40} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} />
+          </>
+        );
+      })()}
+      <Badge x={cx} y={cy + Math.min(90, approxDiameter * 0.7) + 28} text={`Ø ${approxDiameter} mm`} color={PROBE_X} />
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_X} fontWeight="600">
+        Toques laterais no eixo X
+      </text>
+    </g>
   );
 }
 
-/* ════════════════════════════════════════════════ */
-/* ── CIRCLE CENTER DIAGRAM ── */
-function CircleCenterDiagram({
-  approxDiameter, circlePoints, safeZ, probeDepth, refinementEnabled, zProbeActive,
-  onApproxDiameterChange, onSafeZChange, onProbeDepthChange, svgRef, step,
-  highlight, setHighlight,
-}: SubDiagramProps) {
+/* STEP 2 — Touch Y */
+function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
-  const r = Math.min(110, approxDiameter * 0.8);
-  const pts = Array.from({ length: circlePoints }, (_, i) => {
-    const a = (i / circlePoints) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
-  });
 
-  const showMain = step === 0;
-  const showZ = (step === 1 && !refinementEnabled && zProbeActive) || (step === 2 && zProbeActive);
+  if (mode === "corner") {
+    const isFront = cornerQuadrant.includes("front");
+    const isLeft = cornerQuadrant.includes("left");
+    const px = 120, py = 60, pw = 280, ph = 200;
+    const cornerX = isLeft ? px : px + pw;
+    const cornerY = isFront ? py + ph : py;
+    const probeGap = Math.max(40, Math.min(90, probeDepth * 2.5));
+    const probeStart = isFront ? cornerY + probeGap : cornerY - probeGap;
+    const arrowX = cornerX + (isLeft ? 30 : -30);
 
+    return (
+      <g>
+        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_Y} width={3} />
+        <AnimProbe x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_Y} />
+        <Badge x={arrowX + (isLeft ? 60 : -60)} y={(probeStart + cornerY) / 2} text={`${probeDepth} mm`} color={PROBE_Y} />
+        <SpindleIcon x={arrowX} y={probeStart - 10} color={PROBE_Y} label="PROBE" />
+        <circle cx={cornerX} cy={cornerY} r={6} fill={PROBE_Y} stroke={BG} strokeWidth="2" />
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_Y} fontWeight="600">
+          Segundo toque frontal (Eixo Y)
+        </text>
+      </g>
+    );
+  }
+
+  if (mode === "rect-center") {
+    const pw = Math.min(260, approxSizeX * 0.9);
+    const ph = Math.min(180, approxSizeY * 0.9);
+    const px = cx - pw / 2, py2 = cy - ph / 2;
+    return (
+      <g>
+        <SolidPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={cx} y1={py2 - 50} x2={cx} y2={py2} color={PROBE_Y} width={3} />
+        <AnimProbe x1={cx} y1={py2 - 50} x2={cx} y2={py2} color={PROBE_Y} />
+        <Arrow x1={cx} y1={py2 + ph + 50} x2={cx} y2={py2 + ph} color={PROBE_Y} width={3} />
+        <AnimProbe x1={cx} y1={py2 + ph + 50} x2={cx} y2={py2 + ph} color={PROBE_Y} delay={0.8} />
+        <text x={cx + 14} y={py2 - 50} fontSize="9" fill={PROBE_Y} fontWeight="600">Y−</text>
+        <text x={cx + 14} y={py2 + ph + 54} fontSize="9" fill={PROBE_Y} fontWeight="600">Y+</text>
+        <DimLine x1={px - 22} y1={py2} x2={px - 22} y2={py2 + ph} label={`${approxSizeY}`} color={PROBE_Y} />
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_Y} fontWeight="600">
+          Toques no eixo Y
+        </text>
+      </g>
+    );
+  }
+
+  if (mode === "hole-center") {
+    const r = Math.min(80, approxDiameter * 0.6);
+    return (
+      <g>
+        <SolidPiece x={cx - r - 50} y={cy - r - 40} w={(r + 50) * 2} h={(r + 40) * 2} label="" />
+        <circle cx={cx} cy={cy} r={r} fill={BG} stroke={PIECE_STROKE} strokeWidth="2" />
+        <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.5">FURO</text>
+        <Arrow x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_Y} width={2.5} />
+        <Arrow x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_Y} width={2.5} />
+        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_Y} />
+        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_Y} delay={0.6} />
+        <text x={cx + 14} y={cy + r + 14} fontSize="9" fill={PROBE_Y} fontWeight="600">Y+</text>
+        <text x={cx + 14} y={cy - r - 6} fontSize="9" fill={PROBE_Y} fontWeight="600">Y−</text>
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_Y} fontWeight="600">
+          Toques no eixo Y (furo)
+        </text>
+      </g>
+    );
+  }
+
+  // circle-center
+  const r2 = Math.min(90, approxDiameter * 0.7);
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
-        <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full select-none" style={{ touchAction: "none" }}>
-          <defs>
-            <pattern id="grid3" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_COLOR} strokeWidth="0.3" opacity="0.3" />
-            </pattern>
-          </defs>
-          <rect width={VW} height={VH} fill="url(#grid3)" />
-
-          <circle cx={cx} cy={cy} r={r} fill={PIECE_FILL} opacity="0.15" stroke={PIECE_COLOR} strokeWidth="1.5" />
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="13" fill={DIM_COLOR} opacity="0.35" fontWeight="600">PEÇA</text>
-
-          <DimLine x1={cx - r} y1={cy + r + 20} x2={cx + r} y2={cy + r + 20} label="" />
-          <SvgBadge x={cx} y={cy + r + 24} text={`Ø${approxDiameter}mm`} color={PROBE_X} highlighted={highlight === "diam"} />
-
-          {showMain && pts.map((p, i) => {
-            const a = (i / circlePoints) * Math.PI * 2 - Math.PI / 2;
-            const startX = cx + Math.cos(a) * (r + 40);
-            const startY = cy + Math.sin(a) * (r + 40);
-            return (
-              <g key={i}>
-                <AnimatedProbeArrow x1={startX} y1={startY} x2={p.x} y2={p.y} color={PROBE_X} delay={i * 0.4} />
-                <line x1={startX} y1={startY} x2={p.x} y2={p.y} stroke={PROBE_X} strokeWidth="2" opacity={0.7} />
-                <circle cx={p.x} cy={p.y} r={5} fill={PROBE_X} stroke="hsl(var(--background))" strokeWidth="1.5" />
-                <text x={startX + Math.cos(a) * 12} y={startY + Math.sin(a) * 12}
-                  textAnchor="middle" fontSize="8" fill={PROBE_X} fontWeight="600">P{i + 1}</text>
-              </g>
-            );
-          })}
-
-          <circle cx={cx} cy={cy} r={6} fill="none" stroke={PROBE_X} strokeWidth="1.5" />
-          <line x1={cx - 10} y1={cy} x2={cx + 10} y2={cy} stroke={PROBE_X} strokeWidth="1" />
-          <line x1={cx} y1={cy - 10} x2={cx} y2={cy + 10} stroke={PROBE_X} strokeWidth="1" />
-
-          <SvgBadge x={cx} y={cy - r - 20} text={`Z ${safeZ}mm`} color={Z_COLOR} highlighted={highlight === "safeZ"} />
-
-          {showZ && (
-            <g>
-              <line x1={cx + 18} y1={cy - 26} x2={cx + 18} y2={cy} stroke={Z_COLOR} strokeWidth="3" markerEnd="url(#arrowCZ)" />
-              <text x={cx + 32} y={cy - 12} fontSize="9" fill={Z_COLOR} fontWeight="600">Z</text>
-            </g>
-          )}
-
-          <defs>
-            <marker id="arrowCZ" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L4,8 L8,0" fill={Z_COLOR} /></marker>
-          </defs>
-        </svg>
-      </div>
-
-      <div className="border-t border-border/50 bg-card/40 px-3 py-2.5">
-        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Parâmetros do Toque</p>
-        <div className="flex gap-2 flex-wrap">
-          <ParamInput label="Diâmetro" value={approxDiameter} onChange={onApproxDiameterChange}
-            unit="mm" color={PROBE_X} description="Diâmetro aproximado da peça circular."
-            highlighted={highlight === "diam"} onFocus={() => setHighlight("diam")} onBlur={() => setHighlight(null)}
-            icon={<Crosshair className="h-3.5 w-3.5" />} />
-          <ParamInput label="Altura segura Z" value={safeZ} onChange={onSafeZChange}
-            unit="mm" color={Z_COLOR} description="Altura usada para movimentações seguras acima da peça."
-            highlighted={highlight === "safeZ"} onFocus={() => setHighlight("safeZ")} onBlur={() => setHighlight(null)}
-            icon={<ArrowDown className="h-3.5 w-3.5" />} />
-        </div>
-      </div>
-    </div>
+    <g>
+      <circle cx={cx} cy={cy} r={r2} fill={PIECE_FILL_LIGHT} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.5" />
+      <text x={cx} y={cy + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.3" fontWeight="700">PEÇA</text>
+      <Arrow x1={cx} y1={cy - r2 - 40} x2={cx} y2={cy - r2} color={PROBE_Y} width={2.5} />
+      <AnimProbe x1={cx} y1={cy - r2 - 40} x2={cx} y2={cy - r2} color={PROBE_Y} />
+      <Arrow x1={cx} y1={cy + r2 + 40} x2={cx} y2={cy + r2} color={PROBE_Y} width={2.5} />
+      <AnimProbe x1={cx} y1={cy + r2 + 40} x2={cx} y2={cy + r2} color={PROBE_Y} delay={0.6} />
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={PROBE_Y} fontWeight="600">
+        Toques no eixo Y
+      </text>
+    </g>
   );
 }
 
-/* ════════════════════════════════════════════════ */
-/* ── HOLE CENTER DIAGRAM ── */
-function HoleCenterDiagram({
-  approxDiameter, safeZ, probeDepth, refinementEnabled, zProbeActive, holeZStrategy, holeZSafetyMargin,
-  onApproxDiameterChange, onSafeZChange, onHoleZSafetyMarginChange, onProbeDepthChange, svgRef, step,
-  highlight, setHighlight,
-}: SubDiagramProps) {
-  const cx = VW / 2, cy = VH / 2 - 10;
-  const r = Math.min(90, approxDiameter * 0.7);
-  const zpX = cx + r + 30;
-
-  const showMain = step === 0;
-  const showZ = (step === 1 && !refinementEnabled && zProbeActive) || (step === 2 && zProbeActive);
+/* STEP 3 — Safe Z height */
+function StepSafeZ({ mode, safeZ, approxSizeX, approxSizeY, approxDiameter }: WizardDiagramProps) {
+  const cx = VW / 2, cy = VH / 2 + 20;
+  const pw = 240, ph = 40; // side view piece
+  const px = cx - pw / 2, py = cy;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
-        <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full select-none" style={{ touchAction: "none" }}>
-          <defs>
-            <pattern id="grid4" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_COLOR} strokeWidth="0.3" opacity="0.3" />
-            </pattern>
-          </defs>
-          <rect width={VW} height={VH} fill="url(#grid4)" />
+    <g>
+      {/* Side view of piece */}
+      <rect x={px} y={py} width={pw} height={ph} rx={3} fill={PIECE_FILL_LIGHT} opacity="0.3" stroke={PIECE_STROKE} strokeWidth="1.5" />
+      <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.4" fontWeight="600">PEÇA (vista lateral)</text>
 
-          <rect x={cx - r - 60} y={cy - r - 40} width={(r + 60) * 2} height={(r + 40) * 2} rx={3}
-            fill={PIECE_FILL} opacity="0.1" stroke={PIECE_COLOR} strokeWidth="1.5" />
-          <text x={cx - r - 40} y={cy - r - 20} fontSize="9" fill={DIM_COLOR} opacity="0.4">MATERIAL</text>
+      {/* Table surface */}
+      <line x1={px - 30} y1={py + ph} x2={px + pw + 30} y2={py + ph} stroke={DIM_CLR} strokeWidth="2" opacity="0.3" />
+      <text x={px + pw + 40} y={py + ph + 4} fontSize="8" fill={DIM_CLR} opacity="0.4">MESA</text>
 
-          <circle cx={cx} cy={cy} r={r} fill="hsl(var(--background))" stroke={PIECE_COLOR} strokeWidth="2" />
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="11" fill={DIM_COLOR} opacity="0.5">FURO</text>
+      {/* Spindle above */}
+      <SpindleIcon x={cx} y={py - 30} color={Z_CLR} label="SPINDLE" />
 
-          <DimLine x1={cx - r} y1={cy + r + 18} x2={cx + r} y2={cy + r + 18} label="" />
-          <SvgBadge x={cx} y={cy + r + 22} text={`Ø${approxDiameter}mm`} color={PROBE_X} highlighted={highlight === "diam"} />
+      {/* Safe Z arrow */}
+      <DimLine x1={cx + 60} y1={py - 30} x2={cx + 60} y2={py} label="" color={Z_CLR} />
+      <Badge x={cx + 110} y={(py - 30 + py) / 2} text={`Z ${safeZ} mm`} color={Z_CLR} />
 
-          {showMain && (
-            <g>
-              {[
-                { x2: cx + r - 4, y2: cy, label: "X+", delay: 0 },
-                { x2: cx - r + 4, y2: cy, label: "X-", delay: 0.5 },
-                { x2: cx, y2: cy + r - 4, label: "Y+", delay: 1 },
-                { x2: cx, y2: cy - r + 4, label: "Y-", delay: 1.5 },
-              ].map((p, i) => (
-                <g key={i}>
-                  <AnimatedProbeArrow x1={cx} y1={cy} x2={p.x2} y2={p.y2} color={i < 2 ? PROBE_X : PROBE_Y} delay={p.delay} />
-                  <line x1={cx} y1={cy} x2={p.x2} y2={p.y2} stroke={i < 2 ? PROBE_X : PROBE_Y}
-                    strokeWidth="2" opacity={0.7} markerEnd={`url(#arrowH${i})`} />
-                  <text x={p.x2 + (p.x2 > cx ? 12 : p.x2 < cx ? -12 : 0)} y={p.y2 + (p.y2 > cy ? 14 : p.y2 < cy ? -8 : 0)}
-                    textAnchor="middle" fontSize="8" fill={i < 2 ? PROBE_X : PROBE_Y} fontWeight="600">{p.label}</text>
-                </g>
-              ))}
-            </g>
-          )}
+      {/* Arrow showing safe height */}
+      <Arrow x1={cx - 60} y1={py - 50} x2={cx - 60} y2={py - 2} color={Z_CLR} width={2} />
+      <text x={cx - 60} y={py - 56} textAnchor="middle" fontSize="9" fill={Z_CLR} fontWeight="600">Altura segura</text>
 
-          <circle cx={cx} cy={cy} r={5} fill={PROBE_X} stroke="hsl(var(--background))" strokeWidth="1.5" />
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={Z_CLR} fontWeight="600">
+        Defina a altura de movimentação segura acima da peça
+      </text>
+    </g>
+  );
+}
 
-          {showZ && holeZStrategy !== "none" && (
-            <g>
-              <line x1={cx + r} y1={cy} x2={zpX} y2={cy} stroke={Z_COLOR} strokeWidth="1.5" strokeDasharray="4 3" opacity="0.6" />
-              <line x1={zpX} y1={cy - 30} x2={zpX} y2={cy} stroke={Z_COLOR} strokeWidth="3" markerEnd="url(#arrowHZI)" />
-              <circle cx={zpX} cy={cy} r={6} fill="none" stroke={Z_COLOR} strokeWidth="2" strokeDasharray="3 2" />
-              <text x={zpX} y={cy - 36} textAnchor="middle" fontSize="9" fill={Z_COLOR} fontWeight="600">Z seguro</text>
-              <AnimatedProbeArrow x1={zpX} y1={cy - 30} x2={zpX} y2={cy} color={Z_COLOR} delay={0} />
+/* STEP 4 — Refinement */
+function StepRefinement({ mode, cornerQuadrant, refinementEnabled, refinementDistance, approxSizeX, approxSizeY }: WizardDiagramProps) {
+  const cx = VW / 2, cy = VH / 2 - 10;
 
-              <line x1={cx - 6} y1={cy - 14} x2={cx + 6} y2={cy - 8} stroke="hsl(var(--destructive))" strokeWidth="2" opacity="0.6" />
-              <line x1={cx + 6} y1={cy - 14} x2={cx - 6} y2={cy - 8} stroke="hsl(var(--destructive))" strokeWidth="2" opacity="0.6" />
-              <text x={cx} y={cy - 18} textAnchor="middle" fontSize="7" fill="hsl(var(--destructive))" opacity="0.6">Sem Z aqui</text>
-            </g>
-          )}
+  if (!refinementEnabled) {
+    return (
+      <g>
+        <text x={cx} y={cy} textAnchor="middle" fontSize="14" fill={DIM_CLR} opacity="0.5" fontWeight="600">
+          Conferência desabilitada
+        </text>
+        <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.4">
+          Ative para fazer um segundo toque mais preciso
+        </text>
+      </g>
+    );
+  }
 
-          <SvgBadge x={cx} y={cy - r - 50} text={`Z ${safeZ}mm`} color={Z_COLOR} highlighted={highlight === "safeZ"} />
+  if (mode === "corner") {
+    const isLeft = cornerQuadrant.includes("left");
+    const isFront = cornerQuadrant.includes("front");
+    const px = 120, py = 60, pw = 280, ph = 200;
+    const cornerX = isLeft ? px : px + pw;
+    const cornerY = isFront ? py + ph : py;
+    const refDist = Math.max(20, refinementDistance * 3);
 
-          <defs>
-            {[0, 1, 2, 3].map(i => (
-              <marker key={i} id={`arrowH${i}`} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L7,3.5 L0,7" fill={i < 2 ? PROBE_X : PROBE_Y} />
-              </marker>
-            ))}
-            <marker id="arrowHZI" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L4,8 L8,0" fill={Z_COLOR} /></marker>
-          </defs>
-        </svg>
-      </div>
+    return (
+      <g>
+        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        {/* First touch (faded) */}
+        <Arrow x1={cornerX + (isLeft ? -80 : 80)} y1={cornerY - 20} x2={cornerX} y2={cornerY - 20} color={PROBE_X} width={1.5} />
+        <g opacity="0.3">
+          <text x={cornerX + (isLeft ? -80 : 80)} y={cornerY - 30} textAnchor="middle" fontSize="8" fill={PROBE_X}>1º toque</text>
+        </g>
+        {/* Refinement touch (bold, closer) */}
+        <Arrow x1={cornerX + (isLeft ? -refDist : refDist)} y1={cornerY - 8} x2={cornerX} y2={cornerY - 8} color={REFINE_CLR} width={3} />
+        <AnimProbe x1={cornerX + (isLeft ? -refDist : refDist)} y1={cornerY - 8} x2={cornerX} y2={cornerY - 8} color={REFINE_CLR} />
+        <Badge x={cornerX + (isLeft ? -refDist / 2 : refDist / 2)} y={cornerY - 24} text={`${refinementDistance} mm`} color={REFINE_CLR} />
+        <text x={cornerX + (isLeft ? -refDist / 2 : refDist / 2)} y={cornerY - 38} textAnchor="middle" fontSize="9" fill={REFINE_CLR} fontWeight="700">Conferência X</text>
 
-      <div className="border-t border-border/50 bg-card/40 px-3 py-2.5">
-        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Parâmetros do Toque</p>
-        <div className="flex gap-2 flex-wrap">
-          <ParamInput label="Diâmetro do furo" value={approxDiameter} onChange={onApproxDiameterChange}
-            unit="mm" color={PROBE_X} description="Diâmetro aproximado do furo a localizar."
-            highlighted={highlight === "diam"} onFocus={() => setHighlight("diam")} onBlur={() => setHighlight(null)}
-            icon={<Crosshair className="h-3.5 w-3.5" />} />
-          <ParamInput label="Altura segura Z" value={safeZ} onChange={onSafeZChange}
-            unit="mm" color={Z_COLOR} description="Altura usada para movimentações seguras acima da peça."
-            highlighted={highlight === "safeZ"} onFocus={() => setHighlight("safeZ")} onBlur={() => setHighlight(null)}
-            icon={<ArrowDown className="h-3.5 w-3.5" />} />
-          {showZ && holeZStrategy === "auto-safe" && (
-            <ParamInput label="Margem segurança Z" value={holeZSafetyMargin} onChange={onHoleZSafetyMarginChange}
-              unit="mm" color={Z_COLOR} description="Margem de segurança para o probe Z na borda do furo."
-              highlighted={highlight === "zMargin"} onFocus={() => setHighlight("zMargin")} onBlur={() => setHighlight(null)}
-              icon={<ArrowDown className="h-3.5 w-3.5" />} />
-          )}
-        </div>
-      </div>
-    </div>
+        {/* Y refinement */}
+        <Arrow x1={cornerX + (isLeft ? 12 : -12)} y1={cornerY + (isFront ? -refDist : refDist)} x2={cornerX + (isLeft ? 12 : -12)} y2={cornerY} color={REFINE_CLR} width={3} />
+        <AnimProbe x1={cornerX + (isLeft ? 12 : -12)} y1={cornerY + (isFront ? -refDist : refDist)} x2={cornerX + (isLeft ? 12 : -12)} y2={cornerY} color={REFINE_CLR} delay={0.5} />
+        <text x={cornerX + (isLeft ? 40 : -40)} y={cornerY + (isFront ? -refDist / 2 : refDist / 2)} textAnchor="middle" fontSize="9" fill={REFINE_CLR} fontWeight="700">Conferência Y</text>
+
+        <circle cx={cornerX} cy={cornerY} r={6} fill={REFINE_CLR} stroke={BG} strokeWidth="2" />
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={REFINE_CLR} fontWeight="600">
+          Segundo toque mais perto da borda — maior precisão
+        </text>
+      </g>
+    );
+  }
+
+  // Generic for other modes
+  return (
+    <g>
+      <SolidPiece x={cx - 100} y={cy - 60} w={200} h={120} label="PEÇA" />
+      <Arrow x1={cx - 100 - 30} y1={cy} x2={cx - 100} y2={cy} color={REFINE_CLR} width={3} />
+      <AnimProbe x1={cx - 100 - 30} y1={cy} x2={cx - 100} y2={cy} color={REFINE_CLR} />
+      <Badge x={cx - 100 - 30} y={cy - 18} text={`${refinementDistance} mm`} color={REFINE_CLR} />
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={REFINE_CLR} fontWeight="600">
+        Conferência de precisão ativa
+      </text>
+    </g>
+  );
+}
+
+/* STEP 5 — Probe Z */
+function StepProbeZ({ mode, zProbeActive, cornerQuadrant, zCornerInset, holeZStrategy, holeZSafetyMargin, approxDiameter }: WizardDiagramProps) {
+  const cx = VW / 2, cy = VH / 2 + 10;
+
+  if (!zProbeActive) {
+    return (
+      <g>
+        <text x={cx} y={cy} textAnchor="middle" fontSize="14" fill={DIM_CLR} opacity="0.5" fontWeight="600">
+          Probe Z desabilitado
+        </text>
+        <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.4">
+          Ative para medir a altura da peça automaticamente
+        </text>
+      </g>
+    );
+  }
+
+  const pw = 260, ph = 50;
+  const px = cx - pw / 2, py = cy;
+
+  if (mode === "hole-center" && holeZStrategy !== "none") {
+    const r = Math.min(70, approxDiameter * 0.5);
+    return (
+      <g>
+        {/* Side view */}
+        <rect x={cx - r - 40} y={py} width={(r + 40) * 2} height={ph} rx={3} fill={PIECE_FILL_LIGHT} opacity="0.3" stroke={PIECE_STROKE} strokeWidth="1.5" />
+        {/* Hole cutout */}
+        <rect x={cx - r} y={py} width={r * 2} height={ph} fill={BG} stroke={PIECE_STROKE} strokeWidth="1" />
+        <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="9" fill={DIM_CLR} opacity="0.4">FURO</text>
+
+        {/* Z probe at safe offset */}
+        <SpindleIcon x={cx + r + 25} y={py - 20} color={Z_CLR} />
+        <Arrow x1={cx + r + 25} y1={py - 10} x2={cx + r + 25} y2={py} color={Z_CLR} width={3} />
+        <AnimProbe x1={cx + r + 25} y1={py - 30} x2={cx + r + 25} y2={py} color={Z_CLR} />
+        <text x={cx + r + 25} y={py - 60} textAnchor="middle" fontSize="9" fill={Z_CLR} fontWeight="600">Z seguro</text>
+
+        {/* X mark at center */}
+        <line x1={cx - 6} y1={py - 6} x2={cx + 6} y2={py + 6} stroke="hsl(var(--destructive))" strokeWidth="2" opacity="0.6" />
+        <line x1={cx + 6} y1={py - 6} x2={cx - 6} y2={py + 6} stroke="hsl(var(--destructive))" strokeWidth="2" opacity="0.6" />
+        <text x={cx} y={py - 12} textAnchor="middle" fontSize="8" fill="hsl(var(--destructive))" opacity="0.7">Sem Z aqui</text>
+
+        <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={Z_CLR} fontWeight="600">
+          Probe Z na borda segura do furo
+        </text>
+      </g>
+    );
+  }
+
+  // Normal Z probe (corner, rect, circle)
+  return (
+    <g>
+      <rect x={px} y={py} width={pw} height={ph} rx={3} fill={PIECE_FILL_LIGHT} opacity="0.3" stroke={PIECE_STROKE} strokeWidth="1.5" />
+      <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.3" fontWeight="600">PEÇA (vista lateral)</text>
+      <line x1={px - 20} y1={py + ph} x2={px + pw + 20} y2={py + ph} stroke={DIM_CLR} strokeWidth="2" opacity="0.3" />
+
+      {/* Probe descending */}
+      {mode === "corner" ? (
+        <>
+          <SpindleIcon x={px + zCornerInset * 3 + 20} y={py - 20} color={Z_CLR} label="Probe Z" />
+          <Arrow x1={px + zCornerInset * 3 + 20} y1={py - 10} x2={px + zCornerInset * 3 + 20} y2={py} color={Z_CLR} width={3} />
+          <AnimProbe x1={px + zCornerInset * 3 + 20} y1={py - 30} x2={px + zCornerInset * 3 + 20} y2={py} color={Z_CLR} />
+          <Badge x={px + zCornerInset * 3 + 80} y={py - 30} text={`Recuo ${zCornerInset} mm`} color={Z_CLR} />
+        </>
+      ) : (
+        <>
+          <SpindleIcon x={cx} y={py - 20} color={Z_CLR} label="Probe Z" />
+          <Arrow x1={cx} y1={py - 10} x2={cx} y2={py} color={Z_CLR} width={3} />
+          <AnimProbe x1={cx} y1={py - 30} x2={cx} y2={py} color={Z_CLR} />
+        </>
+      )}
+
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={Z_CLR} fontWeight="600">
+        Toque vertical para medir a altura da peça
+      </text>
+    </g>
+  );
+}
+
+/* STEP 6 — Custom probe */
+function StepCustomProbe({ customProbeOffsetX, customProbeOffsetY, customProbeOffsetZ }: WizardDiagramProps) {
+  const cx = VW / 2, cy = VH / 2 - 10;
+
+  return (
+    <g>
+      {/* Spindle body */}
+      <rect x={cx - 20} y={40} width={40} height={80} rx={6} fill={DIM_CLR} opacity="0.1" stroke={DIM_CLR} strokeWidth="1.5" />
+      <text x={cx} y={70} textAnchor="middle" fontSize="9" fill={DIM_CLR} opacity="0.5" fontWeight="600">SPINDLE</text>
+      <line x1={cx} y1={120} x2={cx} y2={145} stroke={DIM_CLR} strokeWidth="2.5" />
+      <circle cx={cx} cy={148} r={4} fill={DIM_CLR} opacity="0.4" />
+      <text x={cx} y={165} textAnchor="middle" fontSize="8" fill={DIM_CLR} opacity="0.5">Ferramenta</text>
+
+      {/* Probe arm */}
+      <line x1={cx + 20} y1={100} x2={cx + 70} y2={100} stroke={CUSTOM_CLR} strokeWidth="2" />
+      <line x1={cx + 70} y1={100} x2={cx + 70} y2={145} stroke={CUSTOM_CLR} strokeWidth="2" />
+      <circle cx={cx + 70} cy={148} r={4} fill={CUSTOM_CLR} />
+      <text x={cx + 70} y={165} textAnchor="middle" fontSize="8" fill={CUSTOM_CLR} fontWeight="600">Probe</text>
+
+      {/* Offset X */}
+      <DimLine x1={cx} y1={185} x2={cx + 70} y2={185} label="" color={CUSTOM_CLR} />
+      <Badge x={cx + 35} y={195} text={`ΔX ${customProbeOffsetX}`} color={CUSTOM_CLR} />
+
+      {/* Offset Y */}
+      <DimLine x1={cx + 90} y1={148} x2={cx + 90} y2={148 + customProbeOffsetY * 2} label="" color={CUSTOM_CLR} />
+      <Badge x={cx + 130} y={148 + customProbeOffsetY} text={`ΔY ${customProbeOffsetY}`} color={CUSTOM_CLR} />
+
+      {/* Offset Z */}
+      <DimLine x1={cx - 30} y1={148} x2={cx - 30} y2={148 + customProbeOffsetZ * 2} label="" color={CUSTOM_CLR} />
+      <Badge x={cx - 70} y={148 + customProbeOffsetZ} text={`ΔZ ${customProbeOffsetZ}`} color={CUSTOM_CLR} />
+
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={CUSTOM_CLR} fontWeight="600">
+        Offsets entre a ferramenta e o probe personalizado
+      </text>
+    </g>
+  );
+}
+
+/* STEP 7 — Apply / workflow */
+function StepApply(_props: WizardDiagramProps) {
+  const cx = VW / 2;
+
+  return (
+    <g>
+      {/* Flow diagram */}
+      <rect x={cx - 80} y={40} width={160} height={40} rx={8} fill={PROBE_X} opacity="0.15" stroke={PROBE_X} strokeWidth="1.5" />
+      <text x={cx} y={64} textAnchor="middle" fontSize="11" fill={PROBE_X} fontWeight="700">1. Localizar peça</text>
+
+      <Arrow x1={cx} y1={82} x2={cx} y2={105} color={DIM_CLR} width={1.5} />
+
+      <rect x={cx - 80} y={108} width={160} height={40} rx={8} fill={Z_CLR} opacity="0.15" stroke={Z_CLR} strokeWidth="1.5" />
+      <text x={cx} y={132} textAnchor="middle" fontSize="11" fill={Z_CLR} fontWeight="700">2. Definir origem</text>
+
+      <Arrow x1={cx} y1={150} x2={cx} y2={173} color={DIM_CLR} width={1.5} />
+
+      <rect x={cx - 80} y={176} width={160} height={40} rx={8} fill={REFINE_CLR} opacity="0.15" stroke={REFINE_CLR} strokeWidth="1.5" />
+      <text x={cx} y={200} textAnchor="middle" fontSize="11" fill={REFINE_CLR} fontWeight="700">3. Iniciar trabalho</text>
+
+      <text x={cx} y={VH - 20} textAnchor="middle" fontSize="11" fill={DIM_CLR} fontWeight="600">
+        Fluxo completo: localização → origem → usinagem
+      </text>
+    </g>
   );
 }
