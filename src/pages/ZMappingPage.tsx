@@ -22,6 +22,7 @@ import {
   defaultConfigMM, defaultConfigInch,
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
   type ControllerType, type UnifiedResult, type DensityMap,
+  type RetractionMode, type RetractionConfig,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
