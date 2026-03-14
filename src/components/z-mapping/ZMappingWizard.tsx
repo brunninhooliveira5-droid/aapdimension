@@ -323,6 +323,9 @@ function Step3Mapping(props: WizardProps) {
           xMax={props.analysis.xMax}
           yMax={props.analysis.yMax}
           densityMap={props.densityMap}
+          spacingX={props.spacingX}
+          spacingY={props.spacingY}
+          mappingMode={props.mappingPrecision}
         />
       )}
     </div>
