@@ -343,7 +343,7 @@ function ToolMarker({ path, config, progress, isPlaying, speed, mesh, probeData 
         <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={0.8} />
       </mesh>
       {/* Shank */}
-      <mesh position={[0, 0, toolR * 6]}>
+      <mesh position={[0, 0, toolR * 6]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[toolR * 0.6, toolR * 0.8, toolR * 10, 12]} />
         <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.3} />
       </mesh>
