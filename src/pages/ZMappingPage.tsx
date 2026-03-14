@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { ZMappingAnimation } from "@/components/ZMappingAnimation";
 import { CompensationSimulator3D } from "@/components/z-mapping/CompensationSimulator3D";
 import { GcodePreview } from "@/components/z-mapping/GcodePreview";
+import { ZMappingWizard } from "@/components/z-mapping/ZMappingWizard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
   Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch,
-  PenTool, AlertTriangle, ShieldCheck,
+  PenTool, AlertTriangle, ShieldCheck, Wand2,
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
