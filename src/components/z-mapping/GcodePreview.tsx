@@ -83,7 +83,19 @@ function computePointRadius(
   return clamp(spacingPx * 0.2 * modeFactor, 1.1, 4.2);
 }
 
-export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yMax, densityMap }: Props) {
+export function GcodePreview({
+  originalGcode,
+  mesh,
+  config,
+  xMin,
+  yMin,
+  xMax,
+  yMax,
+  densityMap,
+  spacingX,
+  spacingY,
+  mappingMode,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
