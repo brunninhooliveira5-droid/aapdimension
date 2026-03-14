@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode,
@@ -42,6 +42,8 @@ interface SavedSettings {
   touchStrategy: "last" | "average";
   outOfMeshRule: "block" | "warn" | "nearest";
   unit: ZUnit;
+  areaMode: AreaMode;
+  buffer: number;
 }
 
 function loadSettings(): Partial<SavedSettings> {
@@ -78,6 +80,9 @@ function getTouchCount(precision: TouchPrecision): number {
   return 3;
 }
 
+/* ── Area mode ───────────────────────────── */
+type AreaMode = "auto" | "manual";
+
 export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
@@ -92,6 +97,13 @@ export default function ZMappingPage() {
   const [yStart, setYStart] = useState(0);
   const [width, setWidth] = useState(100);
   const [height, setHeight] = useState(100);
+
+  // Manual overrides (only used when areaMode === "manual")
+  const [manualXStart, setManualXStart] = useState(0);
+  const [manualYStart, setManualYStart] = useState(0);
+  const [manualWidth, setManualWidth] = useState(100);
+  const [manualHeight, setManualHeight] = useState(100);
+
   const [spacingX, setSpacingX] = useState(saved.spacingX ?? defaults.spacing);
   const [spacingY, setSpacingY] = useState(saved.spacingY ?? defaults.spacing);
   const [probeFeed, setProbeFeed] = useState(saved.probeFeed ?? defaults.probeFeed);
@@ -103,6 +115,10 @@ export default function ZMappingPage() {
   const [outOfMeshRule, setOutOfMeshRule] = useState<"block" | "warn" | "nearest">(saved.outOfMeshRule ?? "warn");
   const [tolerance, setTolerance] = useState(defaults.tolerance);
   const [controller, setController] = useState<ControllerType>(saved.controller ?? "mach3");
+
+  // Area mode & buffer
+  const [areaMode, setAreaMode] = useState<AreaMode>(saved.areaMode ?? "auto");
+  const [buffer, setBuffer] = useState(saved.buffer ?? 5);
 
   // Curve precision
   const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>(saved.curvePrecision ?? "medium");
@@ -122,6 +138,12 @@ export default function ZMappingPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Compute effective area based on mode
+  const effectiveXStart = areaMode === "auto" ? xStart : manualXStart;
+  const effectiveYStart = areaMode === "auto" ? yStart : manualYStart;
+  const effectiveWidth = areaMode === "auto" ? width : manualWidth;
+  const effectiveHeight = areaMode === "auto" ? height : manualHeight;
+
   const spacing = (spacingX + spacingY) / 2;
 
   // Save settings whenever they change
@@ -130,23 +152,28 @@ export default function ZMappingPage() {
       probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit,
+      outOfMeshRule, unit, areaMode, buffer,
     });
   }, [probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit]);
+      outOfMeshRule, unit, areaMode, buffer]);
 
   const config: MeshConfig = useMemo(() => ({
-    unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
+    unit,
+    xStart: effectiveXStart,
+    yStart: effectiveYStart,
+    width: effectiveWidth,
+    height: effectiveHeight,
+    spacing, probeFeed, probeDepth,
     clearance, safeHeight, maxSegmentLen, arcSegmentLen, decimalPlaces, outOfMeshRule, tolerance,
-  }), [unit, xStart, yStart, width, height, spacing, probeFeed, probeDepth,
+  }), [unit, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, spacing, probeFeed, probeDepth,
     clearance, safeHeight, maxSegmentLen, arcSegmentLen, decimalPlaces, outOfMeshRule, tolerance]);
 
   const mesh = useMemo(() => {
-    if (width <= 0 || height <= 0 || spacing <= 0) return null;
+    if (effectiveWidth <= 0 || effectiveHeight <= 0 || spacing <= 0) return null;
     return generateMesh(config);
-  }, [config, width, height, spacing]);
+  }, [config, effectiveWidth, effectiveHeight, spacing]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,7 +189,6 @@ export default function ZMappingPage() {
       if (a.unit) {
         setUnit(a.unit);
         const d = a.unit === "mm" ? defaultConfigMM : defaultConfigInch;
-        // Only set spacing/feed if user hasn't saved custom values
         const s = loadSettings();
         if (!s.spacingX) setSpacingX(d.spacing);
         if (!s.spacingY) setSpacingY(d.spacing);
@@ -173,17 +199,40 @@ export default function ZMappingPage() {
         if (!s.maxSegmentLen) setMaxSegmentLen(d.maxSegmentLen);
         setTolerance(d.tolerance);
         setCustomArcSegLen(null);
+        // Set default buffer based on unit
+        if (!s.buffer) setBuffer(a.unit === "mm" ? 5 : 0.2);
       }
       if (a.width > 0) {
-        setXStart(parseFloat(a.xMin.toFixed(3)));
-        setYStart(parseFloat(a.yMin.toFixed(3)));
-        setWidth(parseFloat(a.width.toFixed(3)));
-        setHeight(parseFloat(a.height.toFixed(3)));
+        // Auto area: detected bounds + buffer
+        const buf = loadSettings().buffer ?? (a.unit === "mm" ? 5 : 0.2);
+        const autoX = parseFloat((a.xMin - buf).toFixed(3));
+        const autoY = parseFloat((a.yMin - buf).toFixed(3));
+        const autoW = parseFloat((a.width + buf * 2).toFixed(3));
+        const autoH = parseFloat((a.height + buf * 2).toFixed(3));
+        setXStart(autoX);
+        setYStart(autoY);
+        setWidth(autoW);
+        setHeight(autoH);
+        // Also set manual defaults to the raw detected area
+        setManualXStart(parseFloat(a.xMin.toFixed(3)));
+        setManualYStart(parseFloat(a.yMin.toFixed(3)));
+        setManualWidth(parseFloat(a.width.toFixed(3)));
+        setManualHeight(parseFloat(a.height.toFixed(3)));
       }
       toast.success("Arquivo carregado com sucesso");
     };
     reader.readAsText(file);
   }, []);
+
+  // Recalculate auto area when buffer changes
+  useEffect(() => {
+    if (areaMode === "auto" && analysis && analysis.width > 0) {
+      setXStart(parseFloat((analysis.xMin - buffer).toFixed(3)));
+      setYStart(parseFloat((analysis.yMin - buffer).toFixed(3)));
+      setWidth(parseFloat((analysis.width + buffer * 2).toFixed(3)));
+      setHeight(parseFloat((analysis.height + buffer * 2).toFixed(3)));
+    }
+  }, [buffer, areaMode, analysis]);
 
   const handleGenerate = useCallback(() => {
     if (!mesh || !originalGcode) return;
@@ -205,7 +254,6 @@ export default function ZMappingPage() {
   }, [result]);
 
   const formatTime = (sec: number) => {
-    // Adjust for multi-touch
     const adjusted = sec * touchesPerPoint;
     if (adjusted < 60) return `${adjusted}s`;
     const m = Math.floor(adjusted / 60);
@@ -274,7 +322,10 @@ export default function ZMappingPage() {
               <Eye className="h-4 w-4 text-primary" /> Preview do percurso
             </CardTitle>
             <CardDescription>
-              Visualize o percurso de corte e a grade de medição sobreposta. A grade atualiza em tempo real.
+              {areaMode === "auto"
+                ? "Área de medição detectada automaticamente a partir do G-code. A grade cobre apenas a região de corte."
+                : "Área de medição definida manualmente. Ajuste os valores nas configurações avançadas."
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -301,12 +352,56 @@ export default function ZMappingPage() {
             <CardDescription>Ajuste os parâmetros de medição da superfície.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {numField("Altura Z segura", safeHeight, setSafeHeight)}
-              {numField("Distância entre pontos X", spacingX, setSpacingX)}
-              {numField("Distância entre pontos Y", spacingY, setSpacingY)}
-              {numField(`Velocidade do toque (${unit}/min)`, probeFeed, setProbeFeed)}
+            {/* Area mode selector */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Área de mapeamento</Label>
+              <RadioGroup
+                value={areaMode}
+                onValueChange={(v) => setAreaMode(v as AreaMode)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="auto" id="area-auto" />
+                  <Label htmlFor="area-auto" className="text-xs cursor-pointer flex items-center gap-1">
+                    <ScanSearch className="h-3 w-3" /> Automática (do G-code)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="manual" id="area-manual" />
+                  <Label htmlFor="area-manual" className="text-xs cursor-pointer">Manual (retangular)</Label>
+                </div>
+              </RadioGroup>
+              {areaMode === "auto" && (
+                <p className="text-xs text-muted-foreground">
+                  A área de medição foi detectada automaticamente com base nos movimentos de corte do G-code.
+                </p>
+              )}
             </div>
+
+            {/* Auto mode: show buffer */}
+            {areaMode === "auto" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {numField(`Margem de segurança (${unit})`, buffer, setBuffer, unit === "mm" ? 1 : 0.05)}
+                {numField("Distância entre pontos X", spacingX, setSpacingX)}
+                {numField("Distância entre pontos Y", spacingY, setSpacingY)}
+                {numField("Altura Z segura", safeHeight, setSafeHeight)}
+                {numField(`Velocidade do toque (${unit}/min)`, probeFeed, setProbeFeed)}
+              </div>
+            )}
+
+            {/* Manual mode: show area fields */}
+            {areaMode === "manual" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {numField("X inicial", manualXStart, setManualXStart)}
+                {numField("Y inicial", manualYStart, setManualYStart)}
+                {numField("Largura", manualWidth, setManualWidth)}
+                {numField("Altura", manualHeight, setManualHeight)}
+                {numField("Distância entre pontos X", spacingX, setSpacingX)}
+                {numField("Distância entre pontos Y", spacingY, setSpacingY)}
+                {numField("Altura Z segura", safeHeight, setSafeHeight)}
+                {numField(`Velocidade do toque (${unit}/min)`, probeFeed, setProbeFeed)}
+              </div>
+            )}
 
             {/* Touch precision */}
             <div className="space-y-2 pt-2 border-t border-border/50">
@@ -348,11 +443,18 @@ export default function ZMappingPage() {
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Área detectada</p>
-                <p className="text-sm font-semibold">{fmt(width)} × {fmt(height)} {unit}</p>
+                <p className="text-xs text-muted-foreground">
+                  {areaMode === "auto" ? "Área detectada" : "Área manual"}
+                </p>
+                <p className="text-sm font-semibold">{fmt(effectiveWidth)} × {fmt(effectiveHeight)} {unit}</p>
+                {areaMode === "auto" && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Corte real: {fmt(analysis.width)} × {fmt(analysis.height)} + margem {fmt(buffer)}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Pontos (X × Y)</p>
+                <p className="text-xs text-muted-foreground">Pontos de medição</p>
                 <p className="text-sm font-semibold flex items-center gap-1">
                   <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.pointsPerRow} × {mesh.rows} = {mesh.totalPoints}
                 </p>
@@ -371,6 +473,7 @@ export default function ZMappingPage() {
               </div>
             </div>
             <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>Modo: <strong className="text-foreground">{areaMode === "auto" ? "Automático" : "Manual"}</strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
               {analysis.arcCount > 0 && (
                 <>
@@ -416,6 +519,7 @@ export default function ZMappingPage() {
                   <div><span className="text-muted-foreground">Arquivo:</span> <span className="font-medium">{result.fileName}</span></div>
                   <div><span className="text-muted-foreground">Pontos medidos:</span> <span className="font-medium">{result.totalPoints}</span></div>
                   <div><span className="text-muted-foreground">Toques por ponto:</span> <span className="font-medium">{touchesPerPoint}</span></div>
+                  <div><span className="text-muted-foreground">Modo:</span> <span className="font-medium">{areaMode === "auto" ? "Automático" : "Manual"}</span></div>
                   {result.arcsDetected > 0 && (
                     <>
                       <div><span className="text-muted-foreground">Curvas detectadas:</span> <span className="font-medium">{result.arcsDetected}</span></div>
@@ -513,6 +617,7 @@ export default function ZMappingPage() {
                     setClearance(d.clearance); setSafeHeight(d.safeHeight);
                     setMaxSegmentLen(d.maxSegmentLen); setTolerance(d.tolerance);
                     setCustomArcSegLen(null);
+                    setBuffer(u === "mm" ? 5 : 0.2);
                   }}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -521,10 +626,6 @@ export default function ZMappingPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {numField("X inicial", xStart, setXStart)}
-                {numField("Y inicial", yStart, setYStart)}
-                {numField("Largura", width, setWidth)}
-                {numField("Altura", height, setHeight)}
                 {numField("Profundidade máxima", probeDepth, setProbeDepth, 0.01)}
                 {numField("Folga de segurança", clearance, setClearance)}
                 {numField("Comprimento de divisão", maxSegmentLen, setMaxSegmentLen)}
