@@ -158,6 +158,12 @@ export default function ZMappingPage() {
   const [nominalDepth, setNominalDepth] = useState(unit === "mm" ? 0.3 : 0.012);
   const [slopeWarningThreshold] = useState(20); // degrees
 
+  // Retraction mode
+  const [retractionMode, setRetractionMode] = useState<RetractionMode>("standard");
+  const [retMinSafeZ, setRetMinSafeZ] = useState(unit === "mm" ? 2 : 0.08);
+  const [retAdaptiveClearance, setRetAdaptiveClearance] = useState(unit === "mm" ? 3 : 0.12);
+  const [retReinforcedClearance, setRetReinforcedClearance] = useState(unit === "mm" ? 5 : 0.2);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Compute effective area based on mode
