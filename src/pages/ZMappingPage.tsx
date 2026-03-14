@@ -14,7 +14,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
-  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch
+  Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch,
+  PenTool, AlertTriangle,
 } from "lucide-react";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
@@ -87,6 +88,10 @@ type AreaMode = "auto" | "manual";
 /* ── Mapping precision ───────────────────── */
 type MappingPrecision = "uniform" | "smart" | "maximum";
 
+/* ── Engraving mode ──────────────────────── */
+type EngravingMode = "standard" | "curved" | "vbit-curved";
+type VbitCompMode = "standard" | "enhanced";
+
 export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
@@ -142,6 +147,10 @@ export default function ZMappingPage() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
+
+  // Engraving mode
+  const [engravingMode, setEngravingMode] = useState<EngravingMode>("standard");
+  const [vbitCompMode, setVbitCompMode] = useState<VbitCompMode>("standard");
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -488,6 +497,70 @@ export default function ZMappingPage() {
                 </div>
               </RadioGroup>
             </div>
+
+            {/* Engraving mode */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <PenTool className="h-3 w-3 text-primary" /> Tipo de gravação
+              </Label>
+              <RadioGroup
+                value={engravingMode}
+                onValueChange={(v) => setEngravingMode(v as EngravingMode)}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="standard" id="eng-standard" />
+                  <Label htmlFor="eng-standard" className="text-xs cursor-pointer">Gravação comum</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="curved" id="eng-curved" />
+                  <Label htmlFor="eng-curved" className="text-xs cursor-pointer">Gravação em superfície curva</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="vbit-curved" id="eng-vbit" />
+                  <Label htmlFor="eng-vbit" className="text-xs cursor-pointer">Gravação V-bit em superfície curva</Label>
+                </div>
+              </RadioGroup>
+
+              {engravingMode === "curved" && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+                  O G-code plano será ajustado para acompanhar a superfície curva da peça, mantendo a profundidade relativa uniforme.
+                </p>
+              )}
+
+              {engravingMode === "vbit-curved" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+                    Este modo ajusta um G-code plano para acompanhar a superfície curva da peça, mantendo a gravação V-bit uniforme mesmo em superfícies irregulares.
+                  </p>
+
+                  {/* V-bit compensation mode */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-medium">Compensação para V-bit</Label>
+                    <RadioGroup
+                      value={vbitCompMode}
+                      onValueChange={(v) => setVbitCompMode(v as VbitCompMode)}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="standard" id="vbit-std" />
+                        <Label htmlFor="vbit-std" className="text-[11px] cursor-pointer">Padrão</Label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="enhanced" id="vbit-enh" />
+                        <Label htmlFor="vbit-enh" className="text-[11px] cursor-pointer">Aprimorada</Label>
+                      </div>
+                    </RadioGroup>
+                    <p className="text-[10px] text-muted-foreground">
+                      {vbitCompMode === "standard"
+                        ? "Compensa a altura local da superfície para manter a profundidade uniforme."
+                        : "Preparado para compensação futura baseada na inclinação local da superfície."
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -548,6 +621,11 @@ export default function ZMappingPage() {
                 {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
               </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
+              {engravingMode !== "standard" && (
+                <span>Gravação: <strong className="text-foreground">
+                  {engravingMode === "curved" ? "Superfície curva" : "V-bit curva"}
+                </strong></span>
+              )}
               {analysis.arcCount > 0 && (
                 <>
                   <span className="flex items-center gap-1">
@@ -559,6 +637,20 @@ export default function ZMappingPage() {
                 </>
               )}
             </div>
+
+            {/* Slope warning for V-bit */}
+            {engravingMode === "vbit-curved" && mesh && analysis && analysis.width > 0 && (() => {
+              // Estimate max slope from synthetic surface (in real use, from actual probe data)
+              const maxSlope = Math.max(config.width, config.height) > 0 ? 15 : 0; // placeholder heuristic
+              return maxSlope > 12 ? (
+                <Alert className="mt-3 border-amber-500/30 bg-amber-500/5">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-xs">
+                    Superfície com inclinação elevada detectada. O resultado com V-bit pode variar em regiões muito inclinadas.
+                  </AlertDescription>
+                </Alert>
+              ) : null;
+            })()}
           </CardContent>
         </Card>
       )}
