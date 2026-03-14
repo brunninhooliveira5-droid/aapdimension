@@ -109,7 +109,19 @@ function extractToolpath(gcode: string, mesh: MeshInfo, probeData: MeshPoint[], 
         const segs = segmentMove(prev, ap, 1);
         for (const s of segs) {
           const offset = bilinearZ(s.x, s.y, mesh, probeData, cfg);
-          path.push({ x: s.x, y: s.y, z: s.z, zComp: s.z + offset });
+          let zComp = s.z + offset;
+          // V-bit depth compensation for cutting moves (Z < 0)
+          if (vbit?.enabled && vbit.compMode !== "off" && s.z < 0) {
+            if (vbit.compMode === "advanced") {
+              const slope = surfaceSlope(s.x, s.y, mesh, probeData, cfg);
+              const cosSlope = Math.cos(slope);
+              const adjDepth = cosSlope > 0.01 ? vbit.nominalDepth / cosSlope : vbit.nominalDepth;
+              zComp = offset - adjDepth;
+            } else {
+              zComp = offset - vbit.nominalDepth;
+            }
+          }
+          path.push({ x: s.x, y: s.y, z: s.z, zComp });
         }
         prev = ap;
       }
