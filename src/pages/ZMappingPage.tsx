@@ -17,10 +17,10 @@ import {
   Play, Ruler, Timer, Cpu, MapPin, Eye, EyeOff, CircleDot, Layers, ScanSearch
 } from "lucide-react";
 import {
-  analyzeGcode, generateMesh, generateUnifiedGcode,
+  analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
   defaultConfigMM, defaultConfigInch,
   fmt, type ZUnit, type GcodeAnalysis, type MeshConfig,
-  type ControllerType, type UnifiedResult,
+  type ControllerType, type UnifiedResult, type DensityMap,
 } from "@/lib/z-mapping-engine";
 
 /* ── localStorage persistence ──────────────────────────── */
@@ -44,6 +44,7 @@ interface SavedSettings {
   unit: ZUnit;
   areaMode: AreaMode;
   buffer: number;
+  mappingPrecision: MappingPrecision;
 }
 
 function loadSettings(): Partial<SavedSettings> {
@@ -83,6 +84,9 @@ function getTouchCount(precision: TouchPrecision): number {
 /* ── Area mode ───────────────────────────── */
 type AreaMode = "auto" | "manual";
 
+/* ── Mapping precision ───────────────────── */
+type MappingPrecision = "uniform" | "smart" | "maximum";
+
 export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
@@ -120,6 +124,9 @@ export default function ZMappingPage() {
   const [areaMode, setAreaMode] = useState<AreaMode>(saved.areaMode ?? "auto");
   const [buffer, setBuffer] = useState(saved.buffer ?? 5);
 
+  // Mapping precision
+  const [mappingPrecision, setMappingPrecision] = useState<MappingPrecision>(saved.mappingPrecision ?? "uniform");
+
   // Curve precision
   const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>(saved.curvePrecision ?? "medium");
   const [customArcSegLen, setCustomArcSegLen] = useState<number | null>(null);
@@ -152,12 +159,19 @@ export default function ZMappingPage() {
       probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit, areaMode, buffer,
+      outOfMeshRule, unit, areaMode, buffer, mappingPrecision,
     });
   }, [probeFeed, probeDepth, safeHeight, spacingX, spacingY,
       clearance, maxSegmentLen, decimalPlaces, controller,
       curvePrecision, touchPrecision, customTouches, touchStrategy,
-      outOfMeshRule, unit, areaMode, buffer]);
+      outOfMeshRule, unit, areaMode, buffer, mappingPrecision]);
+
+  // Density analysis
+  const densityMap = useMemo<DensityMap | null>(() => {
+    if (mappingPrecision !== "smart" || !originalGcode || effectiveWidth <= 0 || effectiveHeight <= 0) return null;
+    const cellCount = Math.max(4, Math.min(20, Math.round(Math.max(effectiveWidth, effectiveHeight) / spacing)));
+    return analyzeDensity(originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, cellCount, cellCount, arcSegmentLen);
+  }, [mappingPrecision, originalGcode, effectiveXStart, effectiveYStart, effectiveWidth, effectiveHeight, spacing, arcSegmentLen]);
 
   const config: MeshConfig = useMemo(() => ({
     unit,
@@ -172,8 +186,22 @@ export default function ZMappingPage() {
 
   const mesh = useMemo(() => {
     if (effectiveWidth <= 0 || effectiveHeight <= 0 || spacing <= 0) return null;
+    if (mappingPrecision === "smart" && densityMap) {
+      return generateAdaptiveMesh(config, densityMap, 2.0, 0.5);
+    }
+    if (mappingPrecision === "maximum") {
+      return generateDenseMesh(config, 0.5);
+    }
     return generateMesh(config);
-  }, [config, effectiveWidth, effectiveHeight, spacing]);
+  }, [config, effectiveWidth, effectiveHeight, spacing, mappingPrecision, densityMap]);
+
+  // Calculate uniform mesh for savings comparison
+  const uniformPointCount = useMemo(() => {
+    if (effectiveWidth <= 0 || effectiveHeight <= 0 || spacing <= 0) return 0;
+    const sx = Math.max(1, Math.round(effectiveWidth / spacing));
+    const sy = Math.max(1, Math.round(effectiveHeight / spacing));
+    return (sx + 1) * (sy + 1);
+  }, [effectiveWidth, effectiveHeight, spacing]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -337,6 +365,7 @@ export default function ZMappingPage() {
               yMin={analysis.yMin}
               xMax={analysis.xMax}
               yMax={analysis.yMax}
+              densityMap={densityMap}
             />
           </CardContent>
         </Card>
@@ -376,6 +405,37 @@ export default function ZMappingPage() {
                   A área de medição foi detectada automaticamente com base nos movimentos de corte do G-code.
                 </p>
               )}
+            </div>
+
+            {/* Mapping precision selector */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium">Precisão do mapeamento</Label>
+              <p className="text-xs text-muted-foreground">
+                {mappingPrecision === "smart"
+                  ? "Mais pontos onde há mais detalhes, menos pontos onde a peça é mais simples."
+                  : mappingPrecision === "maximum"
+                  ? "Grade densa em toda a área — maior precisão, mais tempo de medição."
+                  : "Grade regular com espaçamento uniforme em toda a área."
+                }
+              </p>
+              <RadioGroup
+                value={mappingPrecision}
+                onValueChange={(v) => setMappingPrecision(v as MappingPrecision)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="uniform" id="map-uniform" />
+                  <Label htmlFor="map-uniform" className="text-xs cursor-pointer">Uniforme</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="smart" id="map-smart" />
+                  <Label htmlFor="map-smart" className="text-xs cursor-pointer">Inteligente</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="maximum" id="map-max" />
+                  <Label htmlFor="map-max" className="text-xs cursor-pointer">Máxima</Label>
+                </div>
+              </RadioGroup>
             </div>
 
             {/* Auto mode: show buffer */}
@@ -456,8 +516,18 @@ export default function ZMappingPage() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Pontos de medição</p>
                 <p className="text-sm font-semibold flex items-center gap-1">
-                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.pointsPerRow} × {mesh.rows} = {mesh.totalPoints}
+                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.totalPoints}
                 </p>
+                {mappingPrecision === "smart" && uniformPointCount > 0 && mesh.totalPoints < uniformPointCount && (
+                  <p className="text-[10px] text-emerald-500">
+                    {Math.round((1 - mesh.totalPoints / uniformPointCount) * 100)}% menos medições
+                  </p>
+                )}
+                {mappingPrecision === "maximum" && uniformPointCount > 0 && mesh.totalPoints > uniformPointCount && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {Math.round((mesh.totalPoints / uniformPointCount - 1) * 100)}% mais medições
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Controlador</p>
@@ -474,6 +544,9 @@ export default function ZMappingPage() {
             </div>
             <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Modo: <strong className="text-foreground">{areaMode === "auto" ? "Automático" : "Manual"}</strong></span>
+              <span>Mapeamento: <strong className="text-foreground">
+                {mappingPrecision === "smart" ? "Inteligente" : mappingPrecision === "maximum" ? "Máxima" : "Uniforme"}
+              </strong></span>
               <span>Toques por ponto: <strong className="text-foreground">{touchesPerPoint}</strong></span>
               {analysis.arcCount > 0 && (
                 <>
