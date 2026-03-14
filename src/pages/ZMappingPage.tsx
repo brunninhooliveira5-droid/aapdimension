@@ -99,6 +99,7 @@ export default function ZMappingPage() {
   const saved = useMemo(() => loadSettings(), []);
 
   const [showAnimation, setShowAnimation] = useState(false);
+  const [wizardMode, setWizardMode] = useState(false);
   const [originalGcode, setOriginalGcode] = useState("");
   const [originalFileName, setOriginalFileName] = useState("");
   const [analysis, setAnalysis] = useState<GcodeAnalysis | null>(null);
