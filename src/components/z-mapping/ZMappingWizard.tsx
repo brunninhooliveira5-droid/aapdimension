@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { GcodePreview } from "./GcodePreview";
 import { CompensationSimulator3D } from "./CompensationSimulator3D";
-import { EnhancedHelpTip, PARAM_HELP, VisualHelpCard } from "./VisualHelpSystem";
+import { EnhancedHelpTip, PARAM_HELP } from "./VisualHelpSystem";
 import type { GcodeAnalysis, MeshInfo, MeshConfig, DensityMap, RetractionMode, UnifiedResult } from "@/lib/z-mapping-engine";
 import { fmt } from "@/lib/z-mapping-engine";
 
