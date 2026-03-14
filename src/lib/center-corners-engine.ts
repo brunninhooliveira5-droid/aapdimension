@@ -480,7 +480,9 @@ function generateCircleCenter(
 
   // Z Probe at center
   if (shouldDoZProbe(cfg)) {
-    if (cfg.controller === "mach3") {
+    if (cfg.zProbeMode === "manual") {
+      emitZProbe(cfg, out, d, probe, d(cfg.holeZManualOffsetX), d(cfg.holeZManualOffsetY), "Probe Z em posição manual");
+    } else if (cfg.controller === "mach3") {
       emitZProbe(cfg, out, d, probe, "#2050", "#2051", "Probe Z no centro da peça circular");
     } else {
       emitZProbe(cfg, out, d, probe, "0", "0", "Probe Z no centro da peça circular");
