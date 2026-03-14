@@ -161,7 +161,7 @@ export function analyzeGcode(text: string): GcodeAnalysis {
 }
 
 // ── Arc linearizer ────────────────────────────────────────────
-interface CncPos { x: number; y: number; z: number; f?: number }
+export interface CncPos { x: number; y: number; z: number; f?: number }
 
 function linearizeArc(
   from: CncPos,
