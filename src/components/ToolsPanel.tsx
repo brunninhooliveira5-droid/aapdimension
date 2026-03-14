@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical, Lock } from "lucide-react";
+import { Hammer, ChevronRight, Calculator, LayoutGrid, Box, PackageOpen, PanelTop, Route, FlaskConical, Lock, Grid3x3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,6 +22,7 @@ const labTools = [
   { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", sectionKey: "ferr_gerador_caixas" },
   { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", sectionKey: "ferr_planificador_acm" },
   { id: "gerador-percurso", label: "Gerador de Percurso", icon: Route, route: "/gerador-percurso", sectionKey: "ferr_gerador_percurso" },
+  { id: "mapeamento-z", label: "Mapeamento Z", icon: Grid3x3, route: "/mapeamento-z", sectionKey: "ferr_mapeamento_z" },
 ];
 
 function ToolButton({ tab, onClick }: { tab: typeof productionTools[0]; onClick: (route: string) => void }) {
