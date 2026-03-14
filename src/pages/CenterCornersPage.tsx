@@ -21,178 +21,7 @@ import {
   type ZProbeMode, type HoleZStrategy, type ProbeType, type PostLocationAction,
   type CustomProbeConfig, defaultCustomProbeConfig,
 } from "@/lib/center-corners-engine";
-
-/* ── Illustration SVGs ────────────────────────── */
-function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string; refinement: boolean; zProbe: boolean }) {
-  const flipX = quadrant.includes("right") ? -1 : 1;
-  const flipY = quadrant.includes("front") ? 1 : -1;
-  const cornerX = flipX > 0 ? 30 : 170;
-  const cornerY = flipY > 0 ? 140 : 20;
-  // Z probe point: inset TOWARD CENTER of piece (away from corner edge)
-  const zpX = cornerX + (flipX > 0 ? 18 : -18);
-  const zpY = cornerY + (flipY > 0 ? -18 : 18);
-  return (
-    <svg viewBox="0 0 200 160" className="w-full h-full">
-      <rect x="30" y="20" width="140" height="120" rx="2" fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.3" />
-      <rect x={flipX > 0 ? 30 : 100} y={flipY > 0 ? 72 : 20} width="70" height="68" rx="1"
-        fill="hsl(var(--primary))" opacity="0.08" stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="3 2" />
-      <line x1={flipX > 0 ? 10 : 190} y1="90" x2={flipX > 0 ? 30 : 170} y2="90"
-        stroke="hsl(var(--primary))" strokeWidth="2" markerEnd="url(#arrowCC)" opacity={refinement ? 0.35 : 1} />
-      <line x1="65" y1={flipY > 0 ? 158 : 2} x2="65" y2={flipY > 0 ? 140 : 20}
-        stroke="hsl(var(--chart-4))" strokeWidth="2" markerEnd="url(#arrowCC2)" opacity={refinement ? 0.35 : 1} />
-      {refinement && (
-        <>
-          <line x1={flipX > 0 ? 22 : 178} y1="80" x2={flipX > 0 ? 30 : 170} y2="80"
-            stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
-          <line x1="55" y1={flipY > 0 ? 146 : 14} x2="55" y2={flipY > 0 ? 140 : 20}
-            stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef)" />
-        </>
-      )}
-      <circle cx={cornerX} cy={cornerY} r="4" fill="hsl(var(--primary))" />
-      {zProbe && (
-        <>
-          <line x1={zpX} y1={zpY - 12} x2={zpX} y2={zpY} stroke="hsl(var(--chart-5))" strokeWidth="2.5" markerEnd="url(#arrowZ)" />
-          <circle cx={zpX} cy={zpY} r="3" fill="none" stroke="hsl(var(--chart-5))" strokeWidth="1.5" strokeDasharray="2 1" />
-          <text x={zpX + 8} y={zpY + 3} fontSize="6" fill="hsl(var(--chart-5))" fontWeight="600">Z</text>
-        </>
-      )}
-      <defs>
-        <marker id="arrowCC" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--primary))" /></marker>
-        <marker id="arrowCC2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--chart-4))" /></marker>
-        <marker id="arrowRef" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--chart-2))" /></marker>
-        <marker id="arrowZ" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto"><path d="M0,0 L3,6 L6,0" fill="hsl(var(--chart-5))" /></marker>
-      </defs>
-    </svg>
-  );
-}
-
-function IllustrationRectCenter({ refinement, zProbe }: { refinement: boolean; zProbe: boolean }) {
-  return (
-    <svg viewBox="0 0 200 160" className="w-full h-full">
-      <rect x="40" y="30" width="120" height="100" rx="2"
-        fill="hsl(var(--muted))" opacity="0.3" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" />
-      <line x1="15" y1="80" x2="40" y2="80" stroke="hsl(var(--primary))" strokeWidth="2" markerEnd="url(#arrowR)" opacity={refinement ? 0.3 : 1} />
-      <line x1="185" y1="80" x2="160" y2="80" stroke="hsl(var(--primary))" strokeWidth="2" markerEnd="url(#arrowR)" opacity={refinement ? 0.3 : 1} />
-      <line x1="100" y1="8" x2="100" y2="30" stroke="hsl(var(--chart-4))" strokeWidth="2" markerEnd="url(#arrowR2)" opacity={refinement ? 0.3 : 1} />
-      <line x1="100" y1="152" x2="100" y2="130" stroke="hsl(var(--chart-4))" strokeWidth="2" markerEnd="url(#arrowR2)" opacity={refinement ? 0.3 : 1} />
-      {refinement && (
-        <>
-          <line x1="32" y1="72" x2="40" y2="72" stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef2)" />
-          <line x1="168" y1="72" x2="160" y2="72" stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef2)" />
-          <line x1="108" y1="22" x2="108" y2="30" stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef2)" />
-          <line x1="108" y1="138" x2="108" y2="130" stroke="hsl(var(--chart-2))" strokeWidth="2.5" markerEnd="url(#arrowRef2)" />
-        </>
-      )}
-      <circle cx="100" cy="80" r="5" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" />
-      <line x1="95" y1="80" x2="105" y2="80" stroke="hsl(var(--primary))" strokeWidth="1" />
-      <line x1="100" y1="75" x2="100" y2="85" stroke="hsl(var(--primary))" strokeWidth="1" />
-      {zProbe && (
-        <>
-          <line x1="100" y1="62" x2="100" y2="74" stroke="hsl(var(--chart-5))" strokeWidth="2.5" markerEnd="url(#arrowZR)" />
-          <text x="108" y="67" fontSize="7" fill="hsl(var(--chart-5))" fontWeight="600">Z</text>
-        </>
-      )}
-      <defs>
-        <marker id="arrowR" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--primary))" /></marker>
-        <marker id="arrowR2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--chart-4))" /></marker>
-        <marker id="arrowRef2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="hsl(var(--chart-2))" /></marker>
-        <marker id="arrowZR" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto"><path d="M0,0 L3,6 L6,0" fill="hsl(var(--chart-5))" /></marker>
-      </defs>
-    </svg>
-  );
-}
-
-function IllustrationCircleCenter({ points, refinement, zProbe }: { points: number; refinement: boolean; zProbe: boolean }) {
-  const cx = 100, cy = 80, r = 50;
-  const rClose = 42;
-  const pts = Array.from({ length: points }, (_, i) => {
-    const a = (i / points) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
-  });
-  return (
-    <svg viewBox="0 0 200 160" className="w-full h-full">
-      <circle cx={cx} cy={cy} r={r} fill="hsl(var(--muted))" opacity="0.2"
-        stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" />
-      {pts.map((p, i) => {
-        const a = (i / points) * Math.PI * 2 - Math.PI / 2;
-        return (
-          <g key={i}>
-            <line x1={cx + Math.cos(a) * (r + 18)} y1={cy + Math.sin(a) * (r + 18)}
-              x2={p.x} y2={p.y}
-              stroke="hsl(var(--primary))" strokeWidth="1.5" opacity={refinement ? 0.3 : 0.6} />
-            {refinement && (
-              <line x1={cx + Math.cos(a) * (rClose + 8)} y1={cy + Math.sin(a) * (rClose + 8)}
-                x2={cx + Math.cos(a) * r} y2={cy + Math.sin(a) * r}
-                stroke="hsl(var(--chart-2))" strokeWidth="2" opacity="0.8" />
-            )}
-            <circle cx={p.x} cy={p.y} r="3.5" fill="hsl(var(--primary))" />
-          </g>
-        );
-      })}
-      <circle cx={cx} cy={cy} r="4" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" />
-      <line x1={cx - 5} y1={cy} x2={cx + 5} y2={cy} stroke="hsl(var(--primary))" strokeWidth="1" />
-      <line x1={cx} y1={cy - 5} x2={cx} y2={cy + 5} stroke="hsl(var(--primary))" strokeWidth="1" />
-      {zProbe && (
-        <>
-          <line x1={cx} y1={cy - 16} x2={cx} y2={cy - 5} stroke="hsl(var(--chart-5))" strokeWidth="2.5" markerEnd="url(#arrowZC)" />
-          <text x={cx + 8} y={cy - 10} fontSize="7" fill="hsl(var(--chart-5))" fontWeight="600">Z</text>
-        </>
-      )}
-      <defs>
-        <marker id="arrowZC" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto"><path d="M0,0 L3,6 L6,0" fill="hsl(var(--chart-5))" /></marker>
-      </defs>
-    </svg>
-  );
-}
-
-function IllustrationHoleCenter({ refinement, zProbe, holeZStrategy }: { refinement: boolean; zProbe: boolean; holeZStrategy: HoleZStrategy }) {
-  const cx = 100, cy = 80, r = 40;
-  const rClose = 32;
-  // Safe Z probe point: outside hole on the material surface
-  const zpX = cx + r + 14;
-  const zpY = cy;
-  return (
-    <svg viewBox="0 0 200 160" className="w-full h-full">
-      <rect x="35" y="25" width="130" height="110" rx="2" fill="hsl(var(--muted))" opacity="0.15"
-        stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" />
-      <circle cx={cx} cy={cy} r={r} fill="hsl(var(--background))"
-        stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" />
-      <line x1={cx} y1={cy} x2={cx + r - 4} y2={cy} stroke="hsl(var(--primary))" strokeWidth="1.5" markerEnd="url(#arrowH)" opacity={refinement ? 0.3 : 1} />
-      <line x1={cx} y1={cy} x2={cx - r + 4} y2={cy} stroke="hsl(var(--primary))" strokeWidth="1.5" markerEnd="url(#arrowH)" opacity={refinement ? 0.3 : 1} />
-      <line x1={cx} y1={cy} x2={cx} y2={cy + r - 4} stroke="hsl(var(--chart-4))" strokeWidth="1.5" markerEnd="url(#arrowH2)" opacity={refinement ? 0.3 : 1} />
-      <line x1={cx} y1={cy} x2={cx} y2={cy - r + 4} stroke="hsl(var(--chart-4))" strokeWidth="1.5" markerEnd="url(#arrowH2)" opacity={refinement ? 0.3 : 1} />
-      {refinement && (
-        <>
-          <line x1={cx} y1={cy} x2={cx + rClose - 2} y2={cy} stroke="hsl(var(--chart-2))" strokeWidth="2" markerEnd="url(#arrowHR)" />
-          <line x1={cx} y1={cy} x2={cx - rClose + 2} y2={cy} stroke="hsl(var(--chart-2))" strokeWidth="2" markerEnd="url(#arrowHR)" />
-          <line x1={cx} y1={cy} x2={cx} y2={cy + rClose - 2} stroke="hsl(var(--chart-2))" strokeWidth="2" markerEnd="url(#arrowHR)" />
-          <line x1={cx} y1={cy} x2={cx} y2={cy - rClose + 2} stroke="hsl(var(--chart-2))" strokeWidth="2" markerEnd="url(#arrowHR)" />
-        </>
-      )}
-      <circle cx={cx} cy={cy} r="3" fill="hsl(var(--primary))" />
-      {zProbe && holeZStrategy !== "none" && (
-        <>
-          {/* Dashed line from center to safe point */}
-          <line x1={cx + r} y1={cy} x2={zpX} y2={zpY}
-            stroke="hsl(var(--chart-5))" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-          {/* Z arrow at safe point */}
-          <line x1={zpX} y1={zpY - 14} x2={zpX} y2={zpY} stroke="hsl(var(--chart-5))" strokeWidth="2.5" markerEnd="url(#arrowHZ)" />
-          <circle cx={zpX} cy={zpY} r="3.5" fill="none" stroke="hsl(var(--chart-5))" strokeWidth="1.5" strokeDasharray="2 1" />
-          <text x={zpX + 6} y={zpY - 6} fontSize="6" fill="hsl(var(--chart-5))" fontWeight="600">Z seguro</text>
-          {/* X mark at center to show "no Z here" */}
-          <line x1={cx - 3} y1={cy - 8} x2={cx + 3} y2={cy - 4} stroke="hsl(var(--destructive))" strokeWidth="1.5" opacity="0.6" />
-          <line x1={cx + 3} y1={cy - 8} x2={cx - 3} y2={cy - 4} stroke="hsl(var(--destructive))" strokeWidth="1.5" opacity="0.6" />
-        </>
-      )}
-      <defs>
-        <marker id="arrowH" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="hsl(var(--primary))" /></marker>
-        <marker id="arrowH2" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="hsl(var(--chart-4))" /></marker>
-        <marker id="arrowHR" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="hsl(var(--chart-2))" /></marker>
-        <marker id="arrowHZ" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto"><path d="M0,0 L3,6 L6,0" fill="hsl(var(--chart-5))" /></marker>
-      </defs>
-    </svg>
-  );
-}
+import InteractiveProbeDiagram from "@/components/center-corners/InteractiveProbeDiagram";
 
 /* ── Mode metadata ─────────────────────────────── */
 const MODE_INFO: Record<LocationMode, { label: string; icon: typeof Square; desc: string }> = {
@@ -687,62 +516,62 @@ export default function CenterCornersPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2">
             {showPreview ? (
-              <div className="max-w-md mx-auto">
-                <div className="rounded-xl border border-border bg-card/50 p-6">
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    {(() => { const Icon = modeInfo.icon; return <Icon className="h-5 w-5 text-primary" />; })()}
-                    <h2 className="text-sm font-semibold">{modeInfo.label}</h2>
-                    {refinementEnabled && (
-                      <Badge variant="outline" className="text-[9px] border-chart-2 text-chart-2 gap-1">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Conferência
-                      </Badge>
-                    )}
-                    {zProbeActive && (
-                      <Badge variant="outline" className="text-[9px] border-chart-5 text-chart-5 gap-1">
-                        <ArrowDown className="h-2.5 w-2.5" /> Probe Z
-                      </Badge>
-                    )}
-                    {probeType === "custom" && (
-                      <Badge variant="outline" className="text-[9px] border-chart-3 text-chart-3 gap-1">
-                        <Wrench className="h-2.5 w-2.5" /> Custom
-                      </Badge>
-                    )}
-                    {postAction === "locate-machining" && (
-                      <Badge variant="outline" className="text-[9px] border-chart-1 text-chart-1 gap-1">
-                        <FileText className="h-2.5 w-2.5" /> + Trabalho
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className="text-[9px] ml-auto">
-                      {controller.toUpperCase()}
+              <div className="h-full flex flex-col">
+                <div className="flex items-center gap-2 mb-2 px-2 flex-wrap">
+                  {(() => { const Icon = modeInfo.icon; return <Icon className="h-4 w-4 text-primary" />; })()}
+                  <h2 className="text-xs font-semibold">{modeInfo.label}</h2>
+                  {refinementEnabled && (
+                    <Badge variant="outline" className="text-[9px] border-chart-2 text-chart-2 gap-1">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Conferência
                     </Badge>
-                  </div>
-                  <div className="aspect-[5/4] bg-muted/20 rounded-lg border border-border/50 mb-4 p-2">
-                    {mode === "corner" && <IllustrationCorner quadrant={cornerQuadrant} refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "rect-center" && <IllustrationRectCenter refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "circle-center" && <IllustrationCircleCenter points={circlePoints} refinement={refinementEnabled} zProbe={zProbeActive} />}
-                    {mode === "hole-center" && <IllustrationHoleCenter refinement={refinementEnabled} zProbe={zProbeActive} holeZStrategy={holeZStrategy} />}
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">{modeInfo.desc}</p>
-                  {/* Legend */}
-                  <div className="mt-3 flex items-center gap-2 justify-center flex-wrap">
-                    {refinementEnabled && (
-                      <>
-                        <div className="h-0.5 w-5 rounded bg-primary opacity-40" />
-                        <span className="text-[9px] text-muted-foreground">1º toque</span>
-                        <div className="h-0.5 w-5 rounded bg-chart-2" />
-                        <span className="text-[9px] text-chart-2 font-medium">conferência</span>
-                      </>
-                    )}
-                    {zProbeActive && (
-                      <>
-                        <div className="h-0.5 w-5 rounded bg-chart-5" />
-                        <span className="text-[9px] text-chart-5 font-medium">probe Z</span>
-                      </>
-                    )}
-                  </div>
+                  )}
+                  {zProbeActive && (
+                    <Badge variant="outline" className="text-[9px] border-chart-5 text-chart-5 gap-1">
+                      <ArrowDown className="h-2.5 w-2.5" /> Probe Z
+                    </Badge>
+                  )}
+                  {probeType === "custom" && (
+                    <Badge variant="outline" className="text-[9px] border-chart-3 text-chart-3 gap-1">
+                      <Wrench className="h-2.5 w-2.5" /> Custom
+                    </Badge>
+                  )}
+                  {postAction === "locate-machining" && (
+                    <Badge variant="outline" className="text-[9px] border-chart-1 text-chart-1 gap-1">
+                      <FileText className="h-2.5 w-2.5" /> + Trabalho
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[9px] ml-auto">
+                    {controller.toUpperCase()}
+                  </Badge>
                 </div>
+                <div className="flex-1 rounded-lg border border-border/50 bg-muted/10 overflow-hidden">
+                  <InteractiveProbeDiagram
+                    mode={mode}
+                    cornerQuadrant={cornerQuadrant}
+                    approxSizeX={approxSizeX}
+                    approxSizeY={approxSizeY}
+                    approxDiameter={approxDiameter}
+                    circlePoints={circlePoints}
+                    probeFeed={probeFeed}
+                    probeDepth={probeDepth}
+                    safeZ={safeZ}
+                    refinementEnabled={refinementEnabled}
+                    refinementDistance={refinementDistance}
+                    zProbeActive={zProbeActive}
+                    zCornerInset={zCornerInset}
+                    holeZStrategy={holeZStrategy}
+                    holeZSafetyMargin={holeZSafetyMargin}
+                    onApproxSizeXChange={setApproxSizeX}
+                    onApproxSizeYChange={setApproxSizeY}
+                    onApproxDiameterChange={setApproxDiameter}
+                    onSafeZChange={setSafeZ}
+                    onZCornerInsetChange={setZCornerInset}
+                    onHoleZSafetyMarginChange={setHoleZSafetyMargin}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-1">{modeInfo.desc}</p>
               </div>
             ) : (
               <div className="h-full">
