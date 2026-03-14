@@ -3,18 +3,18 @@ import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import {
   parseGcodeLine, linearizeArc, segmentMove,
-  type MeshInfo, type MeshConfig, type CncPos,
+  type MeshInfo, type MeshConfig, type CncPos, type DensityMap,
 } from "@/lib/z-mapping-engine";
 
 interface Props {
   originalGcode: string;
   mesh: MeshInfo | null;
   config: MeshConfig;
-  /** Bounding box from analysis */
   xMin: number;
   yMin: number;
   xMax: number;
   yMax: number;
+  densityMap?: DensityMap | null;
 }
 
 interface PathSeg { x: number; y: number; z: number; rapid: boolean }
@@ -55,7 +55,13 @@ function extractPaths(gcode: string, arcSegLen: number): PathSeg[] {
   return path;
 }
 
-export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yMax }: Props) {
+function densityColor(density: "low" | "medium" | "high"): string {
+  if (density === "high") return "rgba(239,68,68,0.15)";
+  if (density === "medium") return "rgba(234,179,8,0.1)";
+  return "rgba(59,130,246,0.05)";
+}
+
+export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yMax, densityMap }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -77,7 +83,6 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
     canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Background
     ctx.fillStyle = "#0c0c14";
     ctx.fillRect(0, 0, W, H);
 
@@ -85,7 +90,6 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
     const areaW = W - pad * 2;
     const areaH = H - pad * 2;
 
-    // Compute bounds - use mesh area if available, else gcode bounds
     const bx0 = mesh ? config.xStart : xMin;
     const by0 = mesh ? config.yStart : yMin;
     const bw = mesh ? config.width : (xMax - xMin || 1);
@@ -103,6 +107,23 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
     const toSX = (x: number) => ox + (x - bx0) * scale;
     const toSY = (y: number) => oy - (y - by0) * scale;
 
+    // Draw density heatmap cells
+    if (densityMap) {
+      for (let r = 0; r < densityMap.cellsY; r++) {
+        for (let c = 0; c < densityMap.cellsX; c++) {
+          const cell = densityMap.cells[r][c];
+          const cellX = config.xStart + c * densityMap.cellW;
+          const cellY = config.yStart + r * densityMap.cellH;
+          const sx = toSX(cellX);
+          const sy = toSY(cellY + densityMap.cellH);
+          const sw = densityMap.cellW * scale;
+          const sh = densityMap.cellH * scale;
+          ctx.fillStyle = densityColor(cell.density);
+          ctx.fillRect(sx, sy, sw, sh);
+        }
+      }
+    }
+
     // Draw mesh area boundary
     if (mesh) {
       ctx.strokeStyle = "rgba(59,130,246,0.4)";
@@ -115,23 +136,25 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
       ctx.strokeRect(mx0, my0, mw, mh);
       ctx.setLineDash([]);
 
-      // Draw grid lines
-      ctx.strokeStyle = "rgba(59,130,246,0.12)";
-      ctx.lineWidth = 0.5;
-      for (let r = 0; r < mesh.rows; r++) {
-        const y = toSY(config.yStart + r * mesh.actualSpacingY);
-        ctx.beginPath(); ctx.moveTo(mx0, y); ctx.lineTo(mx0 + mw, y); ctx.stroke();
-      }
-      for (let c = 0; c < mesh.pointsPerRow; c++) {
-        const x = toSX(config.xStart + c * mesh.actualSpacingX);
-        ctx.beginPath(); ctx.moveTo(x, my0); ctx.lineTo(x, my0 + mh); ctx.stroke();
+      // Draw grid lines (only for uniform mesh)
+      if (!densityMap) {
+        ctx.strokeStyle = "rgba(59,130,246,0.12)";
+        ctx.lineWidth = 0.5;
+        for (let r = 0; r < mesh.rows; r++) {
+          const y = toSY(config.yStart + r * mesh.actualSpacingY);
+          ctx.beginPath(); ctx.moveTo(mx0, y); ctx.lineTo(mx0 + mw, y); ctx.stroke();
+        }
+        for (let c = 0; c < mesh.pointsPerRow; c++) {
+          const x = toSX(config.xStart + c * mesh.actualSpacingX);
+          ctx.beginPath(); ctx.moveTo(x, my0); ctx.lineTo(x, my0 + mh); ctx.stroke();
+        }
       }
 
       // Draw grid points
-      ctx.fillStyle = "rgba(59,130,246,0.5)";
+      ctx.fillStyle = densityMap ? "rgba(59,130,246,0.7)" : "rgba(59,130,246,0.5)";
       for (const pt of mesh.points) {
         ctx.beginPath();
-        ctx.arc(toSX(pt.x), toSY(pt.y), 2.5, 0, Math.PI * 2);
+        ctx.arc(toSX(pt.x), toSY(pt.y), densityMap ? 3 : 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -143,9 +166,8 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
         const p0 = path[i - 1];
         const p1 = path[i];
 
-        if (p1.rapid) continue; // skip rapids
+        if (p1.rapid) continue;
 
-        // Check if outside mesh
         let outOfMesh = false;
         if (mesh) {
           const ex = config.xStart + config.width;
@@ -181,7 +203,7 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
     ctx.strokeRect(wx0, wy0, ww, wh);
     ctx.setLineDash([]);
 
-  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax]);
+  }, [originalGcode, mesh, config, zoom, panOffset, xMin, yMin, xMax, yMax, densityMap]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsPanning(true);
@@ -225,8 +247,9 @@ export function GcodePreview({ originalGcode, mesh, config, xMin, yMin, xMax, yM
       </div>
       <div className="absolute bottom-2 right-2 flex gap-2 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-emerald-500 inline-block rounded" /> Corte</span>
-        {mesh && <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-blue-500 inline-block rounded" /> Grade</span>}
+        {mesh && <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-blue-500 inline-block rounded" /> Pontos</span>}
         <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-red-500 inline-block rounded" /> Fora da grade</span>
+        {densityMap && <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-500/20 inline-block rounded" /> Alta densidade</span>}
       </div>
     </div>
   );
