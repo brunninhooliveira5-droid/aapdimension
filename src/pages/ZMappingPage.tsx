@@ -364,10 +364,15 @@ export default function ZMappingPage() {
     return s > 0 ? `${m}min ${s}s` : `${m}min`;
   };
 
-  const numField = (label: string, value: number, onChange: (v: number) => void, step?: number, help?: string) => (
+  const numField = (label: string, value: number, onChange: (v: number) => void, step?: number, help?: string, helpKey?: string) => (
     <div className="space-y-1">
       <Label className="text-[11px] flex items-center gap-1">
-        {label} {help && <HelpTip text={help} />}
+        {label}
+        {helpKey && PARAM_HELP[helpKey] ? (
+          <EnhancedHelpTip {...PARAM_HELP[helpKey]} />
+        ) : help ? (
+          <EnhancedHelpTip text={help} />
+        ) : null}
       </Label>
       <Input type="number" value={value} step={step ?? (unit === "mm" ? 1 : 0.01)}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
