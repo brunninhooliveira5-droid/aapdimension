@@ -731,9 +731,9 @@ export default function ZMappingPage() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Simulator ── */}
+      {/* ── Simulator 3D ── */}
       {analysis && mesh && originalGcode && showSimulator && (
-        <CompensationSimulator
+        <CompensationSimulator3D
           originalGcode={originalGcode}
           mesh={mesh}
           config={config}
