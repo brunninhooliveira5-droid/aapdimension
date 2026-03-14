@@ -368,6 +368,7 @@ function CameraController({
   controlsRef: React.MutableRefObject<any>;
 }) {
   const { camera } = useThree();
+  const initialized = useRef(false);
 
   const applyPreset = useCallback((kind: "top" | "side" | "iso") => {
     const cx = config.width / 2;
@@ -397,9 +398,12 @@ function CameraController({
     }
   }, [camera, config.width, config.height, surfMin, surfMax, controlsRef]);
 
-  useEffect(() => {
+  // Ensure initial preset applies after controls are mounted.
+  useFrame(() => {
+    if (initialized.current || !controlsRef.current) return;
     applyPreset("iso");
-  }, [applyPreset]);
+    initialized.current = true;
+  });
 
   useEffect(() => {
     if (!preset) return;
