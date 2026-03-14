@@ -514,7 +514,9 @@ export function generateUnifiedGcode(
   mesh: MeshInfo,
   cfg: MeshConfig,
   originalName: string,
-  controller: ControllerType
+  controller: ControllerType,
+  touchesPerPoint: number = 1,
+  touchStrategy: "last" | "average" = "last"
 ): UnifiedResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
