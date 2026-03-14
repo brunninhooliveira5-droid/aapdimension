@@ -25,9 +25,9 @@ function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string
   const flipY = quadrant.includes("front") ? 1 : -1;
   const cornerX = flipX > 0 ? 30 : 170;
   const cornerY = flipY > 0 ? 140 : 20;
-  // Z probe point: inset from corner
-  const zpX = cornerX + (flipX > 0 ? 12 : -12);
-  const zpY = cornerY + (flipY > 0 ? 12 : -12);
+  // Z probe point: inset TOWARD CENTER of piece (away from corner edge)
+  const zpX = cornerX + (flipX > 0 ? 18 : -18);
+  const zpY = cornerY + (flipY > 0 ? -18 : 18);
   return (
     <svg viewBox="0 0 200 160" className="w-full h-full">
       <rect x="30" y="20" width="140" height="120" rx="2" fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.3" />
@@ -531,9 +531,18 @@ export default function CenterCornersPage() {
                       <NumField label="Curso do probe Z (mm)" value={zProbeTravel} onChange={setZProbeTravel} step={1}
                         hint="Distância máxima de descida (negativo)." />
 
-                      {mode === "corner" && (
+                      {mode === "corner" && zProbeMode === "auto" && (
                         <NumField label="Recuo interno da aresta (mm)" value={zCornerInset} onChange={setZCornerInset} step={0.5}
                           hint="Deslocamento para dentro ao medir Z na quina." />
+                      )}
+
+                      {mode === "corner" && zProbeMode === "manual" && (
+                        <>
+                          <NumField label="Posição X para probe Z (mm)" value={holeZManualOffsetX} onChange={setHoleZManualOffsetX} step={1}
+                            hint="Coordenada X onde o probe Z será realizado." />
+                          <NumField label="Posição Y para probe Z (mm)" value={holeZManualOffsetY} onChange={setHoleZManualOffsetY} step={1}
+                            hint="Coordenada Y onde o probe Z será realizado." />
+                        </>
                       )}
 
                       {mode === "hole-center" && holeZStrategy === "auto-safe" && (

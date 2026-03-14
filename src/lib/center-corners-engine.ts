@@ -245,17 +245,32 @@ function generateCorner(
 
   // Z Probe — offset inward to avoid edge
   if (shouldDoZProbe(cfg)) {
-    const insetX = dirX * -cfg.zCornerInset; // move inward from corner
-    const insetY = dirY * -cfg.zCornerInset;
-    if (cfg.controller === "mach3") {
-      emitZProbe(cfg, out, d, probe,
-        `[#2010 + ${d(insetX)}]`, `[#2011 + ${d(insetY)}]`,
-        "Probe Z com recuo da aresta"
-      );
+    if (cfg.zProbeMode === "manual") {
+      // Manual: user-specified position
+      if (cfg.controller === "mach3") {
+        emitZProbe(cfg, out, d, probe,
+          `[#2010 + ${d(cfg.holeZManualOffsetX)}]`, `[#2011 + ${d(cfg.holeZManualOffsetY)}]`,
+          "Probe Z em posição manual"
+        );
+      } else {
+        emitZProbe(cfg, out, d, probe, d(cfg.holeZManualOffsetX), d(cfg.holeZManualOffsetY),
+          "Probe Z em posição manual"
+        );
+      }
     } else {
-      emitZProbe(cfg, out, d, probe, d(insetX), d(insetY),
-        "Probe Z com recuo da aresta"
-      );
+      // Auto: inset inward from corner onto the piece
+      const insetX = dirX * -cfg.zCornerInset; // move inward from corner
+      const insetY = dirY * -cfg.zCornerInset;
+      if (cfg.controller === "mach3") {
+        emitZProbe(cfg, out, d, probe,
+          `[#2010 + ${d(insetX)}]`, `[#2011 + ${d(insetY)}]`,
+          "Probe Z com recuo da aresta"
+        );
+      } else {
+        emitZProbe(cfg, out, d, probe, d(insetX), d(insetY),
+          "Probe Z com recuo da aresta"
+        );
+      }
     }
   }
 
