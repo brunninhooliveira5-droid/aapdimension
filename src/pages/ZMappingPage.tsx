@@ -516,8 +516,18 @@ export default function ZMappingPage() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Pontos de medição</p>
                 <p className="text-sm font-semibold flex items-center gap-1">
-                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.pointsPerRow} × {mesh.rows} = {mesh.totalPoints}
+                  <Grid3x3 className="h-3.5 w-3.5 text-primary" /> {mesh.totalPoints}
                 </p>
+                {mappingPrecision === "smart" && uniformPointCount > 0 && mesh.totalPoints < uniformPointCount && (
+                  <p className="text-[10px] text-emerald-500">
+                    {Math.round((1 - mesh.totalPoints / uniformPointCount) * 100)}% menos medições
+                  </p>
+                )}
+                {mappingPrecision === "maximum" && uniformPointCount > 0 && mesh.totalPoints > uniformPointCount && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {Math.round((mesh.totalPoints / uniformPointCount - 1) * 100)}% mais medições
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Controlador</p>
