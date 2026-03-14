@@ -259,8 +259,32 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetX, setHoleZManualOffsetX] = useState(defaultCenterCornersConfig.holeZManualOffsetX);
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
 
+  // Custom probe
+  const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
+  const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
+  const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
+
+  // Post-location action
+  const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
+  const [workGcode, setWorkGcode] = useState<string>("");
+  const [workFileName, setWorkFileName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const modeInfo = MODE_INFO[mode];
   const zProbeActive = zProbeMode !== "none";
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setWorkFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setWorkGcode(ev.target?.result as string || "");
+      toast.success(`Arquivo "${file.name}" carregado!`);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
 
   const handleGenerate = useCallback(() => {
     const cfg: CenterCornersConfig = {
@@ -271,15 +295,17 @@ export default function CenterCornersPage() {
       refinementEnabled, refinementDistance, refinementFeed, refinementCycles,
       zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset,
       holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY,
+      probeType, customProbe, postAction,
     };
     try {
-      const r = generateCenterCornersGcode(cfg);
+      const gcWork = postAction === "locate-machining" ? workGcode : undefined;
+      const r = generateCenterCornersGcode(cfg, gcWork);
       setResult(r);
       toast.success("G-code gerado com sucesso!");
     } catch (err: any) {
       toast.error("Erro: " + (err?.message || "erro desconhecido"));
     }
-  }, [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY]);
+  }, [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY, probeType, customProbe, postAction, workGcode]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
