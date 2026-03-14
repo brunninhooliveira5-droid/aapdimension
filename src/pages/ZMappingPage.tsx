@@ -14,7 +14,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Upload, Grid3x3, Download, CheckCircle2, FileUp, Settings2, ChevronDown,
@@ -22,6 +21,7 @@ import {
   PenTool, AlertTriangle, ShieldCheck, Wand2, Save, Box, Crosshair,
   HelpCircle, Monitor, BarChart3, Gauge, Activity,
 } from "lucide-react";
+import { EnhancedHelpTip, PARAM_HELP } from "@/components/z-mapping/VisualHelpSystem";
 import {
   analyzeGcode, generateMesh, generateUnifiedGcode, analyzeDensity, generateAdaptiveMesh, generateDenseMesh,
   defaultConfigMM, defaultConfigInch,
@@ -103,22 +103,9 @@ type ToolTypeOption = "straight" | "fine-tip" | "vbit";
 /* ── View mode for central area ──────────── */
 type ViewMode = "gcode" | "surface" | "simulation";
 
-/* ── Help tooltip ────────────────────────── */
+/* ── Help tooltip (uses VisualHelpSystem) ────────────── */
 function HelpTip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button type="button" className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">
-            <HelpCircle className="h-3 w-3" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px] text-xs">
-          {text}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+  return <EnhancedHelpTip text={text} />;
 }
 
 export default function ZMappingPage() {
@@ -377,10 +364,15 @@ export default function ZMappingPage() {
     return s > 0 ? `${m}min ${s}s` : `${m}min`;
   };
 
-  const numField = (label: string, value: number, onChange: (v: number) => void, step?: number, help?: string) => (
+  const numField = (label: string, value: number, onChange: (v: number) => void, step?: number, help?: string, helpKey?: string) => (
     <div className="space-y-1">
       <Label className="text-[11px] flex items-center gap-1">
-        {label} {help && <HelpTip text={help} />}
+        {label}
+        {helpKey && PARAM_HELP[helpKey] ? (
+          <EnhancedHelpTip {...PARAM_HELP[helpKey]} />
+        ) : help ? (
+          <EnhancedHelpTip text={help} />
+        ) : null}
       </Label>
       <Input type="number" value={value} step={step ?? (unit === "mm" ? 1 : 0.01)}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
@@ -508,13 +500,13 @@ export default function ZMappingPage() {
               <div className="space-y-3">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Medição</p>
                 {numField(`Altura segura (${unit})`, safeHeight, setSafeHeight, undefined,
-                  "Altura em que a ferramenta se move sem tocar na peça.")}
+                  undefined, "safeHeight")}
                 {numField(`Distância X (${unit})`, spacingX, setSpacingX, undefined,
-                  "Quanto menor a distância, mais preciso será o mapeamento.")}
+                  undefined, "spacingX")}
                 {numField(`Distância Y (${unit})`, spacingY, setSpacingY, undefined,
-                  "Quanto menor a distância, mais preciso será o mapeamento.")}
+                  undefined, "spacingY")}
                 {numField(`Vel. toque (${unit}/min)`, probeFeed, setProbeFeed, undefined,
-                  "Velocidade usada pela máquina para tocar a superfície.")}
+                  undefined, "probeFeed")}
               </div>
 
               <Separator />
@@ -630,7 +622,7 @@ export default function ZMappingPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-2">
                   {numField("Prof. máxima probe", probeDepth, setProbeDepth, 0.01,
-                    "Profundidade máxima que o probe irá descer.")}
+                    undefined, "probeDepth")}
                   {numField(`Folga adaptativa (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
                   
                   {engravingMode === "vbit-curved" && toolType === "vbit" && (
