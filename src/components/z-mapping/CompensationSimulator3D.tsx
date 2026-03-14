@@ -663,7 +663,7 @@ export function CompensationSimulator3D({ originalGcode, mesh, config, onClose, 
                   path={path} surfMin={surfMin} surfMax={surfMax}
                   showSurface={showSurface} showOriginal={showOriginal} showCompensated={showCompensated}
                   showAnimation={showAnimation} animProgress={animProgress} animSpeed={animSpeed}
-                  cameraPreset={cameraPreset?.startsWith("top") ? "top" : cameraPreset?.startsWith("side") ? "side" : cameraPreset?.startsWith("iso") ? "iso" : null}
+                  cameraPreset={cameraPreset}
                 />
               </Canvas>
             </div>
