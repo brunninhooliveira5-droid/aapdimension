@@ -502,18 +502,30 @@ export interface RetractionConfig {
 
 // ── Custom probe types ────────────────────────────────────────
 export type ProbeType = "standard" | "custom";
+export type PostMappingMode = "manual" | "auto_offset" | "auto_measure";
+
+export interface ToolMeasureConfig {
+  measureX: number;
+  measureY: number;
+  measureCommand: string;  // e.g. "G31 Z-50 F100"
+  measureDwell: number;
+}
 
 export interface CustomProbeConfig {
   enabled: boolean;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
-  startCommand: string;   // e.g. "M11"
-  startDwell: number;     // seconds
+  startCommand: string;
+  startDwell: number;
   startSafeZ: number;
-  endCommand: string;     // e.g. "M10"
-  endDwell: number;       // seconds
+  endCommand: string;
+  endDwell: number;
   endSafeZ: number;
+  postMappingMode: PostMappingMode;
+  toolOffsetZ: number;         // offset final da ferramenta (probe tip → tool tip)
+  postSafeZ: number;           // altura segura após recolhimento
+  toolMeasure?: ToolMeasureConfig;
 }
 
 export function generateProbeGcode(
