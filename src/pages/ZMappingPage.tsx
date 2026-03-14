@@ -103,22 +103,9 @@ type ToolTypeOption = "straight" | "fine-tip" | "vbit";
 /* ── View mode for central area ──────────── */
 type ViewMode = "gcode" | "surface" | "simulation";
 
-/* ── Help tooltip ────────────────────────── */
+/* ── Help tooltip (uses VisualHelpSystem) ────────────── */
 function HelpTip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button type="button" className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">
-            <HelpCircle className="h-3 w-3" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px] text-xs">
-          {text}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+  return <EnhancedHelpTip text={text} />;
 }
 
 export default function ZMappingPage() {
