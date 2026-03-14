@@ -622,7 +622,7 @@ export default function ZMappingPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-2">
                   {numField("Prof. máxima probe", probeDepth, setProbeDepth, 0.01,
-                    "Profundidade máxima que o probe irá descer.")}
+                    undefined, "probeDepth")}
                   {numField(`Folga adaptativa (${unit})`, retAdaptiveClearance, setRetAdaptiveClearance, 0.5)}
                   
                   {engravingMode === "vbit-curved" && toolType === "vbit" && (
