@@ -107,6 +107,7 @@ const AppRoutes = () => {
         <Route path="/gerador-percurso" element={<RoleGate section="ferr_gerador_percurso"><ToolpathGeneratorPage /></RoleGate>} />
         <Route path="/mapeamento-z" element={<RoleGate section="ferr_mapeamento_z"><ZMappingPage /></RoleGate>} />
         <Route path="/mapa-usinagem" element={<RoleGate section="ferr_mapeamento_z"><MachiningMapPage /></RoleGate>} />
+        <Route path="/centro-quinas" element={<RoleGate section="ferr_centro_quinas"><CenterCornersPage /></RoleGate>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
