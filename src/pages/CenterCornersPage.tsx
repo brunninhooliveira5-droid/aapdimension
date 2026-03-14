@@ -31,11 +31,11 @@ function IllustrationCorner({ quadrant, refinement, zProbe }: { quadrant: string
   return (
     <svg viewBox="0 0 200 160" className="w-full h-full">
       <rect x="30" y="20" width="140" height="120" rx="2" fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.3" />
-      <rect x={flipX > 0 ? 30 : 100} y={flipY > 0 ? 20 : 72} width="70" height="68" rx="1"
+      <rect x={flipX > 0 ? 30 : 100} y={flipY > 0 ? 72 : 20} width="70" height="68" rx="1"
         fill="hsl(var(--primary))" opacity="0.08" stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="3 2" />
       <line x1={flipX > 0 ? 10 : 190} y1="90" x2={flipX > 0 ? 30 : 170} y2="90"
         stroke="hsl(var(--primary))" strokeWidth="2" markerEnd="url(#arrowCC)" opacity={refinement ? 0.35 : 1} />
-      <line x1="65" y1={flipY > 0 ? 2 : 158} x2="65" y2={flipY > 0 ? 20 : 140}
+      <line x1="65" y1={flipY > 0 ? 158 : 2} x2="65" y2={flipY > 0 ? 140 : 20}
         stroke="hsl(var(--chart-4))" strokeWidth="2" markerEnd="url(#arrowCC2)" opacity={refinement ? 0.35 : 1} />
       {refinement && (
         <>
