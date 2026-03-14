@@ -939,13 +939,32 @@ export function generateUnifiedGcode(
   lines.push("");
   lines.push("(--- FIM DO MAPEAMENTO ---)");
   lines.push("");
-  lines.push("(============================================)");
-  lines.push("( ATENCAO: Remova o sensor de medicao.       )");
-  lines.push("( Coloque a fresa de usinagem.               )");
-  lines.push("( Zere o eixo Z novamente na superficie.     )");
-  lines.push("( Pressione INICIAR para continuar.          )");
-  lines.push("(============================================)");
-  lines.push("M0");
+
+  // ── Custom probe: end commands ──
+  if (useCustomProbe && customProbe) {
+    lines.push("(--- RECOLHIMENTO DO PROBE PERSONALIZADO ---)");
+    lines.push(`G0 Z${d(customProbe.endSafeZ)}`);
+    if (customProbe.endCommand.trim()) {
+      lines.push(customProbe.endCommand.trim());
+    }
+    if (customProbe.endDwell > 0) {
+      lines.push(`G4 P${customProbe.endDwell}`);
+    }
+    lines.push("");
+  }
+
+  if (!useCustomProbe) {
+    lines.push("(============================================)");
+    lines.push("( ATENCAO: Remova o sensor de medicao.       )");
+    lines.push("( Coloque a fresa de usinagem.               )");
+    lines.push("( Zere o eixo Z novamente na superficie.     )");
+    lines.push("( Pressione INICIAR para continuar.          )");
+    lines.push("(============================================)");
+    lines.push("M0");
+  } else {
+    lines.push("(Probe recolhido automaticamente)");
+    lines.push("(Seguindo para usinagem compensada)");
+  }
   lines.push("");
 
   // ── Part 2: Compensated original G-code using macro variables ──
