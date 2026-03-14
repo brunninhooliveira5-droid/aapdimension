@@ -771,7 +771,8 @@ export function generateUnifiedGcode(
   originalName: string,
   controller: ControllerType,
   touchesPerPoint: number = 1,
-  touchStrategy: "last" | "average" = "last"
+  touchStrategy: "last" | "average" = "last",
+  retractionConfig?: RetractionConfig
 ): UnifiedResult {
   const d = (v: number) => fmt(v, cfg.decimalPlaces);
   const unitCmd = cfg.unit === "mm" ? "G21" : "G20";
