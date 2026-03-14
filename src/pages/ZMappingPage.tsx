@@ -497,6 +497,70 @@ export default function ZMappingPage() {
                 </div>
               </RadioGroup>
             </div>
+
+            {/* Engraving mode */}
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <PenTool className="h-3 w-3 text-primary" /> Tipo de gravação
+              </Label>
+              <RadioGroup
+                value={engravingMode}
+                onValueChange={(v) => setEngravingMode(v as EngravingMode)}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="standard" id="eng-standard" />
+                  <Label htmlFor="eng-standard" className="text-xs cursor-pointer">Gravação comum</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="curved" id="eng-curved" />
+                  <Label htmlFor="eng-curved" className="text-xs cursor-pointer">Gravação em superfície curva</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="vbit-curved" id="eng-vbit" />
+                  <Label htmlFor="eng-vbit" className="text-xs cursor-pointer">Gravação V-bit em superfície curva</Label>
+                </div>
+              </RadioGroup>
+
+              {engravingMode === "curved" && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+                  O G-code plano será ajustado para acompanhar a superfície curva da peça, mantendo a profundidade relativa uniforme.
+                </p>
+              )}
+
+              {engravingMode === "vbit-curved" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+                    Este modo ajusta um G-code plano para acompanhar a superfície curva da peça, mantendo a gravação V-bit uniforme mesmo em superfícies irregulares.
+                  </p>
+
+                  {/* V-bit compensation mode */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-medium">Compensação para V-bit</Label>
+                    <RadioGroup
+                      value={vbitCompMode}
+                      onValueChange={(v) => setVbitCompMode(v as VbitCompMode)}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="standard" id="vbit-std" />
+                        <Label htmlFor="vbit-std" className="text-[11px] cursor-pointer">Padrão</Label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="enhanced" id="vbit-enh" />
+                        <Label htmlFor="vbit-enh" className="text-[11px] cursor-pointer">Aprimorada</Label>
+                      </div>
+                    </RadioGroup>
+                    <p className="text-[10px] text-muted-foreground">
+                      {vbitCompMode === "standard"
+                        ? "Compensa a altura local da superfície para manter a profundidade uniforme."
+                        : "Preparado para compensação futura baseada na inclinação local da superfície."
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
