@@ -124,6 +124,9 @@ export default function ZMappingPage() {
   const [areaMode, setAreaMode] = useState<AreaMode>(saved.areaMode ?? "auto");
   const [buffer, setBuffer] = useState(saved.buffer ?? 5);
 
+  // Mapping precision
+  const [mappingPrecision, setMappingPrecision] = useState<MappingPrecision>(saved.mappingPrecision ?? "uniform");
+
   // Curve precision
   const [curvePrecision, setCurvePrecision] = useState<CurvePrecision>(saved.curvePrecision ?? "medium");
   const [customArcSegLen, setCustomArcSegLen] = useState<number | null>(null);
