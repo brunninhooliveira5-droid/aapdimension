@@ -414,7 +414,7 @@ function StepTouchX({ mode, cornerQuadrant, maxTravelX, approxSizeX, approxSizeY
         {/* Touch travel arrow — probe searches for the edge */}
         <Arrow x1={approachStartX} y1={touchPtY} x2={travelEndX} y2={touchPtY} color={PROBE_CLR} width={3} />
         <AnimProbe x1={approachStartX} y1={touchPtY} x2={travelEndX} y2={touchPtY} color={PROBE_CLR} />
-        <InfoBadge x={(approachStartX + travelEndX) / 2} y={touchPtY - 22} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
+        <InfoBadge x={(approachStartX + travelEndX) / 2} y={touchPtY - 22} text={`Curso ${maxTravelX} mm`} color={PROBE_CLR} />
 
         {/* Touch point on edge */}
         <TouchPoint cx={cornerX} cy={touchPtY} />
