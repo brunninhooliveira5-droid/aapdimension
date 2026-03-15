@@ -97,6 +97,8 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
   const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
+  const [lateralOffsetY, setLateralOffsetY] = useState(0); // Offset Y do probe na etapa Touch X
+  const [lateralOffsetX, setLateralOffsetX] = useState(0); // Offset X do probe na etapa Touch Y
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
@@ -251,6 +253,7 @@ export default function CenterCornersPage() {
     refinementFeed, zProbeActive, zCornerInset, holeZStrategy, holeZSafetyMargin,
     customProbeOffsetX: customProbe.offsetX, customProbeOffsetY: customProbe.offsetY,
     customProbeOffsetZ: customProbe.offsetZ,
+    lateralOffsetY, lateralOffsetX,
   };
 
   return (
@@ -573,6 +576,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Distância do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância que o probe percorre até tocar na lateral da peça." />
+                  <NumField label="Offset Y do probe lateral" value={lateralOffsetY} onChange={setLateralOffsetY} step={0.1}
+                    hint="Distância entre o centro do spindle e o probe na direção Y." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
                   <NumField label="Diâmetro do probe" value={probeDiameter} onChange={setProbeDiameter} step={0.1}
@@ -593,6 +598,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Distância do toque Y" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância que o probe percorre até tocar na frente da peça." />
+                  <NumField label="Offset X do probe" value={lateralOffsetX} onChange={setLateralOffsetX} step={0.1}
+                    hint="Distância entre o centro do spindle e o probe na direção X." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10} />
                   {(mode === "rect-center") && (
                     <NumField label="Tamanho aprox. Y" value={approxSizeY} onChange={setApproxSizeY} step={5} />
