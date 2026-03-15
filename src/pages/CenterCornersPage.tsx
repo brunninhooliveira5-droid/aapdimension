@@ -97,6 +97,8 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
   const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
+  const [lateralOffsetY, setLateralOffsetY] = useState(0); // Offset Y do probe na etapa Touch X
+  const [lateralOffsetX, setLateralOffsetX] = useState(0); // Offset X do probe na etapa Touch Y
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
