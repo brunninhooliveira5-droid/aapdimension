@@ -321,27 +321,94 @@ function StepModeSelect({ mode }: WizardDiagramProps) {
   );
 }
 
+/* ── Corner highlight marker ── */
+function CornerHighlight({ cx: x, cy: y, label }: { cx: number; cy: number; label?: string }) {
+  return (
+    <g>
+      {/* corner crosshair */}
+      <line x1={x - 12} y1={y} x2={x + 12} y2={y} stroke="#f59e0b" strokeWidth="1.5" opacity="0.7" />
+      <line x1={x} y1={y - 12} x2={x} y2={y + 12} stroke="#f59e0b" strokeWidth="1.5" opacity="0.7" />
+      {/* pulsing ring */}
+      <circle cx={x} cy={y} r={8} fill="#f59e0b" opacity="0.15" />
+      <circle cx={x} cy={y} r={14} fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.25">
+        <animate attributeName="r" values="10;18;10" dur="2.5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.35;0;0.35" dur="2.5s" repeatCount="indefinite" />
+      </circle>
+      {label && <text x={x} y={y + 26} textAnchor="middle" fontSize="9" fill="#f59e0b" fontWeight="700">{label}</text>}
+    </g>
+  );
+}
+
 /* STEP 1 — Touch X */
 function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, lateralOffsetY }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
     const isLeft = cornerQuadrant.includes("left");
+    const isFront = cornerQuadrant.includes("front");
     const px = 130, py = 60, pw = 290, ph = 210;
     const cornerX = isLeft ? px : px + pw;
-    const probeGap = Math.max(45, Math.min(100, probeDepth * 2.5));
-    const probeStart = isLeft ? cornerX - probeGap : cornerX + probeGap;
-    const arrowY = py + ph - 45;
+    const cornerY = isFront ? py + ph : py;
+
+    // Spindle starts at the corner (approximate position by operator)
+    const spindleX = cornerX;
+    const spindleY = cornerY - 55;
+
+    // Probe offset from spindle
+    const offsetVisual = Math.max(18, Math.min(55, Math.abs(lateralOffsetY) * 3));
+    const probeX = spindleX; // touch is in X direction, so probe moves along X
+    const probeOffY = lateralOffsetY !== 0 ? offsetVisual * (lateralOffsetY >= 0 ? 1 : -1) : 0;
+
+    // Touch travel: probe moves from corner outward then searches back
+    const travelLen = Math.max(45, Math.min(110, probeDepth * 2.5));
+    const touchStartX = isLeft ? cornerX - travelLen : cornerX + travelLen;
+    const touchEndX = cornerX;
+    const touchY = cornerY - 20;
 
     return (
       <g>
         <WoodPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
-        <Arrow x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_CLR} width={3} />
-        <AnimProbe x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_CLR} />
-        <InfoBadge x={(probeStart + cornerX) / 2} y={arrowY - 22} text={`${probeDepth} mm`} color={PROBE_CLR} />
-        <SpindleWithProbe x={probeStart} y={arrowY} offsetX={0} offsetY={lateralOffsetY} direction="x" />
-        <TouchPoint cx={cornerX} cy={arrowY} />
-        <StepLabel text="Primeiro toque lateral (Eixo X)" color={PROBE_CLR} />
+
+        {/* Corner highlight — reference point */}
+        <CornerHighlight cx={cornerX} cy={cornerY} label="Quina (referência)" />
+
+        {/* Spindle at the corner */}
+        <SpindleIcon x={spindleX} y={spindleY} color={METAL} label="SPINDLE" />
+
+        {/* Probe tip (offset from spindle if applicable) */}
+        {lateralOffsetY !== 0 ? (
+          <>
+            {/* offset arm from spindle to probe */}
+            <line x1={spindleX} y1={spindleY + 2} x2={spindleX + probeOffY} y2={spindleY + 2}
+              stroke={METAL_DARK} strokeWidth="1.8" strokeDasharray="3 2" opacity="0.5" />
+            <line x1={spindleX + probeOffY} y1={spindleY + 2} x2={spindleX + probeOffY} y2={spindleY + 14}
+              stroke={METAL_DARK} strokeWidth="1.8" opacity="0.5" />
+            <circle cx={spindleX + probeOffY} cy={spindleY + 16} r={3} fill={PROBE_CLR} opacity="0.8" />
+            {/* offset dimension label */}
+            <DimLine x1={spindleX} y1={spindleY + 28} x2={spindleX + probeOffY} y2={spindleY + 28} label="" color={PROBE_CLR} />
+            <text x={spindleX + probeOffY / 2} y={spindleY + 42} textAnchor="middle" fontSize="9" fill={PROBE_CLR} fontWeight="700">
+              Offset Y: {lateralOffsetY} mm
+            </text>
+            <text x={spindleX + probeOffY / 2} y={spindleY + 53} textAnchor="middle" fontSize="8" fill={PROBE_CLR} opacity="0.6">
+              (spindle ↔ probe)
+            </text>
+          </>
+        ) : (
+          <>
+            <circle cx={spindleX} cy={spindleY + 14} r={3} fill={PROBE_CLR} opacity="0.8" />
+            <text x={spindleX} y={spindleY + 30} textAnchor="middle" fontSize="8" fill={PROBE_CLR} fontWeight="600" opacity="0.6">Probe</text>
+          </>
+        )}
+
+        {/* Touch travel arrow — probe searches for the edge */}
+        <Arrow x1={touchStartX} y1={touchY} x2={touchEndX} y2={touchY} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={touchStartX} y1={touchY} x2={touchEndX} y2={touchY} color={PROBE_CLR} />
+        <InfoBadge x={(touchStartX + touchEndX) / 2} y={touchY - 22} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
+
+        {/* Touch point on edge */}
+        <TouchPoint cx={touchEndX} cy={touchY} />
+
+        <StepLabel text="Toque lateral (Eixo X) — a partir da quina aproximada" color={PROBE_CLR} />
       </g>
     );
   }
