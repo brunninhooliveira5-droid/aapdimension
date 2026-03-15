@@ -40,6 +40,18 @@ export interface CenterCornersConfig {
   probeDepth: number;
   probeDiameter: number;
   cornerQuadrant: "front-left" | "front-right" | "back-left" | "back-right";
+  /** Corner touch X: cross-axis distance (Y) from corner */
+  cornerTouchDistY: number;
+  /** Corner touch X: external start position in X */
+  cornerApproachX: number;
+  /** Corner touch X: max probe travel in X */
+  cornerMaxTravelX: number;
+  /** Corner touch Y: cross-axis distance (X) from corner */
+  cornerTouchDistX: number;
+  /** Corner touch Y: external start position in Y */
+  cornerApproachY: number;
+  /** Corner touch Y: max probe travel in Y */
+  cornerMaxTravelY: number;
   approxSizeX: number;
   approxSizeY: number;
   approxDiameter: number;
@@ -82,6 +94,12 @@ export const defaultCenterCornersConfig: CenterCornersConfig = {
   probeDepth: -5,
   probeDiameter: 3,
   cornerQuadrant: "front-left",
+  cornerTouchDistY: 20,
+  cornerApproachX: -5,
+  cornerMaxTravelX: 15,
+  cornerTouchDistX: 20,
+  cornerApproachY: -5,
+  cornerMaxTravelY: 15,
   approxSizeX: 100,
   approxSizeY: 100,
   approxDiameter: 50,
