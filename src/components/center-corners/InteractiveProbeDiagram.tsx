@@ -25,6 +25,8 @@ export interface WizardDiagramProps {
   customProbeOffsetZ: number;
   touchDistY: number;
   touchDistX: number;
+  approachX: number;
+  approachY: number;
 }
 
 /* ── Constants ── */
