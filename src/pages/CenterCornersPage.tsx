@@ -97,10 +97,12 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
   const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
-  const [touchDistY, setTouchDistY] = useState(10); // Distância Y da quina até o ponto de toque lateral
-  const [touchDistX, setTouchDistX] = useState(10); // Distância X da quina até o ponto de toque frontal
-  const [approachX, setApproachX] = useState(5); // Aproximação externa X (fora da peça)
-  const [approachY, setApproachY] = useState(5); // Aproximação externa Y (fora da peça)
+  const [touchDistY, setTouchDistY] = useState(defaultCenterCornersConfig.cornerTouchDistY);
+  const [touchDistX, setTouchDistX] = useState(defaultCenterCornersConfig.cornerTouchDistX);
+  const [approachX, setApproachX] = useState(defaultCenterCornersConfig.cornerApproachX);
+  const [approachY, setApproachY] = useState(defaultCenterCornersConfig.cornerApproachY);
+  const [maxTravelX, setMaxTravelX] = useState(defaultCenterCornersConfig.cornerMaxTravelX);
+  const [maxTravelY, setMaxTravelY] = useState(defaultCenterCornersConfig.cornerMaxTravelY);
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
