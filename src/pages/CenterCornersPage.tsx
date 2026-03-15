@@ -601,10 +601,13 @@ export default function CenterCornersPage() {
               {/* STEP 2 — Touch Y */}
               {currentStepKey === "touchY" && (
                 <>
-                  <NumField label="Curso máximo do toque Y" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                    hint="Distância máxima que o probe percorre a partir da quina para encontrar a borda real." />
                   <NumField label="Distância X da quina" value={touchDistX} onChange={setTouchDistX} step={0.5}
-                    hint="Distância da quina do material até o ponto onde o toque frontal será realizado." />
+                    hint="Onde na borda o toque será feito, medido a partir da quina." />
+                  <NumField label="Aproximação externa Y" value={approachY} onChange={setApproachY} step={0.5}
+                    hint="De onde o probe começa o toque, fora da peça." />
+                  <NumField label="Curso máximo do toque Y" value={probeDepth} onChange={setProbeDepth} step={0.5}
+                    hint="Até onde a máquina pode avançar procurando a borda." />
+                  <Separator />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10} />
                   {(mode === "rect-center") && (
                     <NumField label="Tamanho aprox. Y" value={approxSizeY} onChange={setApproxSizeY} step={5} />
