@@ -151,6 +151,12 @@ export default function CenterCornersPage() {
     setProbeDepth(cfg.probeDepth);
     setProbeDiameter(cfg.probeDiameter);
     setCornerQuadrant(cfg.cornerQuadrant);
+    setTouchDistY(cfg.cornerTouchDistY ?? defaultCenterCornersConfig.cornerTouchDistY);
+    setApproachX(cfg.cornerApproachX ?? defaultCenterCornersConfig.cornerApproachX);
+    setMaxTravelX(cfg.cornerMaxTravelX ?? defaultCenterCornersConfig.cornerMaxTravelX);
+    setTouchDistX(cfg.cornerTouchDistX ?? defaultCenterCornersConfig.cornerTouchDistX);
+    setApproachY(cfg.cornerApproachY ?? defaultCenterCornersConfig.cornerApproachY);
+    setMaxTravelY(cfg.cornerMaxTravelY ?? defaultCenterCornersConfig.cornerMaxTravelY);
     setApproxSizeX(cfg.approxSizeX);
     setApproxSizeY(cfg.approxSizeY);
     setApproxDiameter(cfg.approxDiameter);
