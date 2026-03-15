@@ -576,8 +576,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Curso máximo do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância máxima que o probe percorre a partir da quina para encontrar a borda real." />
-                  <NumField label="Offset Y do probe" value={lateralOffsetY} onChange={setLateralOffsetY} step={0.1}
-                    hint="Distância entre o centro do spindle e o probe no eixo Y (relação spindle ↔ probe)." />
+                  <NumField label="Distância Y da quina" value={touchDistY} onChange={setTouchDistY} step={0.5}
+                    hint="Distância da quina do material até o ponto onde o toque lateral será realizado." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
                   <NumField label="Diâmetro do probe" value={probeDiameter} onChange={setProbeDiameter} step={0.1}
