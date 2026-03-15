@@ -576,6 +576,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Distância do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância que o probe percorre até tocar na lateral da peça." />
+                  <NumField label="Offset Y do probe lateral" value={lateralOffsetY} onChange={setLateralOffsetY} step={0.1}
+                    hint="Distância entre o centro do spindle e o probe na direção Y." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
                   <NumField label="Diâmetro do probe" value={probeDiameter} onChange={setProbeDiameter} step={0.1}
