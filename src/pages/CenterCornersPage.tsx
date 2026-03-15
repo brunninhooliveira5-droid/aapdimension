@@ -253,7 +253,7 @@ export default function CenterCornersPage() {
     refinementFeed, zProbeActive, zCornerInset, holeZStrategy, holeZSafetyMargin,
     customProbeOffsetX: customProbe.offsetX, customProbeOffsetY: customProbe.offsetY,
     customProbeOffsetZ: customProbe.offsetZ,
-    lateralOffsetY, lateralOffsetX,
+    touchDistY, touchDistX,
   };
 
   return (
