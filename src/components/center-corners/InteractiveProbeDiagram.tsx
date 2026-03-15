@@ -23,21 +23,28 @@ export interface WizardDiagramProps {
   customProbeOffsetX: number;
   customProbeOffsetY: number;
   customProbeOffsetZ: number;
+  lateralOffsetY: number;
+  lateralOffsetX: number;
 }
 
 /* ── Constants ── */
 const VW = 560;
 const VH = 380;
 const PIECE_STROKE = "hsl(var(--muted-foreground))";
-const PIECE_FILL = "hsl(var(--muted))";
-const PROBE_X = "hsl(var(--primary))";
-const PROBE_Y = "hsl(var(--chart-4))";
+const WOOD_LIGHT = "#d4a76a";
+const WOOD_MID = "#c49a5e";
+const WOOD_DARK = "#b08850";
+const WOOD_SHADOW = "#9a7544";
+const PROBE_CLR = "#3b82f6"; // blue
+const PROBE_Y_CLR = "#3b82f6"; // same blue for consistency
 const REFINE_CLR = "hsl(var(--chart-2))";
 const Z_CLR = "hsl(var(--chart-5))";
 const CUSTOM_CLR = "hsl(var(--chart-3))";
 const DIM_CLR = "hsl(var(--muted-foreground))";
 const BG = "hsl(var(--background))";
-const SHADOW = "hsl(var(--muted-foreground))";
+const METAL = "#8b95a3";
+const METAL_DARK = "#6b7584";
+const TOUCH_POINT = "#60a5fa"; // light blue pulsing
 
 /* ══════════════════════════════════════════════════ */
 /* ── SVG Helper Components ── */
@@ -48,13 +55,13 @@ function AnimProbe({ x1, y1, x2, y2, color, delay = 0 }: {
   const id = `ap${Math.round(x1)}${Math.round(y1)}${Math.round(x2)}${Math.round(y2)}`.replace(/[.-]/g, "_");
   return (
     <g>
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2" opacity="0.2" strokeDasharray="4 3" />
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2" opacity="0.15" strokeDasharray="4 3" />
       <circle r="5" fill={color} opacity="0.85">
         <animateMotion dur="2s" repeatCount="indefinite" begin={`${delay}s`}>
           <mpath xlinkHref={`#${id}`} />
         </animateMotion>
       </circle>
-      <circle r="10" fill={color} opacity="0.15">
+      <circle r="10" fill={color} opacity="0.12">
         <animateMotion dur="2s" repeatCount="indefinite" begin={`${delay}s`}>
           <mpath xlinkHref={`#${id}`} />
         </animateMotion>
@@ -92,47 +99,97 @@ function DimLine({ x1, y1, x2, y2, label, color = DIM_CLR }: {
   );
 }
 
-/* ── Solid piece with 3D isometric effect ── */
-function SolidPiece({ x, y, w, h, label }: { x: number; y: number; w: number; h: number; label?: string }) {
-  const d = 14;
+/* ── Solid piece with wood texture (isometric) ── */
+function WoodPiece({ x, y, w, h, label }: { x: number; y: number; w: number; h: number; label?: string }) {
+  const d = 14; // isometric depth
   return (
     <g>
       {/* drop shadow */}
-      <rect x={x + 5} y={y + 5} width={w} height={h} rx={5} fill={SHADOW} opacity="0.06" />
-      {/* right face (3D) */}
-      <path d={`M${x + w},${y + 5} l${d},${-d} l0,${h} l${-d},${d} Z`}
-        fill={PIECE_FILL} opacity="0.15" stroke={PIECE_STROKE} strokeWidth="0.8" />
-      {/* top face (3D) */}
-      <path d={`M${x + 5},${y} l${d},${-d} l${w},0 l${-d},${d} Z`}
-        fill={PIECE_FILL} opacity="0.22" stroke={PIECE_STROKE} strokeWidth="0.8" />
-      {/* front face */}
-      <rect x={x} y={y} width={w} height={h} rx={5}
-        fill={PIECE_FILL} opacity="0.2" stroke={PIECE_STROKE} strokeWidth="1.8" />
-      {/* subtle surface lines */}
-      <line x1={x + 15} y1={y + 8} x2={x + w - 15} y2={y + 8} stroke={PIECE_STROKE} strokeWidth="0.3" opacity="0.15" />
-      <line x1={x + 15} y1={y + h - 8} x2={x + w - 15} y2={y + h - 8} stroke={PIECE_STROKE} strokeWidth="0.3" opacity="0.15" />
+      <rect x={x + 6} y={y + 6} width={w} height={h} rx={3} fill="#000" opacity="0.06" />
+      {/* right face (3D) — darker wood */}
+      <path d={`M${x + w},${y + 3} l${d},${-d} l0,${h} l${-d},${d} Z`}
+        fill={WOOD_SHADOW} opacity="0.7" stroke={WOOD_DARK} strokeWidth="0.8" />
+      {/* top face (3D) — lighter wood */}
+      <path d={`M${x + 3},${y} l${d},${-d} l${w},0 l${-d},${d} Z`}
+        fill={WOOD_LIGHT} opacity="0.65" stroke={WOOD_MID} strokeWidth="0.8" />
+      {/* front face — main wood */}
+      <rect x={x} y={y} width={w} height={h} rx={3}
+        fill="url(#woodGrain)" stroke={WOOD_DARK} strokeWidth="1.5" />
+      {/* surface grain lines */}
+      {[0.15, 0.3, 0.5, 0.7, 0.85].map((frac, i) => (
+        <line key={i} x1={x + 8} y1={y + h * frac} x2={x + w - 8} y2={y + h * frac}
+          stroke={WOOD_DARK} strokeWidth="0.4" opacity="0.15" />
+      ))}
       {label && (
-        <text x={x + w / 2} y={y + h / 2 + 5} textAnchor="middle" fontSize="15" fill={DIM_CLR} opacity="0.2" fontWeight="800" letterSpacing="2">{label}</text>
+        <text x={x + w / 2} y={y + h / 2 + 5} textAnchor="middle" fontSize="14" fill={WOOD_DARK} opacity="0.35" fontWeight="800" letterSpacing="2">{label}</text>
       )}
     </g>
   );
 }
 
-function SpindleIcon({ x, y, color, label }: { x: number; y: number; color: string; label?: string }) {
+function SpindleIcon({ x, y, color = METAL, label }: { x: number; y: number; color?: string; label?: string }) {
   return (
     <g>
       {/* housing */}
-      <rect x={x - 10} y={y - 45} width={20} height={34} rx={4} fill={color} opacity="0.12" stroke={color} strokeWidth="1.5" />
+      <rect x={x - 11} y={y - 48} width={22} height={36} rx={4} fill={METAL} opacity="0.15" stroke={color} strokeWidth="1.5" />
+      {/* gradient sheen */}
+      <rect x={x - 7} y={y - 44} width={6} height={28} rx={2} fill={color} opacity="0.06" />
       {/* collet */}
-      <path d={`M${x - 5},${y - 11} L${x - 2},${y} L${x + 2},${y} L${x + 5},${y - 11}`} fill={color} opacity="0.2" stroke={color} strokeWidth="1.2" />
+      <path d={`M${x - 5},${y - 12} L${x - 2},${y} L${x + 2},${y} L${x + 5},${y - 12}`} fill={color} opacity="0.25" stroke={color} strokeWidth="1.2" />
       {/* tip */}
-      <circle cx={x} cy={y + 2} r={3.5} fill={color} opacity="0.7" />
-      {/* pulse ring */}
-      <circle cx={x} cy={y + 2} r={8} fill="none" stroke={color} strokeWidth="1" opacity="0.3">
-        <animate attributeName="r" values="6;12;6" dur="2s" repeatCount="indefinite" />
+      <circle cx={x} cy={y + 2} r={3.5} fill={color} opacity="0.65" />
+      {label && <text x={x} y={y - 55} textAnchor="middle" fontSize="9" fill={color} fontWeight="700" letterSpacing="0.5">{label}</text>}
+    </g>
+  );
+}
+
+/* ── Spindle with offset probe arm ── */
+function SpindleWithProbe({ x, y, offsetX, offsetY, direction }: {
+  x: number; y: number; offsetX: number; offsetY: number; direction: "x" | "y";
+}) {
+  const probeX = x + (direction === "x" ? 0 : Math.max(20, Math.min(60, Math.abs(offsetX) * 3)) * (offsetX >= 0 ? 1 : -1));
+  const probeY = y + (direction === "y" ? 0 : Math.max(20, Math.min(60, Math.abs(offsetY) * 3)) * (offsetY >= 0 ? 1 : -1));
+  const hasOffset = direction === "x" ? offsetY !== 0 : offsetX !== 0;
+
+  return (
+    <g>
+      <SpindleIcon x={x} y={y - 12} label="SPINDLE" />
+      {hasOffset && (
+        <>
+          {/* probe arm */}
+          <line x1={x} y1={y - 20} x2={probeX} y2={y - 20} stroke={METAL_DARK} strokeWidth="2" strokeDasharray="3 2" opacity="0.5" />
+          <line x1={probeX} y1={y - 20} x2={probeX} y2={y + 2} stroke={METAL_DARK} strokeWidth="2" opacity="0.5" />
+          {/* probe tip */}
+          <circle cx={probeX} cy={y + 4} r={3.5} fill={PROBE_CLR} opacity="0.8" />
+          {/* offset dimension */}
+          <DimLine
+            x1={x} y1={y + 18}
+            x2={probeX} y2={y + 18}
+            label="" color={PROBE_CLR} />
+          <text x={(x + probeX) / 2} y={y + 32} textAnchor="middle" fontSize="9" fill={PROBE_CLR} fontWeight="700">
+            Offset {direction === "x" ? "Y" : "X"}: {direction === "x" ? offsetY : offsetX} mm
+          </text>
+        </>
+      )}
+      {!hasOffset && (
+        <>
+          {/* probe tip = spindle tip */}
+          <circle cx={x} cy={y + 4} r={3.5} fill={PROBE_CLR} opacity="0.8" />
+          <text x={x} y={y + 20} textAnchor="middle" fontSize="8" fill={PROBE_CLR} fontWeight="600" opacity="0.6">Probe</text>
+        </>
+      )}
+    </g>
+  );
+}
+
+function TouchPoint({ cx: x, cy: y }: { cx: number; cy: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={y} r={7} fill={TOUCH_POINT} stroke={BG} strokeWidth="2.5" />
+      <circle cx={x} cy={y} r={14} fill="none" stroke={TOUCH_POINT} strokeWidth="1" opacity="0.3">
+        <animate attributeName="r" values="10;18;10" dur="2s" repeatCount="indefinite" />
         <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
       </circle>
-      {label && <text x={x} y={y - 52} textAnchor="middle" fontSize="9" fill={color} fontWeight="700" letterSpacing="0.5">{label}</text>}
     </g>
   );
 }
@@ -174,6 +231,30 @@ function StepLabel({ text, color = DIM_CLR }: { text: string; color?: string }) 
   );
 }
 
+/* ── SVG Defs (wood grain pattern) ── */
+function SvgDefs() {
+  return (
+    <defs>
+      <pattern id="wizGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_CLR} strokeWidth="0.15" opacity="0.12" />
+      </pattern>
+      <pattern id="woodGrain" width="200" height="200" patternUnits="userSpaceOnUse">
+        <rect width="200" height="200" fill={WOOD_MID} />
+        {/* horizontal grain lines */}
+        {Array.from({ length: 12 }, (_, i) => (
+          <line key={`g${i}`} x1="0" y1={i * 17 + 3} x2="200" y2={i * 17 + 5}
+            stroke={WOOD_DARK} strokeWidth={i % 3 === 0 ? "1.2" : "0.5"} opacity={i % 3 === 0 ? "0.12" : "0.07"} />
+        ))}
+        {/* slight vertical variation */}
+        {Array.from({ length: 4 }, (_, i) => (
+          <line key={`v${i}`} x1={i * 55 + 20} y1="0" x2={i * 55 + 22} y2="200"
+            stroke={WOOD_LIGHT} strokeWidth="0.6" opacity="0.08" />
+        ))}
+      </pattern>
+    </defs>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════ */
 /* ── MAIN COMPONENT ── */
 export default function InteractiveProbeDiagram(props: WizardDiagramProps) {
@@ -182,15 +263,7 @@ export default function InteractiveProbeDiagram(props: WizardDiagramProps) {
   return (
     <div className="w-full h-full flex items-center justify-center p-2">
       <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full max-h-[460px] select-none">
-        <defs>
-          <pattern id="wizGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke={DIM_CLR} strokeWidth="0.15" opacity="0.15" />
-          </pattern>
-          <linearGradient id="pieceFillGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={PIECE_FILL} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={PIECE_FILL} stopOpacity="0.15" />
-          </linearGradient>
-        </defs>
+        <SvgDefs />
         <rect width={VW} height={VH} fill="url(#wizGrid)" rx="12" />
 
         {props.wizardStep === 0 && <StepModeSelect {...props} />}
@@ -214,38 +287,34 @@ function StepModeSelect({ mode }: WizardDiagramProps) {
     <g>
       {mode === "corner" && (
         <>
-          <SolidPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
-          <circle cx={cx - 110} cy={cy + 65} r={9} fill={PROBE_X} stroke={BG} strokeWidth="2.5" />
-          <circle cx={cx - 110} cy={cy + 65} r={16} fill="none" stroke={PROBE_X} strokeWidth="1" opacity="0.3">
-            <animate attributeName="r" values="12;20;12" dur="2s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <text x={cx - 110} y={cy + 88} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="700">Quina</text>
+          <WoodPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
+          <TouchPoint cx={cx - 110} cy={cy + 65} />
+          <text x={cx - 110} y={cy + 88} textAnchor="middle" fontSize="10" fill={PROBE_CLR} fontWeight="700">Quina</text>
         </>
       )}
       {mode === "rect-center" && (
         <>
-          <SolidPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
-          <circle cx={cx} cy={cy} r={7} fill="none" stroke={PROBE_X} strokeWidth="2" />
-          <line x1={cx - 16} y1={cy} x2={cx + 16} y2={cy} stroke={PROBE_X} strokeWidth="1.5" />
-          <line x1={cx} y1={cy - 16} x2={cx} y2={cy + 16} stroke={PROBE_X} strokeWidth="1.5" />
-          <text x={cx} y={cy + 88} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="700">Centro Retangular</text>
+          <WoodPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
+          <circle cx={cx} cy={cy} r={7} fill="none" stroke={PROBE_CLR} strokeWidth="2" />
+          <line x1={cx - 16} y1={cy} x2={cx + 16} y2={cy} stroke={PROBE_CLR} strokeWidth="1.5" />
+          <line x1={cx} y1={cy - 16} x2={cx} y2={cy + 16} stroke={PROBE_CLR} strokeWidth="1.5" />
+          <text x={cx} y={cy + 88} textAnchor="middle" fontSize="10" fill={PROBE_CLR} fontWeight="700">Centro Retangular</text>
         </>
       )}
       {mode === "circle-center" && (
         <>
-          <circle cx={cx} cy={cy} r={75} fill={PIECE_FILL} opacity="0.2" stroke={PIECE_STROKE} strokeWidth="1.8" />
-          <text x={cx} y={cy - 4} textAnchor="middle" fontSize="15" fill={DIM_CLR} opacity="0.2" fontWeight="800">PEÇA</text>
-          <circle cx={cx} cy={cy} r={7} fill="none" stroke={PROBE_X} strokeWidth="2" />
-          <text x={cx} y={cy + 100} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="700">Centro Circular</text>
+          <circle cx={cx} cy={cy} r={75} fill={WOOD_MID} opacity="0.5" stroke={WOOD_DARK} strokeWidth="1.8" />
+          <text x={cx} y={cy - 4} textAnchor="middle" fontSize="15" fill={WOOD_DARK} opacity="0.35" fontWeight="800">PEÇA</text>
+          <circle cx={cx} cy={cy} r={7} fill="none" stroke={PROBE_CLR} strokeWidth="2" />
+          <text x={cx} y={cy + 100} textAnchor="middle" fontSize="10" fill={PROBE_CLR} fontWeight="700">Centro Circular</text>
         </>
       )}
       {mode === "hole-center" && (
         <>
-          <SolidPiece x={cx - 130} y={cy - 80} w={260} h={160} label="" />
+          <WoodPiece x={cx - 130} y={cy - 80} w={260} h={160} label="" />
           <circle cx={cx} cy={cy} r={55} fill={BG} stroke={PIECE_STROKE} strokeWidth="2.5" />
           <text x={cx} y={cy + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.4">FURO</text>
-          <text x={cx} y={cy + 100} textAnchor="middle" fontSize="10" fill={PROBE_X} fontWeight="700">Centro de Furo</text>
+          <text x={cx} y={cy + 100} textAnchor="middle" fontSize="10" fill={PROBE_CLR} fontWeight="700">Centro de Furo</text>
         </>
       )}
     </g>
@@ -253,7 +322,7 @@ function StepModeSelect({ mode }: WizardDiagramProps) {
 }
 
 /* STEP 1 — Touch X */
-function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter }: WizardDiagramProps) {
+function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, lateralOffsetY }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -266,13 +335,13 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
 
     return (
       <g>
-        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
-        <Arrow x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_X} width={3} />
-        <AnimProbe x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_X} />
-        <InfoBadge x={(probeStart + cornerX) / 2} y={arrowY - 22} text={`${probeDepth} mm`} color={PROBE_X} />
-        <SpindleIcon x={probeStart} y={arrowY - 12} color={PROBE_X} label="PROBE" />
-        <circle cx={cornerX} cy={arrowY} r={7} fill={PROBE_X} stroke={BG} strokeWidth="2.5" />
-        <StepLabel text="Primeiro toque lateral (Eixo X)" color={PROBE_X} />
+        <WoodPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={probeStart} y1={arrowY} x2={cornerX} y2={arrowY} color={PROBE_CLR} />
+        <InfoBadge x={(probeStart + cornerX) / 2} y={arrowY - 22} text={`${probeDepth} mm`} color={PROBE_CLR} />
+        <SpindleWithProbe x={probeStart} y={arrowY} offsetX={0} offsetY={lateralOffsetY} direction="x" />
+        <TouchPoint cx={cornerX} cy={arrowY} />
+        <StepLabel text="Primeiro toque lateral (Eixo X)" color={PROBE_CLR} />
       </g>
     );
   }
@@ -283,16 +352,16 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const px = cx - pw / 2, py2 = cy - ph / 2;
     return (
       <g>
-        <SolidPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
-        <Arrow x1={px - 55} y1={cy} x2={px} y2={cy} color={PROBE_X} width={3} />
-        <AnimProbe x1={px - 55} y1={cy} x2={px} y2={cy} color={PROBE_X} />
-        <Arrow x1={px + pw + 55} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} width={3} />
-        <AnimProbe x1={px + pw + 55} y1={cy} x2={px + pw} y2={cy} color={PROBE_X} delay={0.8} />
-        <text x={px - 55} y={cy - 16} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="700">X−</text>
-        <text x={px + pw + 55} y={cy - 16} textAnchor="middle" fontSize="9" fill={PROBE_X} fontWeight="700">X+</text>
-        <InfoBadge x={cx} y={cy + ph / 2 + 32} text={`${approxSizeX} mm`} color={PROBE_X} />
-        <DimLine x1={px} y1={cy + ph / 2 + 22} x2={px + pw} y2={cy + ph / 2 + 22} label="" color={PROBE_X} />
-        <StepLabel text="Toques laterais no eixo X" color={PROBE_X} />
+        <WoodPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={px - 55} y1={cy} x2={px} y2={cy} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={px - 55} y1={cy} x2={px} y2={cy} color={PROBE_CLR} />
+        <Arrow x1={px + pw + 55} y1={cy} x2={px + pw} y2={cy} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={px + pw + 55} y1={cy} x2={px + pw} y2={cy} color={PROBE_CLR} delay={0.8} />
+        <text x={px - 55} y={cy - 16} textAnchor="middle" fontSize="9" fill={PROBE_CLR} fontWeight="700">X−</text>
+        <text x={px + pw + 55} y={cy - 16} textAnchor="middle" fontSize="9" fill={PROBE_CLR} fontWeight="700">X+</text>
+        <InfoBadge x={cx} y={cy + ph / 2 + 32} text={`${approxSizeX} mm`} color={PROBE_CLR} />
+        <DimLine x1={px} y1={cy + ph / 2 + 22} x2={px + pw} y2={cy + ph / 2 + 22} label="" color={PROBE_CLR} />
+        <StepLabel text="Toques laterais no eixo X" color={PROBE_CLR} />
       </g>
     );
   }
@@ -301,15 +370,15 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const r = Math.min(80, approxDiameter * 0.6);
     return (
       <g>
-        <SolidPiece x={cx - r - 55} y={cy - r - 45} w={(r + 55) * 2} h={(r + 45) * 2} label="" />
+        <WoodPiece x={cx - r - 55} y={cy - r - 45} w={(r + 55) * 2} h={(r + 45) * 2} label="" />
         <circle cx={cx} cy={cy} r={r} fill={BG} stroke={PIECE_STROKE} strokeWidth="2.5" />
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.4">FURO</text>
-        <Arrow x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_X} width={2.5} />
-        <Arrow x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_X} width={2.5} />
-        <AnimProbe x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_X} />
-        <AnimProbe x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_X} delay={0.6} />
-        <InfoBadge x={cx} y={cy + r + 30} text={`Ø ${approxDiameter} mm`} color={PROBE_X} />
-        <StepLabel text="Toques no eixo X (furo)" color={PROBE_X} />
+        <Arrow x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_CLR} width={2.5} />
+        <Arrow x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_CLR} width={2.5} />
+        <AnimProbe x1={cx} y1={cy} x2={cx + r - 4} y2={cy} color={PROBE_CLR} />
+        <AnimProbe x1={cx} y1={cy} x2={cx - r + 4} y2={cy} color={PROBE_CLR} delay={0.6} />
+        <InfoBadge x={cx} y={cy + r + 30} text={`Ø ${approxDiameter} mm`} color={PROBE_CLR} />
+        <StepLabel text="Toques no eixo X (furo)" color={PROBE_CLR} />
       </g>
     );
   }
@@ -318,20 +387,20 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
   const r2 = Math.min(90, approxDiameter * 0.7);
   return (
     <g>
-      <circle cx={cx} cy={cy} r={r2} fill={PIECE_FILL} opacity="0.2" stroke={PIECE_STROKE} strokeWidth="1.8" />
-      <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fill={DIM_CLR} opacity="0.2" fontWeight="700">PEÇA</text>
-      <Arrow x1={cx - r2 - 45} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} width={2.5} />
-      <AnimProbe x1={cx - r2 - 45} y1={cy} x2={cx - r2} y2={cy} color={PROBE_X} />
-      <Arrow x1={cx + r2 + 45} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} width={2.5} />
-      <AnimProbe x1={cx + r2 + 45} y1={cy} x2={cx + r2} y2={cy} color={PROBE_X} delay={0.5} />
-      <InfoBadge x={cx} y={cy + r2 + 30} text={`Ø ${approxDiameter} mm`} color={PROBE_X} />
-      <StepLabel text="Toques laterais no eixo X" color={PROBE_X} />
+      <circle cx={cx} cy={cy} r={r2} fill={WOOD_MID} opacity="0.5" stroke={WOOD_DARK} strokeWidth="1.8" />
+      <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fill={WOOD_DARK} opacity="0.3" fontWeight="700">PEÇA</text>
+      <Arrow x1={cx - r2 - 45} y1={cy} x2={cx - r2} y2={cy} color={PROBE_CLR} width={2.5} />
+      <AnimProbe x1={cx - r2 - 45} y1={cy} x2={cx - r2} y2={cy} color={PROBE_CLR} />
+      <Arrow x1={cx + r2 + 45} y1={cy} x2={cx + r2} y2={cy} color={PROBE_CLR} width={2.5} />
+      <AnimProbe x1={cx + r2 + 45} y1={cy} x2={cx + r2} y2={cy} color={PROBE_CLR} delay={0.5} />
+      <InfoBadge x={cx} y={cy + r2 + 30} text={`Ø ${approxDiameter} mm`} color={PROBE_CLR} />
+      <StepLabel text="Toques laterais no eixo X" color={PROBE_CLR} />
     </g>
   );
 }
 
 /* STEP 2 — Touch Y */
-function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter }: WizardDiagramProps) {
+function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, lateralOffsetX }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -346,13 +415,13 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
 
     return (
       <g>
-        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
-        <Arrow x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_Y} width={3} />
-        <AnimProbe x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_Y} />
-        <InfoBadge x={arrowX + (isLeft ? 65 : -65)} y={(probeStart + cornerY) / 2} text={`${probeDepth} mm`} color={PROBE_Y} />
-        <SpindleIcon x={arrowX} y={probeStart - 12} color={PROBE_Y} label="PROBE" />
-        <circle cx={cornerX} cy={cornerY} r={7} fill={PROBE_Y} stroke={BG} strokeWidth="2.5" />
-        <StepLabel text="Segundo toque frontal (Eixo Y)" color={PROBE_Y} />
+        <WoodPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={arrowX} y1={probeStart} x2={arrowX} y2={cornerY} color={PROBE_CLR} />
+        <InfoBadge x={arrowX + (isLeft ? 65 : -65)} y={(probeStart + cornerY) / 2} text={`${probeDepth} mm`} color={PROBE_CLR} />
+        <SpindleWithProbe x={arrowX} y={probeStart} offsetX={lateralOffsetX} offsetY={0} direction="y" />
+        <TouchPoint cx={cornerX} cy={cornerY} />
+        <StepLabel text="Segundo toque frontal (Eixo Y)" color={PROBE_CLR} />
       </g>
     );
   }
@@ -363,15 +432,15 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const px = cx - pw / 2, py2 = cy - ph / 2;
     return (
       <g>
-        <SolidPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
-        <Arrow x1={cx} y1={py2 - 55} x2={cx} y2={py2} color={PROBE_Y} width={3} />
-        <AnimProbe x1={cx} y1={py2 - 55} x2={cx} y2={py2} color={PROBE_Y} />
-        <Arrow x1={cx} y1={py2 + ph + 55} x2={cx} y2={py2 + ph} color={PROBE_Y} width={3} />
-        <AnimProbe x1={cx} y1={py2 + ph + 55} x2={cx} y2={py2 + ph} color={PROBE_Y} delay={0.8} />
-        <text x={cx + 16} y={py2 - 50} fontSize="9" fill={PROBE_Y} fontWeight="700">Y−</text>
-        <text x={cx + 16} y={py2 + ph + 56} fontSize="9" fill={PROBE_Y} fontWeight="700">Y+</text>
-        <DimLine x1={px - 25} y1={py2} x2={px - 25} y2={py2 + ph} label={`${approxSizeY}`} color={PROBE_Y} />
-        <StepLabel text="Toques no eixo Y" color={PROBE_Y} />
+        <WoodPiece x={px} y={py2} w={pw} h={ph} label="PEÇA" />
+        <Arrow x1={cx} y1={py2 - 55} x2={cx} y2={py2} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={cx} y1={py2 - 55} x2={cx} y2={py2} color={PROBE_CLR} />
+        <Arrow x1={cx} y1={py2 + ph + 55} x2={cx} y2={py2 + ph} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={cx} y1={py2 + ph + 55} x2={cx} y2={py2 + ph} color={PROBE_CLR} delay={0.8} />
+        <text x={cx + 16} y={py2 - 50} fontSize="9" fill={PROBE_CLR} fontWeight="700">Y−</text>
+        <text x={cx + 16} y={py2 + ph + 56} fontSize="9" fill={PROBE_CLR} fontWeight="700">Y+</text>
+        <DimLine x1={px - 25} y1={py2} x2={px - 25} y2={py2 + ph} label={`${approxSizeY}`} color={PROBE_CLR} />
+        <StepLabel text="Toques no eixo Y" color={PROBE_CLR} />
       </g>
     );
   }
@@ -380,14 +449,14 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const r = Math.min(80, approxDiameter * 0.6);
     return (
       <g>
-        <SolidPiece x={cx - r - 55} y={cy - r - 45} w={(r + 55) * 2} h={(r + 45) * 2} label="" />
+        <WoodPiece x={cx - r - 55} y={cy - r - 45} w={(r + 55) * 2} h={(r + 45) * 2} label="" />
         <circle cx={cx} cy={cy} r={r} fill={BG} stroke={PIECE_STROKE} strokeWidth="2.5" />
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize="10" fill={DIM_CLR} opacity="0.4">FURO</text>
-        <Arrow x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_Y} width={2.5} />
-        <Arrow x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_Y} width={2.5} />
-        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_Y} />
-        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_Y} delay={0.6} />
-        <StepLabel text="Toques no eixo Y (furo)" color={PROBE_Y} />
+        <Arrow x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_CLR} width={2.5} />
+        <Arrow x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_CLR} width={2.5} />
+        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy + r - 4} color={PROBE_CLR} />
+        <AnimProbe x1={cx} y1={cy} x2={cx} y2={cy - r + 4} color={PROBE_CLR} delay={0.6} />
+        <StepLabel text="Toques no eixo Y (furo)" color={PROBE_CLR} />
       </g>
     );
   }
@@ -396,13 +465,13 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
   const r2 = Math.min(90, approxDiameter * 0.7);
   return (
     <g>
-      <circle cx={cx} cy={cy} r={r2} fill={PIECE_FILL} opacity="0.2" stroke={PIECE_STROKE} strokeWidth="1.8" />
-      <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fill={DIM_CLR} opacity="0.2" fontWeight="700">PEÇA</text>
-      <Arrow x1={cx} y1={cy - r2 - 45} x2={cx} y2={cy - r2} color={PROBE_Y} width={2.5} />
-      <AnimProbe x1={cx} y1={cy - r2 - 45} x2={cx} y2={cy - r2} color={PROBE_Y} />
-      <Arrow x1={cx} y1={cy + r2 + 45} x2={cx} y2={cy + r2} color={PROBE_Y} width={2.5} />
-      <AnimProbe x1={cx} y1={cy + r2 + 45} x2={cx} y2={cy + r2} color={PROBE_Y} delay={0.6} />
-      <StepLabel text="Toques no eixo Y" color={PROBE_Y} />
+      <circle cx={cx} cy={cy} r={r2} fill={WOOD_MID} opacity="0.5" stroke={WOOD_DARK} strokeWidth="1.8" />
+      <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fill={WOOD_DARK} opacity="0.3" fontWeight="700">PEÇA</text>
+      <Arrow x1={cx} y1={cy - r2 - 45} x2={cx} y2={cy - r2} color={PROBE_CLR} width={2.5} />
+      <AnimProbe x1={cx} y1={cy - r2 - 45} x2={cx} y2={cy - r2} color={PROBE_CLR} />
+      <Arrow x1={cx} y1={cy + r2 + 45} x2={cx} y2={cy + r2} color={PROBE_CLR} width={2.5} />
+      <AnimProbe x1={cx} y1={cy + r2 + 45} x2={cx} y2={cy + r2} color={PROBE_CLR} delay={0.6} />
+      <StepLabel text="Toques no eixo Y" color={PROBE_CLR} />
     </g>
   );
 }
@@ -415,16 +484,21 @@ function StepSafeZ({ safeZ }: WizardDiagramProps) {
 
   return (
     <g>
-      {/* piece side view */}
-      <rect x={px} y={py} width={pw} height={ph} rx={4} fill={PIECE_FILL} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.8" />
-      <text x={cx} y={py + ph / 2 + 5} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.3" fontWeight="700">PEÇA (vista lateral)</text>
+      {/* piece side view — wood */}
+      <rect x={px} y={py} width={pw} height={ph} rx={4} fill={WOOD_MID} opacity="0.6" stroke={WOOD_DARK} strokeWidth="1.8" />
+      {/* grain */}
+      {[0.25, 0.5, 0.75].map((f, i) => (
+        <line key={i} x1={px + 10} y1={py + ph * f} x2={px + pw - 10} y2={py + ph * f}
+          stroke={WOOD_DARK} strokeWidth="0.5" opacity="0.12" />
+      ))}
+      <text x={cx} y={py + ph / 2 + 5} textAnchor="middle" fontSize="12" fill={WOOD_DARK} opacity="0.4" fontWeight="700">PEÇA (vista lateral)</text>
 
       {/* table */}
       <line x1={px - 35} y1={py + ph} x2={px + pw + 35} y2={py + ph} stroke={DIM_CLR} strokeWidth="2.5" opacity="0.2" />
       <text x={px + pw + 45} y={py + ph + 5} fontSize="8" fill={DIM_CLR} opacity="0.35">MESA</text>
 
       {/* spindle */}
-      <SpindleIcon x={cx} y={py - 35} color={Z_CLR} label="SPINDLE" />
+      <SpindleIcon x={cx} y={py - 35} color={METAL} label="SPINDLE" />
 
       {/* Z height dimension */}
       <DimLine x1={cx + 70} y1={py - 35} x2={cx + 70} y2={py} label="" color={Z_CLR} />
@@ -466,11 +540,11 @@ function StepRefinement({ mode, cornerQuadrant, refinementEnabled, refinementDis
 
     return (
       <g>
-        <SolidPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
+        <WoodPiece x={px} y={py} w={pw} h={ph} label="PEÇA" />
         {/* First touch (faded) */}
-        <Arrow x1={cornerX + (isLeft ? -85 : 85)} y1={cornerY - 22} x2={cornerX} y2={cornerY - 22} color={PROBE_X} width={1.5} />
+        <Arrow x1={cornerX + (isLeft ? -85 : 85)} y1={cornerY - 22} x2={cornerX} y2={cornerY - 22} color={PROBE_CLR} width={1.5} />
         <g opacity="0.25">
-          <text x={cornerX + (isLeft ? -85 : 85)} y={cornerY - 34} textAnchor="middle" fontSize="8" fill={PROBE_X}>1º toque</text>
+          <text x={cornerX + (isLeft ? -85 : 85)} y={cornerY - 34} textAnchor="middle" fontSize="8" fill={PROBE_CLR}>1º toque</text>
         </g>
         {/* Refinement X */}
         <Arrow x1={cornerX + (isLeft ? -refDist : refDist)} y1={cornerY - 8} x2={cornerX} y2={cornerY - 8} color={REFINE_CLR} width={3} />
@@ -481,7 +555,7 @@ function StepRefinement({ mode, cornerQuadrant, refinementEnabled, refinementDis
         <Arrow x1={cornerX + (isLeft ? 14 : -14)} y1={cornerY + (isFront ? -refDist : refDist)} x2={cornerX + (isLeft ? 14 : -14)} y2={cornerY} color={REFINE_CLR} width={3} />
         <AnimProbe x1={cornerX + (isLeft ? 14 : -14)} y1={cornerY + (isFront ? -refDist : refDist)} x2={cornerX + (isLeft ? 14 : -14)} y2={cornerY} color={REFINE_CLR} delay={0.5} />
         <text x={cornerX + (isLeft ? 45 : -45)} y={cornerY + (isFront ? -refDist / 2 : refDist / 2)} textAnchor="middle" fontSize="9" fill={REFINE_CLR} fontWeight="700">Conferência Y</text>
-        <circle cx={cornerX} cy={cornerY} r={7} fill={REFINE_CLR} stroke={BG} strokeWidth="2.5" />
+        <TouchPoint cx={cornerX} cy={cornerY} />
         <StepLabel text="Segundo toque mais perto — maior precisão" color={REFINE_CLR} />
       </g>
     );
@@ -489,7 +563,7 @@ function StepRefinement({ mode, cornerQuadrant, refinementEnabled, refinementDis
 
   return (
     <g>
-      <SolidPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
+      <WoodPiece x={cx - 110} y={cy - 65} w={220} h={130} label="PEÇA" />
       <Arrow x1={cx - 110 - 35} y1={cy} x2={cx - 110} y2={cy} color={REFINE_CLR} width={3} />
       <AnimProbe x1={cx - 110 - 35} y1={cy} x2={cx - 110} y2={cy} color={REFINE_CLR} />
       <InfoBadge x={cx - 110 - 35} y={cy - 20} text={`${refinementDistance} mm`} color={REFINE_CLR} />
@@ -522,10 +596,10 @@ function StepProbeZ({ mode, zProbeActive, zCornerInset, holeZStrategy, approxDia
     const r = Math.min(70, approxDiameter * 0.5);
     return (
       <g>
-        <rect x={cx - r - 45} y={py} width={(r + 45) * 2} height={ph} rx={4} fill={PIECE_FILL} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.8" />
+        <rect x={cx - r - 45} y={py} width={(r + 45) * 2} height={ph} rx={4} fill={WOOD_MID} opacity="0.5" stroke={WOOD_DARK} strokeWidth="1.8" />
         <rect x={cx - r} y={py} width={r * 2} height={ph} fill={BG} stroke={PIECE_STROKE} strokeWidth="1.2" />
         <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="9" fill={DIM_CLR} opacity="0.4">FURO</text>
-        <SpindleIcon x={cx + r + 28} y={py - 22} color={Z_CLR} />
+        <SpindleIcon x={cx + r + 28} y={py - 22} color={METAL} />
         <Arrow x1={cx + r + 28} y1={py - 12} x2={cx + r + 28} y2={py} color={Z_CLR} width={3} />
         <AnimProbe x1={cx + r + 28} y1={py - 35} x2={cx + r + 28} y2={py} color={Z_CLR} />
         <text x={cx + r + 28} y={py - 65} textAnchor="middle" fontSize="9" fill={Z_CLR} fontWeight="700">Z seguro</text>
@@ -540,19 +614,23 @@ function StepProbeZ({ mode, zProbeActive, zCornerInset, holeZStrategy, approxDia
 
   return (
     <g>
-      <rect x={px} y={py} width={pw} height={ph} rx={4} fill={PIECE_FILL} opacity="0.25" stroke={PIECE_STROKE} strokeWidth="1.8" />
-      <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="12" fill={DIM_CLR} opacity="0.25" fontWeight="700">PEÇA</text>
+      <rect x={px} y={py} width={pw} height={ph} rx={4} fill={WOOD_MID} opacity="0.5" stroke={WOOD_DARK} strokeWidth="1.8" />
+      {[0.3, 0.6].map((f, i) => (
+        <line key={i} x1={px + 10} y1={py + ph * f} x2={px + pw - 10} y2={py + ph * f}
+          stroke={WOOD_DARK} strokeWidth="0.4" opacity="0.1" />
+      ))}
+      <text x={cx} y={py + ph / 2 + 4} textAnchor="middle" fontSize="12" fill={WOOD_DARK} opacity="0.35" fontWeight="700">PEÇA</text>
       <line x1={px - 25} y1={py + ph} x2={px + pw + 25} y2={py + ph} stroke={DIM_CLR} strokeWidth="2.5" opacity="0.2" />
       {mode === "corner" ? (
         <>
-          <SpindleIcon x={px + zCornerInset * 3 + 25} y={py - 22} color={Z_CLR} label="Probe Z" />
+          <SpindleIcon x={px + zCornerInset * 3 + 25} y={py - 22} color={METAL} label="Probe Z" />
           <Arrow x1={px + zCornerInset * 3 + 25} y1={py - 12} x2={px + zCornerInset * 3 + 25} y2={py} color={Z_CLR} width={3} />
           <AnimProbe x1={px + zCornerInset * 3 + 25} y1={py - 35} x2={px + zCornerInset * 3 + 25} y2={py} color={Z_CLR} />
           <InfoBadge x={px + zCornerInset * 3 + 90} y={py - 35} text={`Recuo ${zCornerInset} mm`} color={Z_CLR} />
         </>
       ) : (
         <>
-          <SpindleIcon x={cx} y={py - 22} color={Z_CLR} label="Probe Z" />
+          <SpindleIcon x={cx} y={py - 22} color={METAL} label="Probe Z" />
           <Arrow x1={cx} y1={py - 12} x2={cx} y2={py} color={Z_CLR} width={3} />
           <AnimProbe x1={cx} y1={py - 35} x2={cx} y2={py} color={Z_CLR} />
         </>
@@ -569,11 +647,11 @@ function StepCustomProbe({ customProbeOffsetX, customProbeOffsetY, customProbeOf
   return (
     <g>
       {/* Spindle body */}
-      <rect x={cx - 22} y={40} width={44} height={85} rx={7} fill={DIM_CLR} opacity="0.08" stroke={DIM_CLR} strokeWidth="1.5" />
-      <text x={cx} y={72} textAnchor="middle" fontSize="9" fill={DIM_CLR} opacity="0.4" fontWeight="700">SPINDLE</text>
-      <line x1={cx} y1={125} x2={cx} y2={150} stroke={DIM_CLR} strokeWidth="2.5" />
-      <circle cx={cx} cy={153} r={4.5} fill={DIM_CLR} opacity="0.35" />
-      <text x={cx} y={170} textAnchor="middle" fontSize="8" fill={DIM_CLR} opacity="0.45">Ferramenta</text>
+      <rect x={cx - 22} y={40} width={44} height={85} rx={7} fill={METAL} opacity="0.1" stroke={METAL} strokeWidth="1.5" />
+      <text x={cx} y={72} textAnchor="middle" fontSize="9" fill={METAL} opacity="0.5" fontWeight="700">SPINDLE</text>
+      <line x1={cx} y1={125} x2={cx} y2={150} stroke={METAL} strokeWidth="2.5" />
+      <circle cx={cx} cy={153} r={4.5} fill={METAL} opacity="0.5" />
+      <text x={cx} y={170} textAnchor="middle" fontSize="8" fill={METAL} opacity="0.6">Ferramenta</text>
 
       {/* Probe arm */}
       <line x1={cx + 22} y1={105} x2={cx + 75} y2={105} stroke={CUSTOM_CLR} strokeWidth="2.5" />
@@ -604,7 +682,7 @@ function StepApply(_props: WizardDiagramProps) {
   const bw = 180, bh = 44, gap = 20, startY = 45;
 
   const boxes = [
-    { label: "1. Localizar peça", color: PROBE_X, y: startY },
+    { label: "1. Localizar peça", color: PROBE_CLR, y: startY },
     { label: "2. Definir origem", color: Z_CLR, y: startY + bh + gap },
     { label: "3. Probe Z (opcional)", color: REFINE_CLR, y: startY + (bh + gap) * 2 },
     { label: "4. Iniciar trabalho", color: CUSTOM_CLR, y: startY + (bh + gap) * 3 },
