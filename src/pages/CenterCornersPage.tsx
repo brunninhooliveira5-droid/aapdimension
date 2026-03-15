@@ -97,8 +97,8 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
   const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
-  const [lateralOffsetY, setLateralOffsetY] = useState(0); // Offset Y do probe na etapa Touch X
-  const [lateralOffsetX, setLateralOffsetX] = useState(0); // Offset X do probe na etapa Touch Y
+  const [touchDistY, setTouchDistY] = useState(10); // Distância Y da quina até o ponto de toque lateral
+  const [touchDistX, setTouchDistX] = useState(10); // Distância X da quina até o ponto de toque frontal
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
@@ -236,8 +236,8 @@ export default function CenterCornersPage() {
   /* ── Step descriptions ── */
   const stepDescriptions: Record<string, string> = {
     mode: "O que você quer localizar?",
-    touchX: "Coloque a ferramenta aproximadamente na quina da peça. A máquina fará o toque lateral para encontrar a posição exata.",
-    touchY: "A partir da mesma quina inicial, a máquina fará o toque frontal para localizar o outro lado da quina.",
+    touchX: "A máquina irá tocar a lateral da peça em um ponto acima da quina. Defina a distância da quina até esse ponto.",
+    touchY: "A máquina irá tocar a frente da peça em um ponto afastado da quina. Defina a distância da quina até esse ponto.",
     safeZ: "Agora defina a altura segura acima da peça.",
     refine: "Agora configure a conferência para mais precisão.",
     probeZ: "Configure o toque vertical para medir a altura.",
@@ -253,7 +253,7 @@ export default function CenterCornersPage() {
     refinementFeed, zProbeActive, zCornerInset, holeZStrategy, holeZSafetyMargin,
     customProbeOffsetX: customProbe.offsetX, customProbeOffsetY: customProbe.offsetY,
     customProbeOffsetZ: customProbe.offsetZ,
-    lateralOffsetY, lateralOffsetX,
+    touchDistY, touchDistX,
   };
 
   return (
@@ -576,8 +576,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Curso máximo do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância máxima que o probe percorre a partir da quina para encontrar a borda real." />
-                  <NumField label="Offset Y do probe" value={lateralOffsetY} onChange={setLateralOffsetY} step={0.1}
-                    hint="Distância entre o centro do spindle e o probe no eixo Y (relação spindle ↔ probe)." />
+                  <NumField label="Distância Y da quina" value={touchDistY} onChange={setTouchDistY} step={0.5}
+                    hint="Distância da quina do material até o ponto onde o toque lateral será realizado." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
                   <NumField label="Diâmetro do probe" value={probeDiameter} onChange={setProbeDiameter} step={0.1}
@@ -598,8 +598,8 @@ export default function CenterCornersPage() {
                 <>
                   <NumField label="Curso máximo do toque Y" value={probeDepth} onChange={setProbeDepth} step={0.5}
                     hint="Distância máxima que o probe percorre a partir da quina para encontrar a borda real." />
-                  <NumField label="Offset X do probe" value={lateralOffsetX} onChange={setLateralOffsetX} step={0.1}
-                    hint="Distância entre o centro do spindle e o probe no eixo X (relação spindle ↔ probe)." />
+                  <NumField label="Distância X da quina" value={touchDistX} onChange={setTouchDistX} step={0.5}
+                    hint="Distância da quina do material até o ponto onde o toque frontal será realizado." />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10} />
                   {(mode === "rect-center") && (
                     <NumField label="Tamanho aprox. Y" value={approxSizeY} onChange={setApproxSizeY} step={5} />
