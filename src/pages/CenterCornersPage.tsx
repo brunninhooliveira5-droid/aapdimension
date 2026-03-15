@@ -427,8 +427,25 @@ export default function CenterCornersPage() {
               <Separator />
 
               {/* Core params */}
-              <NumField label="Distância do toque (mm)" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                hint="Distância que o probe percorre até tocar." />
+              {mode === "corner" ? (
+                <>
+                  <NumField label="Distância Y da quina" value={touchDistY} onChange={setTouchDistY} step={0.5}
+                    hint="Onde o toque lateral será feito." />
+                  <NumField label="Aproximação externa X" value={approachX} onChange={setApproachX} step={0.5}
+                    hint="Posição inicial fora da peça para o toque X." />
+                  <NumField label="Curso máximo do toque X" value={maxTravelX} onChange={setMaxTravelX} step={0.5}
+                    hint="Distância máxima de busca no eixo X." />
+                  <NumField label="Distância X da quina" value={touchDistX} onChange={setTouchDistX} step={0.5}
+                    hint="Onde o toque frontal será feito." />
+                  <NumField label="Aproximação externa Y" value={approachY} onChange={setApproachY} step={0.5}
+                    hint="Posição inicial fora da peça para o toque Y." />
+                  <NumField label="Curso máximo do toque Y" value={maxTravelY} onChange={setMaxTravelY} step={0.5}
+                    hint="Distância máxima de busca no eixo Y." />
+                </>
+              ) : (
+                <NumField label="Distância do toque (mm)" value={probeDepth} onChange={setProbeDepth} step={0.5}
+                  hint="Distância que o probe percorre até tocar." />
+              )}
               <NumField label="Velocidade do toque (mm/min)" value={probeFeed} onChange={setProbeFeed} step={10} />
               <NumField label="Diâmetro do probe (mm)" value={probeDiameter} onChange={setProbeDiameter} step={0.1} />
               <NumField label="Altura segura Z (mm)" value={safeZ} onChange={setSafeZ} step={0.5} />
