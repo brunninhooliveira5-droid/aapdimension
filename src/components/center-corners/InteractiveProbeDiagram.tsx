@@ -27,6 +27,8 @@ export interface WizardDiagramProps {
   touchDistX: number;
   approachX: number;
   approachY: number;
+  maxTravelX: number;
+  maxTravelY: number;
 }
 
 /* ── Constants ── */
