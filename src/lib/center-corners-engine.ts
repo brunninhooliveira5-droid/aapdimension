@@ -294,7 +294,11 @@ function generateCorner(
 ): CenterCornersResult {
   const dirX = cfg.cornerQuadrant.includes("left") ? 1 : -1;
   const dirY = cfg.cornerQuadrant.includes("front") ? 1 : -1;
-  const approachDist = 10;
+
+  const touchYFromCorner = dirY * Math.abs(cfg.cornerTouchDistY);
+  const touchXFromCorner = dirX * Math.abs(cfg.cornerTouchDistX);
+  const probeTravelX = dirX * Math.abs(cfg.cornerMaxTravelX);
+  const probeTravelY = dirY * Math.abs(cfg.cornerMaxTravelY);
 
   out.push(`(  Modo: Encontrar Quina - ${cfg.cornerQuadrant})`);
   if (cfg.refinementEnabled) out.push("(  Conferência de precisão: LIGADA )");
@@ -308,9 +312,9 @@ function generateCorner(
   out.push("( ===== PRIMEIRO TOQUE ===== )");
   out.push("");
   out.push("( --- Toque no eixo X --- )");
-  out.push(`G0 X${d(dirX * -approachDist)} Y0`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} X${d(dirX * (approachDist + 5))} F${d(cfg.probeFeed)}`);
+  out.push(`G0 Z${d(cfg.safeZ)}`);
+  out.push(`G0 X${d(cfg.cornerApproachX)} Y${d(touchYFromCorner)}`);
+  out.push(`${probe} X${d(probeTravelX)} F${d(cfg.probeFeed)}`);
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
@@ -320,9 +324,9 @@ function generateCorner(
   }
 
   out.push("( --- Toque no eixo Y --- )");
-  out.push(`G0 X0 Y${d(dirY * -approachDist)}`);
-  out.push(`G0 Z${d(cfg.probeDepth)}`);
-  out.push(`${probe} Y${d(dirY * (approachDist + 5))} F${d(cfg.probeFeed)}`);
+  out.push(`G0 Z${d(cfg.safeZ)}`);
+  out.push(`G0 X${d(touchXFromCorner)} Y${d(cfg.cornerApproachY)}`);
+  out.push(`${probe} Y${d(probeTravelY)} F${d(cfg.probeFeed)}`);
   out.push(`G0 Z${d(cfg.safeZ)}`);
   out.push("");
 
@@ -333,8 +337,9 @@ function generateCorner(
 
   // Refinement
   if (cfg.refinementEnabled) {
-    const refDist = cfg.refinementDistance;
+    const refDist = Math.abs(cfg.refinementDistance);
     const refFeed = cfg.refinementFeed;
+
     for (let cycle = 0; cycle < cfg.refinementCycles; cycle++) {
       out.push("");
       out.push(`( ===== TOQUE DE CONFERÊNCIA ${cfg.refinementCycles > 1 ? cycle + 1 : ""} ===== )`);
@@ -342,12 +347,12 @@ function generateCorner(
       out.push("");
 
       out.push("( --- Refinamento eixo X --- )");
+      out.push(`G0 Z${d(cfg.safeZ)}`);
       if (cfg.controller === "mach3") {
         out.push(`G0 X[#2010 + ${d(dirX * -refDist)}] Y#2011`);
       } else {
-        out.push(`G0 X${d(dirX * -refDist)} Y0`);
+        out.push(`G0 X${d(cfg.cornerApproachX)} Y${d(touchYFromCorner)}`);
       }
-      out.push(`G0 Z${d(cfg.probeDepth)}`);
       out.push(`${probe} X${d(dirX * (refDist + 3))} F${d(refFeed)}`);
       out.push(`G0 Z${d(cfg.safeZ)}`);
       if (cfg.controller === "mach3") {
@@ -357,12 +362,12 @@ function generateCorner(
       out.push("");
 
       out.push("( --- Refinamento eixo Y --- )");
+      out.push(`G0 Z${d(cfg.safeZ)}`);
       if (cfg.controller === "mach3") {
         out.push(`G0 X#2010 Y[#2011 + ${d(dirY * -refDist)}]`);
       } else {
-        out.push(`G0 X0 Y${d(dirY * -refDist)}`);
+        out.push(`G0 X${d(touchXFromCorner)} Y${d(cfg.cornerApproachY)}`);
       }
-      out.push(`G0 Z${d(cfg.probeDepth)}`);
       out.push(`${probe} Y${d(dirY * (refDist + 3))} F${d(refFeed)}`);
       out.push(`G0 Z${d(cfg.safeZ)}`);
       if (cfg.controller === "mach3") {
