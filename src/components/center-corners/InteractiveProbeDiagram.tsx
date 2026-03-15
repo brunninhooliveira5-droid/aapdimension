@@ -476,7 +476,7 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
 }
 
 /* STEP 2 — Touch Y */
-function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistX }: WizardDiagramProps) {
+function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistX, approachY }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -490,10 +490,15 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const distVisual = Math.max(15, Math.min(80, touchDistX * 3));
     const touchPtX = isLeft ? cornerX + distVisual : cornerX - distVisual;
 
-    // Touch travel: probe searches in Y direction
+    // Approach: probe starts outside the piece
+    const approachVisual = Math.max(20, Math.min(60, approachY * 3));
+    const approachStartY = isFront ? cornerY + approachVisual : cornerY - approachVisual;
+
+    // Touch travel: total search distance
     const travelLen = Math.max(45, Math.min(110, probeDepth * 2.5));
-    const touchStartY = isFront ? cornerY + travelLen : cornerY - travelLen;
-    const touchEndY = cornerY;
+    const travelEndY = isFront ? approachStartY - travelLen : approachStartY + travelLen;
+
+    const APPROACH_CLR = "#22c55e";
 
     return (
       <g>
@@ -518,15 +523,35 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
           Dist. X da quina
         </text>
 
+        {/* Approach start point (outside piece) */}
+        <circle cx={touchPtX} cy={approachStartY} r={5} fill={APPROACH_CLR} opacity="0.7" stroke={BG} strokeWidth="2" />
+        <text x={touchPtX + (isLeft ? 24 : -24)} y={approachStartY + 4} textAnchor="middle" fontSize="8" fill={APPROACH_CLR} fontWeight="700">
+          Início
+        </text>
+
+        {/* Approach dimension: edge to start point */}
+        <DimLine
+          x1={touchPtX + (isLeft ? 20 : -20)} y1={cornerY}
+          x2={touchPtX + (isLeft ? 20 : -20)} y2={approachStartY}
+          label={`${approachY} mm`}
+          color={APPROACH_CLR}
+        />
+        <text
+          x={touchPtX + (isLeft ? 20 : -20)}
+          y={(cornerY + approachStartY) / 2 + 14}
+          textAnchor="middle" fontSize="7" fill={APPROACH_CLR} fontWeight="600" opacity="0.8">
+          Aprox. externa
+        </text>
+
         {/* Touch travel arrow — probe searches for the edge in Y */}
-        <Arrow x1={touchPtX} y1={touchStartY} x2={touchPtX} y2={touchEndY} color={PROBE_CLR} width={3} />
-        <AnimProbe x1={touchPtX} y1={touchStartY} x2={touchPtX} y2={touchEndY} color={PROBE_CLR} />
-        <InfoBadge x={touchPtX + (isLeft ? 65 : -65)} y={(touchStartY + touchEndY) / 2} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
+        <Arrow x1={touchPtX} y1={approachStartY} x2={touchPtX} y2={travelEndY} color={PROBE_CLR} width={3} />
+        <AnimProbe x1={touchPtX} y1={approachStartY} x2={touchPtX} y2={travelEndY} color={PROBE_CLR} />
+        <InfoBadge x={touchPtX + (isLeft ? 65 : -65)} y={(approachStartY + travelEndY) / 2} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
 
         {/* Touch point on edge */}
-        <TouchPoint cx={touchPtX} cy={touchEndY} />
+        <TouchPoint cx={touchPtX} cy={cornerY} />
 
-        <StepLabel text="Toque frontal (Eixo Y) — ponto de toque medido a partir da quina" color={PROBE_CLR} />
+        <StepLabel text="Toque frontal (Eixo Y) — começa fora da peça e busca a borda" color={PROBE_CLR} />
       </g>
     );
   }
