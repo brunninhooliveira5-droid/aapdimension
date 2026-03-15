@@ -236,8 +236,8 @@ export default function CenterCornersPage() {
   /* ── Step descriptions ── */
   const stepDescriptions: Record<string, string> = {
     mode: "O que você quer localizar?",
-    touchX: "Coloque a ferramenta aproximadamente na quina da peça. A máquina fará o toque lateral para encontrar a posição exata.",
-    touchY: "A partir da mesma quina inicial, a máquina fará o toque frontal para localizar o outro lado da quina.",
+    touchX: "A máquina irá tocar a lateral da peça em um ponto acima da quina. Defina a distância da quina até esse ponto.",
+    touchY: "A máquina irá tocar a frente da peça em um ponto afastado da quina. Defina a distância da quina até esse ponto.",
     safeZ: "Agora defina a altura segura acima da peça.",
     refine: "Agora configure a conferência para mais precisão.",
     probeZ: "Configure o toque vertical para medir a altura.",
