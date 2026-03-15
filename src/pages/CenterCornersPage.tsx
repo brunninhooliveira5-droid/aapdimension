@@ -99,6 +99,8 @@ export default function CenterCornersPage() {
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
   const [touchDistY, setTouchDistY] = useState(10); // Distância Y da quina até o ponto de toque lateral
   const [touchDistX, setTouchDistX] = useState(10); // Distância X da quina até o ponto de toque frontal
+  const [approachX, setApproachX] = useState(5); // Aproximação externa X (fora da peça)
+  const [approachY, setApproachY] = useState(5); // Aproximação externa Y (fora da peça)
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
