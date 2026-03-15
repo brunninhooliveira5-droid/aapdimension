@@ -611,8 +611,8 @@ export default function CenterCornersPage() {
                     hint="Onde na borda o toque será feito, medido a partir da quina." />
                   <NumField label="Aproximação externa X" value={approachX} onChange={setApproachX} step={0.5}
                     hint="De onde o probe começa o toque, fora da peça." />
-                  <NumField label="Curso máximo do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                    hint="Até onde a máquina pode avançar procurando a borda." />
+                  <NumField label="Curso máximo do toque X" value={maxTravelX} onChange={setMaxTravelX} step={0.5}
+                    hint="Até onde a máquina pode avançar procurando a borda no eixo X." />
                   <Separator />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
