@@ -340,7 +340,7 @@ function CornerHighlight({ cx: x, cy: y, label }: { cx: number; cy: number; labe
 }
 
 /* STEP 1 — Touch X */
-function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, lateralOffsetY }: WizardDiagramProps) {
+function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistY }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
