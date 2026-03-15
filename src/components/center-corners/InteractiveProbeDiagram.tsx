@@ -344,7 +344,7 @@ function CornerHighlight({ cx: x, cy: y, label }: { cx: number; cy: number; labe
 }
 
 /* STEP 1 — Touch X */
-function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistY, approachX }: WizardDiagramProps) {
+function StepTouchX({ mode, cornerQuadrant, maxTravelX, approxSizeX, approxSizeY, approxDiameter, touchDistY, approachX }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -355,15 +355,15 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const cornerY = isFront ? py + ph : py;
 
     // Touch point position: distance Y from corner along the edge
-    const distVisual = Math.max(15, Math.min(80, touchDistY * 3));
+    const distVisual = Math.max(15, Math.min(80, Math.abs(touchDistY) * 3));
     const touchPtY = isFront ? cornerY - distVisual : cornerY + distVisual;
 
     // Approach: probe starts outside the piece
-    const approachVisual = Math.max(20, Math.min(60, approachX * 3));
+    const approachVisual = Math.max(20, Math.min(60, Math.abs(approachX) * 3));
     const approachStartX = isLeft ? cornerX - approachVisual : cornerX + approachVisual;
 
     // Touch travel: total search distance
-    const travelLen = Math.max(45, Math.min(110, probeDepth * 2.5));
+    const travelLen = Math.max(45, Math.min(110, Math.abs(maxTravelX) * 2.5));
     const travelEndX = isLeft ? approachStartX + travelLen : approachStartX - travelLen;
 
     const APPROACH_CLR = "#22c55e"; // green for approach
