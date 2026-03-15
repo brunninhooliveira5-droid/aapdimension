@@ -97,10 +97,12 @@ export default function CenterCornersPage() {
   const [holeZManualOffsetY, setHoleZManualOffsetY] = useState(defaultCenterCornersConfig.holeZManualOffsetY);
   const [probeType, setProbeType] = useState<ProbeType>(defaultCenterCornersConfig.probeType);
   const [customProbe, setCustomProbe] = useState<CustomProbeConfig>({ ...defaultCustomProbeConfig });
-  const [touchDistY, setTouchDistY] = useState(10); // Distância Y da quina até o ponto de toque lateral
-  const [touchDistX, setTouchDistX] = useState(10); // Distância X da quina até o ponto de toque frontal
-  const [approachX, setApproachX] = useState(5); // Aproximação externa X (fora da peça)
-  const [approachY, setApproachY] = useState(5); // Aproximação externa Y (fora da peça)
+  const [touchDistY, setTouchDistY] = useState(defaultCenterCornersConfig.cornerTouchDistY);
+  const [touchDistX, setTouchDistX] = useState(defaultCenterCornersConfig.cornerTouchDistX);
+  const [approachX, setApproachX] = useState(defaultCenterCornersConfig.cornerApproachX);
+  const [approachY, setApproachY] = useState(defaultCenterCornersConfig.cornerApproachY);
+  const [maxTravelX, setMaxTravelX] = useState(defaultCenterCornersConfig.cornerMaxTravelX);
+  const [maxTravelY, setMaxTravelY] = useState(defaultCenterCornersConfig.cornerMaxTravelY);
   const updateCustomProbe = (patch: Partial<CustomProbeConfig>) => setCustomProbe(prev => ({ ...prev, ...patch }));
   const [postAction, setPostAction] = useState<PostLocationAction>(defaultCenterCornersConfig.postAction);
   const [workGcode, setWorkGcode] = useState<string>("");
@@ -128,13 +130,19 @@ export default function CenterCornersPage() {
   const buildConfig = useCallback((): CenterCornersConfig => ({
     mode, safeZ, probeFeed, probeDepth, probeDiameter,
     cornerQuadrant: cornerQuadrant as any,
+    cornerTouchDistY: touchDistY,
+    cornerApproachX: approachX,
+    cornerMaxTravelX: maxTravelX,
+    cornerTouchDistX: touchDistX,
+    cornerApproachY: approachY,
+    cornerMaxTravelY: maxTravelY,
     approxSizeX, approxSizeY, approxDiameter, circlePoints,
     setOrigin, moveToCenter, decimalPlaces: 3, controller: controller as any,
     refinementEnabled, refinementDistance, refinementFeed, refinementCycles,
     zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset,
     holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY,
     probeType, customProbe, postAction,
-  }), [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY, probeType, customProbe, postAction]);
+  }), [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, touchDistY, approachX, maxTravelX, touchDistX, approachY, maxTravelY, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY, probeType, customProbe, postAction]);
 
   const applyConfig = useCallback((cfg: CenterCornersConfig) => {
     setMode(cfg.mode);
@@ -143,6 +151,12 @@ export default function CenterCornersPage() {
     setProbeDepth(cfg.probeDepth);
     setProbeDiameter(cfg.probeDiameter);
     setCornerQuadrant(cfg.cornerQuadrant);
+    setTouchDistY(cfg.cornerTouchDistY ?? defaultCenterCornersConfig.cornerTouchDistY);
+    setApproachX(cfg.cornerApproachX ?? defaultCenterCornersConfig.cornerApproachX);
+    setMaxTravelX(cfg.cornerMaxTravelX ?? defaultCenterCornersConfig.cornerMaxTravelX);
+    setTouchDistX(cfg.cornerTouchDistX ?? defaultCenterCornersConfig.cornerTouchDistX);
+    setApproachY(cfg.cornerApproachY ?? defaultCenterCornersConfig.cornerApproachY);
+    setMaxTravelY(cfg.cornerMaxTravelY ?? defaultCenterCornersConfig.cornerMaxTravelY);
     setApproxSizeX(cfg.approxSizeX);
     setApproxSizeY(cfg.approxSizeY);
     setApproxDiameter(cfg.approxDiameter);
@@ -255,7 +269,7 @@ export default function CenterCornersPage() {
     refinementFeed, zProbeActive, zCornerInset, holeZStrategy, holeZSafetyMargin,
     customProbeOffsetX: customProbe.offsetX, customProbeOffsetY: customProbe.offsetY,
     customProbeOffsetZ: customProbe.offsetZ,
-    touchDistY, touchDistX, approachX, approachY,
+    touchDistY, touchDistX, approachX, approachY, maxTravelX, maxTravelY,
   };
 
   return (
@@ -413,8 +427,25 @@ export default function CenterCornersPage() {
               <Separator />
 
               {/* Core params */}
-              <NumField label="Distância do toque (mm)" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                hint="Distância que o probe percorre até tocar." />
+              {mode === "corner" ? (
+                <>
+                  <NumField label="Distância Y da quina" value={touchDistY} onChange={setTouchDistY} step={0.5}
+                    hint="Onde o toque lateral será feito." />
+                  <NumField label="Aproximação externa X" value={approachX} onChange={setApproachX} step={0.5}
+                    hint="Posição inicial fora da peça para o toque X." />
+                  <NumField label="Curso máximo do toque X" value={maxTravelX} onChange={setMaxTravelX} step={0.5}
+                    hint="Distância máxima de busca no eixo X." />
+                  <NumField label="Distância X da quina" value={touchDistX} onChange={setTouchDistX} step={0.5}
+                    hint="Onde o toque frontal será feito." />
+                  <NumField label="Aproximação externa Y" value={approachY} onChange={setApproachY} step={0.5}
+                    hint="Posição inicial fora da peça para o toque Y." />
+                  <NumField label="Curso máximo do toque Y" value={maxTravelY} onChange={setMaxTravelY} step={0.5}
+                    hint="Distância máxima de busca no eixo Y." />
+                </>
+              ) : (
+                <NumField label="Distância do toque (mm)" value={probeDepth} onChange={setProbeDepth} step={0.5}
+                  hint="Distância que o probe percorre até tocar." />
+              )}
               <NumField label="Velocidade do toque (mm/min)" value={probeFeed} onChange={setProbeFeed} step={10} />
               <NumField label="Diâmetro do probe (mm)" value={probeDiameter} onChange={setProbeDiameter} step={0.1} />
               <NumField label="Altura segura Z (mm)" value={safeZ} onChange={setSafeZ} step={0.5} />
@@ -580,8 +611,8 @@ export default function CenterCornersPage() {
                     hint="Onde na borda o toque será feito, medido a partir da quina." />
                   <NumField label="Aproximação externa X" value={approachX} onChange={setApproachX} step={0.5}
                     hint="De onde o probe começa o toque, fora da peça." />
-                  <NumField label="Curso máximo do toque X" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                    hint="Até onde a máquina pode avançar procurando a borda." />
+                  <NumField label="Curso máximo do toque X" value={maxTravelX} onChange={setMaxTravelX} step={0.5}
+                    hint="Até onde a máquina pode avançar procurando a borda no eixo X." />
                   <Separator />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10}
                     hint="Velocidade usada durante o primeiro toque." />
@@ -605,8 +636,8 @@ export default function CenterCornersPage() {
                     hint="Onde na borda o toque será feito, medido a partir da quina." />
                   <NumField label="Aproximação externa Y" value={approachY} onChange={setApproachY} step={0.5}
                     hint="De onde o probe começa o toque, fora da peça." />
-                  <NumField label="Curso máximo do toque Y" value={probeDepth} onChange={setProbeDepth} step={0.5}
-                    hint="Até onde a máquina pode avançar procurando a borda." />
+                  <NumField label="Curso máximo do toque Y" value={maxTravelY} onChange={setMaxTravelY} step={0.5}
+                    hint="Até onde a máquina pode avançar procurando a borda no eixo Y." />
                   <Separator />
                   <NumField label="Velocidade do toque" value={probeFeed} onChange={setProbeFeed} step={10} />
                   {(mode === "rect-center") && (

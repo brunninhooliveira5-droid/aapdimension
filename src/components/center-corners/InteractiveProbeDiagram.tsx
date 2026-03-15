@@ -27,6 +27,8 @@ export interface WizardDiagramProps {
   touchDistX: number;
   approachX: number;
   approachY: number;
+  maxTravelX: number;
+  maxTravelY: number;
 }
 
 /* ── Constants ── */
@@ -342,7 +344,7 @@ function CornerHighlight({ cx: x, cy: y, label }: { cx: number; cy: number; labe
 }
 
 /* STEP 1 — Touch X */
-function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistY, approachX }: WizardDiagramProps) {
+function StepTouchX({ mode, cornerQuadrant, maxTravelX, approxSizeX, approxSizeY, approxDiameter, touchDistY, approachX }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -353,15 +355,15 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const cornerY = isFront ? py + ph : py;
 
     // Touch point position: distance Y from corner along the edge
-    const distVisual = Math.max(15, Math.min(80, touchDistY * 3));
+    const distVisual = Math.max(15, Math.min(80, Math.abs(touchDistY) * 3));
     const touchPtY = isFront ? cornerY - distVisual : cornerY + distVisual;
 
     // Approach: probe starts outside the piece
-    const approachVisual = Math.max(20, Math.min(60, approachX * 3));
+    const approachVisual = Math.max(20, Math.min(60, Math.abs(approachX) * 3));
     const approachStartX = isLeft ? cornerX - approachVisual : cornerX + approachVisual;
 
     // Touch travel: total search distance
-    const travelLen = Math.max(45, Math.min(110, probeDepth * 2.5));
+    const travelLen = Math.max(45, Math.min(110, Math.abs(maxTravelX) * 2.5));
     const travelEndX = isLeft ? approachStartX + travelLen : approachStartX - travelLen;
 
     const APPROACH_CLR = "#22c55e"; // green for approach
@@ -412,7 +414,7 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
         {/* Touch travel arrow — probe searches for the edge */}
         <Arrow x1={approachStartX} y1={touchPtY} x2={travelEndX} y2={touchPtY} color={PROBE_CLR} width={3} />
         <AnimProbe x1={approachStartX} y1={touchPtY} x2={travelEndX} y2={touchPtY} color={PROBE_CLR} />
-        <InfoBadge x={(approachStartX + travelEndX) / 2} y={touchPtY - 22} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
+        <InfoBadge x={(approachStartX + travelEndX) / 2} y={touchPtY - 22} text={`Curso ${maxTravelX} mm`} color={PROBE_CLR} />
 
         {/* Touch point on edge */}
         <TouchPoint cx={cornerX} cy={touchPtY} />
@@ -476,7 +478,7 @@ function StepTouchX({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
 }
 
 /* STEP 2 — Touch Y */
-function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY, approxDiameter, touchDistX, approachY }: WizardDiagramProps) {
+function StepTouchY({ mode, cornerQuadrant, maxTravelY, approxSizeX, approxSizeY, approxDiameter, touchDistX, approachY }: WizardDiagramProps) {
   const cx = VW / 2, cy = VH / 2 - 10;
 
   if (mode === "corner") {
@@ -487,15 +489,15 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
     const cornerY = isFront ? py + ph : py;
 
     // Touch point position: distance X from corner along the edge
-    const distVisual = Math.max(15, Math.min(80, touchDistX * 3));
+    const distVisual = Math.max(15, Math.min(80, Math.abs(touchDistX) * 3));
     const touchPtX = isLeft ? cornerX + distVisual : cornerX - distVisual;
 
     // Approach: probe starts outside the piece
-    const approachVisual = Math.max(20, Math.min(60, approachY * 3));
+    const approachVisual = Math.max(20, Math.min(60, Math.abs(approachY) * 3));
     const approachStartY = isFront ? cornerY + approachVisual : cornerY - approachVisual;
 
     // Touch travel: total search distance
-    const travelLen = Math.max(45, Math.min(110, probeDepth * 2.5));
+    const travelLen = Math.max(45, Math.min(110, Math.abs(maxTravelY) * 2.5));
     const travelEndY = isFront ? approachStartY - travelLen : approachStartY + travelLen;
 
     const APPROACH_CLR = "#22c55e";
@@ -546,7 +548,7 @@ function StepTouchY({ mode, cornerQuadrant, probeDepth, approxSizeX, approxSizeY
         {/* Touch travel arrow — probe searches for the edge in Y */}
         <Arrow x1={touchPtX} y1={approachStartY} x2={touchPtX} y2={travelEndY} color={PROBE_CLR} width={3} />
         <AnimProbe x1={touchPtX} y1={approachStartY} x2={touchPtX} y2={travelEndY} color={PROBE_CLR} />
-        <InfoBadge x={touchPtX + (isLeft ? 65 : -65)} y={(approachStartY + travelEndY) / 2} text={`Curso ${probeDepth} mm`} color={PROBE_CLR} />
+        <InfoBadge x={touchPtX + (isLeft ? 65 : -65)} y={(approachStartY + travelEndY) / 2} text={`Curso ${maxTravelY} mm`} color={PROBE_CLR} />
 
         {/* Touch point on edge */}
         <TouchPoint cx={touchPtX} cy={cornerY} />
