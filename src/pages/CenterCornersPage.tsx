@@ -130,13 +130,19 @@ export default function CenterCornersPage() {
   const buildConfig = useCallback((): CenterCornersConfig => ({
     mode, safeZ, probeFeed, probeDepth, probeDiameter,
     cornerQuadrant: cornerQuadrant as any,
+    cornerTouchDistY: touchDistY,
+    cornerApproachX: approachX,
+    cornerMaxTravelX: maxTravelX,
+    cornerTouchDistX: touchDistX,
+    cornerApproachY: approachY,
+    cornerMaxTravelY: maxTravelY,
     approxSizeX, approxSizeY, approxDiameter, circlePoints,
     setOrigin, moveToCenter, decimalPlaces: 3, controller: controller as any,
     refinementEnabled, refinementDistance, refinementFeed, refinementCycles,
     zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset,
     holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY,
     probeType, customProbe, postAction,
-  }), [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY, probeType, customProbe, postAction]);
+  }), [mode, safeZ, probeFeed, probeDepth, probeDiameter, cornerQuadrant, touchDistY, approachX, maxTravelX, touchDistX, approachY, maxTravelY, approxSizeX, approxSizeY, approxDiameter, circlePoints, setOrigin, moveToCenter, controller, refinementEnabled, refinementDistance, refinementFeed, refinementCycles, zProbeMode, zProbeFeed, zProbeTravel, zSetOrigin, zCornerInset, holeZStrategy, holeZSafetyMargin, holeZManualOffsetX, holeZManualOffsetY, probeType, customProbe, postAction]);
 
   const applyConfig = useCallback((cfg: CenterCornersConfig) => {
     setMode(cfg.mode);
