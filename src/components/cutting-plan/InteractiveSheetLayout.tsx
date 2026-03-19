@@ -28,11 +28,13 @@ export function InteractiveSheetLayout({
   matW,
   matH,
   sheetIndex,
+  totalSheets,
   singleCut,
   kerfWidth,
   descriptions,
   nomenclatureConfig,
   onLayoutChange,
+  onMovePiece,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
