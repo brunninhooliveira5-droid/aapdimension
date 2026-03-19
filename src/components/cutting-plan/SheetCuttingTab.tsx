@@ -179,7 +179,7 @@ export function SheetCuttingTab() {
       e.preventDefault();
       const current = e.target as HTMLInputElement;
       const pieceId = current.getAttribute("data-piece-id");
-      const fields: (keyof PieceRow)[] = ["width", "height", "quantity"];
+      const fields: (keyof PieceRow)[] = ["description", "width", "height", "quantity"];
       const fieldIdx = fields.indexOf(field);
 
       if (field === "quantity") {
