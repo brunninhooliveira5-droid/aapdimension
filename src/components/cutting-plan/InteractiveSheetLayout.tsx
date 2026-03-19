@@ -157,6 +157,12 @@ export function InteractiveSheetLayout({
     }
   }, [pieces, matW, matH, sheetIndex, onLayoutChange]);
 
+  const handleDeletePiece = useCallback((pieceIdx: number) => {
+    const newPieces = pieces.filter((_, i) => i !== pieceIdx);
+    onLayoutChange(sheetIndex, newPieces);
+    toast.success("Peça removida do plano.");
+  }, [pieces, sheetIndex, onLayoutChange]);
+
   const handleReset = useCallback(() => {
     onLayoutChange(sheetIndex, originalPieces.map(p => ({ ...p })));
     toast.success("Posições restauradas para o layout original.");
