@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { getPieceColor, type PlacedPiece } from "@/lib/cutting-plan-engine";
 import { type PdfNomenclatureConfig, formatPieceLabel } from "./CuttingPlanPdfConfig";
-import { RotateCw, RotateCcw } from "lucide-react";
+import { RotateCw, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -157,6 +157,12 @@ export function InteractiveSheetLayout({
     }
   }, [pieces, matW, matH, sheetIndex, onLayoutChange]);
 
+  const handleDeletePiece = useCallback((pieceIdx: number) => {
+    const newPieces = pieces.filter((_, i) => i !== pieceIdx);
+    onLayoutChange(sheetIndex, newPieces);
+    toast.success("Peça removida do plano.");
+  }, [pieces, sheetIndex, onLayoutChange]);
+
   const handleReset = useCallback(() => {
     onLayoutChange(sheetIndex, originalPieces.map(p => ({ ...p })));
     toast.success("Posições restauradas para o layout original.");
@@ -233,6 +239,19 @@ export function InteractiveSheetLayout({
                       {subLabel}
                     </span>
                   )}
+                  {/* Delete button */}
+                  <button
+                    className="absolute top-0.5 left-0.5 bg-red-600/60 hover:bg-red-700/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleDeletePiece(j);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    title="Remover peça do plano"
+                  >
+                    <X className="h-3 w-3 text-white" />
+                  </button>
                   {/* Rotate button */}
                   <button
                     className="absolute top-0.5 right-0.5 bg-black/40 hover:bg-black/70 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
