@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { getPieceColor, type PlacedPiece } from "@/lib/cutting-plan-engine";
 import { type PdfNomenclatureConfig, formatPieceLabel } from "./CuttingPlanPdfConfig";
-import { RotateCw } from "lucide-react";
+import { RotateCw, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -36,12 +36,62 @@ export function InteractiveSheetLayout({
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+  // Store the original layout for reset
+  const [originalPieces] = useState<PlacedPiece[]>(() => layout.pieces.map(p => ({ ...p })));
+
   const pieces = layout.pieces;
 
   const scrapX = pieces.length > 0 ? Math.max(...pieces.map(p => p.x + p.width)) : 0;
   const scrapY = pieces.length > 0 ? Math.max(...pieces.map(p => p.y + p.height)) : 0;
   const hasScrapRight = matW - scrapX > 10;
   const hasScrapBottom = matH - scrapY > 10;
+
+  // Enforce kerf distance: after dragging, snap position so it doesn't overlap other pieces (respecting kerf)
+  const enforceKerf = useCallback((newX: number, newY: number, pieceIdx: number, pw: number, ph: number): { x: number; y: number } => {
+    let x = newX;
+    let y = newY;
+    const kerf = kerfWidth;
+
+    for (let i = 0; i < pieces.length; i++) {
+      if (i === pieceIdx) continue;
+      const other = pieces[i];
+
+      // Check if there's vertical overlap (Y axis overlap)
+      const yOverlap = y < other.y + other.height + kerf && y + ph > other.y - kerf;
+      // Check if there's horizontal overlap (X axis overlap)
+      const xOverlap = x < other.x + other.width + kerf && x + pw > other.x - kerf;
+
+      if (xOverlap && yOverlap) {
+        // There's an overlap — push piece out by the smallest correction
+        const pushRight = other.x + other.width + kerf - x;
+        const pushLeft = x + pw + kerf - other.x;
+        const pushDown = other.y + other.height + kerf - y;
+        const pushUp = y + ph + kerf - other.y;
+
+        // Find smallest positive push
+        const corrections = [
+          { dx: pushRight, dy: 0 },
+          { dx: -pushLeft, dy: 0 },
+          { dx: 0, dy: pushDown },
+          { dx: 0, dy: -pushUp },
+        ].filter(c => {
+          const nx = x + c.dx;
+          const ny = y + c.dy;
+          return nx >= 0 && ny >= 0 && nx + pw <= matW && ny + ph <= matH;
+        });
+
+        if (corrections.length > 0) {
+          const best = corrections.reduce((a, b) =>
+            Math.abs(a.dx) + Math.abs(a.dy) < Math.abs(b.dx) + Math.abs(b.dy) ? a : b
+          );
+          x += best.dx;
+          y += best.dy;
+        }
+      }
+    }
+
+    return { x, y };
+  }, [pieces, kerfWidth, matW, matH]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent, pieceIdx: number) => {
     if (!containerRef.current) return;
@@ -69,11 +119,14 @@ export function InteractiveSheetLayout({
     newX = Math.max(0, Math.min(matW - piece.width, newX));
     newY = Math.max(0, Math.min(matH - piece.height, newY));
 
+    // Enforce kerf distance from other pieces
+    const corrected = enforceKerf(newX, newY, draggingIdx, piece.width, piece.height);
+
     const newPieces = pieces.map((p, i) =>
-      i === draggingIdx ? { ...p, x: newX, y: newY } : p
+      i === draggingIdx ? { ...p, x: corrected.x, y: corrected.y } : p
     );
     onLayoutChange(sheetIndex, newPieces);
-  }, [draggingIdx, dragOffset, pieces, matW, matH, sheetIndex, onLayoutChange]);
+  }, [draggingIdx, dragOffset, pieces, matW, matH, sheetIndex, onLayoutChange, enforceKerf]);
 
   const handleMouseUp = useCallback(() => {
     setDraggingIdx(null);
@@ -86,7 +139,6 @@ export function InteractiveSheetLayout({
 
     // Check if rotated piece fits in material
     if (piece.x + newW > matW || piece.y + newH > matH) {
-      // Try adjusting position
       let newX = Math.min(piece.x, matW - newW);
       let newY = Math.min(piece.y, matH - newH);
       if (newX < 0 || newY < 0) {
@@ -105,19 +157,30 @@ export function InteractiveSheetLayout({
     }
   }, [pieces, matW, matH, sheetIndex, onLayoutChange]);
 
+  const handleReset = useCallback(() => {
+    onLayoutChange(sheetIndex, originalPieces.map(p => ({ ...p })));
+    toast.success("Posições restauradas para o layout original.");
+  }, [sheetIndex, originalPieces, onLayoutChange]);
+
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-foreground">
-        Chapa {sheetIndex + 1} — {pieces.length} peça(s) — Aproveitamento: {layout.utilization.toFixed(1)}%
-        {layout.scrapWidth && layout.scrapHeight && (
-          <span className="text-muted-foreground ml-2">
-            (Retalho: {layout.scrapWidth.toFixed(0)} x {layout.scrapHeight.toFixed(0)} mm)
-          </span>
-        )}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-foreground">
+          Chapa {sheetIndex + 1} — {pieces.length} peça(s) — Aproveitamento: {layout.utilization.toFixed(1)}%
+          {layout.scrapWidth && layout.scrapHeight && (
+            <span className="text-muted-foreground ml-2">
+              (Retalho: {layout.scrapWidth.toFixed(0)} x {layout.scrapHeight.toFixed(0)} mm)
+            </span>
+          )}
+        </p>
+        <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 text-xs">
+          <RotateCcw className="h-3.5 w-3.5" /> Restaurar
+        </Button>
+      </div>
 
       <div className="text-xs text-muted-foreground font-medium mb-1">
         Material: {matW} x {matH} mm — <span className="text-primary">Arraste as peças para reposicionar, clique no ↻ para girar</span>
+        {kerfWidth > 0 && <span className="ml-2 text-destructive">(serra: {kerfWidth} mm)</span>}
       </div>
 
       <div className="relative">
