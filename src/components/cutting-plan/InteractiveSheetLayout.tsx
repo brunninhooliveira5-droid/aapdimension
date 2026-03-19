@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { getPieceColor, type PlacedPiece } from "@/lib/cutting-plan-engine";
 import { type PdfNomenclatureConfig, formatPieceLabel } from "./CuttingPlanPdfConfig";
-import { RotateCw, RotateCcw, X } from "lucide-react";
+import { RotateCw, RotateCcw, X, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -14,11 +14,13 @@ interface Props {
   matW: number;
   matH: number;
   sheetIndex: number;
+  totalSheets: number;
   singleCut: boolean;
   kerfWidth: number;
   descriptions: PieceDescription;
   nomenclatureConfig: PdfNomenclatureConfig;
   onLayoutChange: (sheetIndex: number, pieces: PlacedPiece[]) => void;
+  onMovePiece?: (fromSheet: number, pieceIdx: number, toSheet: number) => void;
 }
 
 export function InteractiveSheetLayout({
