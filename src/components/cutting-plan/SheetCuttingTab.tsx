@@ -591,7 +591,7 @@ export function SheetCuttingTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Input value={piece.description} onChange={(e) => updatePiece(piece.id, "description", e.target.value)} data-piece-id={piece.id} data-field="description" className="h-8" placeholder="Ex: Base lateral" />
+                      <Input value={piece.description} onChange={(e) => updatePiece(piece.id, "description", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "description")} data-piece-id={piece.id} data-field="description" className="h-8" placeholder="Ex: Base lateral" />
                     </TableCell>
                     <TableCell>
                       <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
