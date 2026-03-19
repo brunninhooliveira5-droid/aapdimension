@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { getPieceColor, type PlacedPiece } from "@/lib/cutting-plan-engine";
 import { type PdfNomenclatureConfig, formatPieceLabel } from "./CuttingPlanPdfConfig";
-import { RotateCw, RotateCcw, X } from "lucide-react";
+import { RotateCw, RotateCcw, X, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -14,11 +14,13 @@ interface Props {
   matW: number;
   matH: number;
   sheetIndex: number;
+  totalSheets: number;
   singleCut: boolean;
   kerfWidth: number;
   descriptions: PieceDescription;
   nomenclatureConfig: PdfNomenclatureConfig;
   onLayoutChange: (sheetIndex: number, pieces: PlacedPiece[]) => void;
+  onMovePiece?: (fromSheet: number, pieceIdx: number, toSheet: number) => void;
 }
 
 export function InteractiveSheetLayout({
@@ -26,11 +28,13 @@ export function InteractiveSheetLayout({
   matW,
   matH,
   sheetIndex,
+  totalSheets,
   singleCut,
   kerfWidth,
   descriptions,
   nomenclatureConfig,
   onLayoutChange,
+  onMovePiece,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
@@ -265,6 +269,29 @@ export function InteractiveSheetLayout({
                   >
                     <RotateCw className="h-3 w-3 text-white" />
                   </button>
+                  {/* Move to other sheet */}
+                  {totalSheets > 1 && onMovePiece && (
+                    <div className="absolute bottom-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                      {Array.from({ length: totalSheets }, (_, si) => si)
+                        .filter(si => si !== sheetIndex)
+                        .map(si => (
+                          <button
+                            key={si}
+                            className="bg-blue-600/70 hover:bg-blue-700/90 rounded px-1 py-0.5 text-[7px] font-bold text-white leading-none"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onMovePiece(sheetIndex, j, si);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            title={`Mover para Chapa ${si + 1}`}
+                          >
+                            →C{si + 1}
+                          </button>
+                        ))
+                      }
+                    </div>
+                  )}
                 </div>
               );
             })}
