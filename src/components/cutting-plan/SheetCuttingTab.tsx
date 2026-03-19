@@ -177,7 +177,27 @@ export function SheetCuttingTab() {
   const handlePieceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: keyof PieceRow) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      addPiece();
+      const current = e.target as HTMLInputElement;
+      const pieceId = current.getAttribute("data-piece-id");
+      const fields: (keyof PieceRow)[] = ["width", "height", "quantity"];
+      const fieldIdx = fields.indexOf(field);
+
+      if (field === "quantity") {
+        // Last field: add piece, clear current row, refocus width
+        const piece = pieces[index];
+        if (piece.width && piece.height) {
+          addPiece();
+        } else {
+          // Just focus width if incomplete
+          const widthEl = document.querySelector<HTMLInputElement>(`[data-piece-id="${pieceId}"][data-field="width"]`);
+          widthEl?.focus();
+        }
+      } else {
+        // Advance to next field in sequence
+        const nextField = fields[fieldIdx + 1];
+        const nextEl = document.querySelector<HTMLInputElement>(`[data-piece-id="${pieceId}"][data-field="${nextField}"]`);
+        nextEl?.focus();
+      }
     }
     if (e.key === " " && (e.target as HTMLInputElement).value === "") {
       e.preventDefault();
