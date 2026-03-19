@@ -269,6 +269,29 @@ export function InteractiveSheetLayout({
                   >
                     <RotateCw className="h-3 w-3 text-white" />
                   </button>
+                  {/* Move to other sheet */}
+                  {totalSheets > 1 && onMovePiece && (
+                    <div className="absolute bottom-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                      {Array.from({ length: totalSheets }, (_, si) => si)
+                        .filter(si => si !== sheetIndex)
+                        .map(si => (
+                          <button
+                            key={si}
+                            className="bg-blue-600/70 hover:bg-blue-700/90 rounded px-1 py-0.5 text-[7px] font-bold text-white leading-none"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onMovePiece(sheetIndex, j, si);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            title={`Mover para Chapa ${si + 1}`}
+                          >
+                            →C{si + 1}
+                          </button>
+                        ))
+                      }
+                    </div>
+                  )}
                 </div>
               );
             })}

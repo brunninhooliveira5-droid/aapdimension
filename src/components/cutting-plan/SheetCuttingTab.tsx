@@ -662,6 +662,7 @@ export function SheetCuttingTab() {
                 matW={matW}
                 matH={matH}
                 sheetIndex={i}
+                totalSheets={result.layouts.length}
                 singleCut={singleCut}
                 kerfWidth={parseFloat(kerfWidth) || 0}
                 descriptions={Object.fromEntries(pieces.map(p => [p.id, p.description]))}
@@ -679,6 +680,30 @@ export function SheetCuttingTab() {
                       wasteArea: total - used,
                     };
                     return { ...prev, layouts: newLayouts };
+                  });
+                }}
+                onMovePiece={(fromSheet, pieceIdx, toSheet) => {
+                  setResult(prev => {
+                    if (!prev) return prev;
+                    const newLayouts = [...prev.layouts];
+                    const fromPieces = [...newLayouts[fromSheet].pieces];
+                    const [movedPiece] = fromPieces.splice(pieceIdx, 1);
+
+                    // Place the piece at (0,0) in the target sheet
+                    const toPieces = [...newLayouts[toSheet].pieces, { ...movedPiece, x: 0, y: 0 }];
+
+                    const total = matW * matH;
+                    const fromUsed = fromPieces.reduce((s, p) => s + p.width * p.height, 0);
+                    const toUsed = toPieces.reduce((s, p) => s + p.width * p.height, 0);
+
+                    newLayouts[fromSheet] = { ...newLayouts[fromSheet], pieces: fromPieces, utilization: (fromUsed / total) * 100, wasteArea: total - fromUsed };
+                    newLayouts[toSheet] = { ...newLayouts[toSheet], pieces: toPieces, utilization: (toUsed / total) * 100, wasteArea: total - toUsed };
+
+                    // Remove empty sheets
+                    const filtered = newLayouts.filter(l => l.pieces.length > 0);
+
+                    toast.success(`Peça movida para Chapa ${toSheet + 1}. Ajuste a posição manualmente.`);
+                    return { ...prev, layouts: filtered.length > 0 ? filtered : newLayouts };
                   });
                 }}
               />
