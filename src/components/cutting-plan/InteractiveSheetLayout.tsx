@@ -207,7 +207,7 @@ export function InteractiveSheetLayout({
           <div
             ref={containerRef}
             className="relative border-2 border-primary/60 rounded bg-muted/30 overflow-hidden flex-1 select-none"
-            style={{ paddingBottom: `${(matH / matW) * 100}%`, maxHeight: 450, cursor: draggingIdx !== null ? "grabbing" : "default" }}
+            style={{ paddingBottom: `${Math.min((matH / matW) * 100, 60)}%`, maxHeight: 320, cursor: draggingIdx !== null ? "grabbing" : "default" }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
