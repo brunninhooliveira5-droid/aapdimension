@@ -16,11 +16,11 @@ const productionTools = [
   { id: "orcamento", label: "Orçamento de Corte", icon: Calculator, route: "/orcamento", sectionKey: "orcamento" },
   { id: "plano-corte", label: "Plano de Corte", icon: LayoutGrid, route: "/plano-corte", sectionKey: "ferr_plano_corte" },
   { id: "mapeamento-z", label: "Nivelamento Automático", icon: Grid3x3, route: "/mapeamento-z", sectionKey: "ferr_mapeamento_z" },
-  { id: "mapa-usinagem", label: "Mapa por Usinagem", icon: Layers, route: "/mapa-usinagem", sectionKey: "ferr_mapeamento_z" },
-  { id: "centro-quinas", label: "Centro e Quinas", icon: Crosshair, route: "/centro-quinas", sectionKey: "ferr_centro_quinas" },
 ];
 
 const labTools = [
+  { id: "mapa-usinagem", label: "Mapa por Usinagem", icon: Layers, route: "/mapa-usinagem", sectionKey: "ferr_mapeamento_z" },
+  { id: "centro-quinas", label: "Centro e Quinas", icon: Crosshair, route: "/centro-quinas", sectionKey: "ferr_centro_quinas" },
   { id: "slicer-3d", label: "Slicer 3D CNC", icon: Box, route: "/slicer-3d", sectionKey: "ferr_slicer_3d" },
   { id: "gerador-caixas", label: "Gerador de Caixas CNC / Laser", icon: PackageOpen, route: "/gerador-caixas", sectionKey: "ferr_gerador_caixas" },
   { id: "planificador-acm", label: "Planificador ACM", icon: PanelTop, route: "/planificador-acm", sectionKey: "ferr_planificador_acm" },
