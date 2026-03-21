@@ -135,11 +135,7 @@ export default function AppShowcasePage() {
     { title: "Gestão Financeira", desc: "Fluxo de caixa, contas a pagar/receber e relatórios completos." },
   ];
 
-  const narrationLabel =
-    narrationState === "loading" ? "Gerando narração…" :
-    narrationState === "playing" ? "Pausar narração" :
-    narrationUrl ? "Retomar narração" :
-    "Narrar apresentação";
+  const narrationLabel = narrationActive ? "Pausar narração" : "Narrar apresentação";
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
