@@ -207,16 +207,11 @@ export default function AppShowcasePage() {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    variant={narrationState === "playing" ? "default" : "secondary"}
-                    onClick={generateNarration}
-                    disabled={narrationState === "loading"}
+                    variant={narrationActive ? "default" : "secondary"}
+                    onClick={toggleNarration}
                     className="gap-1.5 text-xs"
                   >
-                    {narrationState === "loading" ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Mic className="w-3.5 h-3.5" />
-                    )}
+                    <Mic className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{narrationLabel}</span>
                   </Button>
                 </TooltipTrigger>
