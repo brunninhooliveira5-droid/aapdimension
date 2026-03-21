@@ -74,69 +74,32 @@ export default function AppShowcasePage() {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const generateNarration = useCallback(async () => {
-    if (narrationState === "loading") return;
-
-    if (narrationUrl && narrationRef.current) {
-      // Already generated — toggle play
-      if (narrationState === "playing") {
-        narrationRef.current.pause();
-        setNarrationState("ready");
-      } else {
-        narrationRef.current.currentTime = videoRef.current?.currentTime ?? 0;
-        narrationRef.current.play();
-        setNarrationState("playing");
-      }
-      return;
+  const toggleNarration = useCallback(() => {
+    if (!narrationRef.current) {
+      const audio = new Audio(NARRATION_SRC);
+      narrationRef.current = audio;
+      audio.muted = isMuted;
+      audio.addEventListener("ended", () => setNarrationActive(false));
     }
 
-    setNarrationState("loading");
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text: NARRATION_TEXT }),
-        }
-      );
+    const audio = narrationRef.current;
 
-      if (!response.ok) {
-        throw new Error(`Erro ao gerar narração: ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
-      const url = URL.createObjectURL(audioBlob);
-      setNarrationUrl(url);
-
-      const audio = new Audio(url);
-      narrationRef.current = audio;
+    if (narrationActive) {
+      audio.pause();
+      setNarrationActive(false);
+    } else {
       audio.currentTime = videoRef.current?.currentTime ?? 0;
       audio.muted = isMuted;
-      await audio.play();
+      audio.play();
+      setNarrationActive(true);
 
-      // If video is not playing, start it too
       if (!isPlaying && videoRef.current) {
         videoRef.current.play();
         setIsPlaying(true);
       }
-
-      setNarrationState("playing");
       toast.success("Narração ativada!");
-
-      audio.addEventListener("ended", () => {
-        setNarrationState("ready");
-      });
-    } catch (err) {
-      console.error("TTS error:", err);
-      setNarrationState("error");
-      toast.error("Não foi possível gerar a narração. Tente novamente.");
     }
-  }, [narrationState, narrationUrl, isMuted, isPlaying]);
+  }, [narrationActive, isMuted, isPlaying]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
 
