@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell, Wrench, Hammer, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, Cpu, Headphones, Calendar, Settings, LogOut, Users, ShoppingBag, Package, Newspaper, Calculator, FolderOpen, Receipt, Landmark, Lock, Star, Crown, Sparkles, CalculatorIcon, Construction, Activity, Building2, Factory, Bell, Wrench, Hammer, ChevronLeft, ChevronRight, Presentation } from "lucide-react";
 import { OperationsPanel } from "@/components/OperationsPanel";
 import { ToolsPanel } from "@/components/ToolsPanel";
 import { useSidebarNotifications } from "@/hooks/useSidebarNotifications";
@@ -53,6 +53,7 @@ const basicMenuItems = [
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
   { title: "Arquivos", url: "/arquivos", icon: FolderOpen, section: "arquivos" },
+  { title: "Apresentação", url: "/apresentacao", icon: Presentation, section: "home" },
 ];
 
 const proMenuItems = [
