@@ -117,9 +117,9 @@ export default function AppShowcasePage() {
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={() => setIsPlaying(false)}
             poster="/placeholder.svg"
+            playsInline
           >
-            {/* Substituir pelo URL real do vídeo */}
-            <source src="" type="video/mp4" />
+            <source src="/aap-dimension-apresentacao.mp4" type="video/mp4" />
           </video>
 
           {/* Overlay play */}
