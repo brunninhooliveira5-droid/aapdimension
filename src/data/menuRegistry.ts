@@ -168,6 +168,13 @@ export const MENU_REGISTRY: MenuRegistryItem[] = [
       { id: "nav_finance_cashflow", label: "Fluxo de Caixa", route: "/gestao-financeira?tab=fluxo", icon: TrendingUp, section: "gestao_financeira", proFeature: "gestao_financeira" },
     ],
   },
+  {
+    id: "nav_showcase",
+    label: "Apresentação",
+    route: "/apresentacao",
+    icon: Presentation,
+    section: "home",
+  },
 ];
 
 /** Flatten the tree into a flat list (parent + children) */
