@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, Share2, Facebook, Twitter, Linkedin, Link2, Check, Mic, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Maximize, Share2, Facebook, Twitter, Linkedin, Link2, Check, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -10,7 +10,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
-const NARRATION_TEXT = `A Dimension é mais do que uma fabricante de máquinas CNC. Somos seu parceiro na produção diária. Com o nosso sistema, você acompanha a frota de máquinas em tempo real, abre chamados de suporte com apenas um toque e acessa ferramentas digitais poderosas como Plano de Corte, Slicer 3D e Mapeamento Z. Tudo integrado em uma plataforma pensada para facilitar sua rotina e aumentar a produtividade. Dimension. Seu parceiro na produção.`;
+const NARRATION_SRC = "/narration.mp3";
 
 export default function AppShowcasePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,8 +20,7 @@ export default function AppShowcasePage() {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [narrationState, setNarrationState] = useState<"idle" | "loading" | "ready" | "playing" | "error">("idle");
-  const [narrationUrl, setNarrationUrl] = useState<string | null>(null);
+  const [narrationActive, setNarrationActive] = useState(false);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -30,7 +29,7 @@ export default function AppShowcasePage() {
       narrationRef.current?.pause();
     } else {
       videoRef.current.play();
-      if (narrationRef.current && narrationState === "playing") {
+      if (narrationRef.current && narrationActive) {
         narrationRef.current.play();
       }
     }
@@ -75,69 +74,32 @@ export default function AppShowcasePage() {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const generateNarration = useCallback(async () => {
-    if (narrationState === "loading") return;
-
-    if (narrationUrl && narrationRef.current) {
-      // Already generated — toggle play
-      if (narrationState === "playing") {
-        narrationRef.current.pause();
-        setNarrationState("ready");
-      } else {
-        narrationRef.current.currentTime = videoRef.current?.currentTime ?? 0;
-        narrationRef.current.play();
-        setNarrationState("playing");
-      }
-      return;
+  const toggleNarration = useCallback(() => {
+    if (!narrationRef.current) {
+      const audio = new Audio(NARRATION_SRC);
+      narrationRef.current = audio;
+      audio.muted = isMuted;
+      audio.addEventListener("ended", () => setNarrationActive(false));
     }
 
-    setNarrationState("loading");
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text: NARRATION_TEXT }),
-        }
-      );
+    const audio = narrationRef.current;
 
-      if (!response.ok) {
-        throw new Error(`Erro ao gerar narração: ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
-      const url = URL.createObjectURL(audioBlob);
-      setNarrationUrl(url);
-
-      const audio = new Audio(url);
-      narrationRef.current = audio;
+    if (narrationActive) {
+      audio.pause();
+      setNarrationActive(false);
+    } else {
       audio.currentTime = videoRef.current?.currentTime ?? 0;
       audio.muted = isMuted;
-      await audio.play();
+      audio.play();
+      setNarrationActive(true);
 
-      // If video is not playing, start it too
       if (!isPlaying && videoRef.current) {
         videoRef.current.play();
         setIsPlaying(true);
       }
-
-      setNarrationState("playing");
       toast.success("Narração ativada!");
-
-      audio.addEventListener("ended", () => {
-        setNarrationState("ready");
-      });
-    } catch (err) {
-      console.error("TTS error:", err);
-      setNarrationState("error");
-      toast.error("Não foi possível gerar a narração. Tente novamente.");
     }
-  }, [narrationState, narrationUrl, isMuted, isPlaying]);
+  }, [narrationActive, isMuted, isPlaying]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -173,11 +135,7 @@ export default function AppShowcasePage() {
     { title: "Gestão Financeira", desc: "Fluxo de caixa, contas a pagar/receber e relatórios completos." },
   ];
 
-  const narrationLabel =
-    narrationState === "loading" ? "Gerando narração…" :
-    narrationState === "playing" ? "Pausar narração" :
-    narrationUrl ? "Retomar narração" :
-    "Narrar apresentação";
+  const narrationLabel = narrationActive ? "Pausar narração" : "Narrar apresentação";
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -249,16 +207,11 @@ export default function AppShowcasePage() {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    variant={narrationState === "playing" ? "default" : "secondary"}
-                    onClick={generateNarration}
-                    disabled={narrationState === "loading"}
+                    variant={narrationActive ? "default" : "secondary"}
+                    onClick={toggleNarration}
                     className="gap-1.5 text-xs"
                   >
-                    {narrationState === "loading" ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Mic className="w-3.5 h-3.5" />
-                    )}
+                    <Mic className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{narrationLabel}</span>
                   </Button>
                 </TooltipTrigger>
