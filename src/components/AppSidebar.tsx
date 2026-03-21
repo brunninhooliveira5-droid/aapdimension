@@ -53,6 +53,7 @@ const basicMenuItems = [
   { title: "Engajamento", url: "/engajamento", icon: Activity, section: "usuarios" },
   { title: "Boletins Técnicos", url: "/boletins", icon: Newspaper, section: "boletins" },
   { title: "Arquivos", url: "/arquivos", icon: FolderOpen, section: "arquivos" },
+  { title: "Apresentação", url: "/apresentacao", icon: Presentation, section: "home" },
 ];
 
 const proMenuItems = [
