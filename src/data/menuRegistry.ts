@@ -4,7 +4,7 @@ import {
   Activity, Building2, Factory, FileText, Wrench, BarChart3,
   ClipboardList, Box, Truck, ShieldCheck, DollarSign, CreditCard,
   PiggyBank, TrendingUp, BookOpen, Layers, LayoutGrid, Target,
-  Clock, Briefcase, type LucideIcon,
+  Clock, Briefcase, Presentation, type LucideIcon,
 } from "lucide-react";
 
 export interface MenuRegistryItem {
