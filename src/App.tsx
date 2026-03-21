@@ -43,6 +43,7 @@ import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 import ZMappingPage from "./pages/ZMappingPage";
 import MachiningMapPage from "./pages/MachiningMapPage";
 import CenterCornersPage from "./pages/CenterCornersPage";
+import AppShowcasePage from "./pages/AppShowcasePage";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,7 @@ const AppRoutes = () => {
         <Route path="/mapeamento-z" element={<RoleGate section="ferr_mapeamento_z"><ZMappingPage /></RoleGate>} />
         <Route path="/mapa-usinagem" element={<RoleGate section="ferr_mapeamento_z"><MachiningMapPage /></RoleGate>} />
         <Route path="/centro-quinas" element={<RoleGate section="ferr_centro_quinas"><CenterCornersPage /></RoleGate>} />
+        <Route path="/apresentacao" element={<AppShowcasePage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
