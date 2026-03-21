@@ -29,7 +29,7 @@ export default function AppShowcasePage() {
       narrationRef.current?.pause();
     } else {
       videoRef.current.play();
-      if (narrationRef.current && narrationState === "playing") {
+      if (narrationRef.current && narrationActive) {
         narrationRef.current.play();
       }
     }
