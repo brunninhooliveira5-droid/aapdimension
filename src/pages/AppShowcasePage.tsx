@@ -10,7 +10,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
-const NARRATION_TEXT = `A Dimension é mais do que uma fabricante de máquinas CNC. Somos seu parceiro na produção diária. Com o nosso sistema, você acompanha a frota de máquinas em tempo real, abre chamados de suporte com apenas um toque e acessa ferramentas digitais poderosas como Plano de Corte, Slicer 3D e Mapeamento Z. Tudo integrado em uma plataforma pensada para facilitar sua rotina e aumentar a produtividade. Dimension. Seu parceiro na produção.`;
+const NARRATION_SRC = "/narration.mp3";
 
 export default function AppShowcasePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
