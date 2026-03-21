@@ -43,6 +43,7 @@ import PaymentReceiptsPage from "./pages/PaymentReceiptsPage";
 import ZMappingPage from "./pages/ZMappingPage";
 import MachiningMapPage from "./pages/MachiningMapPage";
 import CenterCornersPage from "./pages/CenterCornersPage";
+import AppShowcasePage from "./pages/AppShowcasePage";
 
 const queryClient = new QueryClient();
 
