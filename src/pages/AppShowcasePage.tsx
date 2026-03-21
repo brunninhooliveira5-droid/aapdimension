@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, Share2, Facebook, Twitter, Linkedin, Link2, Check, Mic, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Maximize, Share2, Facebook, Twitter, Linkedin, Link2, Check, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
