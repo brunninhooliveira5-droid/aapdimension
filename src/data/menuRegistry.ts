@@ -4,7 +4,7 @@ import {
   Activity, Building2, Factory, FileText, Wrench, BarChart3,
   ClipboardList, Box, Truck, ShieldCheck, DollarSign, CreditCard,
   PiggyBank, TrendingUp, BookOpen, Layers, LayoutGrid, Target,
-  Clock, Briefcase, type LucideIcon,
+  Clock, Briefcase, Presentation, type LucideIcon,
 } from "lucide-react";
 
 export interface MenuRegistryItem {
@@ -167,6 +167,13 @@ export const MENU_REGISTRY: MenuRegistryItem[] = [
       { id: "nav_finance_fixed", label: "Despesas Fixas", route: "/gestao-financeira?tab=fixas", icon: PiggyBank, section: "gestao_financeira", proFeature: "gestao_financeira" },
       { id: "nav_finance_cashflow", label: "Fluxo de Caixa", route: "/gestao-financeira?tab=fluxo", icon: TrendingUp, section: "gestao_financeira", proFeature: "gestao_financeira" },
     ],
+  },
+  {
+    id: "nav_showcase",
+    label: "Apresentação",
+    route: "/apresentacao",
+    icon: Presentation,
+    section: "home",
   },
 ];
 
