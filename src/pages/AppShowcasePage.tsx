@@ -20,8 +20,7 @@ export default function AppShowcasePage() {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [narrationState, setNarrationState] = useState<"idle" | "loading" | "ready" | "playing" | "error">("idle");
-  const [narrationUrl, setNarrationUrl] = useState<string | null>(null);
+  const [narrationActive, setNarrationActive] = useState(false);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
