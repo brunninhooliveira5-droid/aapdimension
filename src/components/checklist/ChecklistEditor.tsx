@@ -48,7 +48,7 @@ interface Props {
 
 export function ChecklistEditor({ checklistId, onBack, onSaved }: Props) {
   const { session } = useAuth();
-  const { user } = useAuth();
+  const userId = session?.user?.id;
   const [saving, setSaving] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistData>({
     title: "",
