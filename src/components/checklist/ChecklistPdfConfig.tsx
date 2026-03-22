@@ -78,10 +78,10 @@ export function ChecklistPdfConfig() {
   }
 
   async function handleSave() {
-    if (!user?.id) return;
+    if (!userId) return;
     setSaving(true);
     try {
-      const payload = { user_id: user.id, ...settings };
+      const payload = { user_id: userId, ...settings };
       const { error } = await (supabase as any)
         .from("pc_checklist_pdf_settings")
         .upsert(payload, { onConflict: "user_id" });

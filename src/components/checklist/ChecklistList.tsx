@@ -151,7 +151,7 @@ export function ChecklistList({ onEdit, onNew }: Props) {
 
   async function handleGeneratePdf(id: string) {
     try {
-      await generateChecklistPdf(id, user!.id);
+      await generateChecklistPdf(id, userId!);
       toast.success("PDF gerado!");
     } catch (err: any) {
       toast.error("Erro ao gerar PDF: " + err.message);
