@@ -201,7 +201,7 @@ export function ChecklistEditor({ checklistId, onBack, onSaved }: Props) {
   }
 
   async function handleSave() {
-    if (!user?.id) return;
+    if (!userId) return;
     if (!checklist.title.trim()) {
       toast.error("Informe o título do checklist");
       return;
