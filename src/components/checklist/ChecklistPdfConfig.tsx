@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Save } from "lucide-react";
+import { Save, Upload, X, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,104 @@ const defaults: PdfSettings = {
   show_notes: true,
   subtitle: "",
 };
+
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+  userId,
+  folder,
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+  userId: string;
+  folder: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem PNG, JPG ou WEBP");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${userId}/${folder}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("checklist-assets")
+        .upload(path, file, { upsert: true });
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from("checklist-assets")
+        .getPublicUrl(path);
+
+      onChange(urlData.publicUrl);
+      toast.success("Imagem enviada!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar: " + err.message);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {value ? (
+        <div className="flex items-center gap-2">
+          <img
+            src={value}
+            alt={label}
+            className="h-10 w-auto max-w-[120px] object-contain rounded border border-border bg-muted p-0.5"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onChange("")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleUpload}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1.5"
+            disabled={uploading}
+            onClick={() => inputRef.current?.click()}
+          >
+            {uploading ? (
+              "Enviando..."
+            ) : (
+              <>
+                <Upload className="h-3.5 w-3.5" />
+                Importar Imagem PNG
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ChecklistPdfConfig() {
   const { session } = useAuth();
@@ -97,19 +195,26 @@ export function ChecklistPdfConfig() {
   const update = (field: keyof PdfSettings, value: any) =>
     setSettings((p) => ({ ...p, [field]: value }));
 
+  if (!userId) return null;
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configuração de PDF - Checklist</h2>
 
       <Card>
         <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm">Cabeçalho</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-1.5">
+            <ImageIcon className="h-4 w-4" /> Cabeçalho
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">URL do Logo</Label>
-            <Input value={settings.logo_url} onChange={(e) => update("logo_url", e.target.value)} placeholder="https://..." className="text-xs" />
-          </div>
+          <ImageUploadField
+            label="Logo da Empresa (PNG)"
+            value={settings.logo_url}
+            onChange={(url) => update("logo_url", url)}
+            userId={userId}
+            folder="logo"
+          />
           <div>
             <Label className="text-xs">Nome da Empresa</Label>
             <Input value={settings.company_name} onChange={(e) => update("company_name", e.target.value)} className="text-xs" />
@@ -132,16 +237,19 @@ export function ChecklistPdfConfig() {
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm">Marca d'Água</CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <CardContent className="pt-0 space-y-3">
           <div>
-            <Label className="text-xs">Texto</Label>
+            <Label className="text-xs">Texto (opcional)</Label>
             <Input value={settings.watermark_text} onChange={(e) => update("watermark_text", e.target.value)} className="text-xs" />
           </div>
+          <ImageUploadField
+            label="Imagem de Marca d'Água (PNG)"
+            value={settings.watermark_image_url}
+            onChange={(url) => update("watermark_image_url", url)}
+            userId={userId}
+            folder="watermark"
+          />
           <div>
-            <Label className="text-xs">URL da Imagem</Label>
-            <Input value={settings.watermark_image_url} onChange={(e) => update("watermark_image_url", e.target.value)} className="text-xs" />
-          </div>
-          <div className="md:col-span-2">
             <Label className="text-xs">Opacidade: {Math.round(settings.watermark_opacity * 100)}%</Label>
             <Slider
               value={[settings.watermark_opacity]}
