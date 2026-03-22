@@ -89,7 +89,7 @@ export function ChecklistList({ onEdit, onNew }: Props) {
     const { data: newCl } = await (supabase as any)
       .from("pc_checklists")
       .insert({
-        created_by: user!.id,
+        created_by: userId!,
         title: cl.title + " (cópia)",
         checklist_date: new Date().toISOString().split("T")[0],
         general_responsible: cl.general_responsible,
