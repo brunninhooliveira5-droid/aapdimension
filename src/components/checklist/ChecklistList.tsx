@@ -31,14 +31,14 @@ interface Props {
 
 export function ChecklistList({ onEdit, onNew }: Props) {
   const { session } = useAuth();
-  const { user } = useAuth();
+  const userId = session?.user?.id;
   const [checklists, setChecklists] = useState<ChecklistRow[]>([]);
   const [templates, setTemplates] = useState<ChecklistRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAll();
-  }, [user?.id]);
+  }, [userId]);
 
   async function loadAll() {
     if (!userId) return;
