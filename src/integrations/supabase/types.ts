@@ -3543,6 +3543,184 @@ export type Database = {
         }
         Relationships: []
       }
+      pc_checklist_pdf_settings: {
+        Row: {
+          company_name: string
+          created_at: string
+          footer_text: string
+          id: string
+          logo_url: string
+          primary_color: string
+          show_date: boolean
+          show_notes: boolean
+          show_project: boolean
+          show_responsible: boolean
+          show_signature: boolean
+          subtitle: string
+          updated_at: string
+          user_id: string
+          watermark_image_url: string
+          watermark_opacity: number
+          watermark_text: string
+        }
+        Insert: {
+          company_name?: string
+          created_at?: string
+          footer_text?: string
+          id?: string
+          logo_url?: string
+          primary_color?: string
+          show_date?: boolean
+          show_notes?: boolean
+          show_project?: boolean
+          show_responsible?: boolean
+          show_signature?: boolean
+          subtitle?: string
+          updated_at?: string
+          user_id: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_text?: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          footer_text?: string
+          id?: string
+          logo_url?: string
+          primary_color?: string
+          show_date?: boolean
+          show_notes?: boolean
+          show_project?: boolean
+          show_responsible?: boolean
+          show_signature?: boolean
+          subtitle?: string
+          updated_at?: string
+          user_id?: string
+          watermark_image_url?: string
+          watermark_opacity?: number
+          watermark_text?: string
+        }
+        Relationships: []
+      }
+      pc_checklist_sections: {
+        Row: {
+          checklist_id: string
+          created_at: string
+          id: string
+          notes: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          checklist_id: string
+          created_at?: string
+          id?: string
+          notes?: string
+          sort_order?: number
+          title?: string
+        }
+        Update: {
+          checklist_id?: string
+          created_at?: string
+          id?: string
+          notes?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_checklist_sections_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "pc_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_checklist_tasks: {
+        Row: {
+          activity: string
+          created_at: string
+          due_date: string | null
+          id: string
+          is_done: boolean
+          responsible: string
+          section_id: string
+          sort_order: number
+        }
+        Insert: {
+          activity?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          responsible?: string
+          section_id: string
+          sort_order?: number
+        }
+        Update: {
+          activity?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          responsible?: string
+          section_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_checklist_tasks_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "pc_checklist_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_checklists: {
+        Row: {
+          checklist_date: string
+          created_at: string
+          created_by: string
+          general_responsible: string
+          id: string
+          is_template: boolean
+          notes: string
+          project_name: string
+          template_name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_date?: string
+          created_at?: string
+          created_by: string
+          general_responsible?: string
+          id?: string
+          is_template?: boolean
+          notes?: string
+          project_name?: string
+          template_name?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_date?: string
+          created_at?: string
+          created_by?: string
+          general_responsible?: string
+          id?: string
+          is_template?: boolean
+          notes?: string
+          project_name?: string
+          template_name?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pc_goal_history: {
         Row: {
           created_at: string | null

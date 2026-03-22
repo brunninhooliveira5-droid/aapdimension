@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target } from "lucide-react";
+import { LayoutDashboard, ListTodo, AlertTriangle, CalendarDays, Factory, RotateCcw, Target, ClipboardCheck } from "lucide-react";
 import { DimensionOverview } from "@/components/dimension/DimensionOverview";
 import { DimensionTasks } from "@/components/dimension/DimensionTasks";
 import { DimensionPendencies } from "@/components/dimension/DimensionPendencies";
@@ -8,6 +8,7 @@ import { DimensionSchedule } from "@/components/dimension/DimensionSchedule";
 import { DimensionProduction } from "@/components/dimension/DimensionProduction";
 import { DimensionRoutines } from "@/components/dimension/DimensionRoutines";
 import { DimensionGoals } from "@/components/dimension/DimensionGoals";
+import { ChecklistModule } from "@/components/checklist/ChecklistModule";
 import { ModuleProvider, productionControlConfig } from "@/contexts/ModuleContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +20,7 @@ const allTabs = [
   { value: "production", label: "Produção", icon: Factory, permKey: "pc_producao" },
   { value: "routines", label: "Rotinas", icon: RotateCcw, permKey: "pc_rotinas" },
   { value: "metas", label: "Metas", icon: Target, permKey: "pc_metas" },
+  { value: "checklist", label: "Checklist", icon: ClipboardCheck, permKey: "pc_checklist" },
 ];
 
 export default function ProductionControlPage() {
@@ -68,6 +70,7 @@ export default function ProductionControlPage() {
           <TabsContent value="production"><DimensionProduction /></TabsContent>
           <TabsContent value="routines"><DimensionRoutines /></TabsContent>
           <TabsContent value="metas"><DimensionGoals /></TabsContent>
+          <TabsContent value="checklist"><ChecklistModule /></TabsContent>
         </Tabs>
       </div>
     </ModuleProvider>
