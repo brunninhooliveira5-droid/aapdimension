@@ -44,19 +44,19 @@ const defaults: PdfSettings = {
 
 export function ChecklistPdfConfig() {
   const { session } = useAuth();
-  const { user } = useAuth();
+  const userId = session?.user?.id;
   const [settings, setSettings] = useState<PdfSettings>(defaults);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.id) loadSettings();
-  }, [user?.id]);
+    if (userId) loadSettings();
+  }, [userId]);
 
   async function loadSettings() {
     const { data } = await (supabase as any)
       .from("pc_checklist_pdf_settings")
       .select("*")
-      .eq("user_id", user!.id)
+      .eq("user_id", userId)
       .single();
     if (data) {
       setSettings({
