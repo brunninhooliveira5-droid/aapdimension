@@ -230,7 +230,7 @@ export function ChecklistEditor({ checklistId, onBack, onSaved }: Props) {
         const { data, error } = await (supabase as any)
           .from("pc_checklists")
           .insert({
-            created_by: user.id,
+            created_by: userId,
             title: checklist.title,
             checklist_date: checklist.checklist_date,
             general_responsible: checklist.general_responsible,

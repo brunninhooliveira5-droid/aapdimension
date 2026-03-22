@@ -41,7 +41,7 @@ export function ChecklistList({ onEdit, onNew }: Props) {
   }, [user?.id]);
 
   async function loadAll() {
-    if (!user?.id) return;
+    if (!userId) return;
     setLoading(true);
     const { data } = await (supabase as any)
       .from("pc_checklists")
