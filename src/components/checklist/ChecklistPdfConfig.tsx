@@ -43,6 +43,7 @@ const defaults: PdfSettings = {
 };
 
 export function ChecklistPdfConfig() {
+  const { session } = useAuth();
   const { user } = useAuth();
   const [settings, setSettings] = useState<PdfSettings>(defaults);
   const [saving, setSaving] = useState(false);

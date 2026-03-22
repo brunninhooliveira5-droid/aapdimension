@@ -30,6 +30,7 @@ interface Props {
 }
 
 export function ChecklistList({ onEdit, onNew }: Props) {
+  const { session } = useAuth();
   const { user } = useAuth();
   const [checklists, setChecklists] = useState<ChecklistRow[]>([]);
   const [templates, setTemplates] = useState<ChecklistRow[]>([]);
