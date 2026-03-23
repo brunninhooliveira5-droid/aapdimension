@@ -296,6 +296,7 @@ export function SheetCuttingTab() {
       allowRotation,
       mode: optimizationMode,
       minScrapSize: parseFloat(minScrapSize) || 150,
+      speed: calcSpeed,
     });
     setResult(res);
 
