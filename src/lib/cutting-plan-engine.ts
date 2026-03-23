@@ -223,8 +223,14 @@ export function calculateSheetCutting(
     }
   });
 
-  // Sort by area descending for best packing
   const mode = options?.mode || "best_utilization";
+  const speed = options?.speed || "fast";
+
+  if (speed === "thorough") {
+    return thoroughSheetCutting(effW, effH, matW, matH, unitPrice, expanded, kerfWidth, safetyMargin, mode, minScrap);
+  }
+
+  // Fast mode: sort by area descending
   if (mode === "best_utilization" || mode === "fewer_units") {
     expanded.sort((a, b) => (b.w * b.h) - (a.w * a.h));
   }
