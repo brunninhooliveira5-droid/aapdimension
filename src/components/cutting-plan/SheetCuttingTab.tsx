@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw, Copy, Upload, XCircle, Scissors } from "lucide-react";
+import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw, Copy, Upload, XCircle, Scissors, Zap, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
