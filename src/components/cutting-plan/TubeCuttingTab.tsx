@@ -379,25 +379,12 @@ export function TubeCuttingTab() {
             )}
           </div>
 
-          <div className="space-y-3">
-            {result.bars.map((bar, i) => (
-              <div key={i} className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  Barra {i + 1} — {bar.segments.length} peça(s) — {bar.utilization.toFixed(1)}% — Sobra: {bar.wasteLength.toFixed(1)} mm
-                  {bar.wasteLength >= (parseFloat(minScrapSize) || 150) && <span className="text-muted-foreground ml-1">(retalho)</span>}
-                </p>
-                <div className="relative h-10 border-2 border-border rounded bg-muted/20 overflow-hidden">
-                  {bar.segments.map((seg, j) => (
-                    <div key={j} className="absolute h-full flex items-center justify-center text-[10px] font-bold text-white border-r border-white/30"
-                      title={`Peça ${seg.pieceIndex + 1}: ${seg.length} mm`}
-                      style={{ left: `${(seg.position / barLen) * 100}%`, width: `${(seg.length / barLen) * 100}%`, backgroundColor: getPieceColor(seg.pieceIndex) }}>
-                      P{seg.pieceIndex + 1}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <InteractiveTubeLayout
+            result={result}
+            barLength={barLen}
+            kerfWidth={parseFloat(kerfWidth) || 0}
+            onResultChange={(newResult) => setResult(newResult)}
+          />
 
           <div className="flex flex-wrap gap-3">
             {pieces.map((_, i) => (<div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getPieceColor(i) }} />Peça {i + 1}</div>))}
