@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import type { SheetCuttingResult, TubeCuttingResult } from "./cutting-plan-engine";
+import type { SheetCuttingResult, TubeCuttingResult, BarLayout } from "./cutting-plan-engine";
 import { type PdfNomenclatureConfig, defaultNomenclatureConfig, formatPieceLabel } from "@/components/cutting-plan/CuttingPlanPdfConfig";
 
 export type PdfScale = "a4" | "1:1";
@@ -38,6 +38,120 @@ export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData
   if (options.exportRealScale) {
     await exportCuttingPlanPdf({ ...data, scale: "1:1", folderName: options.folderName, singleCut: options.singleCut });
   }
+}
+
+// === Multi-material tube PDF export ===
+
+interface MultiMaterialTubeData {
+  planName: string;
+  materials: {
+    materialName: string;
+    dimensions: string;
+    unitPrice: number;
+    pieces: { length?: number; quantity: number }[];
+    result: TubeCuttingResult;
+    barLength: number;
+  }[];
+  kerfWidth: number;
+  clientName?: string;
+  projectName?: string;
+}
+
+export function exportMultiMaterialTubePdf(
+  data: MultiMaterialTubeData,
+  options: { exportA4: boolean; exportRealScale: boolean; folderName: string }
+) {
+  if (!options.exportA4) return;
+
+  const doc = new jsPDF();
+  const pw = doc.internal.pageSize.getWidth();
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("Plano de Corte — Tubos", pw / 2, 20, { align: "center" });
+
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.planName || "Sem nome", pw / 2, 28, { align: "center" });
+
+  doc.setFontSize(10);
+  let y = 40;
+  const line = (label: string, value: string) => {
+    doc.setFont("helvetica", "bold");
+    doc.text(`${label}: `, 14, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(value, 14 + doc.getTextWidth(`${label}: `), y);
+    y += 6;
+  };
+
+  line("Tipo", "Corte de Tubos (Múltiplos Materiais)");
+  line("Materiais", `${data.materials.length} tipo(s)`);
+  line("Largura da serra", `${data.kerfWidth} mm`);
+  if (data.clientName) line("Cliente", data.clientName);
+  if (data.projectName) line("Projeto", data.projectName);
+  line("Data", new Date().toLocaleDateString("pt-BR"));
+
+  const totalBars = data.materials.reduce((s, m) => s + m.result.totalBars, 0);
+  const totalCost = data.materials.reduce((s, m) => s + m.result.estimatedCost, 0);
+  y += 4;
+  line("Total de barras", String(totalBars));
+  line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
+
+  // Per-material sections
+  for (const mat of data.materials) {
+    y += 6;
+    if (y > 250) { doc.addPage(); y = 20; }
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(59, 130, 246);
+    doc.text(`▸ ${mat.materialName}`, 14, y);
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    line("Dimensões", mat.dimensions);
+    line("Valor unitário", `R$ ${mat.unitPrice.toFixed(2)}`);
+    line("Barras", String(mat.result.totalBars));
+    line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
+    line("Sobra total", `${mat.result.totalWaste.toFixed(1)} mm`);
+    line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
+
+    // Pieces table
+    autoTable(doc, {
+      startY: y,
+      head: [["Peça", "Comprimento (mm)", "Quantidade"]],
+      body: mat.pieces.map((p, i) => [`Peça ${i + 1}`, String(p.length ?? 0), String(p.quantity)]),
+      theme: "striped",
+      headStyles: { fillColor: [59, 130, 246] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Bars breakdown table
+    autoTable(doc, {
+      startY: y,
+      head: [["Barra", "Peças", "Aproveitamento", "Sobra (mm)"]],
+      body: mat.result.bars.map((b, i) => [
+        `Barra ${i + 1}`,
+        String(b.segments.length),
+        `${b.utilization.toFixed(1)}%`,
+        b.wasteLength.toFixed(1),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [34, 197, 94] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // Draw tube bar layouts for this material
+    drawTubeBarLayoutsA4(doc, mat.result, mat.barLength, data.kerfWidth);
+  }
+
+  const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+  doc.save(filename);
 }
 
 const MM_TO_PT = 2.83465; // 1mm = 2.83465 points
