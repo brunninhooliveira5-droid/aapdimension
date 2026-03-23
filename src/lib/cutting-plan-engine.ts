@@ -69,6 +69,7 @@ export interface TubeCuttingResult {
 }
 
 export type OptimizationMode = "best_utilization" | "fewer_units" | "simple";
+export type CalculationSpeed = "fast" | "thorough";
 
 // === Piece colors for visualization ===
 
