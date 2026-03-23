@@ -41,6 +41,7 @@ export function TubeCuttingTab() {
   const [safetyMargin, setSafetyMargin] = useState("0");
   const [minScrapSize, setMinScrapSize] = useState("150");
   const [reserveStock, setReserveStock] = useState(false);
+  const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
 
   const [pieces, setPieces] = useState<PieceRow[]>([{ id: "1", length: "", quantity: "1" }]);
   const [result, setResult] = useState<TubeCuttingResult | null>(null);
