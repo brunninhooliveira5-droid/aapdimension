@@ -9,12 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, Copy, Upload, XCircle, Scissors } from "lucide-react";
+import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, Copy, Upload, XCircle, Scissors, Zap, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
+import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode, type CalculationSpeed } from "@/lib/cutting-plan-engine";
 import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
+import { InteractiveTubeLayout } from "./InteractiveTubeLayout";
 
 interface PieceRow {
   id: string;
