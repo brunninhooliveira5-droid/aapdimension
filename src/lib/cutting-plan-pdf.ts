@@ -321,21 +321,28 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
 function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 15;
   const topOffset = 25;
-  const barWidth = 28; // visual width of the bar rectangle
-  const maxBarDrawH = ph - margin - topOffset - 15; // max vertical space for bar
-  const gapBetweenBars = barWidth + 18;
-  const maxBarsPerPage = Math.floor((pw - margin * 2) / gapBetweenBars);
+  const barWidth = 22;
+  const maxBarDrawH = ph - margin - topOffset - 12;
+  const gapBetweenBars = barWidth + 12;
+  // +gapBetweenBars because the last bar doesn't need trailing gap
+  const maxBarsPerPage = Math.max(1, Math.floor((pw - margin * 2 + (gapBetweenBars - barWidth)) / gapBetweenBars));
 
-  r.bars.forEach((bar, bi) => {
+  const totalBars = r.bars.length;
+  console.log(`[PDF Tubos] Desenhando ${totalBars} barras, ${maxBarsPerPage} por página`);
+
+  for (let bi = 0; bi < totalBars; bi++) {
+    const bar = r.bars[bi];
     const indexOnPage = bi % maxBarsPerPage;
     if (indexOnPage === 0) {
       doc.addPage();
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.text("Desenho das Barras", pw / 2, 15, { align: "center" });
+      const pageNum = Math.floor(bi / maxBarsPerPage) + 1;
+      const totalPages = Math.ceil(totalBars / maxBarsPerPage);
+      doc.text(`Desenho das Barras (${pageNum}/${totalPages})`, pw / 2, 15, { align: "center" });
     }
 
     const ox = margin + indexOnPage * gapBetweenBars;
@@ -415,7 +422,7 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     doc.setFontSize(6);
     doc.setFont("helvetica", "normal");
     doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
-  });
+  }
 }
 
 async function exportSheetRealScale(data: CuttingPlanPdfData) {
