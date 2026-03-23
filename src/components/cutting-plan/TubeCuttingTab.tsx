@@ -288,10 +288,38 @@ export function TubeCuttingTab() {
           <div><Label className="text-xs">Largura da serra (mm)</Label><Input type="number" value={kerfWidth} onChange={(e) => setKerfWidth(e.target.value)} placeholder="3" /></div>
           <div><Label className="text-xs">Margem segurança (mm)</Label><Input type="number" value={safetyMargin} onChange={(e) => setSafetyMargin(e.target.value)} placeholder="0" /></div>
         </div>
-        <div className="w-48">
-          <Label className="text-xs">Retalho mínimo (mm)</Label>
-          <Input type="number" value={minScrapSize} onChange={(e) => setMinScrapSize(e.target.value)} placeholder="150" />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs">Retalho mínimo (mm)</Label>
+            <Input type="number" value={minScrapSize} onChange={(e) => setMinScrapSize(e.target.value)} placeholder="150" />
+          </div>
+          <div>
+            <Label className="text-xs">Velocidade do cálculo</Label>
+            <div className="flex gap-1 mt-1">
+              <Button
+                variant={calcSpeed === "fast" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 gap-1"
+                onClick={() => setCalcSpeed("fast")}
+              >
+                <Zap className="h-3.5 w-3.5" /> Rápido
+              </Button>
+              <Button
+                variant={calcSpeed === "thorough" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 gap-1"
+                onClick={() => setCalcSpeed("thorough")}
+              >
+                <Clock className="h-3.5 w-3.5" /> Otimizado
+              </Button>
+            </div>
+          </div>
         </div>
+        {calcSpeed === "thorough" && (
+          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+            ⏳ O modo <strong>Otimizado</strong> testa múltiplas estratégias de arranjo para minimizar o número de barras e o desperdício. Pode levar mais tempo.
+          </p>
+        )}
         {availableQty !== null && <p className="text-xs text-muted-foreground">Disponível: <span className="font-semibold text-foreground">{availableQty}</span></p>}
       </Card>
 
