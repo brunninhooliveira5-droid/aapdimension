@@ -510,7 +510,7 @@ export function SheetCuttingTab() {
         <h3 className="font-semibold flex items-center gap-2 text-foreground">
           <RotateCw className="h-4 w-4 text-primary" /> Otimização
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <Label className="text-xs">Modo de otimização</Label>
             <Select value={optimizationMode} onValueChange={(v) => setOptimizationMode(v as OptimizationMode)}>
@@ -521,6 +521,17 @@ export function SheetCuttingTab() {
                 <SelectItem value="simple">Corte simples</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Velocidade do cálculo</Label>
+            <div className="flex gap-1 mt-1">
+              <Button variant={calcSpeed === "fast" ? "default" : "outline"} size="sm" className="flex-1 gap-1" onClick={() => setCalcSpeed("fast")}>
+                <Zap className="h-3.5 w-3.5" /> Rápido
+              </Button>
+              <Button variant={calcSpeed === "thorough" ? "default" : "outline"} size="sm" className="flex-1 gap-1" onClick={() => setCalcSpeed("thorough")}>
+                <Clock className="h-3.5 w-3.5" /> Otimizado
+              </Button>
+            </div>
           </div>
           <div>
             <Label className="text-xs">Margem de segurança (mm)</Label>
@@ -535,6 +546,11 @@ export function SheetCuttingTab() {
             <Label htmlFor="global-rotation" className="cursor-pointer text-sm">Rotação automática</Label>
           </div>
         </div>
+        {calcSpeed === "thorough" && (
+          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+            ⏳ O modo <strong>Otimizado</strong> testa múltiplas estratégias de arranjo para minimizar chapas e desperdício. Pode levar mais tempo.
+          </p>
+        )}
         <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
           <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="opt-single-cut" className="mt-0.5" />
           <div>
