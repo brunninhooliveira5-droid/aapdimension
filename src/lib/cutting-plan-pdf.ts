@@ -422,7 +422,7 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     doc.setFontSize(6);
     doc.setFont("helvetica", "normal");
     doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
-  });
+  }
 }
 
 async function exportSheetRealScale(data: CuttingPlanPdfData) {
