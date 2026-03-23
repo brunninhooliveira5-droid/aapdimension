@@ -1,69 +1,65 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw, Copy, Upload, XCircle, Scissors, Zap, Clock } from "lucide-react";
+import { Calculator, Save, FileDown, AlertTriangle, RotateCw, Scissors, Zap, Clock, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece, type CalculationSpeed } from "@/lib/cutting-plan-engine";
-import { exportCuttingPlanWithOptions, type ExportOptions } from "@/lib/cutting-plan-pdf";
+import { exportMultiMaterialSheetPdf, type MultiMaterialSheetExportOptions } from "@/lib/cutting-plan-pdf";
 import { CuttingPlanPdfConfig, defaultNomenclatureConfig, type PdfNomenclatureConfig } from "./CuttingPlanPdfConfig";
 import { InteractiveSheetLayout } from "./InteractiveSheetLayout";
+import { SheetMaterialBlock, type SheetMaterialGroupData } from "./SheetMaterialBlock";
 
-interface PieceRow {
-  id: string;
-  width: string;
-  height: string;
-  quantity: string;
-  description: string;
-  allowRotation: boolean;
+interface MaterialResult {
+  group: SheetMaterialGroupData;
+  result: SheetCuttingResult;
+  matW: number;
+  matH: number;
+}
+
+function createEmptyGroup(): SheetMaterialGroupData {
+  return {
+    id: String(Date.now()),
+    source: "manual",
+    selectedItemId: "",
+    materialName: "",
+    materialWidth: "",
+    materialHeight: "",
+    materialPrice: "",
+    availableQty: null,
+    reserveStock: false,
+    pieces: [{ id: String(Date.now() + 1), width: "", height: "", quantity: "1", description: "", allowRotation: true }],
+  };
 }
 
 export function SheetCuttingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Material
-  const [source, setSource] = useState<string>("manual");
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [catalogMaterials, setCatalogMaterials] = useState<any[]>([]);
-  const [scraps, setScraps] = useState<any[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState("");
-  const [materialName, setMaterialName] = useState("");
-  const [materialWidth, setMaterialWidth] = useState("");
-  const [materialHeight, setMaterialHeight] = useState("");
-  const [materialPrice, setMaterialPrice] = useState("");
-  const [availableQty, setAvailableQty] = useState<number | null>(null);
+  const [groups, setGroups] = useState<SheetMaterialGroupData[]>([createEmptyGroup()]);
+
+  // Shared settings
   const [kerfWidth, setKerfWidth] = useState("3");
   const [safetyMargin, setSafetyMargin] = useState("0");
-  const [reserveStock, setReserveStock] = useState(false);
-
-  // Optimization
   const [allowRotation, setAllowRotation] = useState(true);
   const [optimizationMode, setOptimizationMode] = useState<OptimizationMode>("best_utilization");
   const [minScrapSize, setMinScrapSize] = useState("150");
   const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
+  const [singleCut, setSingleCut] = useState(false);
 
-  // Pieces
-  const [pieces, setPieces] = useState<PieceRow[]>([
-    { id: "1", width: "", height: "", quantity: "1", description: "", allowRotation: true },
-  ]);
-
-  // PDF nomenclature config
+  // PDF nomenclature
   const [nomenclatureConfig, setNomenclatureConfig] = useState<PdfNomenclatureConfig>(defaultNomenclatureConfig);
 
-  // Result
-  const [result, setResult] = useState<SheetCuttingResult | null>(null);
+  // Results
+  const [results, setResults] = useState<MaterialResult[]>([]);
 
   // Save
   const [showSave, setShowSave] = useState(false);
@@ -72,445 +68,162 @@ export function SheetCuttingTab() {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Single cut mode (optimization)
-  const [singleCut, setSingleCut] = useState(false);
-
   // Export
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportA4, setExportA4] = useState(true);
   const [exportRealScale, setExportRealScale] = useState(false);
   const [folderName, setFolderName] = useState("");
 
-  // Fetch inventory
-  useEffect(() => {
-    if (source === "estoque") {
-      supabase
-        .from("inventory_items")
-        .select("id, name, current_quantity, unit_cost, avg_cost, last_cost, internal_code")
-        .eq("is_active", true)
-        .order("name")
-        .then(({ data }) => setInventoryItems(data || []));
-    }
-  }, [source]);
-
-  // Fetch catalog
-  useEffect(() => {
-    if (source === "cadastro") {
-      supabase
-        .from("cutting_plan_materials" as any)
-        .select("*")
-        .eq("is_active", true)
-        .eq("category", "chapa")
-        .order("name")
-        .then(({ data }: any) => setCatalogMaterials(data || []));
-    }
-  }, [source]);
-
-  // Fetch scraps
-  useEffect(() => {
-    if (source === "retalho") {
-      supabase
-        .from("cutting_scraps" as any)
-        .select("*")
-        .eq("status", "disponível")
-        .eq("scrap_type", "chapa")
-        .order("created_at", { ascending: false })
-        .then(({ data }: any) => setScraps(data || []));
-    }
-  }, [source]);
-
-  const handleInventorySelect = (id: string) => {
-    setSelectedItemId(id);
-    const item = inventoryItems.find((i) => i.id === id);
-    if (item) {
-      setMaterialName(item.name);
-      setMaterialPrice(String(item.unit_cost || item.avg_cost || item.last_cost || 0));
-      setAvailableQty(item.current_quantity);
-      setMaterialWidth("");
-      setMaterialHeight("");
-    }
+  const updateGroup = (id: string, data: SheetMaterialGroupData) => {
+    setGroups(prev => prev.map(g => g.id === id ? data : g));
   };
 
-  const handleCatalogSelect = (id: string) => {
-    setSelectedItemId(id);
-    const mat = catalogMaterials.find((m: any) => m.id === id);
-    if (mat) {
-      setMaterialName(mat.name);
-      setMaterialWidth(String(mat.width));
-      setMaterialHeight(String(mat.height));
-      setMaterialPrice(String(mat.unit_price));
-      setAvailableQty(null);
-    }
+  const removeGroup = (id: string) => {
+    if (groups.length <= 1) return;
+    setGroups(prev => prev.filter(g => g.id !== id));
+    setResults(prev => prev.filter(r => r.group.id !== id));
   };
 
-  const handleScrapSelect = (id: string) => {
-    setSelectedItemId(id);
-    const scrap = scraps.find((s: any) => s.id === id);
-    if (scrap) {
-      setMaterialName(`Retalho: ${scrap.material_name}`);
-      setMaterialWidth(String(scrap.width));
-      setMaterialHeight(String(scrap.height));
-      setMaterialPrice("0");
-      setAvailableQty(1);
-    }
-  };
-
-  const handleSourceChange = (val: string) => {
-    setSource(val);
-    setSelectedItemId("");
-    setMaterialName("");
-    setMaterialWidth("");
-    setMaterialHeight("");
-    setMaterialPrice("");
-    setAvailableQty(null);
-    setReserveStock(false);
-  };
-
-  const addPiece = () => {
-    const newId = String(Date.now());
-    setPieces((prev) => [...prev, { id: newId, width: "", height: "", quantity: "1", description: "", allowRotation: allowRotation }]);
-    setTimeout(() => {
-      const el = document.querySelector(`[data-piece-id="${newId}"][data-field="width"]`) as HTMLInputElement;
-      el?.focus();
-    }, 50);
-  };
-
-  const handlePieceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: keyof PieceRow) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const current = e.target as HTMLInputElement;
-      const pieceId = current.getAttribute("data-piece-id");
-      const fields: (keyof PieceRow)[] = ["description", "width", "height", "quantity"];
-      const fieldIdx = fields.indexOf(field);
-
-      if (field === "quantity") {
-        // Last field: add piece, clear current row, refocus width
-        const piece = pieces[index];
-        if (piece.width && piece.height) {
-          addPiece();
-        } else {
-          // Just focus width if incomplete
-          const widthEl = document.querySelector<HTMLInputElement>(`[data-piece-id="${pieceId}"][data-field="width"]`);
-          widthEl?.focus();
-        }
-      } else {
-        // Advance to next field in sequence
-        const nextField = fields[fieldIdx + 1];
-        const nextEl = document.querySelector<HTMLInputElement>(`[data-piece-id="${pieceId}"][data-field="${nextField}"]`);
-        nextEl?.focus();
-      }
-    }
-    if (e.key === " " && (e.target as HTMLInputElement).value === "") {
-      e.preventDefault();
-      if (index > 0) {
-        const prev = pieces[index - 1];
-        const val = String(prev[field] ?? "");
-        if (val) updatePiece(pieces[index].id, field, val);
-      }
-    }
-    if (e.key === "Shift") {
-      e.preventDefault();
-      const current = e.target as HTMLInputElement;
-      const pieceId = current.getAttribute("data-piece-id");
-      const rowInputs = Array.from(document.querySelectorAll<HTMLInputElement>(`[data-piece-id="${pieceId}"][data-field]`));
-      const idx = rowInputs.indexOf(current);
-      const next = idx >= 0 ? rowInputs[(idx + 1) % rowInputs.length] : rowInputs[0];
-      next?.focus();
-    }
-  };
-
-  const duplicatePiece = (id: string) => {
-    const piece = pieces.find(p => p.id === id);
-    if (piece) {
-      setPieces(prev => [...prev, { ...piece, id: String(Date.now()) }]);
-    }
-  };
-
-  const removePiece = (id: string) => {
-    if (pieces.length <= 1) return;
-    setPieces((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const clearPieces = () => {
-    setPieces([{ id: String(Date.now()), width: "", height: "", quantity: "1", description: "", allowRotation: true }]);
-    setResult(null);
-  };
-
-  const updatePiece = (id: string, field: keyof PieceRow, value: any) => {
-    setPieces((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
-  };
-
-  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split("\n").filter(l => l.trim());
-      const newPieces: PieceRow[] = [];
-      for (const line of lines) {
-        const parts = line.split(/[,;\t]/).map(s => s.trim());
-        if (parts.length >= 3) {
-          const w = parts[0], h = parts[1], q = parts[2];
-          if (parseFloat(w) > 0 && parseFloat(h) > 0) {
-            newPieces.push({ id: String(Date.now() + Math.random()), width: w, height: h, quantity: q || "1", description: parts[3] || "", allowRotation: true });
-          }
-        }
-      }
-      if (newPieces.length > 0) {
-        setPieces(prev => [...prev.filter(p => p.width || p.height), ...newPieces]);
-        toast.success(`${newPieces.length} peça(s) importada(s) do CSV.`);
-      } else {
-        toast.error("Nenhuma peça válida encontrada no CSV. Formato: largura,altura,quantidade");
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const addGroup = () => {
+    setGroups(prev => [...prev, createEmptyGroup()]);
   };
 
   const handleCalculate = () => {
-    setResult(null);
-    const matW = parseFloat(materialWidth);
-    const matH = parseFloat(materialHeight);
-    const price = parseFloat(materialPrice) || 0;
+    setResults([]);
     const kerf = parseFloat(kerfWidth) || 0;
     const margin = parseFloat(safetyMargin) || 0;
+    const minScrap = parseFloat(minScrapSize) || 150;
 
-    if (!materialName.trim()) { toast.error("Selecione ou informe o material."); return; }
-    if (!matW || !matH || matW <= 0 || matH <= 0) { toast.error("Informe as dimensões do material."); return; }
     if (kerf < 0) { toast.error("A largura da serra deve ser >= 0."); return; }
 
-    const parsedPieces: SheetPiece[] = [];
-    for (let i = 0; i < pieces.length; i++) {
-      const p = pieces[i];
-      const w = parseFloat(p.width);
-      const h = parseFloat(p.height);
-      const q = parseInt(p.quantity);
-      if (!w || !h || w <= 0 || h <= 0) { toast.error(`Peça ${i + 1}: informe largura e altura válidas.`); return; }
-      if (!q || q <= 0) { toast.error(`Peça ${i + 1}: informe uma quantidade válida.`); return; }
-      parsedPieces.push({ id: p.id, width: w, height: h, quantity: q, allowRotation: p.allowRotation });
+    const newResults: MaterialResult[] = [];
+    let hasErrors = false;
+
+    for (let gi = 0; gi < groups.length; gi++) {
+      const g = groups[gi];
+      const matW = parseFloat(g.materialWidth);
+      const matH = parseFloat(g.materialHeight);
+
+      if (!g.materialName.trim()) { toast.error(`Material ${gi + 1}: informe o nome do material.`); return; }
+      if (!matW || !matH || matW <= 0 || matH <= 0) { toast.error(`Material ${gi + 1} (${g.materialName}): informe as dimensões.`); return; }
+
+      const parsedPieces: SheetPiece[] = [];
+      for (let i = 0; i < g.pieces.length; i++) {
+        const p = g.pieces[i];
+        const w = parseFloat(p.width);
+        const h = parseFloat(p.height);
+        const q = parseInt(p.quantity);
+        if (!w || !h || w <= 0 || h <= 0) { toast.error(`Material ${gi + 1}, Peça ${i + 1}: largura/altura inválidas.`); return; }
+        if (!q || q <= 0) { toast.error(`Material ${gi + 1}, Peça ${i + 1}: quantidade inválida.`); return; }
+        parsedPieces.push({ id: p.id, width: w, height: h, quantity: q, allowRotation: p.allowRotation });
+      }
+
+      const res = calculateSheetCutting(matW, matH, parseFloat(g.materialPrice) || 0, parsedPieces, kerf, {
+        safetyMargin: margin,
+        allowRotation,
+        mode: optimizationMode,
+        minScrapSize: minScrap,
+        speed: calcSpeed,
+      });
+
+      if (res.errors.length > 0) hasErrors = true;
+      newResults.push({ group: g, result: res, matW, matH });
     }
 
-    const res = calculateSheetCutting(matW, matH, price, parsedPieces, kerf, {
-      safetyMargin: margin,
-      allowRotation,
-      mode: optimizationMode,
-      minScrapSize: parseFloat(minScrapSize) || 150,
-      speed: calcSpeed,
-    });
-    setResult(res);
+    setResults(newResults);
 
-    if (res.errors.length > 0) {
-      toast.error("Existem peças inválidas. Verifique os erros.");
+    if (hasErrors) {
+      toast.error("Existem peças inválidas em um ou mais materiais.");
     } else {
-      toast.success(`Plano calculado: ${res.totalSheets} chapa(s), ${res.totalUtilization.toFixed(1)}% de aproveitamento.`);
+      const totalSheets = newResults.reduce((s, r) => s + r.result.totalSheets, 0);
+      const totalCost = newResults.reduce((s, r) => s + r.result.estimatedCost, 0);
+      toast.success(`Plano calculado: ${newResults.length} material(is), ${totalSheets} chapa(s) total, R$ ${totalCost.toFixed(2)}.`);
     }
   };
 
   const handleSave = async () => {
-    if (!result || result.errors.length > 0 || !planName.trim() || !userId) return;
+    if (results.length === 0 || !planName.trim() || !userId) return;
+    if (results.some(r => r.result.errors.length > 0)) return;
     setSaving(true);
     try {
-      const matW = parseFloat(materialWidth);
-      const matH = parseFloat(materialHeight);
+      for (const mr of results) {
+        const g = mr.group;
+        const r = mr.result;
 
-      const { data: planData } = await supabase.from("cutting_plans" as any).insert({
-        user_id: userId,
-        plan_type: "chapa",
-        plan_name: planName.trim(),
-        client_name: clientName.trim(),
-        project_name: projectName.trim(),
-        material_name: materialName,
-        material_source: source,
-        material_dimensions: { width: matW, height: matH },
-        material_unit_price: parseFloat(materialPrice) || 0,
-        kerf_width: parseFloat(kerfWidth) || 0,
-        pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity) })),
-        result_json: result,
-        utilization_percent: result.totalUtilization,
-        waste_area: result.totalWaste,
-        units_needed: result.totalSheets,
-        estimated_cost: result.estimatedCost,
-      } as any).select("id").single() as any;
+        const { data: planData } = await supabase.from("cutting_plans" as any).insert({
+          user_id: userId, plan_type: "chapa",
+          plan_name: results.length > 1 ? `${planName.trim()} — ${g.materialName}` : planName.trim(),
+          client_name: clientName.trim(), project_name: projectName.trim(),
+          material_name: g.materialName, material_source: g.source,
+          material_dimensions: { width: mr.matW, height: mr.matH },
+          material_unit_price: parseFloat(g.materialPrice) || 0,
+          kerf_width: parseFloat(kerfWidth) || 0,
+          pieces: g.pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity), description: p.description })),
+          result_json: r, utilization_percent: r.totalUtilization,
+          waste_area: r.totalWaste, units_needed: r.totalSheets, estimated_cost: r.estimatedCost,
+        } as any).select("id").single() as any;
 
-      // Save scraps
-      if (result.scraps.length > 0 && planData?.id) {
-        const scrapRows = result.scraps.map(s => ({
-          user_id: userId,
-          material_name: materialName,
-          width: s.width,
-          height: s.height,
-          length: 0,
-          scrap_type: "chapa",
-          origin_plan_id: planData.id,
-          status: "disponível",
-        }));
-        await supabase.from("cutting_scraps" as any).insert(scrapRows as any);
+        if (r.scraps.length > 0 && planData?.id) {
+          const scrapRows = r.scraps.map(s => ({ user_id: userId, material_name: g.materialName, width: s.width, height: s.height, length: 0, scrap_type: "chapa", origin_plan_id: planData.id, status: "disponível" }));
+          await supabase.from("cutting_scraps" as any).insert(scrapRows as any);
+        }
+
+        if (g.reserveStock && g.source === "estoque" && g.selectedItemId) {
+          await supabase.from("inventory_reservations").insert({ item_id: g.selectedItemId, quantity: r.totalSheets, reserved_by: userId, linked_order: planName.trim(), linked_machine: "", notes: `Reserva - Plano: ${planName}`, status: "reservado" });
+        }
+
+        if (g.source === "retalho" && g.selectedItemId) {
+          await supabase.from("cutting_scraps" as any).update({ status: "usado" } as any).eq("id", g.selectedItemId);
+        }
       }
 
-      // Reserve stock
-      if (reserveStock && source === "estoque" && selectedItemId) {
-        await supabase.from("inventory_reservations").insert({
-          item_id: selectedItemId,
-          quantity: result.totalSheets,
-          reserved_by: userId,
-          linked_order: planName.trim(),
-          linked_machine: "",
-          notes: `Reserva automática - Plano de Corte: ${planName}`,
-          status: "reservado",
-        });
-      }
-
-      // Mark scrap as used if source is retalho
-      if (source === "retalho" && selectedItemId) {
-        await supabase.from("cutting_scraps" as any).update({ status: "usado" } as any).eq("id", selectedItemId);
-      }
-
-      toast.success("Plano salvo com sucesso!");
-      setShowSave(false);
-      setPlanName("");
-      setClientName("");
-      setProjectName("");
-    } catch {
-      toast.error("Erro ao salvar plano.");
-    }
+      toast.success("Plano(s) salvo(s)!");
+      setShowSave(false); setPlanName(""); setClientName(""); setProjectName("");
+    } catch { toast.error("Erro ao salvar."); }
     setSaving(false);
   };
 
   const handleExportPdf = () => {
-    if (!result || result.errors.length > 0) return;
-    if (!exportA4 && !exportRealScale) {
-      toast.error("Selecione pelo menos um formato.");
-      return;
-    }
-    if (exportRealScale && !folderName.trim()) {
-      toast.error("Informe o nome da pasta para exportação 1:1.");
-      return;
-    }
-    const matW = parseFloat(materialWidth);
-    const matH = parseFloat(materialHeight);
-    exportCuttingPlanWithOptions({
-      planName: planName || "Plano de Corte - Chapa",
-      planType: "chapa",
-      materialName,
-      dimensions: `${matW} x ${matH} mm`,
-      unitPrice: parseFloat(materialPrice) || 0,
+    if (results.length === 0 || results.some(r => r.result.errors.length > 0)) return;
+    if (!exportA4 && !exportRealScale) { toast.error("Selecione pelo menos um formato."); return; }
+    if (exportRealScale && !folderName.trim()) { toast.error("Informe o nome da pasta para exportação 1:1."); return; }
+
+    exportMultiMaterialSheetPdf({
+      planName: planName || "Plano de Corte - Chapas",
+      materials: results.map(mr => ({
+        materialName: mr.group.materialName,
+        dimensions: `${mr.matW} x ${mr.matH} mm`,
+        matW: mr.matW,
+        matH: mr.matH,
+        unitPrice: parseFloat(mr.group.materialPrice) || 0,
+        pieces: mr.group.pieces.map(p => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity), description: p.description })),
+        result: mr.result,
+      })),
       kerfWidth: parseFloat(kerfWidth) || 0,
-      pieces: pieces.map((p) => ({ width: parseFloat(p.width), height: parseFloat(p.height), quantity: parseInt(p.quantity), description: p.description })),
-      result,
       clientName,
       projectName,
       nomenclatureConfig,
-    }, { exportA4, exportRealScale, folderName: folderName.trim(), singleCut });
+      singleCut,
+    }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
 
-  const matW = parseFloat(materialWidth) || 0;
-  const matH = parseFloat(materialHeight) || 0;
+  const totalSheets = results.reduce((s, r) => s + r.result.totalSheets, 0);
+  const totalCost = results.reduce((s, r) => s + r.result.estimatedCost, 0);
+  const allValid = results.length > 0 && results.every(r => r.result.errors.length === 0);
 
   return (
     <div className="space-y-4">
-      {/* Material Selection */}
-      <Card className="p-4 space-y-4">
-        <h3 className="font-semibold flex items-center gap-2 text-foreground">
-          <Package className="h-4 w-4 text-primary" /> Material
+      {/* Shared settings */}
+      <Card className="p-4 space-y-3">
+        <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+          <RotateCw className="h-4 w-4 text-primary" /> Configurações gerais
         </h3>
-
-        <RadioGroup value={source} onValueChange={handleSourceChange} className="flex flex-wrap gap-4">
-          {[
-            { value: "estoque", label: "Estoque" },
-            { value: "cadastro", label: "Cadastro" },
-            { value: "retalho", label: "Retalho" },
-            { value: "manual", label: "Manual" },
-          ].map(s => (
-            <div key={s.value} className="flex items-center gap-2">
-              <RadioGroupItem value={s.value} id={`src-${s.value}`} />
-              <Label htmlFor={`src-${s.value}`} className="cursor-pointer">{s.label}</Label>
-            </div>
-          ))}
-        </RadioGroup>
-
-        {source === "estoque" && (
-          <>
-            <Select value={selectedItemId} onValueChange={handleInventorySelect}>
-              <SelectTrigger><SelectValue placeholder="Selecione do estoque..." /></SelectTrigger>
-              <SelectContent>
-                {inventoryItems.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.internal_code ? `[${item.internal_code}] ` : ""}{item.name} — Qtd: {item.current_quantity} — R$ {(item.unit_cost || item.avg_cost || item.last_cost || 0).toFixed(2)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Checkbox id="reserve-stock" checked={reserveStock} onCheckedChange={(v) => setReserveStock(!!v)} />
-              <Label htmlFor="reserve-stock" className="cursor-pointer text-sm">Reservar material do estoque ao salvar</Label>
-            </div>
-          </>
-        )}
-
-        {source === "cadastro" && (
-          <Select value={selectedItemId} onValueChange={handleCatalogSelect}>
-            <SelectTrigger><SelectValue placeholder="Selecione do cadastro..." /></SelectTrigger>
-            <SelectContent>
-              {catalogMaterials.map((mat: any) => (
-                <SelectItem key={mat.id} value={mat.id}>
-                  {mat.name} — {mat.width} x {mat.height} mm — R$ {Number(mat.unit_price).toFixed(2)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {source === "retalho" && (
-          <Select value={selectedItemId} onValueChange={handleScrapSelect}>
-            <SelectTrigger><SelectValue placeholder="Selecione um retalho disponível..." /></SelectTrigger>
-            <SelectContent>
-              {scraps.length === 0 ? (
-                <SelectItem value="_none" disabled>Nenhum retalho disponível</SelectItem>
-              ) : scraps.map((s: any) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.material_name} — {Number(s.width).toFixed(0)} x {Number(s.height).toFixed(0)} mm
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div>
-            <Label className="text-xs">Nome do material</Label>
-            <Input value={materialName} onChange={(e) => setMaterialName(e.target.value)} readOnly={source !== "manual"} placeholder="Ex: Aço 1020" />
-          </div>
-          <div>
-            <Label className="text-xs">Largura (mm)</Label>
-            <Input type="number" value={materialWidth} onChange={(e) => setMaterialWidth(e.target.value)} placeholder="1000" />
-          </div>
-          <div>
-            <Label className="text-xs">Altura (mm)</Label>
-            <Input type="number" value={materialHeight} onChange={(e) => setMaterialHeight(e.target.value)} placeholder="2000" />
-          </div>
-          <div>
-            <Label className="text-xs">Valor unitário (R$)</Label>
-            <Input type="text" inputMode="decimal" value={materialPrice} onChange={(e) => { let v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", "."); const parts = v.split("."); if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join(""); if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].slice(0, 2); setMaterialPrice(v); }} placeholder="0.00" />
-          </div>
           <div>
             <Label className="text-xs">Largura da serra (mm)</Label>
             <Input type="number" value={kerfWidth} onChange={(e) => setKerfWidth(e.target.value)} placeholder="3" />
           </div>
-        </div>
-
-        {availableQty !== null && (
-          <p className="text-xs text-muted-foreground">Quantidade disponível: <span className="font-semibold text-foreground">{availableQty}</span></p>
-        )}
-      </Card>
-
-      {/* Optimization Settings */}
-      <Card className="p-4 space-y-4">
-        <h3 className="font-semibold flex items-center gap-2 text-foreground">
-          <RotateCw className="h-4 w-4 text-primary" /> Otimização
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <Label className="text-xs">Modo de otimização</Label>
             <Select value={optimizationMode} onValueChange={(v) => setOptimizationMode(v as OptimizationMode)}>
@@ -534,251 +247,169 @@ export function SheetCuttingTab() {
             </div>
           </div>
           <div>
-            <Label className="text-xs">Margem de segurança (mm)</Label>
+            <Label className="text-xs">Margem segurança (mm)</Label>
             <Input type="number" value={safetyMargin} onChange={(e) => setSafetyMargin(e.target.value)} placeholder="0" />
           </div>
           <div>
             <Label className="text-xs">Retalho mínimo (mm)</Label>
             <Input type="number" value={minScrapSize} onChange={(e) => setMinScrapSize(e.target.value)} placeholder="150" />
           </div>
-          <div className="flex items-center gap-2 pt-4">
+        </div>
+        <div className="flex gap-6 flex-wrap">
+          <div className="flex items-center gap-2">
             <Switch id="global-rotation" checked={allowRotation} onCheckedChange={setAllowRotation} />
             <Label htmlFor="global-rotation" className="cursor-pointer text-sm">Rotação automática</Label>
+          </div>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
+            <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="opt-single-cut" />
+            <Label htmlFor="opt-single-cut" className="cursor-pointer text-sm flex items-center gap-1.5">
+              <Scissors className="h-3.5 w-3.5 text-primary" /> Corte Único
+            </Label>
           </div>
         </div>
         {calcSpeed === "thorough" && (
           <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-            ⏳ O modo <strong>Otimizado</strong> testa múltiplas estratégias de arranjo para minimizar chapas e desperdício. Pode levar mais tempo.
+            ⏳ O modo <strong>Otimizado</strong> testa múltiplas estratégias de arranjo para minimizar chapas e desperdício.
           </p>
         )}
-        <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer" onClick={() => setSingleCut(!singleCut)}>
-          <Checkbox checked={singleCut} onCheckedChange={(v) => setSingleCut(!!v)} id="opt-single-cut" className="mt-0.5" />
-          <div>
-            <Label htmlFor="opt-single-cut" className="cursor-pointer font-medium flex items-center gap-1.5">
-              <Scissors className="h-4 w-4 text-primary" /> Corte Único
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Peças adjacentes compartilham um único corte, reduzindo percurso. O kerf é aplicado já no cálculo para garantir que as peças caibam no material.
-            </p>
-          </div>
-        </div>
       </Card>
 
-      {/* Pieces */}
-      <Card className="p-4 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-semibold flex items-center gap-2 text-foreground">
-            <Layers className="h-4 w-4 text-primary" /> Peças
-          </h3>
-          <div className="flex gap-1 flex-wrap">
-            <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleCsvImport} />
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="h-4 w-4 mr-1" /> CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={clearPieces}>
-              <XCircle className="h-4 w-4 mr-1" /> Limpar
-            </Button>
-            <Button variant="outline" size="sm" onClick={addPiece}>
-              <Plus className="h-4 w-4 mr-1" /> Adicionar
-            </Button>
-          </div>
-        </div>
+      {/* Material groups */}
+      {groups.map((g, i) => (
+        <SheetMaterialBlock
+          key={g.id}
+          group={g}
+          index={i}
+          total={groups.length}
+          globalAllowRotation={allowRotation}
+          onChange={(data) => updateGroup(g.id, data)}
+          onRemove={() => removeGroup(g.id)}
+          invalidPieceIds={results.find(r => r.group.id === g.id)?.result.invalidPieceIds}
+        />
+      ))}
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">#</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Largura (mm)</TableHead>
-                <TableHead>Altura (mm)</TableHead>
-                <TableHead className="w-20">Qtd</TableHead>
-                <TableHead className="w-14">Girar</TableHead>
-                <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pieces.map((piece, index) => {
-                const isInvalid = result?.invalidPieceIds.includes(piece.id);
-                return (
-                  <TableRow key={piece.id} className={isInvalid ? "bg-destructive/10" : ""}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getPieceColor(index) }} />
-                        <span className="text-sm font-medium">P{index + 1}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Input value={piece.description} onChange={(e) => updatePiece(piece.id, "description", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "description")} data-piece-id={piece.id} data-field="description" className="h-8" placeholder="Ex: Base lateral" />
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" value={piece.width} onChange={(e) => updatePiece(piece.id, "width", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "width")} data-piece-id={piece.id} data-field="width" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" value={piece.height} onChange={(e) => updatePiece(piece.id, "height", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "height")} data-piece-id={piece.id} data-field="height" className={`h-8 ${isInvalid ? "border-destructive" : ""}`} placeholder="0" />
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" value={piece.quantity} onChange={(e) => updatePiece(piece.id, "quantity", e.target.value)} onKeyDown={(e) => handlePieceKeyDown(e, index, "quantity")} data-piece-id={piece.id} data-field="quantity" className="h-8 w-20" min="1" placeholder="1" />
-                    </TableCell>
-                    <TableCell>
-                      <Checkbox checked={piece.allowRotation} onCheckedChange={(v) => updatePiece(piece.id, "allowRotation", !!v)} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => duplicatePiece(piece.id)} title="Duplicar">
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removePiece(piece.id)} disabled={pieces.length <= 1}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-
-        <Button onClick={handleCalculate} className="w-full sm:w-auto">
-          <Calculator className="h-4 w-4 mr-2" /> Calcular Plano de Corte
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={addGroup} className="gap-1.5">
+          <PackagePlus className="h-4 w-4" /> Adicionar Material
         </Button>
-      </Card>
+        <Button onClick={handleCalculate} className="gap-1.5">
+          <Calculator className="h-4 w-4" /> Calcular Plano de Corte
+        </Button>
+      </div>
 
       {/* Errors */}
-      {result && result.errors.length > 0 && (
-        <Alert variant="destructive">
+      {results.map((mr, ri) => mr.result.errors.length > 0 && (
+        <Alert key={ri} variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            <ul className="list-disc pl-4 space-y-1">
-              {result.errors.map((err, i) => <li key={i}>{err}</li>)}
-            </ul>
+            <p className="font-semibold">{mr.group.materialName}:</p>
+            <ul className="list-disc pl-4 space-y-1">{mr.result.errors.map((err, i) => <li key={i}>{err}</li>)}</ul>
           </AlertDescription>
         </Alert>
-      )}
+      ))}
 
       {/* Results */}
-      {result && result.errors.length === 0 && (
+      {allValid && (
         <Card className="p-4 space-y-6">
-          <h3 className="font-semibold text-foreground">Resultado</h3>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="rounded-lg border border-border p-3 text-center">
-              <p className="text-2xl font-bold text-primary">{result.totalSheets}</p>
-              <p className="text-xs text-muted-foreground">Chapa(s)</p>
-            </div>
-            <div className="rounded-lg border border-border p-3 text-center">
-              <p className="text-2xl font-bold text-primary">{result.totalUtilization.toFixed(1)}%</p>
-              <p className="text-xs text-muted-foreground">Aproveitamento</p>
-            </div>
-            <div className="rounded-lg border border-border p-3 text-center">
-              <p className="text-2xl font-bold text-foreground">{(result.totalWaste / 1_000_000).toFixed(4)} m²</p>
-              <p className="text-xs text-muted-foreground">Sobra total</p>
-            </div>
-            <div className="rounded-lg border border-border p-3 text-center">
-              <p className="text-2xl font-bold text-foreground">R$ {result.estimatedCost.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">Custo estimado</p>
-            </div>
-            {result.scraps.length > 0 && (
-              <div className="rounded-lg border border-border p-3 text-center">
-                <p className="text-2xl font-bold text-accent-foreground">{result.scraps.length}</p>
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1"><Scissors className="h-3 w-3" /> Retalho(s)</p>
+          {results.length > 1 && (
+            <>
+              <h3 className="font-semibold text-foreground">Resumo Geral</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-primary">{results.length}</p><p className="text-xs text-muted-foreground">Material(is)</p></div>
+                <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-primary">{totalSheets}</p><p className="text-xs text-muted-foreground">Chapa(s) total</p></div>
+                <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-foreground">R$ {totalCost.toFixed(2)}</p><p className="text-xs text-muted-foreground">Custo total</p></div>
+                {results.reduce((s, r) => s + r.result.scraps.length, 0) > 0 && (
+                  <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-accent-foreground">{results.reduce((s, r) => s + r.result.scraps.length, 0)}</p><p className="text-xs text-muted-foreground flex items-center justify-center gap-1"><Scissors className="h-3 w-3" /> Retalho(s)</p></div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
-          {/* Nomenclature config + interactive layouts */}
+          {results.map((mr, ri) => {
+            const r = mr.result;
+            return (
+              <div key={ri} className="space-y-4">
+                {results.length > 1 && (
+                  <h4 className="font-semibold text-foreground border-b border-border pb-2">
+                    {mr.group.materialName} ({mr.matW} x {mr.matH} mm)
+                  </h4>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-primary">{r.totalSheets}</p><p className="text-xs text-muted-foreground">Chapa(s)</p></div>
+                  <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-primary">{r.totalUtilization.toFixed(1)}%</p><p className="text-xs text-muted-foreground">Aproveitamento</p></div>
+                  <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-foreground">{(r.totalWaste / 1_000_000).toFixed(4)} m²</p><p className="text-xs text-muted-foreground">Sobra total</p></div>
+                  <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-foreground">R$ {r.estimatedCost.toFixed(2)}</p><p className="text-xs text-muted-foreground">Custo estimado</p></div>
+                  {r.scraps.length > 0 && (
+                    <div className="rounded-lg border border-border p-3 text-center"><p className="text-2xl font-bold text-accent-foreground">{r.scraps.length}</p><p className="text-xs text-muted-foreground flex items-center justify-center gap-1"><Scissors className="h-3 w-3" /> Retalho(s)</p></div>
+                  )}
+                </div>
+
+                {/* Interactive layouts */}
+                <div className="space-y-6">
+                  {r.layouts.map((layout, li) => (
+                    <InteractiveSheetLayout
+                      key={li}
+                      layout={layout}
+                      matW={mr.matW}
+                      matH={mr.matH}
+                      sheetIndex={li}
+                      totalSheets={r.layouts.length}
+                      singleCut={singleCut}
+                      kerfWidth={parseFloat(kerfWidth) || 0}
+                      descriptions={Object.fromEntries(mr.group.pieces.map(p => [p.id, p.description]))}
+                      nomenclatureConfig={nomenclatureConfig}
+                      onLayoutChange={(sheetIdx, newPieces) => {
+                        setResults(prev => prev.map((pr, pi) => {
+                          if (pi !== ri) return pr;
+                          const newLayouts = [...pr.result.layouts];
+                          const used = newPieces.reduce((s, p) => s + p.width * p.height, 0);
+                          const total = pr.matW * pr.matH;
+                          newLayouts[sheetIdx] = { ...newLayouts[sheetIdx], pieces: newPieces, utilization: (used / total) * 100, wasteArea: total - used };
+                          return { ...pr, result: { ...pr.result, layouts: newLayouts } };
+                        }));
+                      }}
+                      onMovePiece={(fromSheet, pieceIdx, toSheet) => {
+                        setResults(prev => prev.map((pr, pi) => {
+                          if (pi !== ri) return pr;
+                          const newLayouts = [...pr.result.layouts];
+                          const fromPieces = [...newLayouts[fromSheet].pieces];
+                          const [movedPiece] = fromPieces.splice(pieceIdx, 1);
+                          const toPieces = [...newLayouts[toSheet].pieces, { ...movedPiece, x: 0, y: 0 }];
+                          const total = pr.matW * pr.matH;
+                          const fromUsed = fromPieces.reduce((s, p) => s + p.width * p.height, 0);
+                          const toUsed = toPieces.reduce((s, p) => s + p.width * p.height, 0);
+                          newLayouts[fromSheet] = { ...newLayouts[fromSheet], pieces: fromPieces, utilization: (fromUsed / total) * 100, wasteArea: total - fromUsed };
+                          newLayouts[toSheet] = { ...newLayouts[toSheet], pieces: toPieces, utilization: (toUsed / total) * 100, wasteArea: total - toUsed };
+                          const filtered = newLayouts.filter(l => l.pieces.length > 0);
+                          toast.success(`Peça movida para Chapa ${toSheet + 1}.`);
+                          return { ...pr, result: { ...pr.result, layouts: filtered.length > 0 ? filtered : newLayouts } };
+                        }));
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap gap-3">
+                  {mr.group.pieces.map((p, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getPieceColor(i) }} />
+                      {nomenclatureConfig.piecePrefix}{i + 1}{p.description ? ` - ${p.description}` : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* PDF config + actions */}
           <div className="flex items-center justify-between">
             <CuttingPlanPdfConfig config={nomenclatureConfig} onChange={setNomenclatureConfig} />
           </div>
 
-          <div className="space-y-6">
-            {result.layouts.map((layout, i) => (
-              <InteractiveSheetLayout
-                key={i}
-                layout={layout}
-                matW={matW}
-                matH={matH}
-                sheetIndex={i}
-                totalSheets={result.layouts.length}
-                singleCut={singleCut}
-                kerfWidth={parseFloat(kerfWidth) || 0}
-                descriptions={Object.fromEntries(pieces.map(p => [p.id, p.description]))}
-                nomenclatureConfig={nomenclatureConfig}
-                onLayoutChange={(sheetIdx, newPieces) => {
-                  setResult(prev => {
-                    if (!prev) return prev;
-                    const newLayouts = [...prev.layouts];
-                    const used = newPieces.reduce((s, p) => s + p.width * p.height, 0);
-                    const total = matW * matH;
-                    newLayouts[sheetIdx] = {
-                      ...newLayouts[sheetIdx],
-                      pieces: newPieces,
-                      utilization: (used / total) * 100,
-                      wasteArea: total - used,
-                    };
-                    return { ...prev, layouts: newLayouts };
-                  });
-                }}
-                onMovePiece={(fromSheet, pieceIdx, toSheet) => {
-                  setResult(prev => {
-                    if (!prev) return prev;
-                    const newLayouts = [...prev.layouts];
-                    const fromPieces = [...newLayouts[fromSheet].pieces];
-                    const [movedPiece] = fromPieces.splice(pieceIdx, 1);
-
-                    // Place the piece at (0,0) in the target sheet
-                    const toPieces = [...newLayouts[toSheet].pieces, { ...movedPiece, x: 0, y: 0 }];
-
-                    const total = matW * matH;
-                    const fromUsed = fromPieces.reduce((s, p) => s + p.width * p.height, 0);
-                    const toUsed = toPieces.reduce((s, p) => s + p.width * p.height, 0);
-
-                    newLayouts[fromSheet] = { ...newLayouts[fromSheet], pieces: fromPieces, utilization: (fromUsed / total) * 100, wasteArea: total - fromUsed };
-                    newLayouts[toSheet] = { ...newLayouts[toSheet], pieces: toPieces, utilization: (toUsed / total) * 100, wasteArea: total - toUsed };
-
-                    // Remove empty sheets
-                    const filtered = newLayouts.filter(l => l.pieces.length > 0);
-
-                    toast.success(`Peça movida para Chapa ${toSheet + 1}. Ajuste a posição manualmente.`);
-                    return { ...prev, layouts: filtered.length > 0 ? filtered : newLayouts };
-                  });
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3">
-            {pieces.map((p, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getPieceColor(i) }} />
-                {nomenclatureConfig.piecePrefix}{i + 1}{p.description ? ` - ${p.description}` : ""}
-              </div>
-            ))}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <div className="w-3 h-3 rounded-sm border-2 border-dashed border-orange-400/60 bg-orange-500/10" />
-              Sobra / Retalho
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <div className="w-3 h-3 rounded-sm border-2 border-primary/60 bg-muted/30" />
-              Chapa (material)
-            </div>
-            {singleCut && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className="w-3 h-0.5 bg-destructive" />
-                Corte compartilhado
-              </div>
-            )}
-          </div>
-
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setShowSave(true)}>
-              <Save className="h-4 w-4 mr-1" /> Salvar Plano
-            </Button>
-            <Button variant="outline" onClick={() => setShowExportDialog(true)}>
-              <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
-            </Button>
+            <Button onClick={() => setShowSave(true)}><Save className="h-4 w-4 mr-1" /> Salvar Plano</Button>
+            <Button variant="outline" onClick={() => setShowExportDialog(true)}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
           </div>
         </Card>
       )}
@@ -786,28 +417,15 @@ export function SheetCuttingTab() {
       {/* Save Dialog */}
       <Dialog open={showSave} onOpenChange={setShowSave}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Salvar Plano de Corte</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Salvar Plano de Corte</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>Nome do plano *</Label>
-              <Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Ex: Corte Projeto X" />
-            </div>
-            <div>
-              <Label>Cliente (opcional)</Label>
-              <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Nome do cliente" />
-            </div>
-            <div>
-              <Label>Projeto (opcional)</Label>
-              <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Nome do projeto" />
-            </div>
+            <div><Label>Nome do plano *</Label><Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Ex: Corte Projeto X" /></div>
+            <div><Label>Cliente (opcional)</Label><Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Nome do cliente" /></div>
+            <div><Label>Projeto (opcional)</Label><Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Nome do projeto" /></div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowSave(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !planName.trim()}>
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
+            <Button onClick={handleSave} disabled={saving || !planName.trim()}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -815,9 +433,7 @@ export function SheetCuttingTab() {
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Exportar PDF</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Exportar PDF</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Selecione os formatos de exportação:</p>
             <div className="space-y-3">
@@ -836,12 +452,10 @@ export function SheetCuttingTab() {
                 </div>
               </div>
               {exportRealScale && (
-                <div className="pl-8 space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
-                    <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
-                  </div>
+                <div className="pl-8 space-y-1">
+                  <Label htmlFor="folder-name" className="text-sm">Nome da pasta</Label>
+                  <Input id="folder-name" placeholder="Ex: corte-cliente-abc" value={folderName} onChange={(e) => setFolderName(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Arquivos: pasta/chapa-1.pdf, chapa-2.pdf…</p>
                 </div>
               )}
             </div>
