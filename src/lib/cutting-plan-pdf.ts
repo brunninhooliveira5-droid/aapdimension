@@ -40,6 +40,241 @@ export async function exportCuttingPlanWithOptions(data: Omit<CuttingPlanPdfData
   }
 }
 
+// === Multi-material sheet PDF export ===
+
+interface MultiMaterialSheetData {
+  planName: string;
+  materials: {
+    materialName: string;
+    dimensions: string;
+    matW: number;
+    matH: number;
+    unitPrice: number;
+    pieces: { width?: number; height?: number; quantity: number; description?: string }[];
+    result: SheetCuttingResult;
+  }[];
+  kerfWidth: number;
+  clientName?: string;
+  projectName?: string;
+  nomenclatureConfig?: PdfNomenclatureConfig;
+  singleCut?: boolean;
+}
+
+export interface MultiMaterialSheetExportOptions {
+  exportA4: boolean;
+  exportRealScale: boolean;
+  folderName: string;
+}
+
+export function exportMultiMaterialSheetPdf(
+  data: MultiMaterialSheetData,
+  options: MultiMaterialSheetExportOptions
+) {
+  if (options.exportA4) {
+    const doc = new jsPDF();
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Plano de Corte — Chapas", pw / 2, 20, { align: "center" });
+
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "normal");
+    doc.text(data.planName || "Sem nome", pw / 2, 28, { align: "center" });
+
+    doc.setFontSize(10);
+    let y = 40;
+    const line = (label: string, value: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}: `, 14, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(value, 14 + doc.getTextWidth(`${label}: `), y);
+      y += 6;
+    };
+
+    line("Tipo", data.materials.length > 1 ? "Corte de Chapas (Múltiplos Materiais)" : "Corte de Chapa");
+    line("Materiais", `${data.materials.length} tipo(s)`);
+    line("Largura da serra", `${data.kerfWidth} mm`);
+    if (data.clientName) line("Cliente", data.clientName);
+    if (data.projectName) line("Projeto", data.projectName);
+    line("Data", new Date().toLocaleDateString("pt-BR"));
+
+    const totalSheets = data.materials.reduce((s, m) => s + m.result.totalSheets, 0);
+    const totalCost = data.materials.reduce((s, m) => s + m.result.estimatedCost, 0);
+    y += 4;
+    line("Total de chapas", String(totalSheets));
+    line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
+
+    const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
+
+    // Per-material sections
+    for (const mat of data.materials) {
+      y += 6;
+      if (y > 250) { doc.addPage(); y = 20; }
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(59, 130, 246);
+      doc.text(`▸ ${mat.materialName}`, 14, y);
+      doc.setTextColor(0, 0, 0);
+      y += 6;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      line("Dimensões", mat.dimensions);
+      line("Valor unitário", `R$ ${mat.unitPrice.toFixed(2)}`);
+      line("Chapas", String(mat.result.totalSheets));
+      line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
+      line("Sobra total", `${(mat.result.totalWaste / 1_000_000).toFixed(4)} m²`);
+      line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
+
+      // Pieces table
+      autoTable(doc, {
+        startY: y,
+        head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
+        body: mat.pieces.map((p, i) => [
+          `${nc.piecePrefix}${i + 1}`,
+          p.description || "—",
+          String(p.width ?? 0),
+          String(p.height ?? 0),
+          String(p.quantity),
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+
+      // Sheets breakdown
+      autoTable(doc, {
+        startY: y,
+        head: [["Chapa", "Peças", "Aproveitamento"]],
+        body: mat.result.layouts.map((l, i) => [
+          `Chapa ${i + 1}`,
+          String(l.pieces.length),
+          `${l.utilization.toFixed(1)}%`,
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [34, 197, 94] },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Draw sheet layouts for this material
+      drawSheetLayoutsA4(doc, mat.result, {
+        planName: data.planName,
+        planType: "chapa",
+        materialName: mat.materialName,
+        dimensions: mat.dimensions,
+        unitPrice: mat.unitPrice,
+        kerfWidth: data.kerfWidth,
+        pieces: mat.pieces,
+        result: mat.result,
+        nomenclatureConfig: nc,
+      });
+    }
+
+    const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+    doc.save(filename);
+  }
+
+  if (options.exportRealScale) {
+    exportMultiMaterialSheetRealScale(data, options.folderName);
+  }
+}
+
+async function exportMultiMaterialSheetRealScale(data: MultiMaterialSheetData, folderName: string) {
+  const zip = new JSZip();
+  const folder = zip.folder(folderName || "plano-corte-1x1")!;
+  const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
+  const singleCut = data.singleCut ?? false;
+  const kerf = data.kerfWidth || 0;
+
+  let sheetCounter = 0;
+  for (const mat of data.materials) {
+    const matW = mat.matW;
+    const matH = mat.matH;
+
+    mat.result.layouts.forEach((layout) => {
+      sheetCounter++;
+      const pageMargin = 5;
+      const pageW = matW + pageMargin * 2;
+      const pageH = matH + pageMargin * 2;
+
+      const doc = new jsPDF({
+        orientation: pageW > pageH ? "landscape" : "portrait",
+        unit: "mm",
+        format: [pageW, pageH],
+      });
+
+      const ox = pageMargin;
+      const oy = pageMargin;
+
+      doc.setDrawColor(60, 60, 60);
+      doc.setLineWidth(0.5);
+      doc.setFillColor(245, 245, 245);
+      doc.rect(ox, oy, matW, matH, "FD");
+
+      if (singleCut && kerf > 0) {
+        const geometry = computeSingleCutGeometry(layout.pieces, kerf, matW, matH);
+        doc.setDrawColor(40, 40, 40);
+        doc.setLineWidth(0.4);
+        geometry.contourLines.forEach(line => { doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2); });
+        doc.setDrawColor(220, 30, 30);
+        doc.setLineWidth(0.3);
+        geometry.cutLines.forEach(line => { doc.line(ox + line.x1, oy + line.y1, ox + line.x2, oy + line.y2); });
+
+        layout.pieces.forEach((p, pi) => {
+          const pieceDesc = mat.pieces[p.pieceIndex]?.description || "";
+          const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
+          doc.setTextColor(40, 40, 40);
+          const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
+          if (fontSize >= 3) {
+            doc.setFontSize(fontSize);
+            doc.setFont("helvetica", "bold");
+            doc.text(mainLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+            if (subLabel) {
+              doc.setFontSize(Math.max(3, fontSize * 0.7));
+              doc.text(subLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+            }
+          }
+        });
+      } else {
+        layout.pieces.forEach((p, pi) => {
+          const color = getPieceColorPdf(p.pieceIndex ?? pi);
+          const pieceDesc = mat.pieces[p.pieceIndex]?.description || "";
+          const { mainLabel, subLabel } = formatPieceLabel(nc, p.pieceIndex ?? pi, p.width, p.height, pieceDesc);
+          doc.setFillColor(color[0], color[1], color[2]);
+          doc.setDrawColor(40, 40, 40);
+          doc.setLineWidth(0.3);
+          doc.rect(ox + p.x, oy + p.y, p.width, p.height, "FD");
+
+          doc.setTextColor(255, 255, 255);
+          const fontSize = Math.min(12, p.width * 0.15, p.height * 0.15);
+          if (fontSize >= 3) {
+            doc.setFontSize(fontSize);
+            doc.setFont("helvetica", "bold");
+            doc.text(mainLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 - fontSize * 0.2, { align: "center" });
+            if (subLabel) {
+              doc.setFontSize(Math.max(3, fontSize * 0.7));
+              doc.text(subLabel, ox + p.x + p.width / 2, oy + p.y + p.height / 2 + fontSize * 0.5, { align: "center" });
+            }
+          }
+        });
+      }
+
+      const pdfBlob = doc.output("blob");
+      const prefix = data.materials.length > 1 ? `${mat.materialName.replace(/\s+/g, "-")}-` : "";
+      folder.file(`${prefix}chapa-${sheetCounter}.pdf`, pdfBlob);
+    });
+  }
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  saveAs(zipBlob, `${folderName || "plano-corte-1x1"}.zip`);
+}
+
 // === Multi-material tube PDF export ===
 
 interface MultiMaterialTubeData {
