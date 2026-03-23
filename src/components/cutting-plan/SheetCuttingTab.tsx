@@ -52,6 +52,7 @@ export function SheetCuttingTab() {
   const [allowRotation, setAllowRotation] = useState(true);
   const [optimizationMode, setOptimizationMode] = useState<OptimizationMode>("best_utilization");
   const [minScrapSize, setMinScrapSize] = useState("150");
+  const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
 
   // Pieces
   const [pieces, setPieces] = useState<PieceRow[]>([
