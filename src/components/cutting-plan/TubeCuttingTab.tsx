@@ -175,7 +175,7 @@ export function TubeCuttingTab() {
       parsedPieces.push({ id: p.id, length: len, quantity: q });
     }
 
-    const res = calculateTubeCutting(barLen, price, parsedPieces, kerf, { safetyMargin: margin, minScrapSize: parseFloat(minScrapSize) || 150 });
+    const res = calculateTubeCutting(barLen, price, parsedPieces, kerf, { safetyMargin: margin, minScrapSize: parseFloat(minScrapSize) || 150, speed: calcSpeed });
     setResult(res);
 
     if (res.errors.length > 0) toast.error("Existem peças inválidas.");
