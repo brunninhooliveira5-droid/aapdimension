@@ -184,6 +184,7 @@ export function calculateSheetCutting(
     allowRotation?: boolean;
     mode?: OptimizationMode;
     minScrapSize?: number;
+    speed?: CalculationSpeed;
   }
 ): SheetCuttingResult {
   const errors: string[] = [];
