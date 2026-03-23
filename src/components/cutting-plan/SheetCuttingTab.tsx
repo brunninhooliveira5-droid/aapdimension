@@ -14,7 +14,7 @@ import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangl
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece } from "@/lib/cutting-plan-engine";
+import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece, type CalculationSpeed } from "@/lib/cutting-plan-engine";
 import { exportCuttingPlanWithOptions, type ExportOptions } from "@/lib/cutting-plan-pdf";
 import { CuttingPlanPdfConfig, defaultNomenclatureConfig, type PdfNomenclatureConfig } from "./CuttingPlanPdfConfig";
 import { InteractiveSheetLayout } from "./InteractiveSheetLayout";
