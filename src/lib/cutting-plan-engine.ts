@@ -69,6 +69,7 @@ export interface TubeCuttingResult {
 }
 
 export type OptimizationMode = "best_utilization" | "fewer_units" | "simple";
+export type CalculationSpeed = "fast" | "thorough";
 
 // === Piece colors for visualization ===
 
@@ -183,6 +184,7 @@ export function calculateSheetCutting(
     allowRotation?: boolean;
     mode?: OptimizationMode;
     minScrapSize?: number;
+    speed?: CalculationSpeed;
   }
 ): SheetCuttingResult {
   const errors: string[] = [];
@@ -221,8 +223,14 @@ export function calculateSheetCutting(
     }
   });
 
-  // Sort by area descending for best packing
   const mode = options?.mode || "best_utilization";
+  const speed = options?.speed || "fast";
+
+  if (speed === "thorough") {
+    return thoroughSheetCutting(effW, effH, matW, matH, unitPrice, expanded, kerfWidth, safetyMargin, mode, minScrap);
+  }
+
+  // Fast mode: sort by area descending
   if (mode === "best_utilization" || mode === "fewer_units") {
     expanded.sort((a, b) => (b.w * b.h) - (a.w * a.h));
   }
@@ -336,7 +344,170 @@ export function calculateSheetCutting(
   };
 }
 
+// === Thorough sheet cutting: tries multiple sort strategies ===
+
+function packSheetOnce(
+  effW: number, effH: number, matW: number, matH: number, unitPrice: number,
+  pieces: { idx: number; id: string; w: number; h: number; canRotate: boolean }[],
+  kerfWidth: number, safetyMargin: number, minScrap: number
+): SheetCuttingResult {
+  const layouts: SheetLayout[] = [];
+  const scraps: { width: number; height: number; sheetIndex: number }[] = [];
+  let remaining = [...pieces];
+
+  while (remaining.length > 0) {
+    let freeRects: FreeRect[] = [{ x: 0, y: 0, w: effW, h: effH }];
+    const curPieces: PlacedPiece[] = [];
+    const notPlaced: typeof remaining = [];
+
+    for (const piece of remaining) {
+      const orients: [number, number, boolean][] = [];
+      if (piece.w <= effW && piece.h <= effH) orients.push([piece.w, piece.h, false]);
+      if (piece.canRotate && piece.h <= effW && piece.w <= effH && piece.w !== piece.h) orients.push([piece.h, piece.w, true]);
+      if (orients.length === 0) { notPlaced.push(piece); continue; }
+
+      let bestPlacement: { x: number; y: number; pw: number; ph: number; rot: boolean } | null = null;
+      let bestScore = Infinity;
+      for (const [pw, ph, rot] of orients) {
+        const fit = findBestFit(freeRects, pw, ph);
+        if (fit) {
+          const leftoverW = freeRects[fit.rectIndex].w - pw;
+          const leftoverH = freeRects[fit.rectIndex].h - ph;
+          const score = Math.min(leftoverW, leftoverH);
+          if (score < bestScore) { bestScore = score; bestPlacement = { x: fit.x, y: fit.y, pw, ph, rot }; }
+        }
+      }
+
+      if (bestPlacement) {
+        const { x, y, pw, ph, rot } = bestPlacement;
+        curPieces.push({ pieceId: piece.id, pieceIndex: piece.idx, x: x + safetyMargin, y: y + safetyMargin, width: pw, height: ph, rotated: rot });
+        const kerfPw = Math.min(pw + kerfWidth, effW - x);
+        const kerfPh = Math.min(ph + kerfWidth, effH - y);
+        freeRects = splitFreeRects(freeRects, x, y, kerfPw, kerfPh);
+      } else {
+        notPlaced.push(piece);
+      }
+    }
+
+    if (curPieces.length > 0) {
+      const used = curPieces.reduce((s, p) => s + p.width * p.height, 0);
+      const total = effW * effH;
+      const maxUsedY = Math.max(...curPieces.map(p => (p.y - safetyMargin) + p.height));
+      const scrapH = effH - maxUsedY;
+      const layout: SheetLayout = { pieces: curPieces, utilization: (used / total) * 100, wasteArea: total - used };
+      if (scrapH >= minScrap && effW >= minScrap) {
+        layout.scrapWidth = effW; layout.scrapHeight = scrapH;
+        scraps.push({ width: effW, height: scrapH, sheetIndex: layouts.length });
+      }
+      layouts.push(layout);
+    }
+    remaining = notPlaced;
+    if (curPieces.length === 0 && remaining.length > 0) break;
+  }
+
+  const sheetArea = matW * matH;
+  const totalUsed = layouts.reduce((s, l) => s + l.pieces.reduce((s2, p) => s2 + p.width * p.height, 0), 0);
+  const totalArea = sheetArea * layouts.length;
+
+  return {
+    layouts, totalSheets: layouts.length,
+    totalUtilization: totalArea > 0 ? (totalUsed / totalArea) * 100 : 0,
+    totalWaste: totalArea - totalUsed, estimatedCost: layouts.length * unitPrice,
+    errors: [], invalidPieceIds: [], scraps,
+  };
+}
+
+function thoroughSheetCutting(
+  effW: number, effH: number, matW: number, matH: number, unitPrice: number,
+  expanded: { idx: number; id: string; w: number; h: number; canRotate: boolean }[],
+  kerfWidth: number, safetyMargin: number, mode: OptimizationMode, minScrap: number
+): SheetCuttingResult {
+  // Try multiple sort strategies and pick the best
+  const sortStrategies: ((a: typeof expanded[0], b: typeof expanded[0]) => number)[] = [
+    (a, b) => (b.w * b.h) - (a.w * a.h), // area desc
+    (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h), // max dimension desc
+    (a, b) => Math.min(b.w, b.h) - Math.min(a.w, a.h), // min dimension desc
+    (a, b) => b.h - a.h, // height desc
+    (a, b) => b.w - a.w, // width desc
+    (a, b) => (b.w + b.h) - (a.w + a.h), // perimeter desc
+    (a, b) => Math.max(b.w / b.h, b.h / b.w) - Math.max(a.w / a.h, a.h / a.w), // aspect ratio desc
+    (a, b) => (a.w * a.h) - (b.w * b.h), // area asc (sometimes fills gaps better)
+  ];
+
+  let bestResult: SheetCuttingResult | null = null;
+
+  for (const sortFn of sortStrategies) {
+    const sorted = [...expanded].sort(sortFn);
+    const result = packSheetOnce(effW, effH, matW, matH, unitPrice, sorted, kerfWidth, safetyMargin, minScrap);
+
+    if (!bestResult ||
+        result.totalSheets < bestResult.totalSheets ||
+        (result.totalSheets === bestResult.totalSheets && result.totalUtilization > bestResult.totalUtilization)) {
+      bestResult = result;
+    }
+  }
+
+  return bestResult!;
+}
+
 // === Tube cutting (FFD) ===
+
+function packTubeOnce(
+  barLength: number, unitPrice: number, safetyMargin: number,
+  expanded: { idx: number; id: string; len: number }[],
+  kerfWidth: number, minScrap: number
+): TubeCuttingResult {
+  const effLength = barLength - safetyMargin * 2;
+  type Bar = { segments: BarSegment[]; remaining: number };
+  const bars: Bar[] = [];
+
+  for (const piece of expanded) {
+    let bestBarIdx = -1;
+    let bestRemaining = Infinity;
+    // Best Fit Decreasing: find bar with least remaining space that still fits
+    for (let i = 0; i < bars.length; i++) {
+      const bar = bars[i];
+      const gap = bar.segments.length > 0 ? kerfWidth : 0;
+      if (bar.remaining >= piece.len + gap) {
+        const afterPlacing = bar.remaining - (piece.len + gap);
+        if (afterPlacing < bestRemaining) {
+          bestRemaining = afterPlacing;
+          bestBarIdx = i;
+        }
+      }
+    }
+
+    if (bestBarIdx >= 0) {
+      const bar = bars[bestBarIdx];
+      const gap = bar.segments.length > 0 ? kerfWidth : 0;
+      const pos = barLength - bar.remaining + gap;
+      bar.segments.push({ pieceId: piece.id, pieceIndex: piece.idx, length: piece.len, position: pos });
+      bar.remaining -= (piece.len + gap);
+    } else {
+      bars.push({
+        segments: [{ pieceId: piece.id, pieceIndex: piece.idx, length: piece.len, position: safetyMargin }],
+        remaining: effLength - piece.len,
+      });
+    }
+  }
+
+  const scraps: { length: number; barIndex: number }[] = [];
+  const barLayouts: BarLayout[] = bars.map((bar, i) => {
+    const usedLen = bar.segments.reduce((s, seg) => s + seg.length, 0);
+    const waste = bar.remaining;
+    if (waste >= minScrap) scraps.push({ length: waste, barIndex: i });
+    return { segments: bar.segments, usedLength: usedLen, wasteLength: waste, utilization: (usedLen / barLength) * 100 };
+  });
+
+  const totalUsed = barLayouts.reduce((s, b) => s + b.usedLength, 0);
+  const totalLen = barLength * bars.length;
+  return {
+    bars: barLayouts, totalBars: bars.length,
+    totalUtilization: totalLen > 0 ? (totalUsed / totalLen) * 100 : 0,
+    totalWaste: totalLen - totalUsed, estimatedCost: bars.length * unitPrice,
+    errors: [], invalidPieceIds: [], scraps,
+  };
+}
 
 export function calculateTubeCutting(
   barLength: number,
@@ -347,6 +518,7 @@ export function calculateTubeCutting(
     safetyMargin?: number;
     mode?: OptimizationMode;
     minScrapSize?: number;
+    speed?: CalculationSpeed;
   }
 ): TubeCuttingResult {
   const errors: string[] = [];
@@ -354,6 +526,7 @@ export function calculateTubeCutting(
   const safetyMargin = options?.safetyMargin || 0;
   const effLength = barLength - safetyMargin * 2;
   const minScrap = options?.minScrapSize ?? 150;
+  const speed = options?.speed || "fast";
 
   for (let i = 0; i < pieces.length; i++) {
     const p = pieces[i];
@@ -374,8 +547,47 @@ export function calculateTubeCutting(
     }
   });
 
-  expanded.sort((a, b) => b.len - a.len);
+  if (speed === "thorough") {
+    // Try multiple sort strategies
+    const sortStrategies: ((a: typeof expanded[0], b: typeof expanded[0]) => number)[] = [
+      (a, b) => b.len - a.len, // desc
+      (a, b) => a.len - b.len, // asc
+    ];
 
+    // Also try Best Fit vs First Fit
+    let bestResult: TubeCuttingResult | null = null;
+
+    for (const sortFn of sortStrategies) {
+      const sorted = [...expanded].sort(sortFn);
+      const result = packTubeOnce(barLength, unitPrice, safetyMargin, sorted, kerfWidth, minScrap);
+      if (!bestResult || result.totalBars < bestResult.totalBars ||
+          (result.totalBars === bestResult.totalBars && result.totalUtilization > bestResult.totalUtilization)) {
+        bestResult = result;
+      }
+    }
+
+    // Also try FFD (original algorithm) for comparison
+    expanded.sort((a, b) => b.len - a.len);
+    const ffdResult = ffdTubePack(barLength, unitPrice, safetyMargin, expanded, kerfWidth, minScrap);
+    if (!bestResult || ffdResult.totalBars < bestResult.totalBars ||
+        (ffdResult.totalBars === bestResult.totalBars && ffdResult.totalUtilization > bestResult.totalUtilization)) {
+      bestResult = ffdResult;
+    }
+
+    return bestResult!;
+  }
+
+  // Fast mode: simple FFD
+  expanded.sort((a, b) => b.len - a.len);
+  return ffdTubePack(barLength, unitPrice, safetyMargin, expanded, kerfWidth, minScrap);
+}
+
+function ffdTubePack(
+  barLength: number, unitPrice: number, safetyMargin: number,
+  expanded: { idx: number; id: string; len: number }[],
+  kerfWidth: number, minScrap: number
+): TubeCuttingResult {
+  const effLength = barLength - safetyMargin * 2;
   type Bar = { segments: BarSegment[]; remaining: number };
   const bars: Bar[] = [];
 
@@ -400,32 +612,19 @@ export function calculateTubeCutting(
   }
 
   const scraps: { length: number; barIndex: number }[] = [];
-
   const barLayouts: BarLayout[] = bars.map((bar, i) => {
     const usedLen = bar.segments.reduce((s, seg) => s + seg.length, 0);
     const waste = bar.remaining;
-    if (waste >= minScrap) {
-      scraps.push({ length: waste, barIndex: i });
-    }
-    return {
-      segments: bar.segments,
-      usedLength: usedLen,
-      wasteLength: waste,
-      utilization: (usedLen / barLength) * 100,
-    };
+    if (waste >= minScrap) scraps.push({ length: waste, barIndex: i });
+    return { segments: bar.segments, usedLength: usedLen, wasteLength: waste, utilization: (usedLen / barLength) * 100 };
   });
 
   const totalUsed = barLayouts.reduce((s, b) => s + b.usedLength, 0);
   const totalLen = barLength * bars.length;
-
   return {
-    bars: barLayouts,
-    totalBars: bars.length,
+    bars: barLayouts, totalBars: bars.length,
     totalUtilization: totalLen > 0 ? (totalUsed / totalLen) * 100 : 0,
-    totalWaste: totalLen - totalUsed,
-    estimatedCost: bars.length * unitPrice,
-    errors: [],
-    invalidPieceIds: [],
-    scraps,
+    totalWaste: totalLen - totalUsed, estimatedCost: bars.length * unitPrice,
+    errors: [], invalidPieceIds: [], scraps,
   };
 }

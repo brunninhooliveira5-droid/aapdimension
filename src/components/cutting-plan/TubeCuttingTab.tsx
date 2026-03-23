@@ -9,12 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, Copy, Upload, XCircle, Scissors } from "lucide-react";
+import { Package, Layers, Plus, Trash2, Calculator, Save, FileDown, AlertTriangle, Copy, Upload, XCircle, Scissors, Zap, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode } from "@/lib/cutting-plan-engine";
+import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingResult, type OptimizationMode, type CalculationSpeed } from "@/lib/cutting-plan-engine";
 import { exportCuttingPlanWithOptions } from "@/lib/cutting-plan-pdf";
+import { InteractiveTubeLayout } from "./InteractiveTubeLayout";
 
 interface PieceRow {
   id: string;
@@ -40,6 +41,7 @@ export function TubeCuttingTab() {
   const [safetyMargin, setSafetyMargin] = useState("0");
   const [minScrapSize, setMinScrapSize] = useState("150");
   const [reserveStock, setReserveStock] = useState(false);
+  const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
 
   const [pieces, setPieces] = useState<PieceRow[]>([{ id: "1", length: "", quantity: "1" }]);
   const [result, setResult] = useState<TubeCuttingResult | null>(null);
@@ -173,7 +175,7 @@ export function TubeCuttingTab() {
       parsedPieces.push({ id: p.id, length: len, quantity: q });
     }
 
-    const res = calculateTubeCutting(barLen, price, parsedPieces, kerf, { safetyMargin: margin, minScrapSize: parseFloat(minScrapSize) || 150 });
+    const res = calculateTubeCutting(barLen, price, parsedPieces, kerf, { safetyMargin: margin, minScrapSize: parseFloat(minScrapSize) || 150, speed: calcSpeed });
     setResult(res);
 
     if (res.errors.length > 0) toast.error("Existem peças inválidas.");
@@ -286,10 +288,38 @@ export function TubeCuttingTab() {
           <div><Label className="text-xs">Largura da serra (mm)</Label><Input type="number" value={kerfWidth} onChange={(e) => setKerfWidth(e.target.value)} placeholder="3" /></div>
           <div><Label className="text-xs">Margem segurança (mm)</Label><Input type="number" value={safetyMargin} onChange={(e) => setSafetyMargin(e.target.value)} placeholder="0" /></div>
         </div>
-        <div className="w-48">
-          <Label className="text-xs">Retalho mínimo (mm)</Label>
-          <Input type="number" value={minScrapSize} onChange={(e) => setMinScrapSize(e.target.value)} placeholder="150" />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs">Retalho mínimo (mm)</Label>
+            <Input type="number" value={minScrapSize} onChange={(e) => setMinScrapSize(e.target.value)} placeholder="150" />
+          </div>
+          <div>
+            <Label className="text-xs">Velocidade do cálculo</Label>
+            <div className="flex gap-1 mt-1">
+              <Button
+                variant={calcSpeed === "fast" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 gap-1"
+                onClick={() => setCalcSpeed("fast")}
+              >
+                <Zap className="h-3.5 w-3.5" /> Rápido
+              </Button>
+              <Button
+                variant={calcSpeed === "thorough" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 gap-1"
+                onClick={() => setCalcSpeed("thorough")}
+              >
+                <Clock className="h-3.5 w-3.5" /> Otimizado
+              </Button>
+            </div>
+          </div>
         </div>
+        {calcSpeed === "thorough" && (
+          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+            ⏳ O modo <strong>Otimizado</strong> testa múltiplas estratégias de arranjo para minimizar o número de barras e o desperdício. Pode levar mais tempo.
+          </p>
+        )}
         {availableQty !== null && <p className="text-xs text-muted-foreground">Disponível: <span className="font-semibold text-foreground">{availableQty}</span></p>}
       </Card>
 
@@ -349,25 +379,12 @@ export function TubeCuttingTab() {
             )}
           </div>
 
-          <div className="space-y-3">
-            {result.bars.map((bar, i) => (
-              <div key={i} className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  Barra {i + 1} — {bar.segments.length} peça(s) — {bar.utilization.toFixed(1)}% — Sobra: {bar.wasteLength.toFixed(1)} mm
-                  {bar.wasteLength >= (parseFloat(minScrapSize) || 150) && <span className="text-muted-foreground ml-1">(retalho)</span>}
-                </p>
-                <div className="relative h-10 border-2 border-border rounded bg-muted/20 overflow-hidden">
-                  {bar.segments.map((seg, j) => (
-                    <div key={j} className="absolute h-full flex items-center justify-center text-[10px] font-bold text-white border-r border-white/30"
-                      title={`Peça ${seg.pieceIndex + 1}: ${seg.length} mm`}
-                      style={{ left: `${(seg.position / barLen) * 100}%`, width: `${(seg.length / barLen) * 100}%`, backgroundColor: getPieceColor(seg.pieceIndex) }}>
-                      P{seg.pieceIndex + 1}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <InteractiveTubeLayout
+            result={result}
+            barLength={barLen}
+            kerfWidth={parseFloat(kerfWidth) || 0}
+            onResultChange={(newResult) => setResult(newResult)}
+          />
 
           <div className="flex flex-wrap gap-3">
             {pieces.map((_, i) => (<div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getPieceColor(i) }} />Peça {i + 1}</div>))}
