@@ -659,9 +659,10 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     } // end showWasteArea
 
     // Legend
+    if (pdfS.showLegend !== false) {
     const legendY = oy + drawH + 8;
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(7);
+    doc.setFontSize(pdfS.legendFontSize || 7);
     doc.setFont("helvetica", "bold");
     doc.text("Legenda:", margin, legendY);
     doc.setFont("helvetica", "normal");
@@ -679,6 +680,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     doc.rect(margin + 80, legendY - 3, 6, 4);
     doc.setLineDashPattern([], 0);
     doc.text("Sobra/Retalho", margin + 88, legendY);
+    }
   });
 }
 
