@@ -128,6 +128,8 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       height: svgH * scale,
       bboxX: 0,
       bboxY: 0,
+      bboxW: svgW,
+      bboxH: svgH,
       viewBoxScale: scale,
     });
   }
