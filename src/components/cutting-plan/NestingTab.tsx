@@ -810,15 +810,21 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
                   strokeWidth={isSelected ? 2.5 : 1.2}
                 />
                 {/* Inner path for visual detail */}
-                <g transform={`translate(${padding + p.x * scale}, ${padding + p.y * scale}) scale(${scale})`}>
-                  <path
-                    d={shiftPath(p.pathData, p.bboxX, p.bboxY, p.bboxW, p.bboxH, p.width, p.height)}
-                    fill="none"
-                    stroke={isSelected ? "hsl(var(--primary))" : "#333"}
-                    strokeWidth={Math.max(0.5, 1 / scale)}
-                    opacity={0.6}
-                  />
-                </g>
+                {(() => {
+                  const pathScaleX = (p.width) / (p.bboxW || 1);
+                  const pathScaleY = (p.height) / (p.bboxH || 1);
+                  return (
+                    <g transform={`translate(${padding + p.x * scale}, ${padding + p.y * scale}) scale(${scale * pathScaleX}, ${scale * pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}>
+                      <path
+                        d={p.pathData}
+                        fill="none"
+                        stroke={isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))"}
+                        strokeWidth={Math.max(0.3, 0.8 / (scale * Math.min(pathScaleX, pathScaleY)))}
+                        opacity={0.5}
+                      />
+                    </g>
+                  );
+                })()}
                 {/* Label */}
                 <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle"
                   fontSize={Math.min(11, p.width * scale * 0.15)} fontWeight="600"
