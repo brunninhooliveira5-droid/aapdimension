@@ -314,24 +314,41 @@ export function NestingTab() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">Preview do SVG importado</span>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>
-                    <ZoomOut className="h-3 w-3" />
+                  <Button variant={viewMode === "single" ? "default" : "ghost"} size="sm" className="h-6 px-2 text-[10px] gap-1"
+                    onClick={() => setViewMode("single")}>
+                    <FileImage className="h-3 w-3" /> Arquivo
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.25))}>
-                    <ZoomIn className="h-3 w-3" />
+                  <Button variant={viewMode === "grid" ? "default" : "ghost"} size="sm" className="h-6 px-2 text-[10px] gap-1"
+                    onClick={() => setViewMode("grid")}>
+                    <Grid3X3 className="h-3 w-3" /> Grid
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(1)}>
-                    <Maximize2 className="h-3 w-3" />
-                  </Button>
+                  {viewMode === "single" && (
+                    <>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>
+                        <ZoomOut className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.25))}>
+                        <ZoomIn className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(1)}>
+                        <Maximize2 className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="overflow-auto max-h-[300px] flex justify-center bg-white">
-                <div
-                  style={{ transform: `scale(${zoom})`, transformOrigin: "top center", color: "#000" }}
-                  className="transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none"
-                  dangerouslySetInnerHTML={{ __html: svgContent }}
-                />
-              </div>
+
+              {viewMode === "single" ? (
+                <div className="overflow-auto max-h-[300px] flex justify-center bg-white">
+                  <div
+                    style={{ transform: `scale(${zoom})`, transformOrigin: "top center", color: "#000" }}
+                    className="transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none"
+                    dangerouslySetInnerHTML={{ __html: svgContent }}
+                  />
+                </div>
+              ) : (
+                <NestingPiecesGrid pieces={importedPieces} />
+              )}
             </div>
           )}
 
