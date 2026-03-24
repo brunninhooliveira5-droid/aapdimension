@@ -56,6 +56,8 @@ interface ParsedSvgPiece {
   pathData: string;
   width: number;
   height: number;
+  bboxX: number;
+  bboxY: number;
   viewBoxScale: number;
 }
 
