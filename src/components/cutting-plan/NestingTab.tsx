@@ -309,7 +309,7 @@ export function NestingTab() {
 
           {/* SVG Preview */}
           {svgContent && (
-            <div className="border rounded-lg p-2 bg-muted/30">
+            <div className="border rounded-lg p-2 bg-white">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">Preview do SVG importado</span>
                 <div className="flex gap-1">
@@ -324,10 +324,10 @@ export function NestingTab() {
                   </Button>
                 </div>
               </div>
-              <div className="overflow-auto max-h-[300px] flex justify-center">
+              <div className="overflow-auto max-h-[300px] flex justify-center bg-white">
                 <div
-                  style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
-                  className="transition-transform"
+                  style={{ transform: `scale(${zoom})`, transformOrigin: "top center", color: "#000" }}
+                  className="transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none"
                   dangerouslySetInnerHTML={{ __html: svgContent }}
                 />
               </div>
