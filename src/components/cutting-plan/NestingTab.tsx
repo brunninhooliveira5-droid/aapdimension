@@ -537,15 +537,9 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
           const ph = p.height * scale;
           const isSelected = selectedPieceId === p.id;
 
-          // Calculate scale from original bbox dimensions to placed dimensions
-          const origW = p.width;
-          const origH = p.height;
-          // The pathData is in original SVG units; we need to scale it to fit pw x ph
-          // viewBoxScale was used to convert bbox to mm, so original bbox in SVG units = width / viewBoxScale
-          // But we store width in mm already. We need to figure the path's coordinate system.
-          // bboxX/bboxY are in original SVG coordinates. width/height are in mm.
-          // path coordinates are in original SVG units.
-          // We need: translate(-bboxX, -bboxY) then scale to fit pw x ph pixels
+          // Scale from original SVG bbox units to screen pixels
+          const pathScaleX = pw / (p.bboxW || 1);
+          const pathScaleY = ph / (p.bboxH || 1);
 
           return (
             <g key={p.id} onClick={() => onSelectPiece(isSelected ? null : p.id)} className="cursor-pointer">
@@ -555,7 +549,7 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
                   <rect x={px} y={py} width={pw} height={ph} />
                 </clipPath>
               </defs>
-              {/* Background rect with color fill */}
+              {/* Background rect with subtle color fill */}
               <rect x={px} y={py} width={pw} height={ph}
                 fill={p.color + "15"} stroke={isSelected ? "hsl(var(--primary))" : p.color + "40"}
                 strokeWidth={isSelected ? 2 : 0.5} rx={1} />
@@ -566,7 +560,7 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
                   fill="none"
                   stroke={isSelected ? "hsl(var(--primary))" : p.color}
                   strokeWidth={Math.max(0.5, 1.5 / scale)}
-                  transform={`translate(${px}, ${py}) scale(${pw / (origW || 1)}, ${ph / (origH || 1)}) translate(${-p.bboxX}, ${-p.bboxY})`}
+                  transform={`translate(${px}, ${py}) scale(${pathScaleX}, ${pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}
                 />
               </g>
               {/* Label */}
