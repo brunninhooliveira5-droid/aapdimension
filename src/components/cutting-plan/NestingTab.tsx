@@ -32,6 +32,7 @@ export function NestingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
   const [pdfSettings] = usePdfSettings();
+  const [expandedSheet, setExpandedSheet] = useState<number | null>(null);
 
   // SVG state
   const fileRef = useRef<HTMLInputElement>(null);
