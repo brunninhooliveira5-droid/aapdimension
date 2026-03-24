@@ -553,7 +553,8 @@ function getPieceColorPdf(index: number): [number, number, number] {
   return PIECE_COLORS[index % PIECE_COLORS.length];
 }
 
-function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlanPdfData) {
+function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlanPdfData, ps?: any) {
+  const pdfS = ps || {};
   const dims = data.dimensions.replace(/\s/g, "").split("x");
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
