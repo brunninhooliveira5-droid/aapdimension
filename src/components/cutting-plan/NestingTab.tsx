@@ -894,12 +894,65 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
             );
           })}
 
+          {/* Single cut shared edges — dashed yellow lines between touching pieces */}
+          {singleCut && sheet.pieces.length > 1 && (() => {
+            const lines: React.ReactNode[] = [];
+            const tol = 2; // tolerance in mm
+            for (let i = 0; i < sheet.pieces.length; i++) {
+              for (let j = i + 1; j < sheet.pieces.length; j++) {
+                const a = sheet.pieces[i];
+                const b = sheet.pieces[j];
+                // Check shared vertical edge (right of a == left of b, or vice versa)
+                const overlapY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+                const overlapX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+                
+                // Right edge of a touches left edge of b
+                if (Math.abs((a.x + a.width) - b.x) < tol && overlapY > tol) {
+                  const edgeX = padding + ((a.x + a.width + b.x) / 2) * scale;
+                  const y1 = padding + Math.max(a.y, b.y) * scale;
+                  const y2 = padding + Math.min(a.y + a.height, b.y + b.height) * scale;
+                  lines.push(<line key={`sc-v-${i}-${j}`} x1={edgeX} y1={y1} x2={edgeX} y2={y2}
+                    stroke="#d97706" strokeWidth={2} strokeDasharray="6 3" opacity={0.8} />);
+                }
+                // Left edge of a touches right edge of b
+                if (Math.abs((b.x + b.width) - a.x) < tol && overlapY > tol) {
+                  const edgeX = padding + ((b.x + b.width + a.x) / 2) * scale;
+                  const y1 = padding + Math.max(a.y, b.y) * scale;
+                  const y2 = padding + Math.min(a.y + a.height, b.y + b.height) * scale;
+                  lines.push(<line key={`sc-vr-${i}-${j}`} x1={edgeX} y1={y1} x2={edgeX} y2={y2}
+                    stroke="#d97706" strokeWidth={2} strokeDasharray="6 3" opacity={0.8} />);
+                }
+                // Bottom edge of a touches top edge of b
+                if (Math.abs((a.y + a.height) - b.y) < tol && overlapX > tol) {
+                  const edgeY = padding + ((a.y + a.height + b.y) / 2) * scale;
+                  const x1 = padding + Math.max(a.x, b.x) * scale;
+                  const x2 = padding + Math.min(a.x + a.width, b.x + b.width) * scale;
+                  lines.push(<line key={`sc-h-${i}-${j}`} x1={x1} y1={edgeY} x2={x2} y2={edgeY}
+                    stroke="#d97706" strokeWidth={2} strokeDasharray="6 3" opacity={0.8} />);
+                }
+                // Top edge of a touches bottom edge of b
+                if (Math.abs((b.y + b.height) - a.y) < tol && overlapX > tol) {
+                  const edgeY = padding + ((b.y + b.height + a.y) / 2) * scale;
+                  const x1 = padding + Math.max(a.x, b.x) * scale;
+                  const x2 = padding + Math.min(a.x + a.width, b.x + b.width) * scale;
+                  lines.push(<line key={`sc-hr-${i}-${j}`} x1={x1} y1={edgeY} x2={x2} y2={edgeY}
+                    stroke="#d97706" strokeWidth={2} strokeDasharray="6 3" opacity={0.8} />);
+                }
+              }
+            }
+            return lines;
+          })()}
+
           {/* Single cut indicator */}
           {singleCut && (
-            <text x={padding + 4} y={padding + matH * scale - 4}
-              fontSize={10} fill="#b45309" fontWeight="600" className="select-none pointer-events-none">
-              ⚡ Corte Único Ativo
-            </text>
+            <g>
+              <rect x={padding + 2} y={padding + matH * scale - 18} width={120} height={16} rx={3}
+                fill="#fffbeb" stroke="#d97706" strokeWidth={0.5} opacity={0.9} />
+              <text x={padding + 8} y={padding + matH * scale - 7}
+                fontSize={9} fill="#b45309" fontWeight="600" className="select-none pointer-events-none">
+                ⚡ Corte Único Ativo
+              </text>
+            </g>
           )}
         </svg>
       </div>
