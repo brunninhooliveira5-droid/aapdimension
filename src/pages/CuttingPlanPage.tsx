@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RectangleHorizontal, Cylinder, Database, Save, Scissors, Settings2 } from "lucide-react";
+import { RectangleHorizontal, Cylinder, Database, Save, Scissors, Settings2, LayoutGrid } from "lucide-react";
 import { SheetCuttingTab } from "@/components/cutting-plan/SheetCuttingTab";
 import { TubeCuttingTab } from "@/components/cutting-plan/TubeCuttingTab";
 import { MaterialsCatalog } from "@/components/cutting-plan/MaterialsCatalog";
 import { SavedCuttingPlans } from "@/components/cutting-plan/SavedCuttingPlans";
 import { ScrapsManager } from "@/components/cutting-plan/ScrapsManager";
 import { CuttingPlanPdfSettingsTab } from "@/components/cutting-plan/CuttingPlanPdfSettingsTab";
+import { NestingTab } from "@/components/cutting-plan/NestingTab";
 
 export default function CuttingPlanPage() {
   return (
@@ -24,6 +25,9 @@ export default function CuttingPlanPage() {
           </TabsTrigger>
           <TabsTrigger value="tubo" className="gap-1.5">
             <Cylinder className="h-4 w-4" /> Corte de Tubos
+          </TabsTrigger>
+          <TabsTrigger value="nesting" className="gap-1.5">
+            <LayoutGrid className="h-4 w-4" /> Nesting
           </TabsTrigger>
           <TabsTrigger value="retalhos" className="gap-1.5">
             <Scissors className="h-4 w-4" /> Retalhos
@@ -44,6 +48,9 @@ export default function CuttingPlanPage() {
         </TabsContent>
         <TabsContent value="tubo">
           <TubeCuttingTab />
+        </TabsContent>
+        <TabsContent value="nesting">
+          <NestingTab />
         </TabsContent>
         <TabsContent value="retalhos">
           <ScrapsManager />

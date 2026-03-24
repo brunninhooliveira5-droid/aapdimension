@@ -3319,6 +3319,110 @@ export type Database = {
           },
         ]
       }
+      nesting_items: {
+        Row: {
+          created_at: string
+          geometry_data: string
+          height: number
+          id: string
+          nesting_project_id: string
+          piece_name: string | null
+          rotation: number
+          width: number
+          x_pos: number
+          y_pos: number
+        }
+        Insert: {
+          created_at?: string
+          geometry_data?: string
+          height?: number
+          id?: string
+          nesting_project_id: string
+          piece_name?: string | null
+          rotation?: number
+          width?: number
+          x_pos?: number
+          y_pos?: number
+        }
+        Update: {
+          created_at?: string
+          geometry_data?: string
+          height?: number
+          id?: string
+          nesting_project_id?: string
+          piece_name?: string | null
+          rotation?: number
+          width?: number
+          x_pos?: number
+          y_pos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nesting_items_nesting_project_id_fkey"
+            columns: ["nesting_project_id"]
+            isOneToOne: false
+            referencedRelation: "nesting_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nesting_projects: {
+        Row: {
+          auto_rotation: boolean
+          created_at: string
+          id: string
+          kerf: number
+          material_height: number
+          material_name: string
+          material_width: number
+          project_name: string
+          result_json: Json
+          sheets_needed: number
+          single_cut: boolean
+          svg_original_url: string | null
+          unit_price: number
+          updated_at: string
+          user_id: string
+          utilization_percent: number
+        }
+        Insert: {
+          auto_rotation?: boolean
+          created_at?: string
+          id?: string
+          kerf?: number
+          material_height?: number
+          material_name?: string
+          material_width?: number
+          project_name?: string
+          result_json?: Json
+          sheets_needed?: number
+          single_cut?: boolean
+          svg_original_url?: string | null
+          unit_price?: number
+          updated_at?: string
+          user_id: string
+          utilization_percent?: number
+        }
+        Update: {
+          auto_rotation?: boolean
+          created_at?: string
+          id?: string
+          kerf?: number
+          material_height?: number
+          material_name?: string
+          material_width?: number
+          project_name?: string
+          result_json?: Json
+          sheets_needed?: number
+          single_cut?: boolean
+          svg_original_url?: string | null
+          unit_price?: number
+          updated_at?: string
+          user_id?: string
+          utilization_percent?: number
+        }
+        Relationships: []
+      }
       page_visits: {
         Row: {
           id: string
