@@ -656,6 +656,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     }
 
     doc.setLineDashPattern([], 0);
+    } // end showWasteArea
 
     // Legend
     const legendY = oy + drawH + 8;
