@@ -101,7 +101,7 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
 
   shapes.forEach((el) => {
     const bbox = getElementBBox(el, svgW, svgH);
-    if (!bbox || bbox.w < 1 || bbox.h < 1) return;
+    if (!bbox || (bbox.w < 0.1 && bbox.h < 0.1)) return;
 
     const pathData = elementToPathData(el) || `M${bbox.x},${bbox.y} h${bbox.w} v${bbox.h} h${-bbox.w} Z`;
     idx++;
@@ -193,23 +193,111 @@ function getElementBBox(el: Element, _svgW: number, _svgH: number): { x: number;
 }
 
 function pathBBox(d: string): { x: number; y: number; w: number; h: number } | null {
-  const nums: number[] = [];
-  const matches = d.match(/-?\d+\.?\d*/g);
-  if (!matches) return null;
-  matches.forEach((m) => nums.push(parseFloat(m)));
-  if (nums.length < 2) return null;
-
+  // Properly parse SVG path commands to extract actual coordinates
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (let i = 0; i < nums.length - 1; i += 2) {
-    minX = Math.min(minX, nums[i]);
-    maxX = Math.max(maxX, nums[i]);
-    minY = Math.min(minY, nums[i + 1]);
-    maxY = Math.max(maxY, nums[i + 1]);
+  let cx = 0, cy = 0; // current position
+  let found = false;
+
+  const updateBounds = (x: number, y: number) => {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    found = true;
+  };
+
+  // Tokenize: split into commands + number sequences
+  const tokens = d.match(/[a-zA-Z]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
+  if (!tokens) return null;
+
+  let cmd = '';
+  const nums: number[] = [];
+
+  const flush = () => {
+    if (!cmd) return;
+    const c = cmd;
+    const isRel = c === c.toLowerCase();
+    const n = nums;
+
+    switch (c.toUpperCase()) {
+      case 'M': case 'L': case 'T': {
+        for (let i = 0; i < n.length - 1; i += 2) {
+          cx = isRel ? cx + n[i] : n[i];
+          cy = isRel ? cy + n[i + 1] : n[i + 1];
+          updateBounds(cx, cy);
+        }
+        break;
+      }
+      case 'H': {
+        for (const v of n) {
+          cx = isRel ? cx + v : v;
+          updateBounds(cx, cy);
+        }
+        break;
+      }
+      case 'V': {
+        for (const v of n) {
+          cy = isRel ? cy + v : v;
+          updateBounds(cx, cy);
+        }
+        break;
+      }
+      case 'C': { // cubic bezier: x1,y1 x2,y2 x,y
+        for (let i = 0; i < n.length - 5; i += 6) {
+          const bx = isRel ? cx : 0, by = isRel ? cy : 0;
+          updateBounds(bx + n[i], by + n[i + 1]);
+          updateBounds(bx + n[i + 2], by + n[i + 3]);
+          cx = bx + n[i + 4]; cy = by + n[i + 5];
+          updateBounds(cx, cy);
+        }
+        break;
+      }
+      case 'S': case 'Q': { // smooth cubic / quadratic: (x1,y1) x,y
+        for (let i = 0; i < n.length - 3; i += 4) {
+          const bx = isRel ? cx : 0, by = isRel ? cy : 0;
+          updateBounds(bx + n[i], by + n[i + 1]);
+          cx = bx + n[i + 2]; cy = by + n[i + 3];
+          updateBounds(cx, cy);
+        }
+        break;
+      }
+      case 'A': { // arc: rx ry xRot largeArc sweep x y
+        for (let i = 0; i < n.length - 6; i += 7) {
+          const rx = Math.abs(n[i]);
+          const ry = Math.abs(n[i + 1]);
+          const ex = isRel ? cx + n[i + 5] : n[i + 5];
+          const ey = isRel ? cy + n[i + 6] : n[i + 6];
+          // Conservative bounds: use arc center ± radii
+          const midX = (cx + ex) / 2;
+          const midY = (cy + ey) / 2;
+          updateBounds(midX - rx, midY - ry);
+          updateBounds(midX + rx, midY + ry);
+          updateBounds(cx, cy);
+          updateBounds(ex, ey);
+          cx = ex; cy = ey;
+        }
+        break;
+      }
+      case 'Z': {
+        break;
+      }
+    }
+    nums.length = 0;
+  };
+
+  for (const tok of tokens) {
+    if (/^[a-zA-Z]$/.test(tok)) {
+      flush();
+      cmd = tok;
+    } else {
+      nums.push(parseFloat(tok));
+    }
   }
+  flush();
+
+  if (!found) return null;
   const w = maxX - minX;
   const h = maxY - minY;
-  if (w <= 0 || h <= 0) return null;
-  return { x: minX, y: minY, w, h };
+  if (w <= 0 && h <= 0) return null;
+  return { x: minX, y: minY, w: Math.max(w, 0.1), h: Math.max(h, 0.1) };
 }
 
 function elementToPathData(el: Element): string | null {
@@ -227,6 +315,13 @@ function elementToPathData(el: Element): string | null {
     const cy = parseFloat(el.getAttribute("cy") || "0");
     const r = parseFloat(el.getAttribute("r") || "0");
     return `M${cx - r},${cy} a${r},${r} 0 1,0 ${r * 2},0 a${r},${r} 0 1,0 ${-r * 2},0`;
+  }
+  if (tag === "ellipse") {
+    const ecx = parseFloat(el.getAttribute("cx") || "0");
+    const ecy = parseFloat(el.getAttribute("cy") || "0");
+    const rx = parseFloat(el.getAttribute("rx") || "0");
+    const ry = parseFloat(el.getAttribute("ry") || "0");
+    return `M${ecx - rx},${ecy} a${rx},${ry} 0 1,0 ${rx * 2},0 a${rx},${ry} 0 1,0 ${-rx * 2},0`;
   }
   if (tag === "polygon" || tag === "polyline") {
     const pts = (el.getAttribute("points") || "").trim();
