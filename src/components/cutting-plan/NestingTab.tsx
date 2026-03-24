@@ -450,12 +450,21 @@ export function NestingTab() {
           {/* Sheet layouts */}
           {result.sheets.map((sheet, si) => (
             <Card key={si}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
                   Chapa {si + 1}
                   <Badge variant="outline" className="text-[10px]">{sheet.utilization.toFixed(1)}%</Badge>
                   <Badge variant="outline" className="text-[10px]">{sheet.pieces.length} peça(s)</Badge>
+                  {singleCut && (
+                    <Badge className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/20">
+                      <Scissors className="h-3 w-3" /> Corte Único
+                    </Badge>
+                  )}
                 </CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setExpandedSheet(si)}>
+                  <Maximize2 className="h-3.5 w-3.5" /> Ampliar
+                </Button>
               </CardHeader>
               <CardContent>
                 <NestingPreview
@@ -464,6 +473,7 @@ export function NestingTab() {
                   matW={mw}
                   matH={mh}
                   kerf={parseFloat(kerfWidth) || 0}
+                  singleCut={singleCut}
                   onRotate={rotatePiece}
                   onRemove={removePieceFromResult}
                   selectedPieceId={selectedPieceId}
@@ -474,6 +484,45 @@ export function NestingTab() {
           ))}
         </div>
       )}
+
+      {/* ── Expanded Sheet Dialog ──────────────────────────── */}
+      <Dialog open={expandedSheet !== null} onOpenChange={() => setExpandedSheet(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Chapa {expandedSheet !== null ? expandedSheet + 1 : ""}
+              {expandedSheet !== null && result && result.sheets[expandedSheet] && (
+                <>
+                  <Badge variant="outline" className="text-[10px]">{result.sheets[expandedSheet].utilization.toFixed(1)}%</Badge>
+                  <Badge variant="outline" className="text-[10px]">{result.sheets[expandedSheet].pieces.length} peça(s)</Badge>
+                  {singleCut && (
+                    <Badge className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 border-amber-300">
+                      <Scissors className="h-3 w-3" /> Corte Único
+                    </Badge>
+                  )}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {expandedSheet !== null && result && result.sheets[expandedSheet] && (
+            <div className="overflow-auto max-h-[80vh]">
+              <NestingPreview
+                sheet={result.sheets[expandedSheet]}
+                sheetIndex={expandedSheet}
+                matW={mw}
+                matH={mh}
+                kerf={parseFloat(kerfWidth) || 0}
+                singleCut={singleCut}
+                onRotate={rotatePiece}
+                onRemove={removePieceFromResult}
+                selectedPieceId={selectedPieceId}
+                onSelectPiece={setSelectedPieceId}
+                expanded
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Save Dialog ────────────────────────────────────── */}
       <Dialog open={showSave} onOpenChange={setShowSave}>
