@@ -44,6 +44,7 @@ function createEmptyGroup(): SheetMaterialGroupData {
 export function SheetCuttingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
+  const [pdfSettings] = usePdfSettings();
 
   const [groups, setGroups] = useState<SheetMaterialGroupData[]>([createEmptyGroup()]);
 
@@ -56,8 +57,14 @@ export function SheetCuttingTab() {
   const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
   const [singleCut, setSingleCut] = useState(false);
 
-  // PDF nomenclature
-  const [nomenclatureConfig, setNomenclatureConfig] = useState<PdfNomenclatureConfig>(defaultNomenclatureConfig);
+  // PDF nomenclature (derived from global settings)
+  const nomenclatureConfig: PdfNomenclatureConfig = {
+    piecePrefix: pdfSettings.piecePrefix,
+    showDimensions: pdfSettings.showPieceDimensions,
+    showDescription: pdfSettings.showPieceDescription,
+    dimensionFormat: pdfSettings.dimensionFormat,
+    labelSeparator: pdfSettings.labelSeparator,
+  };
 
   // Results
   const [results, setResults] = useState<MaterialResult[]>([]);
