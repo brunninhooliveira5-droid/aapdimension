@@ -291,6 +291,7 @@ interface MultiMaterialTubeData {
   kerfWidth: number;
   clientName?: string;
   projectName?: string;
+  pdfSettings?: any;
 }
 
 export function exportMultiMaterialTubePdf(
