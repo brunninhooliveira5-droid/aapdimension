@@ -628,10 +628,11 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
     setTransformOrigin(`${x}% ${y}%`);
   }, []);
 
-  const maxDim = Math.max(piece.width, piece.height);
-  const padding = maxDim * 0.1;
-  const vbW = piece.width + padding * 2;
-  const vbH = piece.height + padding * 2;
+  // Use original SVG bbox dimensions for the viewBox
+  const bw = piece.bboxW || piece.width;
+  const bh = piece.bboxH || piece.height;
+  const maxDim = Math.max(bw, bh);
+  const pad = maxDim * 0.1;
 
   return (
     <div
@@ -650,14 +651,13 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
         }}
       >
         <svg
-          viewBox={`${-padding} ${-padding} ${vbW} ${vbH}`}
+          viewBox={`${piece.bboxX - pad} ${piece.bboxY - pad} ${bw + pad * 2} ${bh + pad * 2}`}
           className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          <rect x={0} y={0} width={piece.width} height={piece.height}
+          <rect x={piece.bboxX} y={piece.bboxY} width={bw} height={bh}
             fill="none" stroke="#ddd" strokeWidth={maxDim * 0.005} strokeDasharray={`${maxDim * 0.02} ${maxDim * 0.02}`} />
-          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008}
-            transform={`translate(${0},${0})`} />
+          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008} />
         </svg>
       </div>
 
