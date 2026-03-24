@@ -38,6 +38,7 @@ function createEmptyGroup(): TubeMaterialGroupData {
 export function TubeCuttingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
+  const [pdfSettings] = usePdfSettings();
 
   const [groups, setGroups] = useState<TubeMaterialGroupData[]>([createEmptyGroup()]);
   const [kerfWidth, setKerfWidth] = useState("3");
