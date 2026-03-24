@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Upload, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw,
   Scissors, ZoomIn, ZoomOut, Maximize2, Move, Eye, Package, Layers,
-  X, RotateCcw, GripVertical
+  X, RotateCcw, GripVertical, Grid3X3, FileImage
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,6 +54,7 @@ export function NestingTab() {
   // Preview
   const [zoom, setZoom] = useState(1);
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"single" | "grid">("single");
 
   // Save dialog
   const [showSave, setShowSave] = useState(false);
@@ -313,24 +314,41 @@ export function NestingTab() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">Preview do SVG importado</span>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>
-                    <ZoomOut className="h-3 w-3" />
+                  <Button variant={viewMode === "single" ? "default" : "ghost"} size="sm" className="h-6 px-2 text-[10px] gap-1"
+                    onClick={() => setViewMode("single")}>
+                    <FileImage className="h-3 w-3" /> Arquivo
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.25))}>
-                    <ZoomIn className="h-3 w-3" />
+                  <Button variant={viewMode === "grid" ? "default" : "ghost"} size="sm" className="h-6 px-2 text-[10px] gap-1"
+                    onClick={() => setViewMode("grid")}>
+                    <Grid3X3 className="h-3 w-3" /> Grid
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(1)}>
-                    <Maximize2 className="h-3 w-3" />
-                  </Button>
+                  {viewMode === "single" && (
+                    <>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>
+                        <ZoomOut className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.25))}>
+                        <ZoomIn className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setZoom(1)}>
+                        <Maximize2 className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="overflow-auto max-h-[300px] flex justify-center bg-white">
-                <div
-                  style={{ transform: `scale(${zoom})`, transformOrigin: "top center", color: "#000" }}
-                  className="transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none"
-                  dangerouslySetInnerHTML={{ __html: svgContent }}
-                />
-              </div>
+
+              {viewMode === "single" ? (
+                <div className="overflow-auto max-h-[300px] flex justify-center bg-white">
+                  <div
+                    style={{ transform: `scale(${zoom})`, transformOrigin: "top center", color: "#000" }}
+                    className="transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none"
+                    dangerouslySetInnerHTML={{ __html: svgContent }}
+                  />
+                </div>
+              ) : (
+                <NestingPiecesGrid pieces={importedPieces} />
+              )}
             </div>
           )}
 
@@ -541,6 +559,82 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
             onClick={() => { onRemove(sheetIndex, selectedPieceId); onSelectPiece(null); }}>
             <Trash2 className="h-3 w-3" /> Remover
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Grid view with mouse-following zoom ───────────────────────
+
+function NestingPiecesGrid({ pieces }: { pieces: NestingPiece[] }) {
+  const activePieces = pieces.filter(p => !p.excluded);
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[400px] overflow-auto bg-white p-1">
+      {activePieces.map((piece) => (
+        <PieceZoomCard key={piece.id} piece={piece} />
+      ))}
+    </div>
+  );
+}
+
+function PieceZoomCard({ piece }: { piece: NestingPiece }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [transformOrigin, setTransformOrigin] = useState("center center");
+  const [isHovered, setIsHovered] = useState(false);
+  const zoomLevel = 2.5;
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setTransformOrigin(`${x}% ${y}%`);
+  }, []);
+
+  const maxDim = Math.max(piece.width, piece.height);
+  const padding = maxDim * 0.1;
+  const vbW = piece.width + padding * 2;
+  const vbH = piece.height + padding * 2;
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative border rounded bg-white overflow-hidden cursor-crosshair group"
+      style={{ aspectRatio: "1/1" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setTransformOrigin("center center"); }}
+      onMouseMove={handleMouseMove}
+    >
+      <div
+        className="w-full h-full transition-transform duration-100 ease-out"
+        style={{
+          transform: isHovered ? `scale(${zoomLevel})` : "scale(1)",
+          transformOrigin,
+        }}
+      >
+        <svg
+          viewBox={`${-padding} ${-padding} ${vbW} ${vbH}`}
+          className="w-full h-full"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <rect x={0} y={0} width={piece.width} height={piece.height}
+            fill="none" stroke="#ddd" strokeWidth={maxDim * 0.005} strokeDasharray={`${maxDim * 0.02} ${maxDim * 0.02}`} />
+          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008}
+            transform={`translate(${0},${0})`} />
+        </svg>
+      </div>
+
+      {/* Label overlay */}
+      <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1.5 py-1 pointer-events-none">
+        <p className="text-[9px] text-white font-medium truncate">{piece.label}</p>
+        <p className="text-[8px] text-white/70">{piece.width.toFixed(0)}×{piece.height.toFixed(0)} mm</p>
+      </div>
+
+      {/* Zoom indicator */}
+      {isHovered && (
+        <div className="absolute top-1 right-1 bg-black/60 rounded px-1 py-0.5 pointer-events-none">
+          <ZoomIn className="h-3 w-3 text-white" />
         </div>
       )}
     </div>
