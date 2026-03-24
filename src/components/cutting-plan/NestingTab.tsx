@@ -866,35 +866,6 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
               )}
             </g>
           );
-
-          // Fallback: bbox rendering
-          const px = padding + p.x * scale;
-          const py = padding + p.y * scale;
-          const pw = p.width * scale;
-          const ph = p.height * scale;
-
-          return (
-            <g key={p.id}
-              onMouseDown={(e) => handleMouseDown(e, p.id)}
-              onClick={() => onSelectPiece(isSelected ? null : p.id)}
-              className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
-              <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "35"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                strokeWidth={isSelected ? 2.5 : 1.2} rx={1} />
-              {pw > 30 && ph > 14 && (
-                <text x={px + pw / 2} y={py + ph / 2 - 4} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(12, pw * 0.18)} fontWeight="600" fill="#222" className="select-none pointer-events-none">
-                  {p.label}
-                </text>
-              )}
-              {pw > 20 && ph > 24 && (
-                <text x={px + pw / 2} y={py + ph / 2 + 10} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(9, pw * 0.14)} fill="#555" className="select-none pointer-events-none">
-                  {p.width.toFixed(0)}×{p.height.toFixed(0)}
-                </text>
-              )}
-            </g>
-          );
         })}
 
         {/* Single cut indicator */}
