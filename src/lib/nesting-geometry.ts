@@ -260,7 +260,7 @@ export function polygonArea(pts: Point[]): number {
 
 // ── Collision Detection ────────────────────────────────────────
 
-/** Check if two line segments intersect */
+/** Check if two line segments intersect (inclusive endpoints) */
 function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
   const d1x = a2.x - a1.x, d1y = a2.y - a1.y;
   const d2x = b2.x - b1.x, d2y = b2.y - b1.y;
@@ -269,7 +269,7 @@ function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean 
   const dx = b1.x - a1.x, dy = b1.y - a1.y;
   const t = (dx * d2y - dy * d2x) / cross;
   const u = (dx * d1y - dy * d1x) / cross;
-  return t > 0 && t < 1 && u > 0 && u < 1;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
 
 /** Point-in-polygon test using ray casting */
@@ -284,8 +284,18 @@ function pointInPolygon(pt: Point, poly: Point[]): boolean {
   return inside;
 }
 
+/** Compute centroid of a polygon */
+function polygonCentroid(pts: Point[]): Point {
+  let cx = 0, cy = 0;
+  for (const p of pts) { cx += p.x; cy += p.y; }
+  const n = pts.length || 1;
+  return { x: cx / n, y: cy / n };
+}
+
 /** Check if two polygons overlap (including one inside the other) */
 export function polygonsOverlap(polyA: Point[], polyB: Point[]): boolean {
+  if (polyA.length < 3 || polyB.length < 3) return false;
+
   // Quick bbox check first
   const bA = polygonBBox(polyA);
   const bB = polygonBBox(polyB);
@@ -301,9 +311,19 @@ export function polygonsOverlap(polyA: Point[], polyB: Point[]): boolean {
     }
   }
 
-  // Check containment
-  if (polyA.length > 0 && pointInPolygon(polyA[0], polyB)) return true;
-  if (polyB.length > 0 && pointInPolygon(polyB[0], polyA)) return true;
+  // Check containment using centroids (always strictly inside for convex polygons)
+  const centA = polygonCentroid(polyA);
+  const centB = polygonCentroid(polyB);
+  if (pointInPolygon(centA, polyB)) return true;
+  if (pointInPolygon(centB, polyA)) return true;
+
+  // Also sample several vertices for concave shapes
+  for (let k = 0; k < polyA.length; k += Math.max(1, Math.floor(polyA.length / 4))) {
+    if (pointInPolygon(polyA[k], polyB)) return true;
+  }
+  for (let k = 0; k < polyB.length; k += Math.max(1, Math.floor(polyB.length / 4))) {
+    if (pointInPolygon(polyB[k], polyA)) return true;
+  }
 
   return false;
 }
