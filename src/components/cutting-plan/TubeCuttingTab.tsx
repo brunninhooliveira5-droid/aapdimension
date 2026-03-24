@@ -14,6 +14,7 @@ import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingRe
 import { exportMultiMaterialTubePdf } from "@/lib/cutting-plan-pdf";
 import { InteractiveTubeLayout } from "./InteractiveTubeLayout";
 import { TubeMaterialBlock, type TubeMaterialGroupData } from "./TubeMaterialBlock";
+import { usePdfSettings } from "./CuttingPlanPdfSettingsTab";
 
 interface MaterialResult {
   group: TubeMaterialGroupData;
@@ -37,6 +38,7 @@ function createEmptyGroup(): TubeMaterialGroupData {
 export function TubeCuttingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
+  const [pdfSettings] = usePdfSettings();
 
   const [groups, setGroups] = useState<TubeMaterialGroupData[]>([createEmptyGroup()]);
   const [kerfWidth, setKerfWidth] = useState("3");
@@ -179,6 +181,7 @@ export function TubeCuttingTab() {
       kerfWidth: parseFloat(kerfWidth) || 0,
       clientName,
       projectName,
+      pdfSettings,
     }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };

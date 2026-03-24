@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece, type CalculationSpeed } from "@/lib/cutting-plan-engine";
 import { exportMultiMaterialSheetPdf, type MultiMaterialSheetExportOptions } from "@/lib/cutting-plan-pdf";
 import { CuttingPlanPdfConfig, defaultNomenclatureConfig, type PdfNomenclatureConfig } from "./CuttingPlanPdfConfig";
+import { usePdfSettings } from "./CuttingPlanPdfSettingsTab";
 import { InteractiveSheetLayout } from "./InteractiveSheetLayout";
 import { SheetMaterialBlock, type SheetMaterialGroupData } from "./SheetMaterialBlock";
 
@@ -43,6 +44,7 @@ function createEmptyGroup(): SheetMaterialGroupData {
 export function SheetCuttingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
+  const [pdfSettings] = usePdfSettings();
 
   const [groups, setGroups] = useState<SheetMaterialGroupData[]>([createEmptyGroup()]);
 
@@ -55,8 +57,14 @@ export function SheetCuttingTab() {
   const [calcSpeed, setCalcSpeed] = useState<CalculationSpeed>("fast");
   const [singleCut, setSingleCut] = useState(false);
 
-  // PDF nomenclature
-  const [nomenclatureConfig, setNomenclatureConfig] = useState<PdfNomenclatureConfig>(defaultNomenclatureConfig);
+  // PDF nomenclature (derived from global settings)
+  const nomenclatureConfig: PdfNomenclatureConfig = {
+    piecePrefix: pdfSettings.piecePrefix,
+    showDimensions: pdfSettings.showPieceDimensions,
+    showDescription: pdfSettings.showPieceDescription,
+    dimensionFormat: pdfSettings.dimensionFormat,
+    labelSeparator: pdfSettings.labelSeparator,
+  };
 
   // Results
   const [results, setResults] = useState<MaterialResult[]>([]);
@@ -204,6 +212,7 @@ export function SheetCuttingTab() {
       projectName,
       nomenclatureConfig,
       singleCut,
+      pdfSettings,
     }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
@@ -401,11 +410,6 @@ export function SheetCuttingTab() {
               </div>
             );
           })}
-
-          {/* PDF config + actions */}
-          <div className="flex items-center justify-between">
-            <CuttingPlanPdfConfig config={nomenclatureConfig} onChange={setNomenclatureConfig} />
-          </div>
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowSave(true)}><Save className="h-4 w-4 mr-1" /> Salvar Plano</Button>

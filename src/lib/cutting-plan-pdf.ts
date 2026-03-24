@@ -58,6 +58,7 @@ interface MultiMaterialSheetData {
   projectName?: string;
   nomenclatureConfig?: PdfNomenclatureConfig;
   singleCut?: boolean;
+  pdfSettings?: any;
 }
 
 export interface MultiMaterialSheetExportOptions {
@@ -70,21 +71,23 @@ export function exportMultiMaterialSheetPdf(
   data: MultiMaterialSheetData,
   options: MultiMaterialSheetExportOptions
 ) {
+  const ps = data.pdfSettings || {};
+
   if (options.exportA4) {
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
-    const ph = doc.internal.pageSize.getHeight();
 
     // Header
-    doc.setFontSize(18);
+    doc.setFontSize(ps.titleFontSize || 18);
     doc.setFont("helvetica", "bold");
     doc.text("Plano de Corte — Chapas", pw / 2, 20, { align: "center" });
 
-    doc.setFontSize(13);
+    doc.setFontSize(ps.subtitleFontSize || 13);
     doc.setFont("helvetica", "normal");
     doc.text(data.planName || "Sem nome", pw / 2, 28, { align: "center" });
 
-    doc.setFontSize(10);
+    const infoSize = ps.infoFontSize || 10;
+    doc.setFontSize(infoSize);
     let y = 40;
     const line = (label: string, value: string) => {
       doc.setFont("helvetica", "bold");
@@ -97,15 +100,15 @@ export function exportMultiMaterialSheetPdf(
     line("Tipo", data.materials.length > 1 ? "Corte de Chapas (Múltiplos Materiais)" : "Corte de Chapa");
     line("Materiais", `${data.materials.length} tipo(s)`);
     line("Largura da serra", `${data.kerfWidth} mm`);
-    if (data.clientName) line("Cliente", data.clientName);
-    if (data.projectName) line("Projeto", data.projectName);
-    line("Data", new Date().toLocaleDateString("pt-BR"));
+    if ((ps.showClientName !== false) && data.clientName) line("Cliente", data.clientName);
+    if ((ps.showProjectName !== false) && data.projectName) line("Projeto", data.projectName);
+    if (ps.showDate !== false) line("Data", new Date().toLocaleDateString("pt-BR"));
 
     const totalSheets = data.materials.reduce((s, m) => s + m.result.totalSheets, 0);
     const totalCost = data.materials.reduce((s, m) => s + m.result.estimatedCost, 0);
     y += 4;
     line("Total de chapas", String(totalSheets));
-    line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
+    if (ps.showEstimatedCost !== false) line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
 
     const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
 
@@ -121,59 +124,65 @@ export function exportMultiMaterialSheetPdf(
       doc.setTextColor(0, 0, 0);
       y += 6;
 
-      doc.setFontSize(10);
+      doc.setFontSize(infoSize);
       doc.setFont("helvetica", "normal");
-      line("Dimensões", mat.dimensions);
+      if (ps.showMaterialDimensions !== false) line("Dimensões", mat.dimensions);
       line("Valor unitário", `R$ ${mat.unitPrice.toFixed(2)}`);
       line("Chapas", String(mat.result.totalSheets));
-      line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
-      line("Sobra total", `${(mat.result.totalWaste / 1_000_000).toFixed(4)} m²`);
-      line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
+      if (ps.showUtilizationPercent !== false) line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
+      if (ps.showWasteArea !== false) line("Sobra total", `${(mat.result.totalWaste / 1_000_000).toFixed(4)} m²`);
+      if (ps.showEstimatedCost !== false) line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
 
       // Pieces table
-      autoTable(doc, {
-        startY: y,
-        head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
-        body: mat.pieces.map((p, i) => [
-          `${nc.piecePrefix}${i + 1}`,
-          p.description || "—",
-          String(p.width ?? 0),
-          String(p.height ?? 0),
-          String(p.quantity),
-        ]),
-        theme: "striped",
-        headStyles: { fillColor: [59, 130, 246] },
-        margin: { left: 14, right: 14 },
-      });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      if (ps.showPiecesTable !== false) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
+          body: mat.pieces.map((p, i) => [
+            `${nc.piecePrefix}${i + 1}`,
+            p.description || "—",
+            String(p.width ?? 0),
+            String(p.height ?? 0),
+            String(p.quantity),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [59, 130, 246] },
+          margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      }
 
       // Sheets breakdown
-      autoTable(doc, {
-        startY: y,
-        head: [["Chapa", "Peças", "Aproveitamento"]],
-        body: mat.result.layouts.map((l, i) => [
-          `Chapa ${i + 1}`,
-          String(l.pieces.length),
-          `${l.utilization.toFixed(1)}%`,
-        ]),
-        theme: "grid",
-        headStyles: { fillColor: [34, 197, 94] },
-        margin: { left: 14, right: 14 },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      if (ps.showBreakdownTable !== false) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Chapa", "Peças", "Aproveitamento"]],
+          body: mat.result.layouts.map((l, i) => [
+            `Chapa ${i + 1}`,
+            String(l.pieces.length),
+            `${l.utilization.toFixed(1)}%`,
+          ]),
+          theme: "grid",
+          headStyles: { fillColor: [34, 197, 94] },
+          margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
 
       // Draw sheet layouts for this material
-      drawSheetLayoutsA4(doc, mat.result, {
-        planName: data.planName,
-        planType: "chapa",
-        materialName: mat.materialName,
-        dimensions: mat.dimensions,
-        unitPrice: mat.unitPrice,
-        kerfWidth: data.kerfWidth,
-        pieces: mat.pieces,
-        result: mat.result,
-        nomenclatureConfig: nc,
-      });
+      if (ps.showLayoutDrawings !== false) {
+        drawSheetLayoutsA4(doc, mat.result, {
+          planName: data.planName,
+          planType: "chapa",
+          materialName: mat.materialName,
+          dimensions: mat.dimensions,
+          unitPrice: mat.unitPrice,
+          kerfWidth: data.kerfWidth,
+          pieces: mat.pieces,
+          result: mat.result,
+          nomenclatureConfig: nc,
+        }, ps);
+      }
     }
 
     const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
@@ -290,6 +299,7 @@ interface MultiMaterialTubeData {
   kerfWidth: number;
   clientName?: string;
   projectName?: string;
+  pdfSettings?: any;
 }
 
 export function exportMultiMaterialTubePdf(
@@ -298,19 +308,21 @@ export function exportMultiMaterialTubePdf(
 ) {
   if (!options.exportA4) return;
 
+  const ps = data.pdfSettings || {};
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
 
   // Header
-  doc.setFontSize(18);
+  doc.setFontSize(ps.titleFontSize || 18);
   doc.setFont("helvetica", "bold");
   doc.text("Plano de Corte — Tubos", pw / 2, 20, { align: "center" });
 
-  doc.setFontSize(13);
+  doc.setFontSize(ps.subtitleFontSize || 13);
   doc.setFont("helvetica", "normal");
   doc.text(data.planName || "Sem nome", pw / 2, 28, { align: "center" });
 
-  doc.setFontSize(10);
+  const infoSize = ps.infoFontSize || 10;
+  doc.setFontSize(infoSize);
   let y = 40;
   const line = (label: string, value: string) => {
     doc.setFont("helvetica", "bold");
@@ -323,15 +335,15 @@ export function exportMultiMaterialTubePdf(
   line("Tipo", "Corte de Tubos (Múltiplos Materiais)");
   line("Materiais", `${data.materials.length} tipo(s)`);
   line("Largura da serra", `${data.kerfWidth} mm`);
-  if (data.clientName) line("Cliente", data.clientName);
-  if (data.projectName) line("Projeto", data.projectName);
-  line("Data", new Date().toLocaleDateString("pt-BR"));
+  if ((ps.showClientName !== false) && data.clientName) line("Cliente", data.clientName);
+  if ((ps.showProjectName !== false) && data.projectName) line("Projeto", data.projectName);
+  if (ps.showDate !== false) line("Data", new Date().toLocaleDateString("pt-BR"));
 
   const totalBars = data.materials.reduce((s, m) => s + m.result.totalBars, 0);
   const totalCost = data.materials.reduce((s, m) => s + m.result.estimatedCost, 0);
   y += 4;
   line("Total de barras", String(totalBars));
-  line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
+  if (ps.showEstimatedCost !== false) line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
 
   // Per-material sections
   for (const mat of data.materials) {
@@ -345,44 +357,50 @@ export function exportMultiMaterialTubePdf(
     doc.setTextColor(0, 0, 0);
     y += 6;
 
-    doc.setFontSize(10);
+    doc.setFontSize(infoSize);
     doc.setFont("helvetica", "normal");
-    line("Dimensões", mat.dimensions);
+    if (ps.showMaterialDimensions !== false) line("Dimensões", mat.dimensions);
     line("Valor unitário", `R$ ${mat.unitPrice.toFixed(2)}`);
     line("Barras", String(mat.result.totalBars));
-    line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
-    line("Sobra total", `${mat.result.totalWaste.toFixed(1)} mm`);
-    line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
+    if (ps.showUtilizationPercent !== false) line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
+    if (ps.showWasteArea !== false) line("Sobra total", `${mat.result.totalWaste.toFixed(1)} mm`);
+    if (ps.showEstimatedCost !== false) line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
 
     // Pieces table
-    autoTable(doc, {
-      startY: y,
-      head: [["Peça", "Comprimento (mm)", "Quantidade"]],
-      body: mat.pieces.map((p, i) => [`Peça ${i + 1}`, String(p.length ?? 0), String(p.quantity)]),
-      theme: "striped",
-      headStyles: { fillColor: [59, 130, 246] },
-      margin: { left: 14, right: 14 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 6;
+    if (ps.showPiecesTable !== false) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Peça", "Comprimento (mm)", "Quantidade"]],
+        body: mat.pieces.map((p, i) => [`Peça ${i + 1}`, String(p.length ?? 0), String(p.quantity)]),
+        theme: "striped",
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
 
     // Bars breakdown table
-    autoTable(doc, {
-      startY: y,
-      head: [["Barra", "Peças", "Aproveitamento", "Sobra (mm)"]],
-      body: mat.result.bars.map((b, i) => [
-        `Barra ${i + 1}`,
-        String(b.segments.length),
-        `${b.utilization.toFixed(1)}%`,
-        b.wasteLength.toFixed(1),
-      ]),
-      theme: "grid",
-      headStyles: { fillColor: [34, 197, 94] },
-      margin: { left: 14, right: 14 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    if (ps.showBreakdownTable !== false) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Barra", "Peças", "Aproveitamento", "Sobra (mm)"]],
+        body: mat.result.bars.map((b, i) => [
+          `Barra ${i + 1}`,
+          String(b.segments.length),
+          `${b.utilization.toFixed(1)}%`,
+          b.wasteLength.toFixed(1),
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [34, 197, 94] },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
 
     // Draw tube bar layouts for this material
-    drawTubeBarLayoutsA4(doc, mat.result, mat.barLength, data.kerfWidth);
+    if (ps.showLayoutDrawings !== false) {
+      drawTubeBarLayoutsA4(doc, mat.result, mat.barLength, data.kerfWidth, ps);
+    }
   }
 
   const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
@@ -543,7 +561,8 @@ function getPieceColorPdf(index: number): [number, number, number] {
   return PIECE_COLORS[index % PIECE_COLORS.length];
 }
 
-function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlanPdfData) {
+function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlanPdfData, ps?: any) {
+  const pdfS = ps || {};
   const dims = data.dimensions.replace(/\s/g, "").split("x");
   const matW = parseFloat(dims[0]) || 1000;
   const matH = parseFloat(dims[1]) || 1000;
@@ -599,18 +618,21 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
 
       // Piece label
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
+      const maxMainSize = pdfS.pieceMainLabelSize || 7;
+      const maxSubSize = pdfS.pieceSubLabelSize || 5;
+      doc.setFontSize(Math.min(maxMainSize, pW * 0.3, pH * 0.3));
       doc.setFont("helvetica", "bold");
       if (pW > 12 && pH > 8) {
         doc.text(mainLabel, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
         if (subLabel) {
-          doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
+          doc.setFontSize(Math.min(maxSubSize, pW * 0.2, pH * 0.2));
           doc.text(subLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
         }
       }
     });
 
     // Scrap areas
+    if (pdfS.showWasteArea !== false) {
     const maxX = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.x + p.width)) : 0;
     const maxY = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.y + p.height)) : 0;
 
@@ -642,11 +664,13 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     }
 
     doc.setLineDashPattern([], 0);
+    } // end showWasteArea
 
     // Legend
+    if (pdfS.showLegend !== false) {
     const legendY = oy + drawH + 8;
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(7);
+    doc.setFontSize(pdfS.legendFontSize || 7);
     doc.setFont("helvetica", "bold");
     doc.text("Legenda:", margin, legendY);
     doc.setFont("helvetica", "normal");
@@ -664,10 +688,12 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
     doc.rect(margin + 80, legendY - 3, 6, 4);
     doc.setLineDashPattern([], 0);
     doc.text("Sobra/Retalho", margin + 88, legendY);
+    }
   });
 }
 
-function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number) {
+function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number, ps?: any) {
+  const pdfS = ps || {};
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const margin = 15;
@@ -675,11 +701,14 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
   const barWidth = 22;
   const maxBarDrawH = ph - margin - topOffset - 12;
   const gapBetweenBars = barWidth + 12;
-  // +gapBetweenBars because the last bar doesn't need trailing gap
   const maxBarsPerPage = Math.max(1, Math.floor((pw - margin * 2 + (gapBetweenBars - barWidth)) / gapBetweenBars));
 
   const totalBars = r.bars.length;
   console.log(`[PDF Tubos] Desenhando ${totalBars} barras, ${maxBarsPerPage} por página`);
+
+  const mainLabelMax = pdfS.pieceMainLabelSize || 8;
+  const subLabelMax = pdfS.pieceSubLabelSize || 6;
+  const barTitleSize = pdfS.barTitleFontSize || 7;
 
   for (let bi = 0; bi < totalBars; bi++) {
     const bar = r.bars[bi];
@@ -700,13 +729,15 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     const barDrawH = barLength * scale;
 
     // Bar title
-    doc.setFontSize(7);
+    doc.setFontSize(barTitleSize);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     doc.text(`Barra ${bi + 1}`, ox + barWidth / 2, oy - 5, { align: "center" });
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${bar.utilization.toFixed(1)}%`, ox + barWidth / 2, oy - 1, { align: "center" });
+    if (pdfS.showUtilizationPercent !== false) {
+      doc.setFontSize(Math.max(4, barTitleSize - 1));
+      doc.setFont("helvetica", "normal");
+      doc.text(`${bar.utilization.toFixed(1)}%`, ox + barWidth / 2, oy - 1, { align: "center" });
+    }
 
     // Bar background
     doc.setDrawColor(100, 100, 100);
@@ -726,18 +757,22 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
 
       // Labels inside piece
       doc.setTextColor(255, 255, 255);
-      const fontSize = Math.min(8, sh * 0.25, barWidth * 0.3);
+      const fontSize = Math.min(mainLabelMax, sh * 0.25, barWidth * 0.3);
       if (fontSize >= 3 && sh > 6) {
-        doc.setFontSize(fontSize);
-        doc.setFont("helvetica", "bold");
-        doc.text(`P${seg.pieceIndex + 1}`, ox + barWidth / 2, sy + sh / 2 - 1, { align: "center" });
-        doc.setFontSize(Math.max(3, fontSize * 0.75));
-        doc.setFont("helvetica", "normal");
-        doc.text(`${seg.length} mm`, ox + barWidth / 2, sy + sh / 2 + fontSize * 0.6, { align: "center" });
+        if (pdfS.showPieceIndex !== false) {
+          doc.setFontSize(fontSize);
+          doc.setFont("helvetica", "bold");
+          doc.text(`P${seg.pieceIndex + 1}`, ox + barWidth / 2, sy + sh / 2 - 1, { align: "center" });
+        }
+        if (pdfS.showPieceDimensions !== false) {
+          doc.setFontSize(Math.min(subLabelMax, Math.max(3, fontSize * 0.75)));
+          doc.setFont("helvetica", "normal");
+          doc.text(`${seg.length} mm`, ox + barWidth / 2, sy + sh / 2 + fontSize * 0.6, { align: "center" });
+        }
       }
 
       // Kerf line
-      if (kerfWidth > 0 && si < bar.segments.length - 1) {
+      if (pdfS.showKerfLines !== false && kerfWidth > 0 && si < bar.segments.length - 1) {
         const kerfY = sy + sh;
         const kerfH = kerfWidth * scale;
         doc.setDrawColor(220, 30, 30);
@@ -747,7 +782,7 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     });
 
     // Waste area label
-    if (bar.wasteLength > 0) {
+    if (pdfS.showWasteArea !== false && bar.wasteLength > 0) {
       const lastSeg = bar.segments[bar.segments.length - 1];
       const wasteStart = lastSeg ? (lastSeg.position + lastSeg.length + kerfWidth) : 0;
       const wasteY = oy + wasteStart * scale;
@@ -767,10 +802,12 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     }
 
     // Total length label at bottom
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
+    if (pdfS.showBarTotalLength !== false) {
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
+    }
   }
 }
 

@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RectangleHorizontal, Cylinder, Database, Save, Scissors } from "lucide-react";
+import { RectangleHorizontal, Cylinder, Database, Save, Scissors, Settings2 } from "lucide-react";
 import { SheetCuttingTab } from "@/components/cutting-plan/SheetCuttingTab";
 import { TubeCuttingTab } from "@/components/cutting-plan/TubeCuttingTab";
 import { MaterialsCatalog } from "@/components/cutting-plan/MaterialsCatalog";
 import { SavedCuttingPlans } from "@/components/cutting-plan/SavedCuttingPlans";
 import { ScrapsManager } from "@/components/cutting-plan/ScrapsManager";
+import { CuttingPlanPdfSettingsTab } from "@/components/cutting-plan/CuttingPlanPdfSettingsTab";
 
 export default function CuttingPlanPage() {
   return (
@@ -33,6 +34,9 @@ export default function CuttingPlanPage() {
           <TabsTrigger value="materiais" className="gap-1.5">
             <Database className="h-4 w-4" /> Materiais
           </TabsTrigger>
+          <TabsTrigger value="pdf-config" className="gap-1.5">
+            <Settings2 className="h-4 w-4" /> Config. PDF
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="chapa">
@@ -49,6 +53,9 @@ export default function CuttingPlanPage() {
         </TabsContent>
         <TabsContent value="materiais">
           <MaterialsCatalog />
+        </TabsContent>
+        <TabsContent value="pdf-config">
+          <CuttingPlanPdfSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
