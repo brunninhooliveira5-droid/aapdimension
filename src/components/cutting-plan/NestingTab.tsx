@@ -564,12 +564,13 @@ interface NestingPreviewProps {
   expanded?: boolean;
 }
 
-function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemove, selectedPieceId, onSelectPiece }: NestingPreviewProps) {
+function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRotate, onRemove, selectedPieceId, onSelectPiece, expanded }: NestingPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = 10;
-  const maxW = 700;
+  const maxW = expanded ? 1200 : 700;
+  const maxH = expanded ? 700 : 400;
   const scaleX = (maxW - padding * 2) / matW;
-  const scaleY = (400 - padding * 2) / matH;
+  const scaleY = (maxH - padding * 2) / matH;
   const scale = Math.min(scaleX, scaleY);
   const svgW = matW * scale + padding * 2;
   const svgH = matH * scale + padding * 2;
