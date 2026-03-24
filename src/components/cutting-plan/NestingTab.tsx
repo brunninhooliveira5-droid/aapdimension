@@ -522,12 +522,12 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
 
   return (
     <div ref={containerRef} className="overflow-auto">
-      <svg width={svgW} height={svgH} className="border rounded bg-background">
+      <svg width={svgW} height={svgH} className="border rounded bg-white">
         {/* Material background */}
         <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
-          fill="hsl(var(--muted))" stroke="hsl(var(--border))" strokeWidth={1} />
+          fill="#f5f5f5" stroke="hsl(var(--border))" strokeWidth={1} />
 
-        {/* Pieces */}
+        {/* Pieces — render actual SVG paths */}
         {sheet.pieces.map((p) => {
           const px = padding + p.x * scale;
           const py = padding + p.y * scale;
@@ -535,20 +535,48 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
           const ph = p.height * scale;
           const isSelected = selectedPieceId === p.id;
 
+          // Calculate scale from original bbox dimensions to placed dimensions
+          const origW = p.width;
+          const origH = p.height;
+          // The pathData is in original SVG units; we need to scale it to fit pw x ph
+          // viewBoxScale was used to convert bbox to mm, so original bbox in SVG units = width / viewBoxScale
+          // But we store width in mm already. We need to figure the path's coordinate system.
+          // bboxX/bboxY are in original SVG coordinates. width/height are in mm.
+          // path coordinates are in original SVG units.
+          // We need: translate(-bboxX, -bboxY) then scale to fit pw x ph pixels
+
           return (
             <g key={p.id} onClick={() => onSelectPiece(isSelected ? null : p.id)} className="cursor-pointer">
+              {/* Clip to piece bounds */}
+              <defs>
+                <clipPath id={`clip-${p.id}-${sheetIndex}`}>
+                  <rect x={px} y={py} width={pw} height={ph} />
+                </clipPath>
+              </defs>
+              {/* Background rect with color fill */}
               <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "33"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                strokeWidth={isSelected ? 2 : 1} rx={1} />
+                fill={p.color + "15"} stroke={isSelected ? "hsl(var(--primary))" : p.color + "40"}
+                strokeWidth={isSelected ? 2 : 0.5} rx={1} />
+              {/* Actual geometry path */}
+              <g clipPath={`url(#clip-${p.id}-${sheetIndex})`}>
+                <path
+                  d={p.pathData}
+                  fill="none"
+                  stroke={isSelected ? "hsl(var(--primary))" : p.color}
+                  strokeWidth={Math.max(0.5, 1.5 / scale)}
+                  transform={`translate(${px}, ${py}) scale(${pw / (origW || 1)}, ${ph / (origH || 1)}) translate(${-p.bboxX}, ${-p.bboxY})`}
+                />
+              </g>
+              {/* Label */}
               {pw > 30 && ph > 14 && (
                 <text x={px + pw / 2} y={py + ph / 2} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(10, pw * 0.15, ph * 0.3)} fill="hsl(var(--foreground))" className="select-none">
+                  fontSize={Math.min(10, pw * 0.15, ph * 0.3)} fill="hsl(var(--foreground))" className="select-none pointer-events-none">
                   {p.label}
                 </text>
               )}
               {pw > 20 && ph > 24 && (
                 <text x={px + pw / 2} y={py + ph / 2 + 10} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(8, pw * 0.12)} fill="hsl(var(--muted-foreground))" className="select-none">
+                  fontSize={Math.min(8, pw * 0.12)} fill="hsl(var(--muted-foreground))" className="select-none pointer-events-none">
                   {p.width.toFixed(0)}×{p.height.toFixed(0)}
                 </text>
               )}
