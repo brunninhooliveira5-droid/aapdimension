@@ -353,7 +353,7 @@ export function NestingTab() {
                   <div className="w-full h-[300px] bg-white rounded-lg border border-border flex items-center justify-center overflow-hidden p-4">
                     <div
                       style={{ transform: `scale(${zoom})`, transformOrigin: "center center", color: "#000" }}
-                      className="max-w-full max-h-full transition-transform [&_svg]:stroke-[#333] [&_svg_*]:stroke-[#333] [&_svg]:fill-none [&_svg_*]:fill-none [&_svg]:max-w-full [&_svg]:max-h-[268px] [&_svg_*]:[stroke-width:0.5] [&_svg]:[stroke-width:0.5] opacity-90"
+                      className="max-w-full max-h-full transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none [&_svg]:max-w-full [&_svg]:max-h-[268px] [&_svg_*]:[stroke-width:1] [&_svg]:[stroke-width:1]"
                       dangerouslySetInnerHTML={{ __html: svgContent }}
                     />
                   </div>
