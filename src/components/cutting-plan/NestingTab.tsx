@@ -698,7 +698,7 @@ export function NestingTab() {
   );
 }
 
-// ── Nesting Preview with drag support ─────────────────────────
+// ── Nesting Preview with drag support + zoom ──────────────────
 
 interface NestingPreviewProps {
   sheet: { pieces: NestingPiece[]; utilization: number };
@@ -717,14 +717,17 @@ interface NestingPreviewProps {
 
 function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRotate, onRemove, onDrag, selectedPieceId, onSelectPiece, expanded }: NestingPreviewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<{ pieceId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
 
   const padding = 10;
   const maxW = expanded ? 1200 : 700;
   const maxH = expanded ? 700 : 400;
   const scaleX = (maxW - padding * 2) / matW;
   const scaleY = (maxH - padding * 2) / matH;
-  const scale = Math.min(scaleX, scaleY);
+  const baseScale = Math.min(scaleX, scaleY);
+  const scale = baseScale * previewZoom;
   const svgW = matW * scale + padding * 2;
   const svgH = matH * scale + padding * 2;
 
@@ -760,122 +763,146 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
     };
   }, [dragState, scale, sheetIndex, onDrag]);
 
+  // Wheel zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setPreviewZoom(prev => Math.max(0.3, Math.min(5, prev - e.deltaY * 0.002)));
+      }
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, []);
+
   return (
     <div>
-      <svg ref={svgRef} width={svgW} height={svgH} className="border rounded bg-white cursor-crosshair">
-        <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
-          fill="#f8f8f8" stroke="hsl(var(--border))" strokeWidth={1} />
-
-        {/* Grid lines for reference */}
-        {expanded && Array.from({ length: Math.floor(matW / 100) }).map((_, i) => (
-          <line key={`gv-${i}`}
-            x1={padding + (i + 1) * 100 * scale} y1={padding}
-            x2={padding + (i + 1) * 100 * scale} y2={padding + matH * scale}
-            stroke="#e5e5e5" strokeWidth={0.5} />
-        ))}
-        {expanded && Array.from({ length: Math.floor(matH / 100) }).map((_, i) => (
-          <line key={`gh-${i}`}
-            x1={padding} y1={padding + (i + 1) * 100 * scale}
-            x2={padding + matW * scale} y2={padding + (i + 1) * 100 * scale}
-            stroke="#e5e5e5" strokeWidth={0.5} />
-        ))}
-
-        {/* Pieces — render real polygon geometry */}
-        {sheet.pieces.map((p) => {
-          const isSelected = selectedPieceId === p.id;
-          const isDragging = dragState?.pieceId === p.id;
-
-          // Screen coordinates for the piece
-          const px = padding + p.x * scale;
-          const py = padding + p.y * scale;
-          const pw = p.width * scale;
-          const ph = p.height * scale;
-          const labelCx = px + pw / 2;
-          const labelCy = py + ph / 2;
-
-          // Determine viewBox for the path — use original SVG bbox
-          const vbX = p.bboxX || 0;
-          const vbY = p.bboxY || 0;
-          const vbW = p.bboxW || p.width;
-          const vbH = p.bboxH || p.height;
-
-          // Rotation transform applied inside the nested SVG
-          const rotAngle = p.rotation || 0;
-          const rotTransform = rotAngle
-            ? `rotate(${rotAngle}, ${vbX + vbW / 2}, ${vbY + vbH / 2})`
-            : undefined;
-
-          const hasPath = p.pathData && p.pathData.length > 2;
-
-          return (
-            <g key={p.id}
-              onMouseDown={(e) => handleMouseDown(e, p.id)}
-              onClick={() => onSelectPiece(isSelected ? null : p.id)}
-              className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
-
-              {/* Background rect for hit area + color fill */}
-              <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "20"}
-                stroke="none" />
-
-              {/* Real path rendered via nested SVG with viewBox — clean coord mapping */}
-              {hasPath && (
-                <svg x={px} y={py} width={pw} height={ph}
-                  viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-                  preserveAspectRatio="none"
-                  overflow="visible">
-                  <path
-                    d={p.pathData}
-                    fill={p.color + "30"}
-                    stroke={isSelected ? "hsl(var(--primary))" : "#111"}
-                    strokeWidth={Math.max(vbW, vbH) * 0.008}
-                    transform={rotTransform}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-              )}
-
-              {/* Selection border */}
-              {isSelected && (
-                <rect x={px} y={py} width={pw} height={ph}
-                  fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
-                  strokeDasharray="6 3" />
-              )}
-
-              {/* Label */}
-              {pw > 25 && ph > 12 && (
-                <text x={labelCx} y={labelCy - 4} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(11, pw * 0.16)} fontWeight="600"
-                  fill="#222" className="select-none pointer-events-none">
-                  {p.label}
-                </text>
-              )}
-              {pw > 20 && ph > 22 && (
-                <text x={labelCx} y={labelCy + 8} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(9, pw * 0.13)} fill="#555" className="select-none pointer-events-none">
-                  {p.width.toFixed(0)}×{p.height.toFixed(0)}
-                </text>
-              )}
-              {isDragging && (
-                <g transform={`translate(${labelCx - 6}, ${labelCy - 22})`}>
-                  <rect x={-2} y={-2} width={16} height={16} rx={3} fill="hsl(var(--primary))" opacity={0.8} />
-                  <text x={6} y={8} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="white">⊞</text>
-                </g>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Single cut indicator */}
-        {singleCut && (
-          <text x={padding + 4} y={padding + matH * scale - 4}
-            fontSize={10} fill="#b45309" fontWeight="600" className="select-none pointer-events-none">
-            ⚡ Corte Único Ativo
-          </text>
+      {/* Zoom controls */}
+      <div className="flex items-center gap-1 mb-2">
+        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewZoom(z => Math.max(0.3, z - 0.25))}>
+          <ZoomOut className="h-3.5 w-3.5" />
+        </Button>
+        <span className="text-xs text-muted-foreground font-mono w-12 text-center">{(previewZoom * 100).toFixed(0)}%</span>
+        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewZoom(z => Math.min(5, z + 0.25))}>
+          <ZoomIn className="h-3.5 w-3.5" />
+        </Button>
+        {previewZoom !== 1 && (
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setPreviewZoom(1)}>Reset</Button>
         )}
-      </svg>
+        <span className="text-[10px] text-muted-foreground ml-1">Ctrl+Scroll = zoom</span>
+      </div>
+
+      <div ref={containerRef} className="overflow-auto" style={{ maxHeight: expanded ? "70vh" : "420px" }}>
+        <svg ref={svgRef} width={svgW} height={svgH} className="border rounded bg-white cursor-crosshair">
+          <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
+            fill="#f8f8f8" stroke="hsl(var(--border))" strokeWidth={1} />
+
+          {/* Grid lines */}
+          {Array.from({ length: Math.floor(matW / 100) }).map((_, i) => (
+            <line key={`gv-${i}`}
+              x1={padding + (i + 1) * 100 * scale} y1={padding}
+              x2={padding + (i + 1) * 100 * scale} y2={padding + matH * scale}
+              stroke="#e5e5e5" strokeWidth={0.5} />
+          ))}
+          {Array.from({ length: Math.floor(matH / 100) }).map((_, i) => (
+            <line key={`gh-${i}`}
+              x1={padding} y1={padding + (i + 1) * 100 * scale}
+              x2={padding + matW * scale} y2={padding + (i + 1) * 100 * scale}
+              stroke="#e5e5e5" strokeWidth={0.5} />
+          ))}
+
+          {/* Pieces */}
+          {sheet.pieces.map((p) => {
+            const isSelected = selectedPieceId === p.id;
+            const isDragging = dragState?.pieceId === p.id;
+
+            const px = padding + p.x * scale;
+            const py = padding + p.y * scale;
+            const pw = p.width * scale;
+            const ph = p.height * scale;
+            const labelCx = px + pw / 2;
+            const labelCy = py + ph / 2;
+
+            const vbX = p.bboxX || 0;
+            const vbY = p.bboxY || 0;
+            const vbW = p.bboxW || p.width;
+            const vbH = p.bboxH || p.height;
+
+            const rotAngle = p.rotation || 0;
+            const rotTransform = rotAngle
+              ? `rotate(${rotAngle}, ${vbX + vbW / 2}, ${vbY + vbH / 2})`
+              : undefined;
+
+            const hasPath = p.pathData && p.pathData.length > 2;
+
+            return (
+              <g key={p.id}
+                onMouseDown={(e) => handleMouseDown(e, p.id)}
+                onClick={() => onSelectPiece(isSelected ? null : p.id)}
+                className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
+
+                <rect x={px} y={py} width={pw} height={ph}
+                  fill={p.color + "20"}
+                  stroke="none" />
+
+                {hasPath && (
+                  <svg x={px} y={py} width={pw} height={ph}
+                    viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+                    preserveAspectRatio="none"
+                    overflow="visible">
+                    <path
+                      d={p.pathData}
+                      fill={p.color + "30"}
+                      stroke={isSelected ? "hsl(var(--primary))" : "#111"}
+                      strokeWidth={Math.max(vbW, vbH) * 0.008}
+                      transform={rotTransform}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                )}
+
+                {isSelected && (
+                  <rect x={px} y={py} width={pw} height={ph}
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    strokeDasharray="6 3" />
+                )}
+
+                {pw > 25 && ph > 12 && (
+                  <text x={labelCx} y={labelCy - 4} textAnchor="middle" dominantBaseline="middle"
+                    fontSize={Math.min(11, pw * 0.16)} fontWeight="600"
+                    fill="#222" className="select-none pointer-events-none">
+                    {p.label}
+                  </text>
+                )}
+                {pw > 20 && ph > 22 && (
+                  <text x={labelCx} y={labelCy + 8} textAnchor="middle" dominantBaseline="middle"
+                    fontSize={Math.min(9, pw * 0.13)} fill="#555" className="select-none pointer-events-none">
+                    {p.width.toFixed(0)}×{p.height.toFixed(0)}
+                  </text>
+                )}
+                {isDragging && (
+                  <g transform={`translate(${labelCx - 6}, ${labelCy - 22})`}>
+                    <rect x={-2} y={-2} width={16} height={16} rx={3} fill="hsl(var(--primary))" opacity={0.8} />
+                    <text x={6} y={8} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="white">⊞</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Single cut indicator */}
+          {singleCut && (
+            <text x={padding + 4} y={padding + matH * scale - 4}
+              fontSize={10} fill="#b45309" fontWeight="600" className="select-none pointer-events-none">
+              ⚡ Corte Único Ativo
+            </text>
+          )}
+        </svg>
+      </div>
 
       {/* Actions for selected piece */}
       {selectedPieceId && (
