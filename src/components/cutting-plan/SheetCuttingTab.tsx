@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { calculateSheetCutting, getPieceColor, type SheetPiece, type SheetCuttingResult, type OptimizationMode, type PlacedPiece, type CalculationSpeed } from "@/lib/cutting-plan-engine";
 import { exportMultiMaterialSheetPdf, type MultiMaterialSheetExportOptions } from "@/lib/cutting-plan-pdf";
 import { CuttingPlanPdfConfig, defaultNomenclatureConfig, type PdfNomenclatureConfig } from "./CuttingPlanPdfConfig";
+import { usePdfSettings } from "./CuttingPlanPdfSettingsTab";
 import { InteractiveSheetLayout } from "./InteractiveSheetLayout";
 import { SheetMaterialBlock, type SheetMaterialGroupData } from "./SheetMaterialBlock";
 

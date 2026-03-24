@@ -14,6 +14,7 @@ import { calculateTubeCutting, getPieceColor, type TubePiece, type TubeCuttingRe
 import { exportMultiMaterialTubePdf } from "@/lib/cutting-plan-pdf";
 import { InteractiveTubeLayout } from "./InteractiveTubeLayout";
 import { TubeMaterialBlock, type TubeMaterialGroupData } from "./TubeMaterialBlock";
+import { usePdfSettings } from "./CuttingPlanPdfSettingsTab";
 
 interface MaterialResult {
   group: TubeMaterialGroupData;
