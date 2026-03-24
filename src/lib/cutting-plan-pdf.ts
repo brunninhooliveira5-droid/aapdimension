@@ -693,6 +693,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
 }
 
 function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number, ps?: any) {
+  const pdfS = ps || {};
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const margin = 15;
@@ -700,11 +701,14 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
   const barWidth = 22;
   const maxBarDrawH = ph - margin - topOffset - 12;
   const gapBetweenBars = barWidth + 12;
-  // +gapBetweenBars because the last bar doesn't need trailing gap
   const maxBarsPerPage = Math.max(1, Math.floor((pw - margin * 2 + (gapBetweenBars - barWidth)) / gapBetweenBars));
 
   const totalBars = r.bars.length;
   console.log(`[PDF Tubos] Desenhando ${totalBars} barras, ${maxBarsPerPage} por página`);
+
+  const mainLabelMax = pdfS.pieceMainLabelSize || 8;
+  const subLabelMax = pdfS.pieceSubLabelSize || 6;
+  const barTitleSize = pdfS.barTitleFontSize || 7;
 
   for (let bi = 0; bi < totalBars; bi++) {
     const bar = r.bars[bi];
@@ -725,13 +729,15 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     const barDrawH = barLength * scale;
 
     // Bar title
-    doc.setFontSize(7);
+    doc.setFontSize(barTitleSize);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     doc.text(`Barra ${bi + 1}`, ox + barWidth / 2, oy - 5, { align: "center" });
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${bar.utilization.toFixed(1)}%`, ox + barWidth / 2, oy - 1, { align: "center" });
+    if (pdfS.showUtilizationPercent !== false) {
+      doc.setFontSize(Math.max(4, barTitleSize - 1));
+      doc.setFont("helvetica", "normal");
+      doc.text(`${bar.utilization.toFixed(1)}%`, ox + barWidth / 2, oy - 1, { align: "center" });
+    }
 
     // Bar background
     doc.setDrawColor(100, 100, 100);
@@ -751,18 +757,22 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
 
       // Labels inside piece
       doc.setTextColor(255, 255, 255);
-      const fontSize = Math.min(8, sh * 0.25, barWidth * 0.3);
+      const fontSize = Math.min(mainLabelMax, sh * 0.25, barWidth * 0.3);
       if (fontSize >= 3 && sh > 6) {
-        doc.setFontSize(fontSize);
-        doc.setFont("helvetica", "bold");
-        doc.text(`P${seg.pieceIndex + 1}`, ox + barWidth / 2, sy + sh / 2 - 1, { align: "center" });
-        doc.setFontSize(Math.max(3, fontSize * 0.75));
-        doc.setFont("helvetica", "normal");
-        doc.text(`${seg.length} mm`, ox + barWidth / 2, sy + sh / 2 + fontSize * 0.6, { align: "center" });
+        if (pdfS.showPieceIndex !== false) {
+          doc.setFontSize(fontSize);
+          doc.setFont("helvetica", "bold");
+          doc.text(`P${seg.pieceIndex + 1}`, ox + barWidth / 2, sy + sh / 2 - 1, { align: "center" });
+        }
+        if (pdfS.showPieceDimensions !== false) {
+          doc.setFontSize(Math.min(subLabelMax, Math.max(3, fontSize * 0.75)));
+          doc.setFont("helvetica", "normal");
+          doc.text(`${seg.length} mm`, ox + barWidth / 2, sy + sh / 2 + fontSize * 0.6, { align: "center" });
+        }
       }
 
       // Kerf line
-      if (kerfWidth > 0 && si < bar.segments.length - 1) {
+      if (pdfS.showKerfLines !== false && kerfWidth > 0 && si < bar.segments.length - 1) {
         const kerfY = sy + sh;
         const kerfH = kerfWidth * scale;
         doc.setDrawColor(220, 30, 30);
@@ -772,7 +782,7 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     });
 
     // Waste area label
-    if (bar.wasteLength > 0) {
+    if (pdfS.showWasteArea !== false && bar.wasteLength > 0) {
       const lastSeg = bar.segments[bar.segments.length - 1];
       const wasteStart = lastSeg ? (lastSeg.position + lastSeg.length + kerfWidth) : 0;
       const wasteY = oy + wasteStart * scale;
@@ -792,10 +802,12 @@ function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: numbe
     }
 
     // Total length label at bottom
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
+    if (pdfS.showBarTotalLength !== false) {
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${barLength} mm`, ox + barWidth / 2, oy + barDrawH + 5, { align: "center" });
+    }
   }
 }
 
