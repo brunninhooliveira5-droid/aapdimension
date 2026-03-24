@@ -632,6 +632,53 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
             </g>
           );
         })}
+        {/* Single cut shared edges indicator */}
+        {singleCut && kerf > 0 && (() => {
+          const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+          const kerfPx = kerf * scale;
+          for (let i = 0; i < sheet.pieces.length; i++) {
+            for (let j = i + 1; j < sheet.pieces.length; j++) {
+              const a = sheet.pieces[i];
+              const b = sheet.pieces[j];
+              // Check if pieces share a vertical edge (adjacent horizontally)
+              const ax2 = a.x + a.width;
+              const bx2 = b.x + b.width;
+              const ay2 = a.y + a.height;
+              const by2 = b.y + b.height;
+              const overlapY = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y));
+              const overlapX = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x));
+              if (overlapY > 1 && Math.abs(ax2 - b.x) <= kerf * 1.5) {
+                const sy = Math.max(a.y, b.y);
+                const ey = Math.min(ay2, by2);
+                const cx = (ax2 + b.x) / 2;
+                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
+              } else if (overlapY > 1 && Math.abs(bx2 - a.x) <= kerf * 1.5) {
+                const sy = Math.max(a.y, b.y);
+                const ey = Math.min(ay2, by2);
+                const cx = (bx2 + a.x) / 2;
+                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
+              }
+              if (overlapX > 1 && Math.abs(ay2 - b.y) <= kerf * 1.5) {
+                const sx = Math.max(a.x, b.x);
+                const ex = Math.min(ax2, bx2);
+                const cy = (ay2 + b.y) / 2;
+                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
+              } else if (overlapX > 1 && Math.abs(by2 - a.y) <= kerf * 1.5) {
+                const sx = Math.max(a.x, b.x);
+                const ex = Math.min(ax2, bx2);
+                const cy = (by2 + a.y) / 2;
+                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
+              }
+            }
+          }
+          return lines.map((l, i) => (
+            <line key={`sc-${i}`}
+              x1={padding + l.x1 * scale} y1={padding + l.y1 * scale}
+              x2={padding + l.x2 * scale} y2={padding + l.y2 * scale}
+              stroke="#f59e0b" strokeWidth={Math.max(1, kerfPx * 0.8)}
+              strokeDasharray="4 2" opacity={0.8} />
+          ));
+        })()}
       </svg>
 
       {/* Actions for selected piece */}
