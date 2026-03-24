@@ -71,21 +71,23 @@ export function exportMultiMaterialSheetPdf(
   data: MultiMaterialSheetData,
   options: MultiMaterialSheetExportOptions
 ) {
+  const ps = data.pdfSettings || {};
+
   if (options.exportA4) {
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
-    const ph = doc.internal.pageSize.getHeight();
 
     // Header
-    doc.setFontSize(18);
+    doc.setFontSize(ps.titleFontSize || 18);
     doc.setFont("helvetica", "bold");
     doc.text("Plano de Corte — Chapas", pw / 2, 20, { align: "center" });
 
-    doc.setFontSize(13);
+    doc.setFontSize(ps.subtitleFontSize || 13);
     doc.setFont("helvetica", "normal");
     doc.text(data.planName || "Sem nome", pw / 2, 28, { align: "center" });
 
-    doc.setFontSize(10);
+    const infoSize = ps.infoFontSize || 10;
+    doc.setFontSize(infoSize);
     let y = 40;
     const line = (label: string, value: string) => {
       doc.setFont("helvetica", "bold");
@@ -98,15 +100,15 @@ export function exportMultiMaterialSheetPdf(
     line("Tipo", data.materials.length > 1 ? "Corte de Chapas (Múltiplos Materiais)" : "Corte de Chapa");
     line("Materiais", `${data.materials.length} tipo(s)`);
     line("Largura da serra", `${data.kerfWidth} mm`);
-    if (data.clientName) line("Cliente", data.clientName);
-    if (data.projectName) line("Projeto", data.projectName);
-    line("Data", new Date().toLocaleDateString("pt-BR"));
+    if ((ps.showClientName !== false) && data.clientName) line("Cliente", data.clientName);
+    if ((ps.showProjectName !== false) && data.projectName) line("Projeto", data.projectName);
+    if (ps.showDate !== false) line("Data", new Date().toLocaleDateString("pt-BR"));
 
     const totalSheets = data.materials.reduce((s, m) => s + m.result.totalSheets, 0);
     const totalCost = data.materials.reduce((s, m) => s + m.result.estimatedCost, 0);
     y += 4;
     line("Total de chapas", String(totalSheets));
-    line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
+    if (ps.showEstimatedCost !== false) line("Custo total estimado", `R$ ${totalCost.toFixed(2)}`);
 
     const nc = data.nomenclatureConfig || defaultNomenclatureConfig;
 
@@ -122,59 +124,65 @@ export function exportMultiMaterialSheetPdf(
       doc.setTextColor(0, 0, 0);
       y += 6;
 
-      doc.setFontSize(10);
+      doc.setFontSize(infoSize);
       doc.setFont("helvetica", "normal");
-      line("Dimensões", mat.dimensions);
+      if (ps.showMaterialDimensions !== false) line("Dimensões", mat.dimensions);
       line("Valor unitário", `R$ ${mat.unitPrice.toFixed(2)}`);
       line("Chapas", String(mat.result.totalSheets));
-      line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
-      line("Sobra total", `${(mat.result.totalWaste / 1_000_000).toFixed(4)} m²`);
-      line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
+      if (ps.showUtilizationPercent !== false) line("Aproveitamento", `${mat.result.totalUtilization.toFixed(1)}%`);
+      if (ps.showWasteArea !== false) line("Sobra total", `${(mat.result.totalWaste / 1_000_000).toFixed(4)} m²`);
+      if (ps.showEstimatedCost !== false) line("Custo", `R$ ${mat.result.estimatedCost.toFixed(2)}`);
 
       // Pieces table
-      autoTable(doc, {
-        startY: y,
-        head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
-        body: mat.pieces.map((p, i) => [
-          `${nc.piecePrefix}${i + 1}`,
-          p.description || "—",
-          String(p.width ?? 0),
-          String(p.height ?? 0),
-          String(p.quantity),
-        ]),
-        theme: "striped",
-        headStyles: { fillColor: [59, 130, 246] },
-        margin: { left: 14, right: 14 },
-      });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      if (ps.showPiecesTable !== false) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Peça", "Descrição", "Largura (mm)", "Altura (mm)", "Quantidade"]],
+          body: mat.pieces.map((p, i) => [
+            `${nc.piecePrefix}${i + 1}`,
+            p.description || "—",
+            String(p.width ?? 0),
+            String(p.height ?? 0),
+            String(p.quantity),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [59, 130, 246] },
+          margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      }
 
       // Sheets breakdown
-      autoTable(doc, {
-        startY: y,
-        head: [["Chapa", "Peças", "Aproveitamento"]],
-        body: mat.result.layouts.map((l, i) => [
-          `Chapa ${i + 1}`,
-          String(l.pieces.length),
-          `${l.utilization.toFixed(1)}%`,
-        ]),
-        theme: "grid",
-        headStyles: { fillColor: [34, 197, 94] },
-        margin: { left: 14, right: 14 },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      if (ps.showBreakdownTable !== false) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Chapa", "Peças", "Aproveitamento"]],
+          body: mat.result.layouts.map((l, i) => [
+            `Chapa ${i + 1}`,
+            String(l.pieces.length),
+            `${l.utilization.toFixed(1)}%`,
+          ]),
+          theme: "grid",
+          headStyles: { fillColor: [34, 197, 94] },
+          margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
 
       // Draw sheet layouts for this material
-      drawSheetLayoutsA4(doc, mat.result, {
-        planName: data.planName,
-        planType: "chapa",
-        materialName: mat.materialName,
-        dimensions: mat.dimensions,
-        unitPrice: mat.unitPrice,
-        kerfWidth: data.kerfWidth,
-        pieces: mat.pieces,
-        result: mat.result,
-        nomenclatureConfig: nc,
-      });
+      if (ps.showLayoutDrawings !== false) {
+        drawSheetLayoutsA4(doc, mat.result, {
+          planName: data.planName,
+          planType: "chapa",
+          materialName: mat.materialName,
+          dimensions: mat.dimensions,
+          unitPrice: mat.unitPrice,
+          kerfWidth: data.kerfWidth,
+          pieces: mat.pieces,
+          result: mat.result,
+          nomenclatureConfig: nc,
+        }, ps);
+      }
     }
 
     const filename = `plano-corte-${(data.planName || "sem-nome").replace(/\s+/g, "-").toLowerCase()}.pdf`;
