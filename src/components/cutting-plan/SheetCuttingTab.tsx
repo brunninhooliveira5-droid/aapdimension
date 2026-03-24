@@ -212,6 +212,7 @@ export function SheetCuttingTab() {
       projectName,
       nomenclatureConfig,
       singleCut,
+      pdfSettings,
     }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };

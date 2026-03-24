@@ -181,6 +181,7 @@ export function TubeCuttingTab() {
       kerfWidth: parseFloat(kerfWidth) || 0,
       clientName,
       projectName,
+      pdfSettings,
     }, { exportA4, exportRealScale, folderName: folderName.trim() });
     setShowExportDialog(false);
   };
