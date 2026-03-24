@@ -316,6 +316,13 @@ function elementToPathData(el: Element): string | null {
     const r = parseFloat(el.getAttribute("r") || "0");
     return `M${cx - r},${cy} a${r},${r} 0 1,0 ${r * 2},0 a${r},${r} 0 1,0 ${-r * 2},0`;
   }
+  if (tag === "ellipse") {
+    const ecx = parseFloat(el.getAttribute("cx") || "0");
+    const ecy = parseFloat(el.getAttribute("cy") || "0");
+    const rx = parseFloat(el.getAttribute("rx") || "0");
+    const ry = parseFloat(el.getAttribute("ry") || "0");
+    return `M${ecx - rx},${ecy} a${rx},${ry} 0 1,0 ${rx * 2},0 a${rx},${ry} 0 1,0 ${-rx * 2},0`;
+  }
   if (tag === "polygon" || tag === "polyline") {
     const pts = (el.getAttribute("points") || "").trim();
     if (!pts) return null;
