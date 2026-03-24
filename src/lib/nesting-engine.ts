@@ -122,6 +122,8 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       pathData: `M0,0 h${svgW} v${svgH} h${-svgW} Z`,
       width: svgW * scale,
       height: svgH * scale,
+      bboxX: 0,
+      bboxY: 0,
       viewBoxScale: scale,
     });
   }
