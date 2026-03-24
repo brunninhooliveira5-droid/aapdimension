@@ -58,6 +58,7 @@ interface MultiMaterialSheetData {
   projectName?: string;
   nomenclatureConfig?: PdfNomenclatureConfig;
   singleCut?: boolean;
+  pdfSettings?: any;
 }
 
 export interface MultiMaterialSheetExportOptions {
