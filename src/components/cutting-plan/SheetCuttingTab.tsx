@@ -411,9 +411,6 @@ export function SheetCuttingTab() {
             );
           })}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between">
-
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowSave(true)}><Save className="h-4 w-4 mr-1" /> Salvar Plano</Button>
             <Button variant="outline" onClick={() => setShowExportDialog(true)}><FileDown className="h-4 w-4 mr-1" /> Exportar PDF</Button>
