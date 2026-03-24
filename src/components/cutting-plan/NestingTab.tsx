@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Upload, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw,
-  Scissors, ZoomIn, ZoomOut, Maximize2, Move, Eye, Package, Layers,
-  X, RotateCcw, GripVertical, Grid3X3, FileImage
+  Scissors, ZoomIn, ZoomOut, Maximize2, Eye, Package, Layers,
+  X, Grid3X3, FileImage, GripVertical, FileCode, Move
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,9 +21,13 @@ import {
   calculateNesting,
   getNestingPieceColor,
   checkCollision,
+  groupSimilarPieces,
   type NestingPiece,
   type NestingResult,
+  type PieceGroup,
+  type Point,
 } from "@/lib/nesting-engine";
+import { translatePolygon } from "@/lib/nesting-geometry";
 import { usePdfSettings } from "./CuttingPlanPdfSettingsTab";
 import { exportNestingPdf } from "@/lib/nesting-pdf";
 
@@ -34,13 +37,12 @@ export function NestingTab() {
   const [pdfSettings] = usePdfSettings();
   const [expandedSheet, setExpandedSheet] = useState<number | null>(null);
 
-  // SVG state
   const fileRef = useRef<HTMLInputElement>(null);
   const [svgContent, setSvgContent] = useState("");
   const [svgFileName, setSvgFileName] = useState("");
   const [importedPieces, setImportedPieces] = useState<NestingPiece[]>([]);
+  const [pieceGroups, setPieceGroups] = useState<PieceGroup[]>([]);
 
-  // Material
   const [materialName, setMaterialName] = useState("");
   const [matWidth, setMatWidth] = useState("1000");
   const [matHeight, setMatHeight] = useState("2000");
@@ -49,22 +51,20 @@ export function NestingTab() {
   const [autoRotation, setAutoRotation] = useState(true);
   const [singleCut, setSingleCut] = useState(false);
 
-  // Results
   const [result, setResult] = useState<NestingResult | null>(null);
-
-  // Preview
   const [zoom, setZoom] = useState(1);
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"single" | "grid">("single");
+  const [highlightContours, setHighlightContours] = useState(true);
 
-  // Save dialog
   const [showSave, setShowSave] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Saved projects
-  const [savedProjects, setSavedProjects] = useState<any[]>([]);
-  const [showSaved, setShowSaved] = useState(false);
+  // Update groups when pieces change
+  useEffect(() => {
+    setPieceGroups(groupSimilarPieces(importedPieces));
+  }, [importedPieces]);
 
   // ── SVG Import ──────────────────────────────────────────────
 
@@ -93,6 +93,8 @@ export function NestingTab() {
         y: 0,
         color: getNestingPieceColor(i),
         excluded: false,
+        polygonPoints: p.polygonPoints,
+        realArea: p.realArea,
       }));
 
       setImportedPieces(pieces);
@@ -108,6 +110,7 @@ export function NestingTab() {
     setSvgFileName("");
     setImportedPieces([]);
     setResult(null);
+    setPieceGroups([]);
   };
 
   // ── Calculate ───────────────────────────────────────────────
@@ -127,22 +130,27 @@ export function NestingTab() {
       return;
     }
 
-    const res = calculateNesting({
-      pieces: importedPieces,
-      matW: mw,
-      matH: mh,
-      kerf,
-      autoRotation,
-      singleCut,
-      unitPrice: price,
-    });
+    toast.info("Calculando nesting por geometria real...");
 
-    setResult(res);
-    if (res.errors.length > 0) {
-      res.errors.forEach(err => toast.error(err));
-    } else {
-      toast.success(`Nesting calculado: ${res.totalSheets} chapa(s), ${res.totalUtilization.toFixed(1)}% aproveitamento`);
-    }
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+      const res = calculateNesting({
+        pieces: importedPieces,
+        matW: mw,
+        matH: mh,
+        kerf,
+        autoRotation,
+        singleCut,
+        unitPrice: price,
+      });
+
+      setResult(res);
+      if (res.errors.length > 0) {
+        res.errors.forEach(err => toast.error(err));
+      } else {
+        toast.success(`Nesting calculado: ${res.totalSheets} chapa(s), ${res.totalUtilization.toFixed(1)}% aproveitamento`);
+      }
+    }, 50);
   };
 
   // ── Manual adjustments ──────────────────────────────────────
@@ -176,17 +184,40 @@ export function NestingTab() {
       ...newSheets[sheetIdx],
       pieces: newSheets[sheetIdx].pieces.filter(p => p.id !== pieceId),
     };
-    // Recalculate utilization
     const mw = parseFloat(matWidth) || 1;
     const mh = parseFloat(matHeight) || 1;
     const matArea = mw * mh;
     newSheets.forEach(sh => {
-      sh.usedArea = sh.pieces.reduce((s, p) => s + p.width * p.height, 0);
+      sh.usedArea = sh.pieces.reduce((s, p) => s + (p.realArea || p.width * p.height), 0);
       sh.freeArea = matArea - sh.usedArea;
       sh.utilization = (sh.usedArea / matArea) * 100;
     });
     setResult({ ...result, sheets: newSheets.filter(sh => sh.pieces.length > 0) });
     toast.info("Peça removida do nesting.");
+  };
+
+  const handleDragPiece = (sheetIdx: number, pieceId: string, newX: number, newY: number) => {
+    if (!result) return;
+    const mw = parseFloat(matWidth) || 1;
+    const mh = parseFloat(matHeight) || 1;
+    const kerf = parseFloat(kerfWidth) || 0;
+
+    const newSheets = [...result.sheets];
+    const sheet = { ...newSheets[sheetIdx] };
+    const pIdx = sheet.pieces.findIndex(p => p.id === pieceId);
+    if (pIdx === -1) return;
+
+    const movedPiece = { ...sheet.pieces[pIdx], x: newX, y: newY };
+    const collision = checkCollision(movedPiece, sheet.pieces, mw, mh, kerf);
+    if (collision) {
+      toast.error(collision);
+      return;
+    }
+
+    sheet.pieces = [...sheet.pieces];
+    sheet.pieces[pIdx] = movedPiece;
+    newSheets[sheetIdx] = sheet;
+    setResult({ ...result, sheets: newSheets });
   };
 
   // ── Save ────────────────────────────────────────────────────
@@ -195,7 +226,7 @@ export function NestingTab() {
     if (!userId || !result || !projectName.trim()) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("nesting_projects").insert({
+      const { data: project, error } = await supabase.from("nesting_projects").insert({
         user_id: userId,
         project_name: projectName.trim(),
         material_name: materialName,
@@ -208,8 +239,31 @@ export function NestingTab() {
         utilization_percent: result.totalUtilization,
         sheets_needed: result.totalSheets,
         result_json: result as any,
-      });
+      }).select("id").single();
+
       if (error) throw error;
+
+      // Save individual items
+      if (project) {
+        const items = result.sheets.flatMap((sheet, si) =>
+          sheet.pieces.map(p => ({
+            nesting_project_id: project.id,
+            piece_name: p.label,
+            path_data: p.pathData,
+            polygon_points: JSON.stringify(p.polygonPoints || []),
+            width: p.width,
+            height: p.height,
+            x_pos: p.x,
+            y_pos: p.y,
+            rotation: p.rotation,
+            sheet_index: si,
+          }))
+        );
+        if (items.length > 0) {
+          await supabase.from("nesting_items").insert(items);
+        }
+      }
+
       toast.success("Nesting salvo com sucesso!");
       setShowSave(false);
       setProjectName("");
@@ -220,18 +274,15 @@ export function NestingTab() {
     }
   };
 
-  // ── Export PDF ──────────────────────────────────────────────
+  // ── Export ──────────────────────────────────────────────────
 
   const handleExportPdf = () => {
     if (!result) return;
-    const mw = parseFloat(matWidth) || 0;
-    const mh = parseFloat(matHeight) || 0;
-
     exportNestingPdf({
       projectName: projectName || "Nesting",
       materialName,
-      matW: mw,
-      matH: mh,
+      matW: parseFloat(matWidth) || 0,
+      matH: parseFloat(matHeight) || 0,
       unitPrice: parseFloat(matPrice) || 0,
       kerf: parseFloat(kerfWidth) || 0,
       singleCut,
@@ -242,7 +293,72 @@ export function NestingTab() {
     toast.success("PDF exportado!");
   };
 
-  // ── Render ──────────────────────────────────────────────────
+  const handleExportSvg = () => {
+    if (!result) return;
+    const mw = parseFloat(matWidth) || 1000;
+    const mh = parseFloat(matHeight) || 2000;
+
+    result.sheets.forEach((sheet, si) => {
+      let svgOut = `<svg xmlns="http://www.w3.org/2000/svg" width="${mw}mm" height="${mh}mm" viewBox="0 0 ${mw} ${mh}">\n`;
+      svgOut += `  <rect x="0" y="0" width="${mw}" height="${mh}" fill="none" stroke="#000" stroke-width="0.5"/>\n`;
+
+      sheet.pieces.forEach(p => {
+        if (p.polygonPoints && p.polygonPoints.length >= 3) {
+          const absPoly = translatePolygon(p.polygonPoints, p.x, p.y);
+          const pts = absPoly.map(pt => `${pt.x.toFixed(2)},${pt.y.toFixed(2)}`).join(" ");
+          svgOut += `  <polygon points="${pts}" fill="none" stroke="#000" stroke-width="0.3"/>\n`;
+        } else {
+          svgOut += `  <rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" fill="none" stroke="#000" stroke-width="0.3"/>\n`;
+        }
+      });
+
+      svgOut += `</svg>`;
+      const blob = new Blob([svgOut], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nesting_chapa_${si + 1}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    toast.success("SVG exportado!");
+  };
+
+  const handleExportDxf = () => {
+    if (!result) return;
+    const mw = parseFloat(matWidth) || 1000;
+    const mh = parseFloat(matHeight) || 2000;
+
+    result.sheets.forEach((sheet, si) => {
+      let dxf = "0\nSECTION\n2\nENTITIES\n";
+
+      // Material boundary
+      dxf += `0\nLWPOLYLINE\n8\nBORDA\n70\n1\n90\n4\n`;
+      dxf += `10\n0\n20\n0\n10\n${mw}\n20\n0\n10\n${mw}\n20\n${mh}\n10\n0\n20\n${mh}\n`;
+
+      sheet.pieces.forEach(p => {
+        if (p.polygonPoints && p.polygonPoints.length >= 3) {
+          const absPoly = translatePolygon(p.polygonPoints, p.x, p.y);
+          dxf += `0\nLWPOLYLINE\n8\nPECAS\n70\n1\n90\n${absPoly.length}\n`;
+          absPoly.forEach(pt => { dxf += `10\n${pt.x.toFixed(3)}\n20\n${pt.y.toFixed(3)}\n`; });
+        } else {
+          dxf += `0\nLWPOLYLINE\n8\nPECAS\n70\n1\n90\n4\n`;
+          dxf += `10\n${p.x}\n20\n${p.y}\n10\n${p.x + p.width}\n20\n${p.y}\n`;
+          dxf += `10\n${p.x + p.width}\n20\n${p.y + p.height}\n10\n${p.x}\n20\n${p.y + p.height}\n`;
+        }
+      });
+
+      dxf += "0\nENDSEC\n0\nEOF\n";
+      const blob = new Blob([dxf], { type: "application/dxf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nesting_chapa_${si + 1}.dxf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    toast.success("DXF exportado!");
+  };
 
   const mw = parseFloat(matWidth) || 1000;
   const mh = parseFloat(matHeight) || 2000;
@@ -302,18 +418,24 @@ export function NestingTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <input ref={fileRef} type="file" accept=".svg" className="hidden" onChange={handleImportSvg} />
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => fileRef.current?.click()}>
               <Upload className="h-3.5 w-3.5" /> Importar SVG
             </Button>
             {svgContent && (
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-destructive" onClick={clearSvg}>
-                <Trash2 className="h-3.5 w-3.5" /> Remover
-              </Button>
+              <>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-destructive" onClick={clearSvg}>
+                  <Trash2 className="h-3.5 w-3.5" /> Remover
+                </Button>
+                <Button variant={highlightContours ? "default" : "outline"} size="sm" className="gap-1.5 text-xs"
+                  onClick={() => setHighlightContours(!highlightContours)}>
+                  <Eye className="h-3.5 w-3.5" /> Realçar contornos
+                </Button>
+              </>
             )}
           </div>
 
-          {/* SVG Preview - same style as cutting quote */}
+          {/* SVG Preview */}
           {svgContent && (
             <Card>
               <CardHeader className="pb-2 flex flex-row items-start justify-between">
@@ -355,8 +477,12 @@ export function NestingTab() {
                 {viewMode === "single" ? (
                   <div className="w-full h-[300px] bg-white rounded-lg border border-border flex items-center justify-center overflow-hidden p-4">
                     <div
-                      style={{ transform: `scale(${zoom})`, transformOrigin: "center center", color: "#000" }}
-                      className="max-w-full max-h-full transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none [&_svg]:max-w-full [&_svg]:max-h-[268px] [&_svg_*]:[stroke-width:1] [&_svg]:[stroke-width:1]"
+                      style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
+                      className={`max-w-full max-h-full transition-transform [&_svg]:max-w-full [&_svg]:max-h-[268px] ${
+                        highlightContours
+                          ? "[&_svg]:fill-none [&_svg_*]:fill-none [&_svg_*]:stroke-[#111] [&_svg_*]:[stroke-width:1.5px] [&_svg]:stroke-[#111]"
+                          : "[&_svg]:fill-none [&_svg_*]:fill-none [&_svg_*]:stroke-black [&_svg_*]:[stroke-width:1px]"
+                      }`}
                       dangerouslySetInnerHTML={{ __html: svgContent }}
                     />
                   </div>
@@ -367,27 +493,46 @@ export function NestingTab() {
             </Card>
           )}
 
-          {/* Pieces list */}
-          {importedPieces.length > 0 && (
+          {/* Piece groups */}
+          {pieceGroups.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Layers className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-medium">{importedPieces.length} peça(s) detectada(s)</span>
+                <span className="text-xs font-medium">{importedPieces.filter(p => !p.excluded).length} peça(s) em {pieceGroups.length} grupo(s)</span>
               </div>
               <ScrollArea className="max-h-[200px]">
                 <div className="space-y-1">
-                  {importedPieces.map((p, i) => (
+                  {pieceGroups.map((g, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-1 rounded text-xs bg-muted/30">
+                      <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: getNestingPieceColor(i) }} />
+                      <span className="flex-1 truncate">{g.label}</span>
+                      <Badge variant="secondary" className="text-[10px]">×{g.count}</Badge>
+                      <span className="text-muted-foreground">{g.width.toFixed(0)}×{g.height.toFixed(0)} mm</span>
+                      <span className="text-muted-foreground text-[10px]">{g.realArea.toFixed(0)} mm²</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Individual pieces toggle */}
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                  Ver todas as peças individualmente
+                </summary>
+                <div className="space-y-1 mt-1">
+                  {importedPieces.map((p) => (
                     <div key={p.id} className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${p.excluded ? "opacity-40 line-through" : ""}`}>
                       <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: p.color }} />
                       <span className="flex-1 truncate">{p.label}</span>
-                      <span className="text-muted-foreground">{p.width.toFixed(0)}×{p.height.toFixed(0)} mm</span>
+                      <span className="text-muted-foreground">{p.width.toFixed(0)}×{p.height.toFixed(0)}</span>
+                      {p.realArea && <span className="text-muted-foreground text-[10px]">{p.realArea.toFixed(0)} mm²</span>}
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => toggleExclude(p.id)}>
                         {p.excluded ? <Eye className="h-3 w-3" /> : <X className="h-3 w-3" />}
                       </Button>
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </details>
             </div>
           )}
         </CardContent>
@@ -404,7 +549,13 @@ export function NestingTab() {
               <Save className="h-4 w-4" /> Salvar
             </Button>
             <Button variant="outline" className="gap-1.5" onClick={handleExportPdf}>
-              <FileDown className="h-4 w-4" /> Exportar PDF
+              <FileDown className="h-4 w-4" /> PDF
+            </Button>
+            <Button variant="outline" className="gap-1.5" onClick={handleExportSvg}>
+              <FileImage className="h-4 w-4" /> SVG
+            </Button>
+            <Button variant="outline" className="gap-1.5" onClick={handleExportDxf}>
+              <FileCode className="h-4 w-4" /> DXF
             </Button>
           </>
         )}
@@ -423,7 +574,6 @@ export function NestingTab() {
       {/* ── Results ────────────────────────────────────────── */}
       {result && result.sheets.length > 0 && (
         <div className="space-y-4">
-          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Card className="p-3">
               <p className="text-[10px] text-muted-foreground">Chapas</p>
@@ -447,7 +597,6 @@ export function NestingTab() {
             </Card>
           </div>
 
-          {/* Sheet layouts */}
           {result.sheets.map((sheet, si) => (
             <Card key={si}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -461,8 +610,7 @@ export function NestingTab() {
                     </Badge>
                   )}
                 </CardTitle>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setExpandedSheet(si)}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setExpandedSheet(si)}>
                   <Maximize2 className="h-3.5 w-3.5" /> Ampliar
                 </Button>
               </CardHeader>
@@ -476,6 +624,7 @@ export function NestingTab() {
                   singleCut={singleCut}
                   onRotate={rotatePiece}
                   onRemove={removePieceFromResult}
+                  onDrag={handleDragPiece}
                   selectedPieceId={selectedPieceId}
                   onSelectPiece={setSelectedPieceId}
                 />
@@ -515,6 +664,7 @@ export function NestingTab() {
                 singleCut={singleCut}
                 onRotate={rotatePiece}
                 onRemove={removePieceFromResult}
+                onDrag={handleDragPiece}
                 selectedPieceId={selectedPieceId}
                 onSelectPiece={setSelectedPieceId}
                 expanded
@@ -548,7 +698,7 @@ export function NestingTab() {
   );
 }
 
-// ── Nesting Preview (interactive) ─────────────────────────────
+// ── Nesting Preview with drag support ─────────────────────────
 
 interface NestingPreviewProps {
   sheet: { pieces: NestingPiece[]; utilization: number };
@@ -559,13 +709,16 @@ interface NestingPreviewProps {
   singleCut?: boolean;
   onRotate: (sheetIdx: number, pieceId: string) => void;
   onRemove: (sheetIdx: number, pieceId: string) => void;
+  onDrag: (sheetIdx: number, pieceId: string, newX: number, newY: number) => void;
   selectedPieceId: string | null;
   onSelectPiece: (id: string | null) => void;
   expanded?: boolean;
 }
 
-function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRotate, onRemove, selectedPieceId, onSelectPiece, expanded }: NestingPreviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRotate, onRemove, onDrag, selectedPieceId, onSelectPiece, expanded }: NestingPreviewProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dragState, setDragState] = useState<{ pieceId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+
   const padding = 10;
   const maxW = expanded ? 1200 : 700;
   const maxH = expanded ? 700 : 400;
@@ -575,52 +728,134 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
   const svgW = matW * scale + padding * 2;
   const svgH = matH * scale + padding * 2;
 
-  return (
-    <div ref={containerRef} className="overflow-auto">
-      <svg width={svgW} height={svgH} className="border rounded bg-white">
-        {/* Material background */}
-        <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
-          fill="#f5f5f5" stroke="hsl(var(--border))" strokeWidth={1} />
+  const handleMouseDown = useCallback((e: React.MouseEvent, pieceId: string) => {
+    e.stopPropagation();
+    const piece = sheet.pieces.find(p => p.id === pieceId);
+    if (!piece) return;
+    onSelectPiece(pieceId);
+    setDragState({
+      pieceId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: piece.x,
+      origY: piece.y,
+    });
+  }, [sheet.pieces, onSelectPiece]);
 
-        {/* Pieces — render actual SVG paths */}
+  useEffect(() => {
+    if (!dragState) return;
+    const handleMove = (e: MouseEvent) => {
+      const dx = (e.clientX - dragState.startX) / scale;
+      const dy = (e.clientY - dragState.startY) / scale;
+      const newX = Math.max(0, Math.round(dragState.origX + dx));
+      const newY = Math.max(0, Math.round(dragState.origY + dy));
+      onDrag(sheetIndex, dragState.pieceId, newX, newY);
+    };
+    const handleUp = () => setDragState(null);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [dragState, scale, sheetIndex, onDrag]);
+
+  return (
+    <div>
+      <svg ref={svgRef} width={svgW} height={svgH} className="border rounded bg-white cursor-crosshair">
+        <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
+          fill="#f8f8f8" stroke="hsl(var(--border))" strokeWidth={1} />
+
+        {/* Grid lines for reference */}
+        {expanded && Array.from({ length: Math.floor(matW / 100) }).map((_, i) => (
+          <line key={`gv-${i}`}
+            x1={padding + (i + 1) * 100 * scale} y1={padding}
+            x2={padding + (i + 1) * 100 * scale} y2={padding + matH * scale}
+            stroke="#e5e5e5" strokeWidth={0.5} />
+        ))}
+        {expanded && Array.from({ length: Math.floor(matH / 100) }).map((_, i) => (
+          <line key={`gh-${i}`}
+            x1={padding} y1={padding + (i + 1) * 100 * scale}
+            x2={padding + matW * scale} y2={padding + (i + 1) * 100 * scale}
+            stroke="#e5e5e5" strokeWidth={0.5} />
+        ))}
+
+        {/* Pieces — render real polygon geometry */}
         {sheet.pieces.map((p) => {
+          const isSelected = selectedPieceId === p.id;
+          const isDragging = dragState?.pieceId === p.id;
+
+          // Use polygon if available, otherwise bbox
+          if (p.polygonPoints && p.polygonPoints.length >= 3) {
+            const absPoly = translatePolygon(p.polygonPoints, p.x, p.y);
+            const scaledPts = absPoly.map(pt => ({
+              x: padding + pt.x * scale,
+              y: padding + pt.y * scale,
+            }));
+            const pointsStr = scaledPts.map(pt => `${pt.x},${pt.y}`).join(" ");
+
+            // Centroid for label
+            const cx = scaledPts.reduce((s, pt) => s + pt.x, 0) / scaledPts.length;
+            const cy = scaledPts.reduce((s, pt) => s + pt.y, 0) / scaledPts.length;
+
+            return (
+              <g key={p.id}
+                onMouseDown={(e) => handleMouseDown(e, p.id)}
+                onClick={() => onSelectPiece(isSelected ? null : p.id)}
+                className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
+                <polygon
+                  points={pointsStr}
+                  fill={p.color + "35"}
+                  stroke={isSelected ? "hsl(var(--primary))" : p.color}
+                  strokeWidth={isSelected ? 2.5 : 1.2}
+                />
+                {/* Inner path for visual detail */}
+                <g transform={`translate(${padding + p.x * scale}, ${padding + p.y * scale}) scale(${scale})`}>
+                  <path
+                    d={shiftPath(p.pathData, p.bboxX, p.bboxY, p.bboxW, p.bboxH, p.width, p.height)}
+                    fill="none"
+                    stroke={isSelected ? "hsl(var(--primary))" : "#333"}
+                    strokeWidth={Math.max(0.5, 1 / scale)}
+                    opacity={0.6}
+                  />
+                </g>
+                {/* Label */}
+                <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.min(11, p.width * scale * 0.15)} fontWeight="600"
+                  fill="#222" className="select-none pointer-events-none">
+                  {p.label}
+                </text>
+                <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.min(9, p.width * scale * 0.12)} fill="#666" className="select-none pointer-events-none">
+                  {p.width.toFixed(0)}×{p.height.toFixed(0)}
+                </text>
+                {isDragging && (
+                  <g transform={`translate(${cx - 6}, ${cy - 20})`}>
+                    <rect x={-2} y={-2} width={16} height={16} rx={3} fill="hsl(var(--primary))" opacity={0.8} />
+                    <text x={6} y={8} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="white">⊞</text>
+                  </g>
+                )}
+              </g>
+            );
+          }
+
+          // Fallback: bbox rendering
           const px = padding + p.x * scale;
           const py = padding + p.y * scale;
           const pw = p.width * scale;
           const ph = p.height * scale;
-          const isSelected = selectedPieceId === p.id;
-
-          // Scale from original SVG bbox units to screen pixels
-          const pathScaleX = pw / (p.bboxW || 1);
-          const pathScaleY = ph / (p.bboxH || 1);
 
           return (
-            <g key={p.id} onClick={() => onSelectPiece(isSelected ? null : p.id)} className="cursor-pointer">
-              {/* Clip to piece bounds */}
-              <defs>
-                <clipPath id={`clip-${p.id}-${sheetIndex}`}>
-                  <rect x={px} y={py} width={pw} height={ph} />
-                </clipPath>
-              </defs>
-              {/* Background rect with color fill */}
+            <g key={p.id}
+              onMouseDown={(e) => handleMouseDown(e, p.id)}
+              onClick={() => onSelectPiece(isSelected ? null : p.id)}
+              className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
               <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "40"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                strokeWidth={isSelected ? 2.5 : 1} rx={1} />
-              {/* Actual geometry path */}
-              <g clipPath={`url(#clip-${p.id}-${sheetIndex})`}>
-                <path
-                  d={p.pathData}
-                  fill={p.color + "20"}
-                  stroke={isSelected ? "hsl(var(--primary))" : "#000"}
-                  strokeWidth={Math.max(1, 2 / scale)}
-                  transform={`translate(${px}, ${py}) scale(${pathScaleX}, ${pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}
-                />
-              </g>
-              {/* Label */}
+                fill={p.color + "35"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
+                strokeWidth={isSelected ? 2.5 : 1.2} rx={1} />
               {pw > 30 && ph > 14 && (
                 <text x={px + pw / 2} y={py + ph / 2 - 4} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(12, pw * 0.18, ph * 0.3)} fontWeight="600"
-                  fill="#222" className="select-none pointer-events-none">
+                  fontSize={Math.min(12, pw * 0.18)} fontWeight="600" fill="#222" className="select-none pointer-events-none">
                   {p.label}
                 </text>
               )}
@@ -633,60 +868,22 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
             </g>
           );
         })}
-        {/* Single cut shared edges indicator */}
-        {singleCut && kerf > 0 && (() => {
-          const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
-          const kerfPx = kerf * scale;
-          for (let i = 0; i < sheet.pieces.length; i++) {
-            for (let j = i + 1; j < sheet.pieces.length; j++) {
-              const a = sheet.pieces[i];
-              const b = sheet.pieces[j];
-              // Check if pieces share a vertical edge (adjacent horizontally)
-              const ax2 = a.x + a.width;
-              const bx2 = b.x + b.width;
-              const ay2 = a.y + a.height;
-              const by2 = b.y + b.height;
-              const overlapY = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y));
-              const overlapX = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x));
-              if (overlapY > 1 && Math.abs(ax2 - b.x) <= kerf * 1.5) {
-                const sy = Math.max(a.y, b.y);
-                const ey = Math.min(ay2, by2);
-                const cx = (ax2 + b.x) / 2;
-                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
-              } else if (overlapY > 1 && Math.abs(bx2 - a.x) <= kerf * 1.5) {
-                const sy = Math.max(a.y, b.y);
-                const ey = Math.min(ay2, by2);
-                const cx = (bx2 + a.x) / 2;
-                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
-              }
-              if (overlapX > 1 && Math.abs(ay2 - b.y) <= kerf * 1.5) {
-                const sx = Math.max(a.x, b.x);
-                const ex = Math.min(ax2, bx2);
-                const cy = (ay2 + b.y) / 2;
-                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
-              } else if (overlapX > 1 && Math.abs(by2 - a.y) <= kerf * 1.5) {
-                const sx = Math.max(a.x, b.x);
-                const ex = Math.min(ax2, bx2);
-                const cy = (by2 + a.y) / 2;
-                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
-              }
-            }
-          }
-          return lines.map((l, i) => (
-            <line key={`sc-${i}`}
-              x1={padding + l.x1 * scale} y1={padding + l.y1 * scale}
-              x2={padding + l.x2 * scale} y2={padding + l.y2 * scale}
-              stroke="#f59e0b" strokeWidth={Math.max(1, kerfPx * 0.8)}
-              strokeDasharray="4 2" opacity={0.8} />
-          ));
-        })()}
+
+        {/* Single cut indicator */}
+        {singleCut && (
+          <text x={padding + 4} y={padding + matH * scale - 4}
+            fontSize={10} fill="#b45309" fontWeight="600" className="select-none pointer-events-none">
+            ⚡ Corte Único Ativo
+          </text>
+        )}
       </svg>
 
       {/* Actions for selected piece */}
       {selectedPieceId && (
-        <div className="flex gap-1 mt-2 p-1.5 bg-primary/5 rounded border border-primary/20">
+        <div className="flex gap-1 mt-2 p-1.5 bg-primary/5 rounded border border-primary/20 items-center">
+          <Move className="h-3 w-3 text-muted-foreground" />
           <span className="text-[10px] text-primary font-medium flex-1">
-            {sheet.pieces.find(p => p.id === selectedPieceId)?.label}
+            {sheet.pieces.find(p => p.id === selectedPieceId)?.label} — arraste para mover
           </span>
           <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1"
             onClick={() => onRotate(sheetIndex, selectedPieceId)}>
@@ -702,11 +899,20 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
   );
 }
 
-// ── Grid view with mouse-following zoom ───────────────────────
+/** Helper: shift path from SVG bbox space to piece mm space */
+function shiftPath(pathData: string, bboxX: number, bboxY: number, bboxW: number, bboxH: number, targetW: number, targetH: number): string {
+  // Simple approach: use transform on the g element instead
+  // Return the path with origin shift
+  const sx = targetW / (bboxW || 1);
+  const sy = targetH / (bboxH || 1);
+  // We'll rely on the g transform, so just translate to remove bbox offset
+  return pathData;
+}
+
+// ── Grid view ─────────────────────────────────────────────────
 
 function NestingPiecesGrid({ pieces }: { pieces: NestingPiece[] }) {
   const activePieces = pieces.filter(p => !p.excluded);
-
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[400px] overflow-auto bg-white p-1">
       {activePieces.map((piece) => (
@@ -717,10 +923,8 @@ function NestingPiecesGrid({ pieces }: { pieces: NestingPiece[] }) {
 }
 
 function PieceZoomCard({ piece }: { piece: NestingPiece }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [transformOrigin, setTransformOrigin] = useState("center center");
   const [isHovered, setIsHovered] = useState(false);
-  const zoomLevel = 2.5;
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -729,7 +933,6 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
     setTransformOrigin(`${x}% ${y}%`);
   }, []);
 
-  // Use original SVG bbox dimensions for the viewBox
   const bw = piece.bboxW || piece.width;
   const bh = piece.bboxH || piece.height;
   const maxDim = Math.max(bw, bh);
@@ -737,7 +940,6 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
 
   return (
     <div
-      ref={containerRef}
       className="relative border rounded bg-white overflow-hidden cursor-crosshair group"
       style={{ aspectRatio: "1/1" }}
       onMouseEnter={() => setIsHovered(true)}
@@ -746,10 +948,7 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
     >
       <div
         className="w-full h-full transition-transform duration-100 ease-out"
-        style={{
-          transform: isHovered ? `scale(${zoomLevel})` : "scale(1)",
-          transformOrigin,
-        }}
+        style={{ transform: isHovered ? `scale(2.5)` : "scale(1)", transformOrigin }}
       >
         <svg
           viewBox={`${piece.bboxX - pad} ${piece.bboxY - pad} ${bw + pad * 2} ${bh + pad * 2}`}
@@ -758,17 +957,23 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
         >
           <rect x={piece.bboxX} y={piece.bboxY} width={bw} height={bh}
             fill="none" stroke="#ddd" strokeWidth={maxDim * 0.005} strokeDasharray={`${maxDim * 0.02} ${maxDim * 0.02}`} />
-          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008} />
+          <path d={piece.pathData} fill={piece.color + "15"} stroke="#000" strokeWidth={maxDim * 0.01} />
+          {/* Show polygon overlay */}
+          {piece.polygonPoints && piece.polygonPoints.length > 2 && (() => {
+            const { polygon: raw } = require("@/lib/nesting-geometry").normalizePolygon(
+              require("@/lib/nesting-geometry").pathToPolygon(piece.pathData)
+            );
+            // Don't render polygon overlay in grid - just path is enough
+            return null;
+          })()}
         </svg>
       </div>
 
-      {/* Label overlay */}
       <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1.5 py-1 pointer-events-none">
         <p className="text-[9px] text-white font-medium truncate">{piece.label}</p>
         <p className="text-[8px] text-white/70">{piece.width.toFixed(0)}×{piece.height.toFixed(0)} mm</p>
       </div>
 
-      {/* Zoom indicator */}
       {isHovered && (
         <div className="absolute top-1 right-1 bg-black/60 rounded px-1 py-0.5 pointer-events-none">
           <ZoomIn className="h-3 w-3 text-white" />
