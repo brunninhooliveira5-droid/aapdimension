@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Upload, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw,
   Scissors, ZoomIn, ZoomOut, Maximize2, Move, Eye, Package, Layers,
-  X, RotateCcw, GripVertical
+  X, RotateCcw, GripVertical, Grid3X3, FileImage
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
