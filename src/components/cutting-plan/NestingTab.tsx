@@ -958,14 +958,6 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
           <rect x={piece.bboxX} y={piece.bboxY} width={bw} height={bh}
             fill="none" stroke="#ddd" strokeWidth={maxDim * 0.005} strokeDasharray={`${maxDim * 0.02} ${maxDim * 0.02}`} />
           <path d={piece.pathData} fill={piece.color + "15"} stroke="#000" strokeWidth={maxDim * 0.01} />
-          {/* Show polygon overlay */}
-          {piece.polygonPoints && piece.polygonPoints.length > 2 && (() => {
-            const { polygon: raw } = require("@/lib/nesting-geometry").normalizePolygon(
-              require("@/lib/nesting-geometry").pathToPolygon(piece.pathData)
-            );
-            // Don't render polygon overlay in grid - just path is enough
-            return null;
-          })()}
         </svg>
       </div>
 
