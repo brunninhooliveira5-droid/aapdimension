@@ -602,30 +602,31 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
                   <rect x={px} y={py} width={pw} height={ph} />
                 </clipPath>
               </defs>
-              {/* Background rect with subtle color fill */}
+              {/* Background rect with color fill */}
               <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "15"} stroke={isSelected ? "hsl(var(--primary))" : p.color + "40"}
-                strokeWidth={isSelected ? 2 : 0.5} rx={1} />
+                fill={p.color + "40"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
+                strokeWidth={isSelected ? 2.5 : 1} rx={1} />
               {/* Actual geometry path */}
               <g clipPath={`url(#clip-${p.id}-${sheetIndex})`}>
                 <path
                   d={p.pathData}
-                  fill="none"
-                  stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                  strokeWidth={Math.max(0.5, 1.5 / scale)}
+                  fill={p.color + "20"}
+                  stroke={isSelected ? "hsl(var(--primary))" : "#000"}
+                  strokeWidth={Math.max(1, 2 / scale)}
                   transform={`translate(${px}, ${py}) scale(${pathScaleX}, ${pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}
                 />
               </g>
               {/* Label */}
               {pw > 30 && ph > 14 && (
-                <text x={px + pw / 2} y={py + ph / 2} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(10, pw * 0.15, ph * 0.3)} fill="hsl(var(--foreground))" className="select-none pointer-events-none">
+                <text x={px + pw / 2} y={py + ph / 2 - 4} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.min(12, pw * 0.18, ph * 0.3)} fontWeight="600"
+                  fill="#222" className="select-none pointer-events-none">
                   {p.label}
                 </text>
               )}
               {pw > 20 && ph > 24 && (
                 <text x={px + pw / 2} y={py + ph / 2 + 10} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(8, pw * 0.12)} fill="hsl(var(--muted-foreground))" className="select-none pointer-events-none">
+                  fontSize={Math.min(9, pw * 0.14)} fill="#555" className="select-none pointer-events-none">
                   {p.width.toFixed(0)}×{p.height.toFixed(0)}
                 </text>
               )}
