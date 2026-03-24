@@ -1,29 +1,37 @@
 /**
- * Nesting Engine – SVG parsing + bin-packing for irregular shapes (bounding-box approximation)
+ * Nesting Engine – SVG parsing + real-geometry nesting with polygon collision
  */
+import {
+  pathToPolygon, normalizePolygon, scalePolygon, translatePolygon,
+  rotatePolygon90, polygonBBox, polygonArea, polygonsOverlap,
+  inflatePolygon, polygonFitsInMaterial, findPlacement,
+  type Point,
+} from "./nesting-geometry";
 
 // ── Types ──────────────────────────────────────────────────────
 
 export interface NestingPiece {
   id: string;
   label: string;
-  pathData: string;          // original SVG path / polygon data
-  width: number;             // bounding-box width (mm)
-  height: number;            // bounding-box height (mm)
-  bboxX: number;             // original bbox origin X in SVG units
-  bboxY: number;             // original bbox origin Y in SVG units
-  bboxW: number;             // original bbox width in SVG units
-  bboxH: number;             // original bbox height in SVG units
-  rotation: number;          // degrees (0 | 90 | 180 | 270)
+  pathData: string;
+  width: number;
+  height: number;
+  bboxX: number;
+  bboxY: number;
+  bboxW: number;
+  bboxH: number;
+  rotation: number;
   x: number;
   y: number;
   color: string;
   excluded: boolean;
+  polygonPoints?: Point[];    // normalized polygon in mm (origin 0,0)
+  realArea?: number;          // actual polygon area in mm²
 }
 
 export interface NestingSheet {
   pieces: NestingPiece[];
-  utilization: number;       // 0–100
+  utilization: number;
   usedArea: number;
   freeArea: number;
 }
@@ -63,6 +71,8 @@ interface ParsedSvgPiece {
   bboxW: number;
   bboxH: number;
   viewBoxScale: number;
+  polygonPoints: Point[];
+  realArea: number;
 }
 
 export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[]; viewBox: string; svgWidth: number; svgHeight: number } {
@@ -75,36 +85,35 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
   const svgW = vb[2] || 100;
   const svgH = vb[3] || 100;
 
-  // Try to determine real-world scale from width/height attributes
-  let scale = 1; // px per unit
+  let scale = 1;
   const widthAttr = svg.getAttribute("width");
   if (widthAttr) {
     const numW = parseFloat(widthAttr);
-    if (widthAttr.includes("mm")) {
-      scale = numW / svgW;
-    } else if (widthAttr.includes("cm")) {
-      scale = (numW * 10) / svgW;
-    } else if (widthAttr.includes("in")) {
-      scale = (numW * 25.4) / svgW;
-    } else {
-      // assume px ≈ mm for CNC context
-      scale = numW / svgW;
-    }
+    if (widthAttr.includes("mm")) scale = numW / svgW;
+    else if (widthAttr.includes("cm")) scale = (numW * 10) / svgW;
+    else if (widthAttr.includes("in")) scale = (numW * 25.4) / svgW;
+    else scale = numW / svgW;
   }
 
   const pieces: ParsedSvgPiece[] = [];
   let idx = 0;
 
-  // Extract shapes: paths, rects, circles, ellipses, polygons, polylines
   const shapeSelectors = "path, rect, circle, ellipse, polygon, polyline, line";
   const shapes = svg.querySelectorAll(shapeSelectors);
 
   shapes.forEach((el) => {
-    const bbox = getElementBBox(el, svgW, svgH);
+    const bbox = getElementBBox(el);
     if (!bbox || (bbox.w < 0.1 && bbox.h < 0.1)) return;
 
     const pathData = elementToPathData(el) || `M${bbox.x},${bbox.y} h${bbox.w} v${bbox.h} h${-bbox.w} Z`;
     idx++;
+
+    // Convert path to polygon
+    const rawPolygon = pathToPolygon(pathData);
+    const { polygon: normalized } = normalizePolygon(rawPolygon);
+    // Scale polygon to mm
+    const mmPolygon = scalePolygon(normalized, scale, scale);
+    const area = polygonArea(mmPolygon);
 
     pieces.push({
       id: `nest-${idx}`,
@@ -117,15 +126,18 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       bboxW: bbox.w,
       bboxH: bbox.h,
       viewBoxScale: scale,
+      polygonPoints: mmPolygon,
+      realArea: area,
     });
   });
 
-  // If no individual shapes, treat entire SVG as single piece
   if (pieces.length === 0) {
+    const pathData = `M0,0 h${svgW} v${svgH} h${-svgW} Z`;
+    const poly = [{ x: 0, y: 0 }, { x: svgW * scale, y: 0 }, { x: svgW * scale, y: svgH * scale }, { x: 0, y: svgH * scale }];
     pieces.push({
       id: "nest-1",
       label: "Peça importada",
-      pathData: `M0,0 h${svgW} v${svgH} h${-svgW} Z`,
+      pathData,
       width: svgW * scale,
       height: svgH * scale,
       bboxX: 0,
@@ -133,13 +145,15 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       bboxW: svgW,
       bboxH: svgH,
       viewBoxScale: scale,
+      polygonPoints: poly,
+      realArea: svgW * scale * svgH * scale,
     });
   }
 
   return { pieces, viewBox: `${vb[0]} ${vb[1]} ${svgW} ${svgH}`, svgWidth: svgW, svgHeight: svgH };
 }
 
-function getElementBBox(el: Element, _svgW: number, _svgH: number): { x: number; y: number; w: number; h: number } | null {
+function getElementBBox(el: Element): { x: number; y: number; w: number; h: number } | null {
   const tag = el.tagName.toLowerCase();
   switch (tag) {
     case "rect": {
@@ -168,10 +182,8 @@ function getElementBBox(el: Element, _svgW: number, _svgH: number): { x: number;
       if (pts.length < 4) return null;
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (let i = 0; i < pts.length; i += 2) {
-        minX = Math.min(minX, pts[i]);
-        maxX = Math.max(maxX, pts[i]);
-        minY = Math.min(minY, pts[i + 1]);
-        maxY = Math.max(maxY, pts[i + 1]);
+        minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]);
+        minY = Math.min(minY, pts[i + 1]); maxY = Math.max(maxY, pts[i + 1]);
       }
       return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
     }
@@ -180,8 +192,7 @@ function getElementBBox(el: Element, _svgW: number, _svgH: number): { x: number;
       const y1 = parseFloat(el.getAttribute("y1") || "0");
       const x2 = parseFloat(el.getAttribute("x2") || "0");
       const y2 = parseFloat(el.getAttribute("y2") || "0");
-      const lx = Math.min(x1, x2), ly = Math.min(y1, y2);
-      return { x: lx, y: ly, w: Math.abs(x2 - x1) || 1, h: Math.abs(y2 - y1) || 1 };
+      return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1) || 1, h: Math.abs(y2 - y1) || 1 };
     }
     case "path": {
       const d = el.getAttribute("d") || "";
@@ -193,111 +204,11 @@ function getElementBBox(el: Element, _svgW: number, _svgH: number): { x: number;
 }
 
 function pathBBox(d: string): { x: number; y: number; w: number; h: number } | null {
-  // Properly parse SVG path commands to extract actual coordinates
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  let cx = 0, cy = 0; // current position
-  let found = false;
-
-  const updateBounds = (x: number, y: number) => {
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-    found = true;
-  };
-
-  // Tokenize: split into commands + number sequences
-  const tokens = d.match(/[a-zA-Z]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
-  if (!tokens) return null;
-
-  let cmd = '';
-  const nums: number[] = [];
-
-  const flush = () => {
-    if (!cmd) return;
-    const c = cmd;
-    const isRel = c === c.toLowerCase();
-    const n = nums;
-
-    switch (c.toUpperCase()) {
-      case 'M': case 'L': case 'T': {
-        for (let i = 0; i < n.length - 1; i += 2) {
-          cx = isRel ? cx + n[i] : n[i];
-          cy = isRel ? cy + n[i + 1] : n[i + 1];
-          updateBounds(cx, cy);
-        }
-        break;
-      }
-      case 'H': {
-        for (const v of n) {
-          cx = isRel ? cx + v : v;
-          updateBounds(cx, cy);
-        }
-        break;
-      }
-      case 'V': {
-        for (const v of n) {
-          cy = isRel ? cy + v : v;
-          updateBounds(cx, cy);
-        }
-        break;
-      }
-      case 'C': { // cubic bezier: x1,y1 x2,y2 x,y
-        for (let i = 0; i < n.length - 5; i += 6) {
-          const bx = isRel ? cx : 0, by = isRel ? cy : 0;
-          updateBounds(bx + n[i], by + n[i + 1]);
-          updateBounds(bx + n[i + 2], by + n[i + 3]);
-          cx = bx + n[i + 4]; cy = by + n[i + 5];
-          updateBounds(cx, cy);
-        }
-        break;
-      }
-      case 'S': case 'Q': { // smooth cubic / quadratic: (x1,y1) x,y
-        for (let i = 0; i < n.length - 3; i += 4) {
-          const bx = isRel ? cx : 0, by = isRel ? cy : 0;
-          updateBounds(bx + n[i], by + n[i + 1]);
-          cx = bx + n[i + 2]; cy = by + n[i + 3];
-          updateBounds(cx, cy);
-        }
-        break;
-      }
-      case 'A': { // arc: rx ry xRot largeArc sweep x y
-        for (let i = 0; i < n.length - 6; i += 7) {
-          const rx = Math.abs(n[i]);
-          const ry = Math.abs(n[i + 1]);
-          const ex = isRel ? cx + n[i + 5] : n[i + 5];
-          const ey = isRel ? cy + n[i + 6] : n[i + 6];
-          // Conservative bounds: use arc center ± radii
-          const midX = (cx + ex) / 2;
-          const midY = (cy + ey) / 2;
-          updateBounds(midX - rx, midY - ry);
-          updateBounds(midX + rx, midY + ry);
-          updateBounds(cx, cy);
-          updateBounds(ex, ey);
-          cx = ex; cy = ey;
-        }
-        break;
-      }
-      case 'Z': {
-        break;
-      }
-    }
-    nums.length = 0;
-  };
-
-  for (const tok of tokens) {
-    if (/^[a-zA-Z]$/.test(tok)) {
-      flush();
-      cmd = tok;
-    } else {
-      nums.push(parseFloat(tok));
-    }
-  }
-  flush();
-
-  if (!found) return null;
-  const w = maxX - minX;
-  const h = maxY - minY;
-  if (w <= 0 && h <= 0) return null;
-  return { x: minX, y: minY, w: Math.max(w, 0.1), h: Math.max(h, 0.1) };
+  const pts = pathToPolygon(d);
+  if (pts.length === 0) return null;
+  const bb = polygonBBox(pts);
+  if (bb.w <= 0 && bb.h <= 0) return null;
+  return { x: bb.x, y: bb.y, w: Math.max(bb.w, 0.1), h: Math.max(bb.h, 0.1) };
 }
 
 function elementToPathData(el: Element): string | null {
@@ -337,7 +248,7 @@ function elementToPathData(el: Element): string | null {
   return null;
 }
 
-// ── Nesting Algorithm (BBox-based bin-packing) ─────────────────
+// ── Nesting Algorithm (Real Geometry) ──────────────────────────
 
 interface PackInput {
   pieces: NestingPiece[];
@@ -359,86 +270,84 @@ export function calculateNesting(input: PackInput): NestingResult {
     return { sheets: [], totalSheets: 0, totalUtilization: 0, totalUsedArea: 0, totalFreeArea: 0, estimatedCost: 0, errors };
   }
 
+  const effectiveKerf = singleCut ? 0 : kerf;
+
   // Validate pieces fit in material
   for (const p of activePieces) {
     const fits = (p.width <= matW && p.height <= matH) ||
       (autoRotation && p.height <= matW && p.width <= matH);
     if (!fits) {
-      errors.push(`Peça "${p.label}" (${p.width.toFixed(0)}x${p.height.toFixed(0)}) não cabe no material.`);
+      errors.push(`Peça "${p.label}" (${p.width.toFixed(0)}×${p.height.toFixed(0)}) não cabe no material.`);
     }
   }
-
   if (errors.length > 0) {
     return { sheets: [], totalSheets: 0, totalUtilization: 0, totalUsedArea: 0, totalFreeArea: 0, estimatedCost: 0, errors };
   }
 
-  // Sort by area descending (largest first)
+  // Sort by area descending
   const sorted = [...activePieces].sort((a, b) => (b.width * b.height) - (a.width * a.height));
   const matArea = matW * matH;
-  const effectiveKerf = singleCut ? 0 : kerf;
-
   const sheets: NestingSheet[] = [];
   const remaining = [...sorted];
 
+  // Determine scan step based on material size and piece count
+  const avgPieceSize = sorted.reduce((s, p) => s + Math.min(p.width, p.height), 0) / sorted.length;
+  const scanStep = Math.max(1, Math.min(avgPieceSize * 0.15, matW * 0.01, matH * 0.01));
+
   while (remaining.length > 0) {
     const placed: NestingPiece[] = [];
-    const shelf: { x: number; y: number; rowHeight: number } = { x: effectiveKerf, y: effectiveKerf, rowHeight: 0 };
+    const placedPolygons: Point[][] = [];
     const toRemove: number[] = [];
 
     for (let i = 0; i < remaining.length; i++) {
       const piece = remaining[i];
-      let pw = piece.width;
-      let ph = piece.height;
+      const poly = piece.polygonPoints;
+
+      if (!poly || poly.length < 3) {
+        // Fallback: create rectangle polygon
+        const rectPoly = [
+          { x: 0, y: 0 }, { x: piece.width, y: 0 },
+          { x: piece.width, y: piece.height }, { x: 0, y: piece.height },
+        ];
+        piece.polygonPoints = rectPoly;
+      }
+
+      // Try normal orientation
+      let placement = findPlacement(piece.polygonPoints!, placedPolygons, matW, matH, effectiveKerf, scanStep);
       let rotated = false;
 
-      // Try to fit in current row
-      if (!tryPlace(pw, ph)) {
-        // Try rotated
-        if (autoRotation && !tryPlace(ph, pw)) {
-          // Doesn't fit current row, try next row
-          continue;
-        } else if (autoRotation) {
+      if (!placement && autoRotation) {
+        // Try rotated 90°
+        const rotPoly = rotatePolygon90(piece.polygonPoints!);
+        placement = findPlacement(rotPoly, placedPolygons, matW, matH, effectiveKerf, scanStep);
+        if (placement) {
           rotated = true;
-          [pw, ph] = [ph, pw];
-        } else {
-          continue;
+          piece.polygonPoints = rotPoly;
         }
       }
 
-      function tryPlace(w: number, h: number): boolean {
-        if (shelf.x + w + effectiveKerf <= matW && shelf.y + h + effectiveKerf <= matH) return true;
-        // New row
-        if (effectiveKerf + w + effectiveKerf <= matW && shelf.y + shelf.rowHeight + effectiveKerf + h + effectiveKerf <= matH) return true;
-        return false;
+      if (placement) {
+        const pw = rotated ? piece.height : piece.width;
+        const ph = rotated ? piece.width : piece.height;
+        const placedPiece: NestingPiece = {
+          ...piece,
+          x: placement.x,
+          y: placement.y,
+          width: pw,
+          height: ph,
+          rotation: rotated ? (piece.rotation + 90) % 360 : piece.rotation,
+          polygonPoints: piece.polygonPoints,
+        };
+        placed.push(placedPiece);
+
+        // Add inflated polygon to placed list for collision checking
+        const absPolygon = translatePolygon(piece.polygonPoints!, placement.x, placement.y);
+        const inflated = effectiveKerf > 0 ? inflatePolygon(absPolygon, effectiveKerf / 2) : absPolygon;
+        placedPolygons.push(inflated);
+        toRemove.push(i);
       }
-
-      // Place piece
-      if (shelf.x + pw + effectiveKerf > matW) {
-        // New row
-        shelf.y += shelf.rowHeight + effectiveKerf;
-        shelf.x = effectiveKerf;
-        shelf.rowHeight = 0;
-      }
-
-      if (shelf.y + ph + effectiveKerf > matH) {
-        continue; // doesn't fit this sheet at all anymore
-      }
-
-      placed.push({
-        ...piece,
-        x: shelf.x,
-        y: shelf.y,
-        width: pw,
-        height: ph,
-        rotation: rotated ? (piece.rotation + 90) % 360 : piece.rotation,
-      });
-
-      shelf.x += pw + effectiveKerf;
-      shelf.rowHeight = Math.max(shelf.rowHeight, ph);
-      toRemove.push(i);
     }
 
-    // Remove placed pieces
     for (let i = toRemove.length - 1; i >= 0; i--) {
       remaining.splice(toRemove[i], 1);
     }
@@ -448,7 +357,7 @@ export function calculateNesting(input: PackInput): NestingResult {
       break;
     }
 
-    const usedArea = placed.reduce((s, p) => s + p.width * p.height, 0);
+    const usedArea = placed.reduce((s, p) => s + (p.realArea || p.width * p.height), 0);
     const freeArea = matArea - usedArea;
     sheets.push({
       pieces: placed,
@@ -473,7 +382,7 @@ export function calculateNesting(input: PackInput): NestingResult {
   };
 }
 
-// ── Collision detection for manual moves ───────────────────────
+// ── Polygon collision for manual moves ─────────────────────────
 
 export function checkCollision(
   piece: NestingPiece,
@@ -482,18 +391,83 @@ export function checkCollision(
   matH: number,
   kerf: number
 ): string | null {
-  if (piece.x < 0 || piece.y < 0) return "Peça fora dos limites do material.";
-  if (piece.x + piece.width > matW) return "Peça ultrapassa a largura do material.";
-  if (piece.y + piece.height > matH) return "Peça ultrapassa a altura do material.";
+  const poly = piece.polygonPoints;
+  if (!poly || poly.length < 3) {
+    // Fallback to bbox check
+    if (piece.x < 0 || piece.y < 0) return "Peça fora dos limites do material.";
+    if (piece.x + piece.width > matW) return "Peça ultrapassa a largura do material.";
+    if (piece.y + piece.height > matH) return "Peça ultrapassa a altura do material.";
+    for (const other of others) {
+      if (other.id === piece.id || other.excluded) continue;
+      const overlap =
+        piece.x < other.x + other.width + kerf &&
+        piece.x + piece.width + kerf > other.x &&
+        piece.y < other.y + other.height + kerf &&
+        piece.y + piece.height + kerf > other.y;
+      if (overlap) return `Colisão com peça "${other.label}".`;
+    }
+    return null;
+  }
+
+  const absPoly = translatePolygon(poly, piece.x, piece.y);
+  if (!polygonFitsInMaterial(absPoly, matW, matH)) {
+    return "Peça fora dos limites do material.";
+  }
+
+  const inflatedPiece = kerf > 0 ? inflatePolygon(absPoly, kerf / 2) : absPoly;
 
   for (const other of others) {
     if (other.id === piece.id || other.excluded) continue;
-    const overlap =
-      piece.x < other.x + other.width + kerf &&
-      piece.x + piece.width + kerf > other.x &&
-      piece.y < other.y + other.height + kerf &&
-      piece.y + piece.height + kerf > other.y;
-    if (overlap) return `Colisão com peça "${other.label}".`;
+    const otherPoly = other.polygonPoints;
+    if (otherPoly && otherPoly.length >= 3) {
+      const absOther = translatePolygon(otherPoly, other.x, other.y);
+      const inflatedOther = kerf > 0 ? inflatePolygon(absOther, kerf / 2) : absOther;
+      if (polygonsOverlap(inflatedPiece, inflatedOther)) {
+        return `Colisão com peça "${other.label}".`;
+      }
+    }
   }
+
   return null;
 }
+
+// ── Piece grouping ────────────────────────────────────────────
+
+export interface PieceGroup {
+  label: string;
+  count: number;
+  width: number;
+  height: number;
+  realArea: number;
+  ids: string[];
+}
+
+export function groupSimilarPieces(pieces: NestingPiece[]): PieceGroup[] {
+  const groups: PieceGroup[] = [];
+  const tolerance = 0.5; // mm
+
+  for (const p of pieces) {
+    if (p.excluded) continue;
+    const existing = groups.find(g =>
+      Math.abs(g.width - p.width) < tolerance &&
+      Math.abs(g.height - p.height) < tolerance
+    );
+    if (existing) {
+      existing.count++;
+      existing.ids.push(p.id);
+    } else {
+      groups.push({
+        label: p.label,
+        count: 1,
+        width: p.width,
+        height: p.height,
+        realArea: p.realArea || p.width * p.height,
+        ids: [p.id],
+      });
+    }
+  }
+  return groups;
+}
+
+// Re-export geometry types
+export type { Point };
