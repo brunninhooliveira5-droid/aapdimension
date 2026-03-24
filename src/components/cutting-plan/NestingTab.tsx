@@ -83,6 +83,8 @@ export function NestingTab() {
         pathData: p.pathData,
         width: Math.round(p.width * 10) / 10,
         height: Math.round(p.height * 10) / 10,
+        bboxX: p.bboxX,
+        bboxY: p.bboxY,
         rotation: 0,
         x: 0,
         y: 0,
