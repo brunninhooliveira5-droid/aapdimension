@@ -54,6 +54,7 @@ export function NestingTab() {
   // Preview
   const [zoom, setZoom] = useState(1);
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"single" | "grid">("single");
 
   // Save dialog
   const [showSave, setShowSave] = useState(false);
