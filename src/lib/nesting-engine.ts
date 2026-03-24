@@ -10,6 +10,10 @@ export interface NestingPiece {
   pathData: string;          // original SVG path / polygon data
   width: number;             // bounding-box width (mm)
   height: number;            // bounding-box height (mm)
+  bboxX: number;             // original bbox origin X in SVG units
+  bboxY: number;             // original bbox origin Y in SVG units
+  bboxW: number;             // original bbox width in SVG units
+  bboxH: number;             // original bbox height in SVG units
   rotation: number;          // degrees (0 | 90 | 180 | 270)
   x: number;
   y: number;
@@ -54,6 +58,10 @@ interface ParsedSvgPiece {
   pathData: string;
   width: number;
   height: number;
+  bboxX: number;
+  bboxY: number;
+  bboxW: number;
+  bboxH: number;
   viewBoxScale: number;
 }
 
@@ -104,6 +112,10 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       pathData,
       width: bbox.w * scale,
       height: bbox.h * scale,
+      bboxX: bbox.x,
+      bboxY: bbox.y,
+      bboxW: bbox.w,
+      bboxH: bbox.h,
       viewBoxScale: scale,
     });
   });
@@ -116,6 +128,10 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       pathData: `M0,0 h${svgW} v${svgH} h${-svgW} Z`,
       width: svgW * scale,
       height: svgH * scale,
+      bboxX: 0,
+      bboxY: 0,
+      bboxW: svgW,
+      bboxH: svgH,
       viewBoxScale: scale,
     });
   }

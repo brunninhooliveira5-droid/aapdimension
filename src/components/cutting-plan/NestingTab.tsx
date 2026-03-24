@@ -83,6 +83,10 @@ export function NestingTab() {
         pathData: p.pathData,
         width: Math.round(p.width * 10) / 10,
         height: Math.round(p.height * 10) / 10,
+        bboxX: p.bboxX,
+        bboxY: p.bboxY,
+        bboxW: p.bboxW,
+        bboxH: p.bboxH,
         rotation: 0,
         x: 0,
         y: 0,
@@ -351,7 +355,7 @@ export function NestingTab() {
                   <div className="w-full h-[300px] bg-white rounded-lg border border-border flex items-center justify-center overflow-hidden p-4">
                     <div
                       style={{ transform: `scale(${zoom})`, transformOrigin: "center center", color: "#000" }}
-                      className="max-w-full max-h-full transition-transform [&_svg]:stroke-[#333] [&_svg_*]:stroke-[#333] [&_svg]:fill-none [&_svg_*]:fill-none [&_svg]:max-w-full [&_svg]:max-h-[268px] [&_svg_*]:[stroke-width:0.5] [&_svg]:[stroke-width:0.5] opacity-90"
+                      className="max-w-full max-h-full transition-transform [&_svg]:stroke-black [&_svg_*]:stroke-black [&_svg]:fill-none [&_svg_*]:fill-none [&_svg]:max-w-full [&_svg]:max-h-[268px] [&_svg_*]:[stroke-width:1] [&_svg]:[stroke-width:1]"
                       dangerouslySetInnerHTML={{ __html: svgContent }}
                     />
                   </div>
@@ -520,12 +524,12 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
 
   return (
     <div ref={containerRef} className="overflow-auto">
-      <svg width={svgW} height={svgH} className="border rounded bg-background">
+      <svg width={svgW} height={svgH} className="border rounded bg-white">
         {/* Material background */}
         <rect x={padding} y={padding} width={matW * scale} height={matH * scale}
-          fill="hsl(var(--muted))" stroke="hsl(var(--border))" strokeWidth={1} />
+          fill="#f5f5f5" stroke="hsl(var(--border))" strokeWidth={1} />
 
-        {/* Pieces */}
+        {/* Pieces — render actual SVG paths */}
         {sheet.pieces.map((p) => {
           const px = padding + p.x * scale;
           const py = padding + p.y * scale;
@@ -533,20 +537,42 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
           const ph = p.height * scale;
           const isSelected = selectedPieceId === p.id;
 
+          // Scale from original SVG bbox units to screen pixels
+          const pathScaleX = pw / (p.bboxW || 1);
+          const pathScaleY = ph / (p.bboxH || 1);
+
           return (
             <g key={p.id} onClick={() => onSelectPiece(isSelected ? null : p.id)} className="cursor-pointer">
+              {/* Clip to piece bounds */}
+              <defs>
+                <clipPath id={`clip-${p.id}-${sheetIndex}`}>
+                  <rect x={px} y={py} width={pw} height={ph} />
+                </clipPath>
+              </defs>
+              {/* Background rect with subtle color fill */}
               <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "33"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                strokeWidth={isSelected ? 2 : 1} rx={1} />
+                fill={p.color + "15"} stroke={isSelected ? "hsl(var(--primary))" : p.color + "40"}
+                strokeWidth={isSelected ? 2 : 0.5} rx={1} />
+              {/* Actual geometry path */}
+              <g clipPath={`url(#clip-${p.id}-${sheetIndex})`}>
+                <path
+                  d={p.pathData}
+                  fill="none"
+                  stroke={isSelected ? "hsl(var(--primary))" : p.color}
+                  strokeWidth={Math.max(0.5, 1.5 / scale)}
+                  transform={`translate(${px}, ${py}) scale(${pathScaleX}, ${pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}
+                />
+              </g>
+              {/* Label */}
               {pw > 30 && ph > 14 && (
                 <text x={px + pw / 2} y={py + ph / 2} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(10, pw * 0.15, ph * 0.3)} fill="hsl(var(--foreground))" className="select-none">
+                  fontSize={Math.min(10, pw * 0.15, ph * 0.3)} fill="hsl(var(--foreground))" className="select-none pointer-events-none">
                   {p.label}
                 </text>
               )}
               {pw > 20 && ph > 24 && (
                 <text x={px + pw / 2} y={py + ph / 2 + 10} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(8, pw * 0.12)} fill="hsl(var(--muted-foreground))" className="select-none">
+                  fontSize={Math.min(8, pw * 0.12)} fill="hsl(var(--muted-foreground))" className="select-none pointer-events-none">
                   {p.width.toFixed(0)}×{p.height.toFixed(0)}
                 </text>
               )}
@@ -602,10 +628,11 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
     setTransformOrigin(`${x}% ${y}%`);
   }, []);
 
-  const maxDim = Math.max(piece.width, piece.height);
-  const padding = maxDim * 0.1;
-  const vbW = piece.width + padding * 2;
-  const vbH = piece.height + padding * 2;
+  // Use original SVG bbox dimensions for the viewBox
+  const bw = piece.bboxW || piece.width;
+  const bh = piece.bboxH || piece.height;
+  const maxDim = Math.max(bw, bh);
+  const pad = maxDim * 0.1;
 
   return (
     <div
@@ -624,14 +651,13 @@ function PieceZoomCard({ piece }: { piece: NestingPiece }) {
         }}
       >
         <svg
-          viewBox={`${-padding} ${-padding} ${vbW} ${vbH}`}
+          viewBox={`${piece.bboxX - pad} ${piece.bboxY - pad} ${bw + pad * 2} ${bh + pad * 2}`}
           className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          <rect x={0} y={0} width={piece.width} height={piece.height}
+          <rect x={piece.bboxX} y={piece.bboxY} width={bw} height={bh}
             fill="none" stroke="#ddd" strokeWidth={maxDim * 0.005} strokeDasharray={`${maxDim * 0.02} ${maxDim * 0.02}`} />
-          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008}
-            transform={`translate(${0},${0})`} />
+          <path d={piece.pathData} fill="none" stroke="#000" strokeWidth={maxDim * 0.008} />
         </svg>
       </div>
 
