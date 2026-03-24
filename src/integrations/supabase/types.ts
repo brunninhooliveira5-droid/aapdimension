@@ -3326,8 +3326,11 @@ export type Database = {
           height: number
           id: string
           nesting_project_id: string
+          path_data: string | null
           piece_name: string | null
+          polygon_points: string | null
           rotation: number
+          sheet_index: number | null
           width: number
           x_pos: number
           y_pos: number
@@ -3338,8 +3341,11 @@ export type Database = {
           height?: number
           id?: string
           nesting_project_id: string
+          path_data?: string | null
           piece_name?: string | null
+          polygon_points?: string | null
           rotation?: number
+          sheet_index?: number | null
           width?: number
           x_pos?: number
           y_pos?: number
@@ -3350,8 +3356,11 @@ export type Database = {
           height?: number
           id?: string
           nesting_project_id?: string
+          path_data?: string | null
           piece_name?: string | null
+          polygon_points?: string | null
           rotation?: number
+          sheet_index?: number | null
           width?: number
           x_pos?: number
           y_pos?: number
