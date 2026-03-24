@@ -10,6 +10,8 @@ export interface NestingPiece {
   pathData: string;          // original SVG path / polygon data
   width: number;             // bounding-box width (mm)
   height: number;            // bounding-box height (mm)
+  bboxX: number;             // original bbox origin X (for path translation)
+  bboxY: number;             // original bbox origin Y (for path translation)
   rotation: number;          // degrees (0 | 90 | 180 | 270)
   x: number;
   y: number;
