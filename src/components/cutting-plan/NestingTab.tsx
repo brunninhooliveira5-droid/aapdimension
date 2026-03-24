@@ -85,6 +85,8 @@ export function NestingTab() {
         height: Math.round(p.height * 10) / 10,
         bboxX: p.bboxX,
         bboxY: p.bboxY,
+        bboxW: p.bboxW,
+        bboxH: p.bboxH,
         rotation: 0,
         x: 0,
         y: 0,
