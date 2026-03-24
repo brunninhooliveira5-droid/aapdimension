@@ -905,16 +905,6 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
   );
 }
 
-/** Helper: shift path from SVG bbox space to piece mm space */
-function shiftPath(pathData: string, bboxX: number, bboxY: number, bboxW: number, bboxH: number, targetW: number, targetH: number): string {
-  // Simple approach: use transform on the g element instead
-  // Return the path with origin shift
-  const sx = targetW / (bboxW || 1);
-  const sy = targetH / (bboxH || 1);
-  // We'll rely on the g transform, so just translate to remove bbox offset
-  return pathData;
-}
-
 // ── Grid view ─────────────────────────────────────────────────
 
 function NestingPiecesGrid({ pieces }: { pieces: NestingPiece[] }) {
