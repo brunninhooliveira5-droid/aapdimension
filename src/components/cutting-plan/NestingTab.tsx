@@ -556,10 +556,12 @@ interface NestingPreviewProps {
   matW: number;
   matH: number;
   kerf: number;
+  singleCut?: boolean;
   onRotate: (sheetIdx: number, pieceId: string) => void;
   onRemove: (sheetIdx: number, pieceId: string) => void;
   selectedPieceId: string | null;
   onSelectPiece: (id: string | null) => void;
+  expanded?: boolean;
 }
 
 function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemove, selectedPieceId, onSelectPiece }: NestingPreviewProps) {
