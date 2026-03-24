@@ -32,6 +32,7 @@ export function NestingTab() {
   const { session } = useAuth();
   const userId = session?.user?.id;
   const [pdfSettings] = usePdfSettings();
+  const [expandedSheet, setExpandedSheet] = useState<number | null>(null);
 
   // SVG state
   const fileRef = useRef<HTMLInputElement>(null);
@@ -449,12 +450,21 @@ export function NestingTab() {
           {/* Sheet layouts */}
           {result.sheets.map((sheet, si) => (
             <Card key={si}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
                   Chapa {si + 1}
                   <Badge variant="outline" className="text-[10px]">{sheet.utilization.toFixed(1)}%</Badge>
                   <Badge variant="outline" className="text-[10px]">{sheet.pieces.length} peça(s)</Badge>
+                  {singleCut && (
+                    <Badge className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/20">
+                      <Scissors className="h-3 w-3" /> Corte Único
+                    </Badge>
+                  )}
                 </CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setExpandedSheet(si)}>
+                  <Maximize2 className="h-3.5 w-3.5" /> Ampliar
+                </Button>
               </CardHeader>
               <CardContent>
                 <NestingPreview
@@ -463,6 +473,7 @@ export function NestingTab() {
                   matW={mw}
                   matH={mh}
                   kerf={parseFloat(kerfWidth) || 0}
+                  singleCut={singleCut}
                   onRotate={rotatePiece}
                   onRemove={removePieceFromResult}
                   selectedPieceId={selectedPieceId}
@@ -473,6 +484,45 @@ export function NestingTab() {
           ))}
         </div>
       )}
+
+      {/* ── Expanded Sheet Dialog ──────────────────────────── */}
+      <Dialog open={expandedSheet !== null} onOpenChange={() => setExpandedSheet(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Chapa {expandedSheet !== null ? expandedSheet + 1 : ""}
+              {expandedSheet !== null && result && result.sheets[expandedSheet] && (
+                <>
+                  <Badge variant="outline" className="text-[10px]">{result.sheets[expandedSheet].utilization.toFixed(1)}%</Badge>
+                  <Badge variant="outline" className="text-[10px]">{result.sheets[expandedSheet].pieces.length} peça(s)</Badge>
+                  {singleCut && (
+                    <Badge className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 border-amber-300">
+                      <Scissors className="h-3 w-3" /> Corte Único
+                    </Badge>
+                  )}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {expandedSheet !== null && result && result.sheets[expandedSheet] && (
+            <div className="overflow-auto max-h-[80vh]">
+              <NestingPreview
+                sheet={result.sheets[expandedSheet]}
+                sheetIndex={expandedSheet}
+                matW={mw}
+                matH={mh}
+                kerf={parseFloat(kerfWidth) || 0}
+                singleCut={singleCut}
+                onRotate={rotatePiece}
+                onRemove={removePieceFromResult}
+                selectedPieceId={selectedPieceId}
+                onSelectPiece={setSelectedPieceId}
+                expanded
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Save Dialog ────────────────────────────────────── */}
       <Dialog open={showSave} onOpenChange={setShowSave}>
@@ -506,18 +556,21 @@ interface NestingPreviewProps {
   matW: number;
   matH: number;
   kerf: number;
+  singleCut?: boolean;
   onRotate: (sheetIdx: number, pieceId: string) => void;
   onRemove: (sheetIdx: number, pieceId: string) => void;
   selectedPieceId: string | null;
   onSelectPiece: (id: string | null) => void;
+  expanded?: boolean;
 }
 
-function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemove, selectedPieceId, onSelectPiece }: NestingPreviewProps) {
+function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRotate, onRemove, selectedPieceId, onSelectPiece, expanded }: NestingPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = 10;
-  const maxW = 700;
+  const maxW = expanded ? 1200 : 700;
+  const maxH = expanded ? 700 : 400;
   const scaleX = (maxW - padding * 2) / matW;
-  const scaleY = (400 - padding * 2) / matH;
+  const scaleY = (maxH - padding * 2) / matH;
   const scale = Math.min(scaleX, scaleY);
   const svgW = matW * scale + padding * 2;
   const svgH = matH * scale + padding * 2;
@@ -579,6 +632,53 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, onRotate, onRemov
             </g>
           );
         })}
+        {/* Single cut shared edges indicator */}
+        {singleCut && kerf > 0 && (() => {
+          const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+          const kerfPx = kerf * scale;
+          for (let i = 0; i < sheet.pieces.length; i++) {
+            for (let j = i + 1; j < sheet.pieces.length; j++) {
+              const a = sheet.pieces[i];
+              const b = sheet.pieces[j];
+              // Check if pieces share a vertical edge (adjacent horizontally)
+              const ax2 = a.x + a.width;
+              const bx2 = b.x + b.width;
+              const ay2 = a.y + a.height;
+              const by2 = b.y + b.height;
+              const overlapY = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y));
+              const overlapX = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x));
+              if (overlapY > 1 && Math.abs(ax2 - b.x) <= kerf * 1.5) {
+                const sy = Math.max(a.y, b.y);
+                const ey = Math.min(ay2, by2);
+                const cx = (ax2 + b.x) / 2;
+                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
+              } else if (overlapY > 1 && Math.abs(bx2 - a.x) <= kerf * 1.5) {
+                const sy = Math.max(a.y, b.y);
+                const ey = Math.min(ay2, by2);
+                const cx = (bx2 + a.x) / 2;
+                lines.push({ x1: cx, y1: sy, x2: cx, y2: ey });
+              }
+              if (overlapX > 1 && Math.abs(ay2 - b.y) <= kerf * 1.5) {
+                const sx = Math.max(a.x, b.x);
+                const ex = Math.min(ax2, bx2);
+                const cy = (ay2 + b.y) / 2;
+                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
+              } else if (overlapX > 1 && Math.abs(by2 - a.y) <= kerf * 1.5) {
+                const sx = Math.max(a.x, b.x);
+                const ex = Math.min(ax2, bx2);
+                const cy = (by2 + a.y) / 2;
+                lines.push({ x1: sx, y1: cy, x2: ex, y2: cy });
+              }
+            }
+          }
+          return lines.map((l, i) => (
+            <line key={`sc-${i}`}
+              x1={padding + l.x1 * scale} y1={padding + l.y1 * scale}
+              x2={padding + l.x2 * scale} y2={padding + l.y2 * scale}
+              stroke="#f59e0b" strokeWidth={Math.max(1, kerfPx * 0.8)}
+              strokeDasharray="4 2" opacity={0.8} />
+          ));
+        })()}
       </svg>
 
       {/* Actions for selected piece */}
