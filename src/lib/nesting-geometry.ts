@@ -119,28 +119,65 @@ export function pathToPolygon(d: string): Point[] {
         }
         break;
       }
-      case 'A': { // arc
+      case 'A': { // arc – proper endpoint parameterization
         for (let i = 0; i < n.length - 6; i += 7) {
-          const rx = Math.abs(n[i]) || 0.01;
-          const ry = Math.abs(n[i + 1]) || 0.01;
+          const rx0 = Math.abs(n[i]) || 0.01;
+          const ry0 = Math.abs(n[i + 1]) || 0.01;
+          const phi = (n[i + 2] || 0) * Math.PI / 180;
+          const fA = n[i + 3] ? 1 : 0; // large-arc
+          const fS = n[i + 4] ? 1 : 0; // sweep
           const ex = isRel ? cx + n[i + 5] : n[i + 5];
           const ey = isRel ? cy + n[i + 6] : n[i + 6];
-          // Approximate arc as line segments
-          const segs = CURVE_SEGMENTS * 2;
-          for (let t = 1; t <= segs; t++) {
-            const u = t / segs;
-            // Simple interpolation along ellipse (approximation)
-            const angle = u * Math.PI * 2;
-            const midX = (cx + ex) / 2;
-            const midY = (cy + ey) / 2;
-            if (t < segs) {
-              addPt(
-                cx + (ex - cx) * u + Math.sin(angle * u) * rx * 0.3,
-                cy + (ey - cy) * u + Math.cos(angle * u) * ry * 0.3
-              );
-            }
+
+          // Endpoint to center parameterization (SVG spec F.6.5)
+          const cosPhi = Math.cos(phi), sinPhi = Math.sin(phi);
+          const dx2 = (cx - ex) / 2, dy2 = (cy - ey) / 2;
+          const x1p = cosPhi * dx2 + sinPhi * dy2;
+          const y1p = -sinPhi * dx2 + cosPhi * dy2;
+
+          let rxSq = rx0 * rx0, rySq = ry0 * ry0;
+          const x1pSq = x1p * x1p, y1pSq = y1p * y1p;
+
+          // Correct radii if too small
+          let rx = rx0, ry = ry0;
+          const lambda = x1pSq / rxSq + y1pSq / rySq;
+          if (lambda > 1) {
+            const sqrtL = Math.sqrt(lambda);
+            rx *= sqrtL; ry *= sqrtL;
+            rxSq = rx * rx; rySq = ry * ry;
           }
-          addPt(ex, ey);
+
+          let sq = (rxSq * rySq - rxSq * y1pSq - rySq * x1pSq) / (rxSq * y1pSq + rySq * x1pSq);
+          if (sq < 0) sq = 0;
+          const sign = (fA === fS) ? -1 : 1;
+          const coef = sign * Math.sqrt(sq);
+          const cxp = coef * (rx * y1p / ry);
+          const cyp = coef * (-(ry * x1p / rx));
+
+          const ccx = cosPhi * cxp - sinPhi * cyp + (cx + ex) / 2;
+          const ccy = sinPhi * cxp + cosPhi * cyp + (cy + ey) / 2;
+
+          const angleOf = (ux: number, uy: number, vx: number, vy: number) => {
+            const dot = ux * vx + uy * vy;
+            const len = Math.sqrt(ux * ux + uy * uy) * Math.sqrt(vx * vx + vy * vy) || 1;
+            let a = Math.acos(Math.max(-1, Math.min(1, dot / len)));
+            if (ux * vy - uy * vx < 0) a = -a;
+            return a;
+          };
+
+          let theta1 = angleOf(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+          let dTheta = angleOf((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+
+          if (fS === 0 && dTheta > 0) dTheta -= Math.PI * 2;
+          if (fS === 1 && dTheta < 0) dTheta += Math.PI * 2;
+
+          const segs = Math.max(CURVE_SEGMENTS, Math.ceil(Math.abs(dTheta) / (Math.PI / 4)) * 2);
+          for (let t = 1; t <= segs; t++) {
+            const angle = theta1 + dTheta * (t / segs);
+            const xr = rx * Math.cos(angle);
+            const yr = ry * Math.sin(angle);
+            addPt(cosPhi * xr - sinPhi * yr + ccx, sinPhi * xr + cosPhi * yr + ccy);
+          }
           cx = ex; cy = ey;
         }
         break;
