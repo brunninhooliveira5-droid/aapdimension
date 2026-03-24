@@ -49,6 +49,9 @@ export default function CuttingPlanPage() {
         <TabsContent value="tubo">
           <TubeCuttingTab />
         </TabsContent>
+        <TabsContent value="nesting">
+          <NestingTab />
+        </TabsContent>
         <TabsContent value="retalhos">
           <ScrapsManager />
         </TabsContent>
