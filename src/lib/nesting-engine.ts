@@ -101,7 +101,7 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
 
   shapes.forEach((el) => {
     const bbox = getElementBBox(el, svgW, svgH);
-    if (!bbox || bbox.w < 1 || bbox.h < 1) return;
+    if (!bbox || (bbox.w < 0.1 && bbox.h < 0.1)) return;
 
     const pathData = elementToPathData(el) || `M${bbox.x},${bbox.y} h${bbox.w} v${bbox.h} h${-bbox.w} Z`;
     idx++;
