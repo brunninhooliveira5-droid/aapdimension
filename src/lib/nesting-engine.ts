@@ -60,6 +60,8 @@ interface ParsedSvgPiece {
   height: number;
   bboxX: number;
   bboxY: number;
+  bboxW: number;
+  bboxH: number;
   viewBoxScale: number;
 }
 
