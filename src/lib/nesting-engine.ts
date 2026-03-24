@@ -108,6 +108,8 @@ export function parseSvgContent(svgContent: string): { pieces: ParsedSvgPiece[];
       pathData,
       width: bbox.w * scale,
       height: bbox.h * scale,
+      bboxX: bbox.x,
+      bboxY: bbox.y,
       viewBoxScale: scale,
     });
   });
