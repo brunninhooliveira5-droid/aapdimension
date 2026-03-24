@@ -785,91 +785,84 @@ function NestingPreview({ sheet, sheetIndex, matW, matH, kerf, singleCut, onRota
           const isSelected = selectedPieceId === p.id;
           const isDragging = dragState?.pieceId === p.id;
 
-          // Use polygon if available, otherwise bbox
-          if (p.polygonPoints && p.polygonPoints.length >= 3) {
-            const absPoly = translatePolygon(p.polygonPoints, p.x, p.y);
-            const scaledPts = absPoly.map(pt => ({
-              x: padding + pt.x * scale,
-              y: padding + pt.y * scale,
-            }));
-            const pointsStr = scaledPts.map(pt => `${pt.x},${pt.y}`).join(" ");
-
-            // Centroid for label
-            const cx = scaledPts.reduce((s, pt) => s + pt.x, 0) / scaledPts.length;
-            const cy = scaledPts.reduce((s, pt) => s + pt.y, 0) / scaledPts.length;
-
-            return (
-              <g key={p.id}
-                onMouseDown={(e) => handleMouseDown(e, p.id)}
-                onClick={() => onSelectPiece(isSelected ? null : p.id)}
-                className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
-                <polygon
-                  points={pointsStr}
-                  fill={p.color + "35"}
-                  stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                  strokeWidth={isSelected ? 2.5 : 1.2}
-                />
-                {/* Inner path for visual detail */}
-                {(() => {
-                  const pathScaleX = (p.width) / (p.bboxW || 1);
-                  const pathScaleY = (p.height) / (p.bboxH || 1);
-                  return (
-                    <g transform={`translate(${padding + p.x * scale}, ${padding + p.y * scale}) scale(${scale * pathScaleX}, ${scale * pathScaleY}) translate(${-p.bboxX}, ${-p.bboxY})`}>
-                      <path
-                        d={p.pathData}
-                        fill="none"
-                        stroke={isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))"}
-                        strokeWidth={Math.max(0.3, 0.8 / (scale * Math.min(pathScaleX, pathScaleY)))}
-                        opacity={0.5}
-                      />
-                    </g>
-                  );
-                })()}
-                {/* Label */}
-                <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(11, p.width * scale * 0.15)} fontWeight="600"
-                  fill="#222" className="select-none pointer-events-none">
-                  {p.label}
-                </text>
-                <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(9, p.width * scale * 0.12)} fill="#666" className="select-none pointer-events-none">
-                  {p.width.toFixed(0)}×{p.height.toFixed(0)}
-                </text>
-                {isDragging && (
-                  <g transform={`translate(${cx - 6}, ${cy - 20})`}>
-                    <rect x={-2} y={-2} width={16} height={16} rx={3} fill="hsl(var(--primary))" opacity={0.8} />
-                    <text x={6} y={8} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="white">⊞</text>
-                  </g>
-                )}
-              </g>
-            );
-          }
-
-          // Fallback: bbox rendering
+          // Screen coordinates for the piece
           const px = padding + p.x * scale;
           const py = padding + p.y * scale;
           const pw = p.width * scale;
           const ph = p.height * scale;
+          const labelCx = px + pw / 2;
+          const labelCy = py + ph / 2;
+
+          // Determine viewBox for the path — use original SVG bbox
+          const vbX = p.bboxX || 0;
+          const vbY = p.bboxY || 0;
+          const vbW = p.bboxW || p.width;
+          const vbH = p.bboxH || p.height;
+
+          // Rotation transform applied inside the nested SVG
+          const rotAngle = p.rotation || 0;
+          const rotTransform = rotAngle
+            ? `rotate(${rotAngle}, ${vbX + vbW / 2}, ${vbY + vbH / 2})`
+            : undefined;
+
+          const hasPath = p.pathData && p.pathData.length > 2;
 
           return (
             <g key={p.id}
               onMouseDown={(e) => handleMouseDown(e, p.id)}
               onClick={() => onSelectPiece(isSelected ? null : p.id)}
               className={isDragging ? "cursor-grabbing" : "cursor-grab"}>
+
+              {/* Background rect for hit area + color fill */}
               <rect x={px} y={py} width={pw} height={ph}
-                fill={p.color + "35"} stroke={isSelected ? "hsl(var(--primary))" : p.color}
-                strokeWidth={isSelected ? 2.5 : 1.2} rx={1} />
-              {pw > 30 && ph > 14 && (
-                <text x={px + pw / 2} y={py + ph / 2 - 4} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(12, pw * 0.18)} fontWeight="600" fill="#222" className="select-none pointer-events-none">
+                fill={p.color + "20"}
+                stroke="none" />
+
+              {/* Real path rendered via nested SVG with viewBox — clean coord mapping */}
+              {hasPath && (
+                <svg x={px} y={py} width={pw} height={ph}
+                  viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+                  preserveAspectRatio="none"
+                  overflow="visible">
+                  <path
+                    d={p.pathData}
+                    fill={p.color + "30"}
+                    stroke={isSelected ? "hsl(var(--primary))" : "#111"}
+                    strokeWidth={Math.max(vbW, vbH) * 0.008}
+                    transform={rotTransform}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              )}
+
+              {/* Selection border */}
+              {isSelected && (
+                <rect x={px} y={py} width={pw} height={ph}
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  strokeDasharray="6 3" />
+              )}
+
+              {/* Label */}
+              {pw > 25 && ph > 12 && (
+                <text x={labelCx} y={labelCy - 4} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.min(11, pw * 0.16)} fontWeight="600"
+                  fill="#222" className="select-none pointer-events-none">
                   {p.label}
                 </text>
               )}
-              {pw > 20 && ph > 24 && (
-                <text x={px + pw / 2} y={py + ph / 2 + 10} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={Math.min(9, pw * 0.14)} fill="#555" className="select-none pointer-events-none">
+              {pw > 20 && ph > 22 && (
+                <text x={labelCx} y={labelCy + 8} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.min(9, pw * 0.13)} fill="#555" className="select-none pointer-events-none">
                   {p.width.toFixed(0)}×{p.height.toFixed(0)}
                 </text>
+              )}
+              {isDragging && (
+                <g transform={`translate(${labelCx - 6}, ${labelCy - 22})`}>
+                  <rect x={-2} y={-2} width={16} height={16} rx={3} fill="hsl(var(--primary))" opacity={0.8} />
+                  <text x={6} y={8} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="white">⊞</text>
+                </g>
               )}
             </g>
           );
