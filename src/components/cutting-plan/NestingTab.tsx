@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Upload, Trash2, Calculator, Save, FileDown, AlertTriangle, RotateCw,
   Scissors, ZoomIn, ZoomOut, Maximize2, Eye, Package, Layers,
-  X, Grid3X3, FileImage, GripVertical, FileCode, Move
+  X, Grid3X3, FileImage, FileCode, Move
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
