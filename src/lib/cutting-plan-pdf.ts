@@ -610,18 +610,21 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
 
       // Piece label
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(Math.min(7, pW * 0.3, pH * 0.3));
+      const maxMainSize = pdfS.pieceMainLabelSize || 7;
+      const maxSubSize = pdfS.pieceSubLabelSize || 5;
+      doc.setFontSize(Math.min(maxMainSize, pW * 0.3, pH * 0.3));
       doc.setFont("helvetica", "bold");
       if (pW > 12 && pH > 8) {
         doc.text(mainLabel, px + pW / 2, py + pH / 2 - 1.5, { align: "center" });
         if (subLabel) {
-          doc.setFontSize(Math.min(5, pW * 0.2, pH * 0.2));
+          doc.setFontSize(Math.min(maxSubSize, pW * 0.2, pH * 0.2));
           doc.text(subLabel, px + pW / 2, py + pH / 2 + 2.5, { align: "center" });
         }
       }
     });
 
     // Scrap areas
+    if (pdfS.showWasteArea !== false) {
     const maxX = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.x + p.width)) : 0;
     const maxY = layout.pieces.length > 0 ? Math.max(...layout.pieces.map(p => p.y + p.height)) : 0;
 
