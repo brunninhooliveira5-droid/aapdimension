@@ -26,6 +26,9 @@ export default function CuttingPlanPage() {
           <TabsTrigger value="tubo" className="gap-1.5">
             <Cylinder className="h-4 w-4" /> Corte de Tubos
           </TabsTrigger>
+          <TabsTrigger value="nesting" className="gap-1.5">
+            <LayoutGrid className="h-4 w-4" /> Nesting
+          </TabsTrigger>
           <TabsTrigger value="retalhos" className="gap-1.5">
             <Scissors className="h-4 w-4" /> Retalhos
           </TabsTrigger>
