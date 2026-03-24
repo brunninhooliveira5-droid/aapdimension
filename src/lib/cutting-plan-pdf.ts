@@ -692,7 +692,7 @@ function drawSheetLayoutsA4(doc: jsPDF, r: SheetCuttingResult, data: CuttingPlan
   });
 }
 
-function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number) {
+function drawTubeBarLayoutsA4(doc: jsPDF, r: TubeCuttingResult, barLength: number, kerfWidth: number, ps?: any) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const margin = 15;
