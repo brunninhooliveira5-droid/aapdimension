@@ -944,6 +944,9 @@ const MachineDashboard = () => {
       </div>
 
       {/* Treinamento Card */}
+      {machine.equipment_id ? (
+        <EquipmentTrainingsSection equipmentId={machine.equipment_id} />
+      ) : (
       <div
         className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
         onClick={openTrainingDialog}
@@ -958,6 +961,7 @@ const MachineDashboard = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Tickets & Maintenances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
