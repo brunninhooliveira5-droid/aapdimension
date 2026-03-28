@@ -79,6 +79,7 @@ const MachineDashboard = () => {
   const editImageInputRef = useRef<HTMLInputElement>(null);
 
   const [machine, setMachine] = useState<MachineDetail | null>(null);
+  const [registeredEquipmentId, setRegisteredEquipmentId] = useState<string | null>(null);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [files, setFiles] = useState<FileRow[]>([]);
