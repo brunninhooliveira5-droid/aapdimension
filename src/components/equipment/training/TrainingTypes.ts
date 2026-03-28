@@ -16,6 +16,7 @@ export interface TrainingLesson {
   title: string;
   description: string;
   video_url: string;
+  video_path: string | null;
   duration: string;
   sort_order: number;
   is_active: boolean;
