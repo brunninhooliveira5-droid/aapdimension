@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Cpu, Upload, FileText, Trash2, CalendarDays, Wrench, User, AlertTriangle, Pencil, ImagePlus, ClipboardList, Download, Plus, CheckCircle, Clock, BookOpen, GraduationCap, Video, History, PiggyBank } from "lucide-react";
+import { EquipmentTrainingsSection } from "@/components/equipment/EquipmentTrainingsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +28,7 @@ interface MachineDetail {
   owner_name: string;
   image_path: string | null;
   image_url: string | null;
+  equipment_id: string | null;
 }
 
 interface TicketRow {
