@@ -6742,6 +6742,185 @@ export type Database = {
           },
         ]
       }
+      training_lessons: {
+        Row: {
+          created_at: string
+          description: string
+          duration: string
+          id: string
+          is_active: boolean
+          module_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          duration?: string
+          id?: string
+          is_active?: boolean
+          module_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          video_url?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          duration?: string
+          id?: string
+          is_active?: boolean
+          module_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_materials: {
+        Row: {
+          created_at: string
+          file_path: string | null
+          file_type: string
+          file_url: string
+          id: string
+          lesson_id: string | null
+          module_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          file_path?: string | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          lesson_id?: string | null
+          module_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          lesson_id?: string | null
+          module_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_materials_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "training_lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_materials_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_modules: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          equipment_id: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          equipment_id: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          equipment_id?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      training_progress: {
+        Row: {
+          created_at: string
+          equipment_id: string
+          id: string
+          lesson_id: string
+          module_id: string
+          user_id: string
+          watched: boolean
+          watched_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          equipment_id: string
+          id?: string
+          lesson_id: string
+          module_id: string
+          user_id: string
+          watched?: boolean
+          watched_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          equipment_id?: string
+          id?: string
+          lesson_id?: string
+          module_id?: string
+          user_id?: string
+          watched?: boolean
+          watched_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "training_lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_sectors: {
         Row: {
           created_at: string
