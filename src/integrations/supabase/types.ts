@@ -3188,6 +3188,7 @@ export type Database = {
           accessories: string[] | null
           category: string
           created_at: string
+          equipment_id: string | null
           id: string
           image_path: string | null
           install_date: string
@@ -3205,6 +3206,7 @@ export type Database = {
           accessories?: string[] | null
           category?: string
           created_at?: string
+          equipment_id?: string | null
           id?: string
           image_path?: string | null
           install_date?: string
@@ -3222,6 +3224,7 @@ export type Database = {
           accessories?: string[] | null
           category?: string
           created_at?: string
+          equipment_id?: string | null
           id?: string
           image_path?: string | null
           install_date?: string
@@ -3235,7 +3238,15 @@ export type Database = {
           serial_number?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "machines_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       maintenance_reports: {
         Row: {
