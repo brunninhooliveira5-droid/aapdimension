@@ -6099,6 +6099,7 @@ export type Database = {
           accessories: string[] | null
           category: string
           created_at: string
+          dimension_equipment_id: string | null
           id: string
           image_path: string | null
           install_date: string
@@ -6112,6 +6113,7 @@ export type Database = {
           accessories?: string[] | null
           category?: string
           created_at?: string
+          dimension_equipment_id?: string | null
           id?: string
           image_path?: string | null
           install_date?: string
@@ -6125,6 +6127,7 @@ export type Database = {
           accessories?: string[] | null
           category?: string
           created_at?: string
+          dimension_equipment_id?: string | null
           id?: string
           image_path?: string | null
           install_date?: string
@@ -6134,7 +6137,15 @@ export type Database = {
           serial_number?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "registered_equipment_dimension_equipment_id_fkey"
+            columns: ["dimension_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "dimension_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registered_equipment_files: {
         Row: {

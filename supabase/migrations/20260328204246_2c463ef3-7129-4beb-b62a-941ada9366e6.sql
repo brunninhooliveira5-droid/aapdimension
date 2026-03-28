@@ -1,0 +1,1 @@
+ALTER TABLE registered_equipment ADD COLUMN dimension_equipment_id uuid REFERENCES dimension_equipment(id) ON DELETE SET NULL;

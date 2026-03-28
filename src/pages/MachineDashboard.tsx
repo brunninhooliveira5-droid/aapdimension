@@ -79,6 +79,7 @@ const MachineDashboard = () => {
   const editImageInputRef = useRef<HTMLInputElement>(null);
 
   const [machine, setMachine] = useState<MachineDetail | null>(null);
+  const [registeredEquipmentId, setRegisteredEquipmentId] = useState<string | null>(null);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [maintenances, setMaintenances] = useState<MaintenanceRow[]>([]);
   const [files, setFiles] = useState<FileRow[]>([]);
@@ -192,6 +193,18 @@ const MachineDashboard = () => {
           image_url: getImageUrl((m as any).image_path),
           equipment_id: (m as any).equipment_id ?? null,
         });
+
+        // Lookup registered_equipment_id for training
+        if ((m as any).equipment_id) {
+          const { data: regEq } = await (supabase as any)
+            .from("registered_equipment")
+            .select("id")
+            .eq("dimension_equipment_id", (m as any).equipment_id)
+            .single();
+          if (regEq) {
+            setRegisteredEquipmentId(regEq.id);
+          }
+        }
       }
 
       const { data: ticketsData } = await supabase
@@ -945,8 +958,8 @@ const MachineDashboard = () => {
       </div>
 
       {/* Treinamento Card */}
-      {machine.equipment_id ? (
-        <EquipmentTrainingsSection equipmentId={machine.equipment_id} />
+      {registeredEquipmentId ? (
+        <EquipmentTrainingsSection equipmentId={registeredEquipmentId} />
       ) : (
       <div
         className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
