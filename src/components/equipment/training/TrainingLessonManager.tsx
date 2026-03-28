@@ -335,18 +335,48 @@ export const TrainingLessonManager = ({ module, lessons, materials, progress, eq
 
             return (
               <div key={lesson.id} className={`p-3 rounded-lg border border-border hover:border-primary/30 transition-colors cursor-pointer bg-accent/20 ${!lesson.is_active ? "opacity-50" : ""}`} onClick={() => setActiveLessonId(lesson.id)}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  {/* Video Thumbnail */}
+                  {lesson.video_url ? (
+                    <div className="w-20 h-14 rounded-md overflow-hidden bg-black/50 shrink-0 relative group">
+                      <video
+                        src={lesson.video_url}
+                        className="w-full h-full object-cover"
+                        preload="metadata"
+                        muted
+                        playsInline
+                        onLoadedData={(e) => {
+                          const vid = e.currentTarget;
+                          vid.currentTime = 1;
+                        }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                        <div className="w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center">
+                          <Video className="w-3 h-3 text-primary-foreground ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-md bg-muted/50 shrink-0 flex items-center justify-center">
+                      <Video className="w-5 h-5 text-muted-foreground/50" />
+                    </div>
+                  )}
+
+                  {/* Lesson number badge */}
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${watched ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                     {watched ? <Check className="w-3 h-3" /> : idx + 1}
                   </div>
+
+                  {/* Lesson info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{lesson.title}</p>
                     <div className="flex items-center gap-2">
                       {lesson.duration && <span className="text-[10px] text-muted-foreground">⏱ {lesson.duration}</span>}
-                      {lesson.video_url && <Badge variant="secondary" className="text-[9px] h-4 px-1"><Video className="w-2.5 h-2.5 mr-0.5" />Vídeo</Badge>}
                       {watched && <Badge variant="default" className="text-[9px] h-4 px-1 bg-primary/20 text-primary">Assistido</Badge>}
                     </div>
                   </div>
+
+                  {/* Admin actions */}
                   {isAdmin && (
                     <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleLessonActive(lesson)}>
