@@ -190,6 +190,7 @@ const MachineDashboard = () => {
           owner_name: owner?.name ?? "—",
           image_path: (m as any).image_path ?? null,
           image_url: getImageUrl((m as any).image_path),
+          equipment_id: (m as any).equipment_id ?? null,
         });
       }
 
