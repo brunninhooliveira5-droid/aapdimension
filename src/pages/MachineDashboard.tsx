@@ -958,8 +958,8 @@ const MachineDashboard = () => {
       </div>
 
       {/* Treinamento Card */}
-      {machine.equipment_id ? (
-        <EquipmentTrainingsSection equipmentId={machine.equipment_id} />
+      {registeredEquipmentId ? (
+        <EquipmentTrainingsSection equipmentId={registeredEquipmentId} />
       ) : (
       <div
         className="gradient-card rounded-lg border border-border p-5 cursor-pointer hover:border-primary/50 transition-colors"
