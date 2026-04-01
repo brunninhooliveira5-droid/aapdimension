@@ -195,16 +195,35 @@ const MachineDashboard = () => {
         });
 
         // Lookup registered_equipment_id for training
+        let foundRegEqId: string | null = null;
         if ((m as any).equipment_id) {
           const { data: regEq } = await (supabase as any)
             .from("registered_equipment")
             .select("id")
             .eq("dimension_equipment_id", (m as any).equipment_id)
-            .single();
-          if (regEq) {
-            setRegisteredEquipmentId(regEq.id);
+            .maybeSingle();
+          if (regEq) foundRegEqId = regEq.id;
+        }
+        // Fallback: match by model name
+        if (!foundRegEqId && m.model) {
+          const { data: regEqByModel } = await (supabase as any)
+            .from("registered_equipment")
+            .select("id, name, model")
+            .eq("category", "maquina")
+            .ilike("name", `%${m.model}%`);
+          if (regEqByModel && regEqByModel.length === 1) {
+            foundRegEqId = regEqByModel[0].id;
+          } else if (regEqByModel && regEqByModel.length > 1) {
+            // Try exact model match
+            const exact = regEqByModel.find((r: any) => 
+              r.name.toLowerCase().trim() === m.model.toLowerCase().trim() ||
+              (r.model && r.model.toLowerCase().trim() === m.model.toLowerCase().trim())
+            );
+            if (exact) foundRegEqId = exact.id;
+            else foundRegEqId = regEqByModel[0].id;
           }
         }
+        if (foundRegEqId) setRegisteredEquipmentId(foundRegEqId);
       }
 
       const { data: ticketsData } = await supabase
