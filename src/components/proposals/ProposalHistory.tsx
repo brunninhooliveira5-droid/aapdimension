@@ -202,6 +202,11 @@ export function ProposalHistory({ onEdit }: ProposalHistoryProps = {}) {
                     </td>
                     <td className="p-3">
                       <div className="flex gap-1">
+                        {onEdit && (
+                          <Button size="icon" variant="ghost" onClick={() => onEdit(p.id)} title="Editar">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => handleDownloadPdf(p)} title="Baixar PDF">
                           <FileDown className="w-3.5 h-3.5" />
                         </Button>
