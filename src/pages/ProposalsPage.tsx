@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Cpu, FileText, History, Settings2, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +12,17 @@ export default function ProposalsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin_master";
   const isInternal = user?.role === "usuario_interno" || isAdmin;
+  const [activeTab, setActiveTab] = useState("create");
+  const [editProposalId, setEditProposalId] = useState<string | null>(null);
+
+  const handleEdit = (id: string) => {
+    setEditProposalId(id);
+    setActiveTab("create");
+  };
+
+  const handleSaved = () => {
+    setEditProposalId(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -21,10 +33,10 @@ export default function ProposalsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="create" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== "create") setEditProposalId(null); }} className="w-full">
         <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
           <TabsTrigger value="create" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <FileText className="w-4 h-4" /> Nova Proposta
+            <FileText className="w-4 h-4" /> {editProposalId ? "Editar Proposta" : "Nova Proposta"}
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <History className="w-4 h-4" /> Histórico
@@ -45,11 +57,11 @@ export default function ProposalsPage() {
         </TabsList>
 
         <TabsContent value="create">
-          <ProposalCreator />
+          <ProposalCreator editProposalId={editProposalId} onSaved={handleSaved} />
         </TabsContent>
 
         <TabsContent value="history">
-          <ProposalHistory />
+          <ProposalHistory onEdit={handleEdit} />
         </TabsContent>
 
         <TabsContent value="pdf-config">
