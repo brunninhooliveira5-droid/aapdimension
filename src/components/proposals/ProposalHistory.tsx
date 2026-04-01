@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Trash2, FileDown, FileText, ChevronDown, Filter } from "lucide-react";
+import { Search, Trash2, FileDown, FileText, ChevronDown, Filter, Pencil } from "lucide-react";
 import { generateProposalPdf } from "@/lib/proposal-pdf";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -47,7 +47,11 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
   fechado: { label: "Fechado", variant: "default" },
 };
 
-export function ProposalHistory() {
+interface ProposalHistoryProps {
+  onEdit?: (id: string) => void;
+}
+
+export function ProposalHistory({ onEdit }: ProposalHistoryProps = {}) {
   const { session } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,6 +202,11 @@ export function ProposalHistory() {
                     </td>
                     <td className="p-3">
                       <div className="flex gap-1">
+                        {onEdit && (
+                          <Button size="icon" variant="ghost" onClick={() => onEdit(p.id)} title="Editar">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => handleDownloadPdf(p)} title="Baixar PDF">
                           <FileDown className="w-3.5 h-3.5" />
                         </Button>
