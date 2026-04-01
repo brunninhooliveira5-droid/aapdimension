@@ -280,6 +280,17 @@ const Machines = () => {
 
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
+    // Resolve dimension_equipment_id from registered_equipment for linking
+    let dimensionEquipId: string | null = null;
+    if (formRegisteredEquipId) {
+      const { data: regEqLink } = await (supabase as any)
+        .from("registered_equipment")
+        .select("dimension_equipment_id")
+        .eq("id", formRegisteredEquipId)
+        .maybeSingle();
+      dimensionEquipId = regEqLink?.dimension_equipment_id ?? null;
+    }
+
     const { data: insertedMachine, error } = await supabase.from("machines").insert({
       name: formName,
       model: formModel,
@@ -290,6 +301,7 @@ const Machines = () => {
       image_path: imagePath,
       category: formCategory,
       origin_type: formOriginType,
+      equipment_id: dimensionEquipId,
     } as any).select().single();
 
     if (error) {
