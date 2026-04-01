@@ -130,14 +130,35 @@ const EquipmentRegistration = () => {
     const accessories = formAccessories.split(",").map(a => a.trim()).filter(Boolean);
 
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Usuário não autenticado."); return; }
+
+    // Create dimension_equipment entry first for linking
+    const { data: dimEq, error: dimErr } = await (supabase as any)
+      .from("dimension_equipment")
+      .insert({
+        name: formName,
+        category: formCategory === "maquina" ? "maquina" : formCategory,
+        description: formModel || formName,
+        created_by: user.id,
+        status: "active",
+      })
+      .select("id")
+      .single();
+
+    if (dimErr) {
+      toast.error("Erro ao criar vínculo: " + dimErr.message);
+      return;
+    }
+
     const { error } = await (supabase as any).from("registered_equipment").insert({
       name: formName,
       model: formModel,
       serial_number: formModel,
-      owner_id: user?.id,
+      owner_id: user.id,
       accessories,
       image_path: imagePath,
       category: formCategory,
+      dimension_equipment_id: dimEq.id,
     });
 
     if (error) {
