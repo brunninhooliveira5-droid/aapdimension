@@ -89,13 +89,19 @@ As condições acima não são cumulativas e poderão ser ajustadas conforme neg
 interface IncItem { name: string; }
 interface OptItem { name: string; price: number | null; selected: boolean; }
 
-export function ProposalCreator() {
+interface ProposalCreatorProps {
+  editProposalId?: string | null;
+  onSaved?: () => void;
+}
+
+export function ProposalCreator({ editProposalId, onSaved }: ProposalCreatorProps = {}) {
   const { session } = useAuth();
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
   const [saving, setSaving] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
 
   // Client info
   const [clientName, setClientName] = useState("");
@@ -124,6 +130,71 @@ export function ProposalCreator() {
       .then(({ data }) => setModels((data as any[]) ?? []));
   }, []);
 
+  // Load proposal for editing
+  useEffect(() => {
+    if (!editProposalId) {
+      setEditId(null);
+      return;
+    }
+
+    const loadProposal = async () => {
+      const { data } = await supabase
+        .from("client_proposals")
+        .select("*")
+        .eq("id", editProposalId)
+        .maybeSingle();
+
+      if (!data) {
+        toast.error("Proposta não encontrada");
+        return;
+      }
+
+      const p = data as any;
+      setEditId(p.id);
+      setSelectedModelId(p.model_id || "");
+      setClientName(p.client_name || "");
+      setClientCompany(p.client_company || "");
+      setClientEmail(p.client_email || "");
+      setClientPhone(p.client_phone || "");
+      setClientDocument(p.client_document || "");
+      setModelName(p.model_name || "");
+      setDescription(p.description || DEFAULT_DESCRIPTION);
+      setTechSpecs(p.tech_specs || "");
+      setBasePrice(p.base_price?.toString() || "");
+      setDeliveryDays(p.delivery_days?.toString() || "");
+      setNotes(p.notes || DEFAULT_NOTES);
+      setPaymentConditions(p.payment_conditions || DEFAULT_PAYMENT);
+      setValidityDays(p.validity_days?.toString() || "15");
+
+      // Load included items
+      const inc = Array.isArray(p.included_items) ? p.included_items : [];
+      setIncludedItems(inc.map((i: any) => ({ name: typeof i === "string" ? i : i.name || "" })));
+
+      // Load optional items - mark all as selected since they were saved as selected
+      const opt = Array.isArray(p.optional_items) ? p.optional_items : [];
+      setOptionalItems(opt.map((i: any) => ({ name: typeof i === "string" ? i : i.name || "", price: i.price ?? null, selected: true })));
+
+      // If model_id exists, also load unselected optionals from the model
+      if (p.model_id) {
+        const { data: allOpt } = await supabase
+          .from("proposal_machine_optional_items")
+          .select("name, price")
+          .eq("model_id", p.model_id)
+          .order("sort_order");
+
+        if (allOpt) {
+          const savedNames = new Set(opt.map((i: any) => (typeof i === "string" ? i : i.name || "")));
+          const extraOpts = (allOpt as any[])
+            .filter(o => !savedNames.has(o.name))
+            .map(o => ({ name: o.name, price: o.price, selected: false }));
+          setOptionalItems(prev => [...prev, ...extraOpts]);
+        }
+      }
+    };
+
+    loadProposal();
+  }, [editProposalId]);
+
   const handleModelSelect = async (modelId: string) => {
     setSelectedModelId(modelId);
     if (!modelId) return;
@@ -150,6 +221,16 @@ export function ProposalCreator() {
   const optionalTotal = selectedOptionals.reduce((s, i) => s + (i.price ?? 0), 0);
   const basePriceNum = parseFloat(basePrice) || 0;
   const totalPrice = basePriceNum + optionalTotal;
+
+  const resetForm = () => {
+    setEditId(null);
+    setClientName(""); setClientCompany(""); setClientEmail("");
+    setClientPhone(""); setClientDocument("");
+    setSelectedModelId(""); setModelName(""); setDescription(DEFAULT_DESCRIPTION);
+    setTechSpecs(""); setIncludedItems([]); setOptionalItems([]);
+    setBasePrice(""); setDeliveryDays(""); setNotes(DEFAULT_NOTES);
+    setPaymentConditions(DEFAULT_PAYMENT); setValidityDays("15");
+  };
 
   const handleSave = async (andDownload = false) => {
     if (!clientName.trim()) { toast.error("Informe o nome do cliente"); return; }
@@ -181,14 +262,28 @@ export function ProposalCreator() {
         created_by: session.user.id,
       };
 
-      const { data, error } = await supabase
-        .from("client_proposals")
-        .insert(payload as any)
-        .select("id")
-        .single();
+      let savedId: string;
 
-      if (error) throw error;
-      toast.success("Proposta salva!");
+      if (editId) {
+        // Update existing proposal
+        const { error } = await supabase
+          .from("client_proposals")
+          .update(payload as any)
+          .eq("id", editId);
+        if (error) throw error;
+        savedId = editId;
+        toast.success("Proposta atualizada!");
+      } else {
+        // Insert new
+        const { data, error } = await supabase
+          .from("client_proposals")
+          .insert(payload as any)
+          .select("id")
+          .single();
+        if (error) throw error;
+        savedId = (data as any).id;
+        toast.success("Proposta salva!");
+      }
 
       if (andDownload) {
         const { data: pdfSettings } = await supabase
@@ -200,24 +295,18 @@ export function ProposalCreator() {
         const selectedModel = models.find(m => m.id === selectedModelId);
         const result = await generateProposalPdf({
           ...payload,
-          id: (data as any).id,
+          id: savedId,
           equipment_image_url: selectedModel?.image_url || null,
           pdfSettings: pdfSettings as any,
         });
 
-        // Show preview
         const previewUrl = URL.createObjectURL(result.blob);
         setPdfPreviewUrl(previewUrl);
         setPdfFileName(result.fileName);
       }
 
-      // Reset form
-      setClientName(""); setClientCompany(""); setClientEmail("");
-      setClientPhone(""); setClientDocument("");
-      setSelectedModelId(""); setModelName(""); setDescription(DEFAULT_DESCRIPTION);
-      setTechSpecs(""); setIncludedItems([]); setOptionalItems([]);
-      setBasePrice(""); setDeliveryDays(""); setNotes(DEFAULT_NOTES);
-      setPaymentConditions(DEFAULT_PAYMENT); setValidityDays("15");
+      resetForm();
+      onSaved?.();
     } catch (err: any) {
       toast.error("Erro: " + (err.message || "Falha ao salvar"));
     }
@@ -226,6 +315,16 @@ export function ProposalCreator() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* Edit indicator */}
+      {editId && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5">
+          <span className="text-sm font-medium text-primary">Editando proposta de: {clientName}</span>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => { resetForm(); onSaved?.(); }}>
+            <X className="w-3.5 h-3.5 mr-1" /> Cancelar edição
+          </Button>
+        </div>
+      )}
+
       {/* Model selector */}
       <div className="gradient-card rounded-lg border border-border p-4 space-y-4">
         <h3 className="font-semibold text-foreground">Modelo da Máquina</h3>
@@ -351,10 +450,10 @@ export function ProposalCreator() {
       {/* Actions */}
       <div className="flex gap-3 justify-end">
         <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
-          <Send className="w-4 h-4 mr-1" /> Salvar Proposta
+          <Send className="w-4 h-4 mr-1" /> {editId ? "Atualizar Proposta" : "Salvar Proposta"}
         </Button>
         <Button onClick={() => handleSave(true)} disabled={saving}>
-          <Eye className="w-4 h-4 mr-1" /> Salvar e Visualizar PDF
+          <Eye className="w-4 h-4 mr-1" /> {editId ? "Atualizar e Visualizar PDF" : "Salvar e Visualizar PDF"}
         </Button>
       </div>
 

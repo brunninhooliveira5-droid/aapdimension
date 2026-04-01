@@ -47,7 +47,11 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
   fechado: { label: "Fechado", variant: "default" },
 };
 
-export function ProposalHistory() {
+interface ProposalHistoryProps {
+  onEdit?: (id: string) => void;
+}
+
+export function ProposalHistory({ onEdit }: ProposalHistoryProps = {}) {
   const { session } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
