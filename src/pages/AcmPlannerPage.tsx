@@ -648,8 +648,8 @@ export default function AcmPlannerPage() {
           </div>
 
           {viewTab === "preview" && (
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] gap-4 items-stretch">
-              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "3d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[480px]"}`}>
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(240px,1fr)] lg:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] gap-4 items-stretch">
+              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "3d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[420px] md:min-h-[480px]"}`}>
                 <CardHeader className="py-3 px-4 border-b border-border flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Box className="h-4 w-4 text-primary" /> Visualização 3D
@@ -672,6 +672,28 @@ export default function AcmPlannerPage() {
                       dimensions={{ width: params.width, height: params.height, depth: params.depth }}
                       className="h-full w-full"
                     />
+
+                    {isTrayModel && (
+                      <div
+                        className="absolute left-3 top-3 w-[min(52%,280px)] min-w-[190px] rounded-lg border border-border/80 bg-card/95 p-2.5 shadow-lg backdrop-blur-sm"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-medium text-foreground">Simulação da montagem</span>
+                          <span className="font-mono text-[10px] text-primary">{params.simulationProgress ?? 100}%</span>
+                        </div>
+                        <Slider
+                          className="mt-2"
+                          value={[params.simulationProgress ?? 100]}
+                          min={0}
+                          max={100}
+                          step={5}
+                          onValueChange={(value) => update({ simulationProgress: value[0] ?? 100 })}
+                        />
+                      </div>
+                    )}
 
                     {isTrayModel && (
                       <div
@@ -731,7 +753,7 @@ export default function AcmPlannerPage() {
                 </CardContent>
               </Card>
 
-              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "2d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[360px]"}`}>
+              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "2d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[320px] md:min-h-[360px]"}`}>
                 <CardHeader className="py-3 px-4 border-b border-border flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Eye className="h-4 w-4 text-primary" /> Planificação 2D
