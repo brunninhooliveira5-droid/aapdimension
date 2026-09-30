@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -25,19 +27,85 @@ import {
   type AcmMode,
   type BendType,
 } from "@/lib/acm-engine";
+import type { TrayCorner, TrayResult } from "@/lib/acm-tray-engine";
 import { AcmPreview3D } from "@/components/acm-planner/AcmPreview3D";
 import { AcmPreview2D } from "@/components/acm-planner/AcmPreview2D";
 import { AcmPartsList } from "@/components/acm-planner/AcmPartsList";
+
+const TRAY_CORNERS: { value: TrayCorner; label: string; short: string }[] = [
+  { value: "top-left", label: "Superior Esquerda", short: "Sup. Esq." },
+  { value: "top-right", label: "Superior Direita", short: "Sup. Dir." },
+  { value: "bottom-left", label: "Inferior Esquerda", short: "Inf. Esq." },
+  { value: "bottom-right", label: "Inferior Direita", short: "Inf. Dir." },
+];
+
+const ALL_TRAY_CORNERS: TrayCorner[] = TRAY_CORNERS.map((corner) => corner.value);
+
+const TRAY_COLORS: { value: string; label: string }[] = [
+  { value: "hsl(var(--primary) / 0.35)", label: "Azul ACM" },
+  { value: "hsl(0 0% 80% / 0.45)", label: "Alumínio Natural" },
+  { value: "hsl(0 0% 15% / 0.55)", label: "Preto Fosco" },
+  { value: "hsl(0 0% 96% / 0.45)", label: "Branco" },
+  { value: "hsl(45 90% 52% / 0.4)", label: "Dourado" },
+];
 
 export default function AcmPlannerPage() {
   const [params, setParams] = useState<AcmParams>(defaultAcmParams);
   const [result, setResult] = useState<AcmResult | null>(null);
   const [viewTab, setViewTab] = useState<"3d" | "2d" | "list">("3d");
+  const [activeComponent, setActiveComponent] = useState<string | null>(null);
 
   // Always generate a live 3D preview
   const liveResult = generateAcm(params);
 
+  const isTrayModel = params.objectType === "classic_tray";
+  const selectedCorners: TrayCorner[] = params.selectedCorners ?? [];
+  const validationErrors = isTrayModel
+    ? ((liveResult as unknown as TrayResult).validationErrors ?? [])
+    : [];
+
   const update = (partial: Partial<AcmParams>) => setParams((p) => ({ ...p, ...partial }));
+
+  const setObjectType = (value: AcmObjectType) => {
+    const tray = value === "classic_tray";
+    update({
+      objectType: value,
+      trayEnabled: tray,
+      simulationProgress: params.simulationProgress ?? 100,
+      selectedCorners:
+        tray && (params.selectedCorners ?? []).length === 0
+          ? [...ALL_TRAY_CORNERS]
+          : params.selectedCorners,
+    });
+    if (!tray) setActiveComponent(null);
+  };
+
+  const toggleCorner = (corner: TrayCorner) => {
+    const current = params.selectedCorners ?? [];
+    const next = current.includes(corner)
+      ? current.filter((c) => c !== corner)
+      : ALL_TRAY_CORNERS.filter((c) => c === corner || current.includes(c));
+    update({ selectedCorners: next });
+  };
+
+  const selectAllCorners = () => update({ selectedCorners: [...ALL_TRAY_CORNERS] });
+
+  const clearAllCorners = () => {
+    setActiveComponent(null);
+    update({ selectedCorners: [] });
+  };
+
+  const focusComponent = (componentId: string) => {
+    setActiveComponent(componentId);
+    setViewTab("2d");
+    if (!result) {
+      try {
+        setResult(generateAcm(params));
+      } catch {
+        // As validações geométricas são exibidas no painel de cantoneiras
+      }
+    }
+  };
 
   const handleGenerate = useCallback(() => {
     try {
@@ -112,7 +180,7 @@ export default function AcmPlannerPage() {
   const thickness = params.material === "acm_3mm" ? 3 : 4;
   const matLabel = params.material === "acm_3mm" ? "ACM 3mm" : "ACM 4mm";
 
-  const showDepth = ["box", "niche", "totem", "column"].includes(params.objectType);
+  const showDepth = ["classic_tray", "box", "niche", "totem", "column"].includes(params.objectType);
   const showReturn = ["panel_return", "panel_chamfer", "niche"].includes(params.objectType);
 
   return (
@@ -161,7 +229,7 @@ export default function AcmPlannerPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <Select value={params.objectType} onValueChange={(v) => update({ objectType: v as AcmObjectType })}>
+              <Select value={params.objectType} onValueChange={(v) => setObjectType(v as AcmObjectType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ACM_OBJECT_OPTIONS.map((o) => (
@@ -171,6 +239,141 @@ export default function AcmPlannerPage() {
               </Select>
             </CardContent>
           </Card>
+
+          {/* Bandeja Clássica — cantoneiras independentes */}
+          {isTrayModel && (
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Wrench className="h-4 w-4" /> Cantoneiras (componentes independentes)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant={validationErrors.length > 0 ? "destructive" : "secondary"}>
+                    {validationErrors.length > 0 ? "Em validação" : "Validado"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCorners.length}/4 quinas • {selectedCorners.length} peça(s)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {TRAY_CORNERS.map((corner) => {
+                    const active = selectedCorners.includes(corner.value);
+                    return (
+                      <Button
+                        key={corner.value}
+                        type="button"
+                        variant={active ? "default" : "outline"}
+                        size="sm"
+                        className="justify-start text-xs"
+                        onClick={() => toggleCorner(corner.value)}
+                      >
+                        <span className={active ? "opacity-100" : "opacity-40"}>{active ? "■" : "□"}</span>
+                        {corner.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={selectAllCorners}>
+                    Selecionar todas
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={clearAllCorners}>
+                    Desmarcar todas
+                  </Button>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Largura da cantoneira</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={params.bracketWidth ?? 35}
+                      onChange={(e) => update({ bracketWidth: +e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Altura da cantoneira</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={params.bracketHeight ?? 35}
+                      onChange={(e) => update({ bracketHeight: +e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Ø do furo</Label>
+                    <Input
+                      type="number"
+                      min={0.5}
+                      step="0.5"
+                      value={params.bracketHoleDiameter ?? 6}
+                      onChange={(e) => update({ bracketHoleDiameter: +e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Dist. do furo à borda</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={params.bracketHoleOffset ?? 12}
+                      onChange={(e) => update({ bracketHoleOffset: +e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {validationErrors.length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 space-y-1">
+                    {validationErrors.map((err, i) => (
+                      <p key={i} className="text-xs text-destructive">{err}</p>
+                    ))}
+                  </div>
+                )}
+
+                {selectedCorners.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Prévia técnica individual</Label>
+                    {selectedCorners.map((corner) => {
+                      const componentId = `corner-bracket-${corner}`;
+                      const meta = TRAY_CORNERS.find((c) => c.value === corner);
+                      return (
+                        <Button
+                          key={corner}
+                          variant={activeComponent === componentId ? "default" : "outline"}
+                          size="sm"
+                          className="w-full justify-between text-xs"
+                          onClick={() => focusComponent(componentId)}
+                        >
+                          <span>{meta?.short ?? corner}</span>
+                          <span className="font-mono text-[10px] opacity-80">
+                            {params.bracketWidth ?? 35}×{params.bracketHeight ?? 35} • Ø{params.bracketHoleDiameter ?? 6}
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {activeComponent && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setActiveComponent(null)}
+                  >
+                    Limpar destaque
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Dimensions */}
           <Card>
@@ -228,6 +431,65 @@ export default function AcmPlannerPage() {
               </Select>
             </CardContent>
           </Card>
+
+          {/* Bandeja Clássica — aparência e simulação */}
+          {isTrayModel && (
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Eye className="h-4 w-4" /> Aparência e Simulação
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div>
+                  <Label className="text-xs">Acabamento</Label>
+                  <Select
+                    value={params.trayFinish ?? "natural"}
+                    onValueChange={(v) => update({ trayFinish: v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="natural">Natural</SelectItem>
+                      <SelectItem value="brilho">Brilho</SelectItem>
+                      <SelectItem value="fosco">Fosco</SelectItem>
+                      <SelectItem value="escovado">Escovado</SelectItem>
+                      <SelectItem value="madeirado">Madeirado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Cor do ACM</Label>
+                  <Select
+                    value={params.trayColor ?? TRAY_COLORS[0].value}
+                    onValueChange={(v) => update({ trayColor: v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TRAY_COLORS.map((color) => (
+                        <SelectItem key={color.value} value={color.value}>{color.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    Simulação da montagem: {params.simulationProgress ?? 100}%
+                  </Label>
+                  <Slider
+                    className="mt-2"
+                    value={[params.simulationProgress ?? 100]}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onValueChange={(v) => update({ simulationProgress: v[0] ?? 100 })}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    As cantoneiras só aparecem no 3D com a simulação em 100%.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Glue tabs */}
           <Card>
@@ -318,6 +580,26 @@ export default function AcmPlannerPage() {
                   <span className="text-muted-foreground">Painéis</span>
                   <span className="font-medium">{result.pieces.reduce((s, p) => s + p.panels.length, 0)}</span>
                 </div>
+                {isTrayModel && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Componentes</span>
+                      <span className="font-medium">{result.pieces.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cantoneiras</span>
+                      <span className="font-medium">
+                        {result.pieces.filter((p) => p.id.startsWith("corner-bracket")).length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status validação</span>
+                      <span className="font-medium">
+                        {validationErrors.length === 0 ? "OK" : `${validationErrors.length} alerta(s)`}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <Separator />
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Linhas de dobra</span>
@@ -371,14 +653,25 @@ export default function AcmPlannerPage() {
           <Card className="overflow-hidden">
             <CardContent className="p-0" style={{ height: "500px" }}>
               {viewTab === "3d" && (
-                <AcmPreview3D
-                  faces={liveResult.faces3d}
-                  dimensions={{ width: params.width, height: params.height, depth: params.depth }}
-                  className="h-full"
-                />
+                <div className="relative h-full">
+                  <AcmPreview3D
+                    faces={liveResult.faces3d}
+                    dimensions={{ width: params.width, height: params.height, depth: params.depth }}
+                    className="h-full"
+                  />
+                  {isTrayModel && (params.simulationProgress ?? 100) < 100 && (
+                    <p className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-card/80 rounded px-2 py-1">
+                      Simulação em {params.simulationProgress ?? 100}% — cantoneiras visíveis em 100%
+                    </p>
+                  )}
+                </div>
               )}
               {viewTab === "2d" && result && (
-                <AcmPreview2D pieces={result.pieces} className="h-full" />
+                <AcmPreview2D
+                  pieces={result.pieces}
+                  className="h-full"
+                  highlightId={activeComponent ?? undefined}
+                />
               )}
               {viewTab === "list" && result && (
                 <div className="p-4 overflow-auto h-full">

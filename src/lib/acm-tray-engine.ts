@@ -92,7 +92,7 @@ function makeBracket(corner: TrayCorner, tray: TrayParams, index: number): TrayP
   const height = Math.max(tray.bracketHeight, tray.thickness * 2);
   const gap = tray.thickness;
   const x = index * (width + 30);
-  const y = 0;
+  const y = tray.depth + 20;
   const holeRadius = tray.bracketHoleDiameter / 2;
   const holeX = x + width / 2;
   const holeY = y + Math.min(height / 2, Math.max(holeRadius + 1, tray.bracketHoleOffset));

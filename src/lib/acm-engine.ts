@@ -603,26 +603,86 @@ export function generateAcm(params: AcmParams): AcmResult {
 
 // ─── SVG Export ──────────────────────────────────────────────────
 
+export interface AcmComponentOperation {
+  type: "CUT_OUTER" | "CUT_INNER" | "BEND";
+  geometry: "line" | "circle";
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  cx?: number;
+  cy?: number;
+  radius?: number;
+}
+
+export interface AcmComponentPiece extends AcmFlatPiece {
+  component?: string;
+  corner?: string;
+  operations?: AcmComponentOperation[];
+  trayBounds?: { x: number; y: number; width: number; height: number };
+  documentBounds?: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Componentes paramétricos (Bandeja Clássica e cantoneiras) expõem operações
+ * próprias — CUT_OUTER, CUT_INNER e BEND — em vez de apenas listas de linhas.
+ */
+export function asComponentPiece(piece: AcmFlatPiece): AcmComponentPiece | null {
+  const candidate = piece as AcmComponentPiece;
+  return Array.isArray(candidate.operations) ? candidate : null;
+}
+
+/** Limites do componente dentro do documento de planificação. */
+export function componentBounds(piece: AcmFlatPiece): { x: number; y: number; width: number; height: number } {
+  const component = asComponentPiece(piece);
+  return component?.documentBounds ?? { x: 0, y: 0, width: piece.totalWidth, height: piece.totalHeight };
+}
+
 export function acmPiecesToSVG(pieces: AcmFlatPiece[]): string {
   const rects: string[] = [];
   let totalW = 0, totalH = 0;
 
   for (const piece of pieces) {
-    totalW = Math.max(totalW, piece.totalWidth);
-    totalH = Math.max(totalH, piece.totalHeight);
+    const bounds = componentBounds(piece);
+    totalW = Math.max(totalW, bounds.x + bounds.width);
+    totalH = Math.max(totalH, bounds.y + bounds.height);
+  }
 
-    // Cut lines (red)
-    for (const l of piece.cutLines) {
-      rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#ff0000" stroke-width="0.5"/>`);
+  for (const piece of pieces) {
+    const component = asComponentPiece(piece);
+
+    if (component) {
+      // Operações paramétricas: CUT_OUTER, CUT_INNER (furo) e linha de dobra
+      for (const op of component.operations ?? []) {
+        if (op.geometry === "circle" && op.cx !== undefined && op.cy !== undefined && op.radius !== undefined) {
+          rects.push(
+            `<circle data-op="CUT_INNER" data-component="${piece.id}" cx="${op.cx}" cy="${op.cy}" r="${op.radius}" fill="none" stroke="#ff0000" stroke-width="0.5"/>`
+          );
+          continue;
+        }
+        if (op.geometry === "line" && op.x1 !== undefined && op.y1 !== undefined && op.x2 !== undefined && op.y2 !== undefined) {
+          const isBend = op.type === "BEND";
+          rects.push(
+            `<line data-op="${op.type}" data-component="${piece.id}" x1="${op.x1}" y1="${op.y1}" x2="${op.x2}" y2="${op.y2}" ` +
+            `stroke="${isBend ? "#00cc44" : "#ff0000"}" stroke-width="${isBend ? 0.3 : 0.5}"${isBend ? ' stroke-dasharray="6,3"' : ""}/>`
+          );
+        }
+      }
+    } else {
+      // Cut lines (red)
+      for (const l of piece.cutLines) {
+        rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#ff0000" stroke-width="0.5"/>`);
+      }
+      // Machining lines (blue)
+      for (const l of piece.machiningLines) {
+        rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#0066ff" stroke-width="0.3" stroke-dasharray="4,2"/>`);
+      }
+      // Bend lines (green dashed)
+      for (const l of piece.bendLines) {
+        rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#00cc44" stroke-width="0.3" stroke-dasharray="6,3"/>`);
+      }
     }
-    // Machining lines (blue)
-    for (const l of piece.machiningLines) {
-      rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#0066ff" stroke-width="0.3" stroke-dasharray="4,2"/>`);
-    }
-    // Bend lines (green dashed)
-    for (const l of piece.bendLines) {
-      rects.push(`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#00cc44" stroke-width="0.3" stroke-dasharray="6,3"/>`);
-    }
+
     // Panel labels
     for (const panel of piece.panels) {
       rects.push(
@@ -632,8 +692,26 @@ export function acmPiecesToSVG(pieces: AcmFlatPiece[]): string {
     }
   }
 
+  const metadata = {
+    schema: "acm-flat-pattern-v2",
+    units: "mm",
+    componentCount: pieces.length,
+    components: pieces.map((piece) => {
+      const component = asComponentPiece(piece);
+      return {
+        id: piece.id,
+        label: piece.label,
+        component: component?.component ?? "flat",
+        corner: component?.corner,
+        bounds: componentBounds(piece),
+        trayBounds: component?.trayBounds,
+        operationCount: component?.operations?.length ?? 0,
+      };
+    }),
+  };
+
   const margin = 10;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW + margin * 2}" height="${totalH + margin * 2}" viewBox="${-margin} ${-margin} ${totalW + margin * 2} ${totalH + margin * 2}"><metadata>${JSON.stringify({ schema: "acm-flat-pattern-v2", units: "mm", componentCount: pieces.length })}</metadata>\n${rects.join("\n")}\n</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW + margin * 2}" height="${totalH + margin * 2}" viewBox="${-margin} ${-margin} ${totalW + margin * 2} ${totalH + margin * 2}"><metadata>${JSON.stringify(metadata)}</metadata>\n${rects.join("\n")}\n</svg>`;
 }
 
 // ─── DXF Export ──────────────────────────────────────────────────
@@ -645,7 +723,27 @@ export function acmPiecesToDXF(pieces: AcmFlatPiece[]): string {
     lines += `0\nLINE\n8\n${layer}\n10\n${x1}\n20\n${y1}\n30\n0\n11\n${x2}\n21\n${y2}\n31\n0\n`;
   };
 
+  const addCircle = (cx: number, cy: number, radius: number, layer: string) => {
+    lines += `0\nCIRCLE\n8\n${layer}\n10\n${cx}\n20\n${cy}\n30\n0\n40\n${radius}\n`;
+  };
+
   for (const piece of pieces) {
+    const component = asComponentPiece(piece);
+
+    if (component) {
+      for (const op of component.operations ?? []) {
+        if (op.geometry === "circle" && op.cx !== undefined && op.cy !== undefined && op.radius !== undefined) {
+          addCircle(op.cx, op.cy, op.radius, "CORTE_INTERNO");
+          continue;
+        }
+        if (op.geometry === "line" && op.x1 !== undefined && op.y1 !== undefined && op.x2 !== undefined && op.y2 !== undefined) {
+          const layer = op.type === "CUT_INNER" ? "CORTE_INTERNO" : op.type === "BEND" ? "DOBRA" : "CORTE";
+          addLine(op.x1, op.y1, op.x2, op.y2, layer);
+        }
+      }
+      continue;
+    }
+
     for (const l of piece.cutLines) addLine(l.x1, l.y1, l.x2, l.y2, "CORTE");
     for (const l of piece.machiningLines) addLine(l.x1, l.y1, l.x2, l.y2, "USINAGEM");
     for (const l of piece.bendLines) addLine(l.x1, l.y1, l.x2, l.y2, "DOBRA");
