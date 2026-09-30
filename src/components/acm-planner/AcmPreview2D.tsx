@@ -6,6 +6,8 @@ interface Props {
   className?: string;
   /** Componente destacado (prévia técnica individual) */
   highlightId?: string;
+  /** Exibe ou oculta as cotas internas dos painéis. */
+  showDimensions?: boolean;
 }
 
 const CORNER_SHORT: Record<string, string> = {
@@ -15,7 +17,7 @@ const CORNER_SHORT: Record<string, string> = {
   "bottom-right": "Inf. Dir.",
 };
 
-export function AcmPreview2D({ pieces, className, highlightId }: Props) {
+export function AcmPreview2D({ pieces, className, highlightId, showDimensions = true }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -78,13 +80,15 @@ export function AcmPreview2D({ pieces, className, highlightId }: Props) {
             ? CORNER_SHORT[component.corner] ?? panel.label
             : panel.label;
         ctx.fillText(label, panel.x + panel.width / 2, panel.y + panel.height / 2 - fontSize * 0.5);
-        ctx.font = `${fontSize * 0.7}px sans-serif`;
-        ctx.fillStyle = "#888888";
-        ctx.fillText(
-          `${panel.width.toFixed(0)} × ${panel.height.toFixed(0)}`,
-          panel.x + panel.width / 2,
-          panel.y + panel.height / 2 + fontSize * 0.6
-        );
+        if (showDimensions) {
+          ctx.font = `${fontSize * 0.7}px sans-serif`;
+          ctx.fillStyle = "#888888";
+          ctx.fillText(
+            `${panel.width.toFixed(0)} × ${panel.height.toFixed(0)}`,
+            panel.x + panel.width / 2,
+            panel.y + panel.height / 2 + fontSize * 0.6
+          );
+        }
       });
 
       if (component) {
@@ -175,7 +179,7 @@ export function AcmPreview2D({ pieces, className, highlightId }: Props) {
     ctx.setLineDash([]);
     ctx.fillStyle = "#22cc55";
     ctx.fillText("Dobra", 194, legendY + 3);
-  }, [pieces, highlightId]);
+  }, [pieces, highlightId, showDimensions]);
 
   return (
     <canvas

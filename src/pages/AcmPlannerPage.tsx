@@ -55,6 +55,7 @@ export default function AcmPlannerPage() {
   const [viewTab, setViewTab] = useState<"preview" | "list">("preview");
   const [activeComponent, setActiveComponent] = useState<string | null>(null);
   const [fullscreenPreview, setFullscreenPreview] = useState<"3d" | "2d" | null>(null);
+  const [showDimensions, setShowDimensions] = useState(true);
 
   // Always generate a live 3D preview
   const liveResult = generateAcm(params);
@@ -671,8 +672,58 @@ export default function AcmPlannerPage() {
                       dimensions={{ width: params.width, height: params.height, depth: params.depth }}
                       className="h-full w-full"
                     />
+
+                    {isTrayModel && (
+                      <div
+                        className="absolute bottom-3 right-3 w-[min(42%,260px)] min-w-[180px] max-w-[calc(100%-1.5rem)] rounded-lg border border-border/80 bg-card/95 shadow-lg backdrop-blur-sm"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between gap-2 border-b border-border/70 px-2.5 py-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <Eye className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="truncate text-[11px] font-medium text-foreground">Planificação 2D</span>
+                            <Badge variant="outline" className="hidden text-[9px] sm:inline-flex">Ao vivo</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            title="Ampliar planificação 2D"
+                            onClick={() => setFullscreenPreview("2d")}
+                          >
+                            <Maximize2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="relative h-40 overflow-hidden sm:h-44 md:h-48">
+                          <AcmPreview2D
+                            pieces={liveResult.pieces}
+                            className="h-full w-full"
+                            highlightId={activeComponent ?? undefined}
+                            showDimensions={showDimensions}
+                          />
+                          <div className="absolute bottom-1.5 right-1.5 rounded-md border border-border/70 bg-card/90 px-1.5 py-1 text-[9px] text-muted-foreground">
+                            {liveResult.pieces.length} peça(s)
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 border-t border-border/70 px-2.5 py-1.5">
+                          <span className="text-[10px] text-muted-foreground">Sincronizada com o 3D</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => setShowDimensions((visible) => !visible)}
+                          >
+                            <Ruler className="mr-1 h-3 w-3" />
+                            Cotas {showDimensions ? "visíveis" : "ocultas"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {isTrayModel && (params.simulationProgress ?? 100) < 100 && (
-                      <p className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-card/80 rounded px-2 py-1">
+                      <p className="absolute bottom-2 left-2 max-w-[55%] text-xs text-muted-foreground bg-card/80 rounded px-2 py-1">
                         Simulação em {params.simulationProgress ?? 100}% — cantoneiras visíveis em 100%
                       </p>
                     )}
@@ -692,26 +743,15 @@ export default function AcmPlannerPage() {
                     className="h-8 w-8"
                     title={fullscreenPreview === "2d" ? "Sair da ampliação" : "Ampliar planificação 2D"}
                     onClick={() => setFullscreenPreview(fullscreenPreview === "2d" ? null : "2d")}
-                    disabled={!result}
-                  >
-                    {fullscreenPreview === "2d" ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   </Button>
                 </CardHeader>
                 <CardContent className="p-0 h-[calc(100%-57px)]">
-                  {result ? (
-                    <AcmPreview2D
-                      pieces={result.pieces}
-                      className="h-full w-full"
-                      highlightId={activeComponent ?? undefined}
-                    />
-                  ) : (
-                    <div className="h-full flex items-center justify-center p-6 text-center bg-muted/10">
-                      <div className="space-y-2">
-                        <Eye className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">Gere a planificação para visualizar o desenho 2D.</p>
-                      </div>
-                    </div>
-                  )}
+                  <AcmPreview2D
+                    pieces={liveResult.pieces}
+                    className="h-full w-full"
+                    highlightId={activeComponent ?? undefined}
+                    showDimensions={showDimensions}
+                  />
                 </CardContent>
               </Card>
             </div>
