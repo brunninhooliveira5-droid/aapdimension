@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
 import {
   Box, Eye, Table2, Download, FileText, Play, Settings2,
-  Layers, Ruler, Wrench, Maximize2,
+  Layers, Ruler, Wrench, Maximize2, Minimize2,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import {
@@ -52,8 +52,9 @@ const TRAY_COLORS: { value: string; label: string }[] = [
 export default function AcmPlannerPage() {
   const [params, setParams] = useState<AcmParams>(defaultAcmParams);
   const [result, setResult] = useState<AcmResult | null>(null);
-  const [viewTab, setViewTab] = useState<"3d" | "2d" | "list">("3d");
+  const [viewTab, setViewTab] = useState<"preview" | "list">("preview");
   const [activeComponent, setActiveComponent] = useState<string | null>(null);
+  const [fullscreenPreview, setFullscreenPreview] = useState<"3d" | "2d" | null>(null);
 
   // Always generate a live 3D preview
   const liveResult = generateAcm(params);
@@ -97,7 +98,7 @@ export default function AcmPlannerPage() {
 
   const focusComponent = (componentId: string) => {
     setActiveComponent(componentId);
-    setViewTab("2d");
+    setViewTab("preview");
     if (!result) {
       try {
         setResult(generateAcm(params));
@@ -619,15 +620,11 @@ export default function AcmPlannerPage() {
         </div>
 
         {/* ─── Right Panel — Preview ─── */}
-        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
-          {/* View Switcher */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-4 min-w-0">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-1">
-              <Button variant={viewTab === "3d" ? "default" : "outline"} size="sm" onClick={() => setViewTab("3d")}>
-                <Box className="h-3.5 w-3.5 mr-1" /> 3D
-              </Button>
-              <Button variant={viewTab === "2d" ? "default" : "outline"} size="sm" onClick={() => setViewTab("2d")} disabled={!result}>
-                <Eye className="h-3.5 w-3.5 mr-1" /> 2D
+              <Button variant={viewTab === "preview" ? "default" : "outline"} size="sm" onClick={() => setViewTab("preview")}>
+                <Box className="h-3.5 w-3.5 mr-1" /> Pré-visualização
               </Button>
               <Button variant={viewTab === "list" ? "default" : "outline"} size="sm" onClick={() => setViewTab("list")} disabled={!result}>
                 <Table2 className="h-3.5 w-3.5 mr-1" /> Lista
@@ -649,41 +646,84 @@ export default function AcmPlannerPage() {
             )}
           </div>
 
-          {/* Preview Area */}
-          <Card className="overflow-hidden">
-            <CardContent className="p-0" style={{ height: "500px" }}>
-              {viewTab === "3d" && (
-                <div className="relative h-full">
-                  <AcmPreview3D
-                    faces={liveResult.faces3d}
-                    dimensions={{ width: params.width, height: params.height, depth: params.depth }}
-                    className="h-full"
-                  />
-                  {isTrayModel && (params.simulationProgress ?? 100) < 100 && (
-                    <p className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-card/80 rounded px-2 py-1">
-                      Simulação em {params.simulationProgress ?? 100}% — cantoneiras visíveis em 100%
-                    </p>
+          {viewTab === "preview" && (
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.75fr)] gap-4 items-stretch">
+              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "3d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[480px]"}`}>
+                <CardHeader className="py-3 px-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Box className="h-4 w-4 text-primary" /> Preview 3D
+                    <Badge variant="secondary" className="text-[10px]">Principal</Badge>
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title={fullscreenPreview === "3d" ? "Sair da tela cheia" : "Tela cheia"}
+                    onClick={() => setFullscreenPreview(fullscreenPreview === "3d" ? null : "3d")}
+                  >
+                    {fullscreenPreview === "3d" ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0 h-[calc(100%-57px)]">
+                  <div className="relative h-full min-h-0">
+                    <AcmPreview3D
+                      faces={liveResult.faces3d}
+                      dimensions={{ width: params.width, height: params.height, depth: params.depth }}
+                      className="h-full w-full"
+                    />
+                    {isTrayModel && (params.simulationProgress ?? 100) < 100 && (
+                      <p className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-card/80 rounded px-2 py-1">
+                        Simulação em {params.simulationProgress ?? 100}% — cantoneiras visíveis em 100%
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "2d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[360px]"}`}>
+                <CardHeader className="py-3 px-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-primary" /> Planificação 2D
+                    <Badge variant="outline" className="text-[10px]">Simultânea</Badge>
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title={fullscreenPreview === "2d" ? "Sair da ampliação" : "Ampliar planificação 2D"}
+                    onClick={() => setFullscreenPreview(fullscreenPreview === "2d" ? null : "2d")}
+                    disabled={!result}
+                  >
+                    {fullscreenPreview === "2d" ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0 h-[calc(100%-57px)]">
+                  {result ? (
+                    <AcmPreview2D
+                      pieces={result.pieces}
+                      className="h-full w-full"
+                      highlightId={activeComponent ?? undefined}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center p-6 text-center bg-muted/10">
+                      <div className="space-y-2">
+                        <Eye className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">Gere a planificação para visualizar o desenho 2D.</p>
+                      </div>
+                    </div>
                   )}
-                </div>
-              )}
-              {viewTab === "2d" && result && (
-                <AcmPreview2D
-                  pieces={result.pieces}
-                  className="h-full"
-                  highlightId={activeComponent ?? undefined}
-                />
-              )}
-              {viewTab === "list" && result && (
-                <div className="p-4 overflow-auto h-full">
-                  <AcmPartsList
-                    pieces={result.pieces}
-                    material={matLabel}
-                    thickness={thickness}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {viewTab === "list" && result && (
+            <Card className="overflow-hidden">
+              <CardContent className="p-4 max-h-[min(68vh,720px)] overflow-auto">
+                <AcmPartsList pieces={result.pieces} material={matLabel} thickness={thickness} />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
