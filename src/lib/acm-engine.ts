@@ -5,7 +5,10 @@
 
 // ─── Types ───────────────────────────────────────────────────────
 
+import { generateClassicTray, trayParamsFromAcm } from "./acm-tray-engine";
+
 export type AcmObjectType =
+  | "classic_tray"
   | "box"
   | "niche"
   | "totem"
@@ -48,6 +51,15 @@ export interface AcmParams {
   machiningDepth: number; // how deep to machine (leaving skin)
   bendAllowance: number;  // compensation for bend radius
   closingGap: number;     // gap left when closing
+  trayEnabled?: boolean;
+  bracketWidth?: number;
+  bracketHeight?: number;
+  bracketHoleDiameter?: number;
+  bracketHoleOffset?: number;
+  selectedCorners?: ("top-left" | "top-right" | "bottom-left" | "bottom-right")[];
+  simulationProgress?: number;
+  trayColor?: string;
+  trayFinish?: string;
 }
 
 export interface AcmFlatPiece {
@@ -118,6 +130,7 @@ export const defaultAcmParams: AcmParams = {
 };
 
 export const ACM_OBJECT_OPTIONS: { value: AcmObjectType; label: string }[] = [
+  { value: "classic_tray", label: "Bandeja Clássica" },
   { value: "box", label: "Caixa Retangular" },
   { value: "niche", label: "Nicho" },
   { value: "totem", label: "Totem" },
@@ -569,7 +582,11 @@ function generateGenericFlat(p: AcmParams, label: string): AcmResult {
 // ─── Main Generator ──────────────────────────────────────────────
 
 export function generateAcm(params: AcmParams): AcmResult {
+  if (params.objectType === "classic_tray" || params.trayEnabled) {
+    return generateClassicTray(trayParamsFromAcm(params));
+  }
   switch (params.objectType) {
+    case "classic_tray": return generateClassicTray(trayParamsFromAcm(params));
     case "box": return generateBox(params);
     case "niche": return generateNiche(params);
     case "totem": return generateTotem(params);
@@ -616,7 +633,7 @@ export function acmPiecesToSVG(pieces: AcmFlatPiece[]): string {
   }
 
   const margin = 10;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW + margin * 2}" height="${totalH + margin * 2}" viewBox="${-margin} ${-margin} ${totalW + margin * 2} ${totalH + margin * 2}">\n${rects.join("\n")}\n</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW + margin * 2}" height="${totalH + margin * 2}" viewBox="${-margin} ${-margin} ${totalW + margin * 2} ${totalH + margin * 2}"><metadata>${JSON.stringify({ schema: "acm-flat-pattern-v2", units: "mm", componentCount: pieces.length })}</metadata>\n${rects.join("\n")}\n</svg>`;
 }
 
 // ─── DXF Export ──────────────────────────────────────────────────
