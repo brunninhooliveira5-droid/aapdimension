@@ -648,11 +648,11 @@ export default function AcmPlannerPage() {
           </div>
 
           {viewTab === "preview" && (
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.75fr)] gap-4 items-stretch">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] gap-4 items-stretch">
               <Card className={`overflow-hidden min-w-0 ${fullscreenPreview === "3d" ? "fixed inset-3 z-50 h-[calc(100vh-1.5rem)] bg-card shadow-2xl" : "h-[min(68vh,720px)] min-h-[480px]"}`}>
                 <CardHeader className="py-3 px-4 border-b border-border flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Box className="h-4 w-4 text-primary" /> Preview 3D
+                    <Box className="h-4 w-4 text-primary" /> Visualização 3D
                     <Badge variant="secondary" className="text-[10px]">Principal</Badge>
                   </CardTitle>
                   <Button
